@@ -9,10 +9,9 @@
 
 [DTP Transitで公開しているスクリプトについて｜DTP Transit 別館](https://note.com/dtp_tranist/n/n60092f59a341)
 
+## ページ
 
-# ページ
-
-## 現在の親ページを参照してページ挿入
+### 現在の親ページを参照してページ挿入
 
 デフォルトの［ページ挿入］ダイアログボックスは、現在選択しているページのマスターを参照しません。
 
@@ -20,4 +19,4 @@
 
 https://github.com/swwwitch/indesign-scripts/blob/c580906e01ba767b8c08feba7b35deb693ab3a94/jsx/AddPagesUsingCurrentMaster.jsx
 
-![](png/ss-420-332-72-20250626-135739.png)
+<img alt="" src="png/ss-420-332-72-20250626-135739.png" width="50%" />
