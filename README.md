@@ -20,3 +20,11 @@
 https://github.com/swwwitch/indesign-scripts/blob/c580906e01ba767b8c08feba7b35deb693ab3a94/jsx/AddPagesUsingCurrentMaster.jsx
 
 <img alt="" src="png/ss-420-332-72-20250626-135739.png" width="50%" />
+
+## 段落スタイル
+
+同じテキストが同じ段落スタイルで繰り返すとき、末尾にナンバリングします。
+
+![](png/ss-860-722-72-20250630-045123.png)
+
+https://github.com/swwwitch/indesign-scripts/blob/509d5929089edb0523461ea2f49b262469fd9a84/jsx/AppendParagraphNumbering.jsx
