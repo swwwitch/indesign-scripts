@@ -19,7 +19,8 @@
     作成日：2025-06-29
     更新履歴:
     -v1.0.0 (2025-06-29): 初版
-    -v1.0.7 (2025-07-01):p.img, p.tableスタイルの段落を無視するよう修正
+    -v1.0.7 (2025-07-01): p.img, p.tableスタイルの段落を無視するよう修正
+    -v1.0.8 (2025-07-02): 段落スタイルをリストアップし、リンクのない段落スタイルをチェックボックスで選択可能に
 */
 
 function getCurrentLang() {
@@ -59,11 +60,24 @@ function main() {
     var stories = doc.stories;
     var comboMap = {};
 
-    // 段落内容とスタイルを分析
+    // プログレスバー表示
+    var progressWin = new Window("palette", "解析中");
+    progressWin.orientation = "column";
+    progressWin.alignChildren = ["fill", "top"];
+    progressWin.margins = [20, 20, 20, 20];
+    var progressBar = progressWin.add("progressbar", undefined, 0, stories.length);
+    progressBar.preferredSize = [330, 7];
+    progressWin.show();
+
     for (var i = 0; i < stories.length; i++) {
         var paragraphs = stories[i].paragraphs;
         for (var j = 0; j < paragraphs.length; j++) {
             var para = paragraphs[j];
+            // Skip if paragraph is on a master page
+            if (para.parentTextFrames && para.parentTextFrames.length > 0) {
+                var tf = para.parentTextFrames[0];
+                if (tf.parent instanceof MasterSpread) continue;
+            }
             var content = para.contents.replace(/[\r\n]+$/, "");
             var cleaned = content.replace(/[（\(][0-9０-９]+[）\)]$/, "");
             if (!cleaned.match(/^(.+)$/)) continue;
@@ -83,7 +97,11 @@ function main() {
                 comboMap[key].count++;
             }
         }
+        progressBar.value = i + 1;
+        progressWin.update();
     }
+
+    progressWin.close();
 
     var targets = [];
     for (var key in comboMap) {
@@ -105,8 +123,27 @@ function main() {
     dialog.orientation = "column";
     dialog.alignChildren = ["fill", "top"];
 
+    var fullWidthBtn, halfWidthBtn;
+
+    var mainGroup = dialog.add("group");
+    mainGroup.orientation = "row";
+    mainGroup.alignChildren = ["fill", "top"];
+
+    // 左カラム
+    var leftGroup = mainGroup.add("group");
+    leftGroup.orientation = "column";
+    leftGroup.alignChildren = ["fill", "top"];
+
+    // スタイルパネル（新たに追加）
+    var stylePanel = leftGroup.add("panel", undefined, "段落スタイル");
+    stylePanel.orientation = "column";
+    stylePanel.alignChildren = ["left", "top"];
+    stylePanel.margins = [15, 20, 15, 10];
+
+    // 内容は変更しないため空のまま
+
     // 対象パネル
-    var targetGroup = dialog.add("panel", undefined, LABELS.target[lang]);
+    var targetGroup = leftGroup.add("panel", undefined, LABELS.target[lang]);
     targetGroup.orientation = "row";
     targetGroup.alignChildren = ["left", "top"];
     var storyRadio = targetGroup.add("radiobutton", undefined, LABELS.story[lang]);
@@ -114,10 +151,25 @@ function main() {
     targetGroup.margins = [15, 20, 15, 10];
     storyRadio.value = true;
 
-    var listBox = dialog.add("listbox", undefined, "", {
+    // 全角/半角
+    var radioGroup;
+    if (lang === "ja") {
+        radioGroup = leftGroup.add("group");
+        radioGroup.orientation = "row";
+        radioGroup.alignment = "center";
+        fullWidthBtn = radioGroup.add("radiobutton", undefined, "全角");
+        halfWidthBtn = radioGroup.add("radiobutton", undefined, "半角");
+        fullWidthBtn.value = true;
+    }
+
+    // 右カラム
+    var rightGroup = mainGroup.add("group");
+    rightGroup.orientation = "column";
+    rightGroup.alignChildren = ["fill", "top"];
+    var listBox = rightGroup.add("listbox", undefined, "", {
         multiselect: true
     });
-    listBox.preferredSize = [400, 150];
+    listBox.preferredSize = [400, 400];
 
     for (var i = 0; i < targets.length; i++) {
         var baseText = targets[i].text;
@@ -132,18 +184,49 @@ function main() {
         item.helpTip = targets[i].text;
     }
 
-    if (listBox.items.length > 0) {
-        listBox.items[0].selected = true;
+    // Extract unique paragraph styles used in targets and add checkboxes to stylePanel
+    var styleSet = {};
+    for (var i = 0; i < targets.length; i++) {
+        styleSet[targets[i].style] = true;
     }
 
-    var fullWidthBtn, halfWidthBtn;
-    if (lang === "ja") {
-        var radioGroup = dialog.add("group");
-        radioGroup.orientation = "row";
-        radioGroup.alignment = "center";
-        fullWidthBtn = radioGroup.add("radiobutton", undefined, "全角");
-        halfWidthBtn = radioGroup.add("radiobutton", undefined, "半角");
-        fullWidthBtn.value = true;
+    var sortedStyles = [];
+    for (var styleName in styleSet) {
+        sortedStyles.push(styleName);
+    }
+    sortedStyles.sort();
+
+    // Add checkboxes to stylePanel, store in styleCheckboxes
+    var styleCheckboxes = {};
+    for (var i = 0; i < sortedStyles.length; i++) {
+        var styleName = sortedStyles[i];
+        var cb = stylePanel.add("checkbox", undefined, styleName);
+        cb.value = true;
+        styleCheckboxes[styleName] = cb;
+    }
+    stylePanel.layout.layout(true);
+
+    // Function to update listBox enabled state based on style checkboxes
+    function updateListBoxEnabled() {
+        for (var i = 0; i < listBox.items.length; i++) {
+            var item = listBox.items[i];
+            var styleName = targets[i].style;
+            if (styleCheckboxes[styleName].value) {
+                item.enabled = true;
+            } else {
+                item.enabled = false;
+                item.selected = false; // Optional: deselect when disabled
+            }
+        }
+    }
+
+    // Connect onClick for each style checkbox
+    for (var style in styleCheckboxes) {
+        styleCheckboxes[style].onClick = updateListBoxEnabled;
+    }
+
+    if (listBox.items.length > 0) {
+        listBox.items[0].selected = true;
     }
 
     var buttonGroup = dialog.add("group");
@@ -205,6 +288,11 @@ function main() {
             var paragraphs = processStories[i].paragraphs;
             for (var j = 0; j < paragraphs.length; j++) {
                 var para = paragraphs[j];
+                // Skip if paragraph is on a master page
+                if (para.parentTextFrames && para.parentTextFrames.length > 0) {
+                    var tf = para.parentTextFrames[0];
+                    if (tf.parent instanceof MasterSpread) continue;
+                }
                 var content = para.contents.replace(/[\r\n]+$/, "");
                 var styleName = para.appliedParagraphStyle.name;
                 if (styleName == "p.img" || styleName == "p.table") continue;
