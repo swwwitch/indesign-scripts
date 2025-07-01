@@ -21,6 +21,7 @@
     -v1.0.0 (2025-06-29): 初版
     -v1.0.7 (2025-07-01): p.img, p.tableスタイルの段落を無視するよう修正
     -v1.0.8 (2025-07-02): 段落スタイルをリストアップし、リンクのない段落スタイルをチェックボックスで選択可能に
+    -v1.0.9 (2025-07-03): ［削除］ボタンを追加
 */
 
 function getCurrentLang() {
@@ -52,6 +53,10 @@ var LABELS = {
     cancel: {
         ja: "キャンセル",
         en: "Cancel"
+    },
+    deleteBtn: {
+        ja: "削除",
+        en: "Delete"
     }
 };
 
@@ -73,7 +78,7 @@ function main() {
         var paragraphs = stories[i].paragraphs;
         for (var j = 0; j < paragraphs.length; j++) {
             var para = paragraphs[j];
-            // Skip if paragraph is on a master page
+            // マスターページ上の段落はスキップ
             if (para.parentTextFrames && para.parentTextFrames.length > 0) {
                 var tf = para.parentTextFrames[0];
                 if (tf.parent instanceof MasterSpread) continue;
@@ -111,7 +116,10 @@ function main() {
     }
 
     targets.sort(function(a, b) {
-        return b.count - a.count;
+        if (b.count !== a.count) {
+            return b.count - a.count;
+        }
+        return a.style.toLowerCase() < b.style.toLowerCase() ? -1 : 1;
     });
 
     if (targets.length === 0) {
@@ -134,13 +142,11 @@ function main() {
     leftGroup.orientation = "column";
     leftGroup.alignChildren = ["fill", "top"];
 
-    // スタイルパネル（新たに追加）
+    // 段落スタイルパネル（チェックボックスを追加）
     var stylePanel = leftGroup.add("panel", undefined, "段落スタイル");
     stylePanel.orientation = "column";
     stylePanel.alignChildren = ["left", "top"];
     stylePanel.margins = [15, 20, 15, 10];
-
-    // 内容は変更しないため空のまま
 
     // 対象パネル
     var targetGroup = leftGroup.add("panel", undefined, LABELS.target[lang]);
@@ -151,10 +157,9 @@ function main() {
     targetGroup.margins = [15, 20, 15, 10];
     storyRadio.value = true;
 
-    // 全角/半角
-    var radioGroup;
+    // 全角/半角選択（日本語UIのみ）
     if (lang === "ja") {
-        radioGroup = leftGroup.add("group");
+        var radioGroup = leftGroup.add("group");
         radioGroup.orientation = "row";
         radioGroup.alignment = "center";
         fullWidthBtn = radioGroup.add("radiobutton", undefined, "全角");
@@ -173,18 +178,13 @@ function main() {
 
     for (var i = 0; i < targets.length; i++) {
         var baseText = targets[i].text;
-        var displayText = baseText;
-
-        if (displayText.length > 28) {
-            displayText = displayText.substring(0, 25) + "…";
-        }
-
+        var displayText = baseText.length > 28 ? baseText.substring(0, 25) + "…" : baseText;
         var label = targets[i].style + ": " + displayText + "（" + targets[i].count + "）";
         var item = listBox.add("item", label);
         item.helpTip = targets[i].text;
     }
 
-    // Extract unique paragraph styles used in targets and add checkboxes to stylePanel
+    // 対象の段落スタイルを抽出し、チェックボックスを追加
     var styleSet = {};
     for (var i = 0; i < targets.length; i++) {
         styleSet[targets[i].style] = true;
@@ -196,7 +196,6 @@ function main() {
     }
     sortedStyles.sort();
 
-    // Add checkboxes to stylePanel, store in styleCheckboxes
     var styleCheckboxes = {};
     for (var i = 0; i < sortedStyles.length; i++) {
         var styleName = sortedStyles[i];
@@ -206,7 +205,7 @@ function main() {
     }
     stylePanel.layout.layout(true);
 
-    // Function to update listBox enabled state based on style checkboxes
+    // listBoxのアイテムの有効/無効をチェックボックスに連動
     function updateListBoxEnabled() {
         for (var i = 0; i < listBox.items.length; i++) {
             var item = listBox.items[i];
@@ -215,12 +214,11 @@ function main() {
                 item.enabled = true;
             } else {
                 item.enabled = false;
-                item.selected = false; // Optional: deselect when disabled
+                item.selected = false;
             }
         }
     }
 
-    // Connect onClick for each style checkbox
     for (var style in styleCheckboxes) {
         styleCheckboxes[style].onClick = updateListBoxEnabled;
     }
@@ -229,14 +227,107 @@ function main() {
         listBox.items[0].selected = true;
     }
 
+    // 選択された項目のキーを取得するヘルパー関数
+    function getSelectedKeys() {
+        var keys = {};
+        for (var i = 0; i < listBox.items.length; i++) {
+            if (listBox.items[i].selected) {
+                var key = targets[i].style + "___" + targets[i].text;
+                keys[key] = 1;
+            }
+        }
+        return keys;
+    }
+
+    // 選択されたストーリーを取得するヘルパー関数
+    function getProcessStories() {
+        var processStories = [];
+        if (storyRadio.value && app.selection.length > 0) {
+            var sel = app.selection[0];
+            var parentStory = null;
+
+            if (sel.hasOwnProperty("parentStory")) {
+                parentStory = sel.parentStory;
+            } else if (sel.parent && sel.parent.hasOwnProperty("parentStory")) {
+                parentStory = sel.parent.parentStory;
+            }
+
+            if (parentStory) {
+                processStories = [parentStory];
+            } else {
+                alert("選択したオブジェクトはストーリーとして認識できません。ドキュメント全体を対象にします。");
+                processStories = stories;
+            }
+        } else {
+            processStories = stories;
+        }
+        return processStories;
+    }
+
+    // 既存のナンバリングを削除する共通関数
+    function removeExistingNumbering(para) {
+        var regex = /[（\(][0-9０-９]+[）\)]$/;
+        var content = para.contents.replace(/[\r\n]+$/, "");
+        if (regex.test(content)) {
+            var match = content.match(regex);
+            if (match) {
+                var lengthToRemove = match[0].length;
+                var endIndex = para.characters.length - 1;
+                if (para.characters[endIndex].contents == "\r" || para.characters[endIndex].contents == "\n") {
+                    endIndex--;
+                }
+                var startIndex = endIndex - lengthToRemove + 1;
+                para.characters.itemByRange(startIndex, endIndex).remove();
+            }
+        }
+    }
+
+    var processStories = getProcessStories();
+
     var buttonGroup = dialog.add("group");
-    buttonGroup.alignment = "center";
-    buttonGroup.add("button", undefined, LABELS.cancel[lang], {
-        name: "cancel"
-    });
-    buttonGroup.add("button", undefined, LABELS.ok[lang], {
-        name: "ok"
-    });
+    buttonGroup.alignment = "fill";
+    buttonGroup.alignChildren = ["fill", "center"];
+
+    var leftButtons = buttonGroup.add("group");
+    leftButtons.alignment = "left";
+    var cancelBtn = leftButtons.add("button", undefined, LABELS.cancel[lang]);
+
+    var rightButtons = buttonGroup.add("group");
+    rightButtons.alignment = ["right", "center"];
+    var deleteBtn = rightButtons.add("button", undefined, LABELS.deleteBtn[lang]);
+
+    deleteBtn.onClick = function() {
+        var selectedKeys = getSelectedKeys();
+        var delCounts = {};
+        for (var key in selectedKeys) {
+            delCounts[key] = true;
+        }
+
+        for (var i = 0; i < processStories.length; i++) {
+            var paragraphs = processStories[i].paragraphs;
+            for (var j = 0; j < paragraphs.length; j++) {
+                var para = paragraphs[j];
+                if (para.parentTextFrames && para.parentTextFrames.length > 0) {
+                    var tf = para.parentTextFrames[0];
+                    if (tf.parent instanceof MasterSpread) continue;
+                }
+                var content = para.contents.replace(/[\r\n]+$/, "");
+                var styleName = para.appliedParagraphStyle.name;
+                if (styleName == "p.img" || styleName == "p.table") continue;
+                var regex = /[（\(][0-9０-９]+[）\)]$/;
+                var cleaned = content.replace(regex, "");
+                var key = styleName + "___" + cleaned;
+
+                if (!(key in delCounts)) continue;
+
+                removeExistingNumbering(para);
+            }
+        }
+
+        alert("選択したテキストから番号を削除しました。");
+    };
+
+    var okBtn = rightButtons.add("button", undefined, LABELS.ok[lang]);
 
     var result = dialog.show();
     if (result != 1) return;
@@ -248,35 +339,7 @@ function main() {
         rightParen = ")";
     }
 
-    var selectedKeys = {};
-    for (var i = 0; i < listBox.items.length; i++) {
-        if (listBox.items[i].selected) {
-            var key = targets[i].style + "___" + targets[i].text;
-            selectedKeys[key] = 1;
-        }
-    }
-
-    var processStories = [];
-    if (storyRadio.value && app.selection.length > 0) {
-        // selection[0] がテキストフレーム、テキスト、あるいは段落オブジェクトのときのみ parentStory を取得
-        var sel = app.selection[0];
-        var parentStory = null;
-
-        if (sel.hasOwnProperty("parentStory")) {
-            parentStory = sel.parentStory;
-        } else if (sel.parent && sel.parent.hasOwnProperty("parentStory")) {
-            parentStory = sel.parent.parentStory;
-        }
-
-        if (parentStory) {
-            processStories = [parentStory];
-        } else {
-            alert("選択したオブジェクトはストーリーとして認識できません。ドキュメント全体を対象にします。");
-            processStories = stories;
-        }
-    } else {
-        processStories = stories;
-    }
+    var selectedKeys = getSelectedKeys();
 
     function applyNumbering() {
         var localCounts = {};
@@ -288,7 +351,7 @@ function main() {
             var paragraphs = processStories[i].paragraphs;
             for (var j = 0; j < paragraphs.length; j++) {
                 var para = paragraphs[j];
-                // Skip if paragraph is on a master page
+                // マスターページ上の段落はスキップ
                 if (para.parentTextFrames && para.parentTextFrames.length > 0) {
                     var tf = para.parentTextFrames[0];
                     if (tf.parent instanceof MasterSpread) continue;
