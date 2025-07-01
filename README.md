@@ -23,8 +23,17 @@ https://github.com/swwwitch/indesign-scripts/blob/c580906e01ba767b8c08feba7b35de
 
 ## 段落スタイル
 
+### 同じテキストが同じ段落スタイルの末尾にナンバリング
+
 同じテキストが同じ段落スタイルで繰り返すとき、末尾にナンバリングします。
 
 ![](png/ss-860-722-72-20250630-045123.png)
 
 https://github.com/swwwitch/indesign-scripts/blob/509d5929089edb0523461ea2f49b262469fd9a84/jsx/AppendParagraphNumbering.jsx
+
+#### アップデート
+
+- 段落スタイルをリストアップし、チェックボックスを外したら対象リストから除外（ディム表示）
+- ［削除］ボタンを追加 （クリックすると末尾の番号を削除）
+
+![](png/ss-1330-1002-72-20250702-034808.png)
