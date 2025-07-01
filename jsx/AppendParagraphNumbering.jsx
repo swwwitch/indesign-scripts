@@ -19,6 +19,7 @@
     作成日：2025-06-29
     更新履歴:
     -v1.0.0 (2025-06-29): 初版
+    -v1.0.1 (2025-07-01):アンカー付きオブジェクトのみの行を除外
 */
 
 function getCurrentLang() {
@@ -65,6 +66,11 @@ function main() {
             var para = paragraphs[j];
             var content = para.contents.replace(/[\r\n]+$/, "");
             var cleaned = content.replace(/[（\(][0-9０-９]+[）\)]$/, "");
+            // 空白のみの段落を除外
+            var trimmed = cleaned.replace(/\s|　/g, "");
+            if (trimmed === "") continue;
+            // アンカーオブジェクト含む段落を除外
+            if (cleaned.indexOf("~a") !== -1) continue;
             if (!cleaned.match(/^(.+)$/)) continue;
 
             var styleName = para.appliedParagraphStyle.name;
