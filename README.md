@@ -21,6 +21,18 @@ https://github.com/swwwitch/indesign-scripts/blob/c580906e01ba767b8c08feba7b35de
 
 <img alt="" src="png/ss-420-332-72-20250626-135739.png" width="50%" />
 
+### 親（マスター）とドキュメントページの切替
+
+アクティブページがドキュメントページの場合はマスターにジャンプ、マスターページの場合は元のドキュメントページに戻ります。
+
+処理の流れ
+
+1. 現在のページを判定
+2. ドキュメントページならマスターへジャンプ
+3. マスターページなら元のドキュメントページに戻る
+
+https://github.com/swwwitch/indesign-scripts/blob/f5c7232f370334665f40ac548002ffc17d141fea/jsx/SwitchToMasterOrDocument.jsx
+
 ## 段落スタイル
 
 ### 同じテキストが同じ段落スタイルの末尾にナンバリング

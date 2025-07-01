@@ -17,6 +17,28 @@ https://github.com/swwwitch/indesign-scripts/blob/c580906e01ba767b8c08feba7b35de
 
 <img alt="" src="png/ss-420-332-72-20250626-135739.png" width="50%" />
 
+### Switch between master and document page
+
+This script allows you to easily toggle between a document page and its applied master page in Adobe InDesign.
+
+- If the active page is a document page, the script switches to its applied master page.
+- If the active page is a master page, it switches back to the document page that was active before.
+
+#### Usage Flow:
+
+1. Detect the current active page.
+2. If it's a document page, save the current page info and switch to the master page.
+3. If it's a master page, return to the previously saved document page.
+
+#### Notes:
+
+- You must have an open document and an active page.
+- The document property 'label' is temporarily used to store the original page name.
+- Inspired by the idea from: https://creativepro.com/files/kahrel/indesign/go_to_master.html
+
+https://github.com/swwwitch/indesign-scripts/blob/f5c7232f370334665f40ac548002ffc17d141fea/jsx/SwitchToMasterOrDocument.jsx
+
+
 ## Paragraph styles
 
 When the same text is repeated with the same paragraph style, this script appends numbering at the end.
