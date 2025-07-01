@@ -133,7 +133,7 @@ function main() {
     // Show progress bar
     var progressWin = new Window("palette", "解析中...");
     var progressBar = progressWin.add("progressbar", undefined, 0, paraCount);
-    progressBar.preferredSize = [300, 20];
+    progressBar.preferredSize = [300, 7];
     progressWin.show();
 
     // 全ストーリーの段落を走査し、段落スタイルとテキスト内容の組み合わせを集計
@@ -493,29 +493,35 @@ function main() {
     // リストボックスを更新する関数
     // Function to update the list box
     function updateListBox(targets, styleCheckboxes, listBox) {
-        listBox.removeAll();
+        // Instead of clearing all, hide items matching unchecked styles
         var checkedStyles = [];
         for (var j = 0; j < styleCheckboxes.length; j++) {
             if (styleCheckboxes[j].value) {
                 checkedStyles.push(styleCheckboxes[j].text);
             }
         }
-        for (var i = 0; i < targets.length; i++) {
-            var targetStyle = targets[i].style;
-            if (checkedStyles.indexOf(targetStyle) === -1) {
-                continue;
+        // Hide items with unchecked styles, show only checked
+        var visibleCount = 0;
+        for (var i = 0; i < listBox.items.length; i++) {
+            var item = listBox.items[i];
+            // Extract style from label: "Style: ..."
+            var label = item.text;
+            var styleInLabel = label.split(":")[0];
+            if (checkedStyles.indexOf(styleInLabel) === -1) {
+                item.visible = false;
+            } else {
+                item.visible = true;
+                visibleCount++;
             }
-            var baseText = targets[i].text;
-            var displayText = baseText;
-            if (displayText.length > 28) {
-                displayText = displayText.substring(0, 25) + "…";
-            }
-            var label = targets[i].style + ": " + displayText + "（" + targets[i].count + "）";
-            var item = listBox.add("item", label);
-            item.helpTip = targets[i].text;
         }
-        if (listBox.items.length > 0) {
-            listBox.items[0].selected = true;
+        // Select first visible item if any
+        if (visibleCount > 0) {
+            for (var i = 0; i < listBox.items.length; i++) {
+                if (listBox.items[i].visible) {
+                    listBox.items[i].selected = true;
+                    break;
+                }
+            }
         }
     }
 }
