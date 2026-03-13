@@ -17,7 +17,7 @@
         // 単位パネル名を具体化し、単位ラジオボタンを縦並びと詳細表記へ変更
         // 見開き対応のため、自動調整系で使うページ境界をスプレッド座標へ統一
 
-        var SCRIPT_VERSION = "v0.1.3";
+        var SCRIPT_VERSION = "0.1.4";
 
         // 言語判定
         function getCurrentLang() {
