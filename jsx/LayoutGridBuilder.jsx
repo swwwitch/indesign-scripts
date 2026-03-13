@@ -6,7 +6,7 @@
         // アクティブページに罫線・フレーム・タイトルエリア・塗り・区切り線などの
         // レイアウト要素をダイアログで設定し、一括作成するスクリプト。
         //
-        // バージョン: 0.1.3
+        // バージョン: v0.1.4
         // 作成日: 2026-03-12
         // 更新日: 2026-03-13
         // 日英ローカライズ対応
@@ -17,7 +17,7 @@
         // 単位パネル名を具体化し、単位ラジオボタンを縦並びと詳細表記へ変更
         // 見開き対応のため、自動調整系で使うページ境界をスプレッド座標へ統一
 
-        var SCRIPT_VERSION = "0.1.3";
+        var SCRIPT_VERSION = "v0.1.3";
 
         // 言語判定
         function getCurrentLang() {
@@ -136,7 +136,8 @@
             function getPageBoundsOnSpread(targetPage) {
                 var tl = targetPage.resolve(AnchorPoint.TOP_LEFT_ANCHOR, CoordinateSpaces.SPREAD_COORDINATES)[0];
                 var br = targetPage.resolve(AnchorPoint.BOTTOM_RIGHT_ANCHOR, CoordinateSpaces.SPREAD_COORDINATES)[0];
-                return [tl[1], tl[0], br[1], br[0]];
+                // スプレッド座標はpt単位なので、ドキュメントの定規単位に変換
+                return [tl[1] / ptPerUnit, tl[0] / ptPerUnit, br[1] / ptPerUnit, br[0] / ptPerUnit];
             }
 
             function getPageBleedOffsets(targetPage) {
@@ -1018,11 +1019,11 @@
                     var colGap = parseFloat(ui.colGapInput.text) || 0;
                     var cellWidth = (totalWidth - colGap * (colCount - 1)) / colCount;
 
-                    // 列幅をptに変換し、基本フォントサイズで割る
-                    var cellWidthPt = cellWidth * ptPerUnit;
+                    // 列幅を基本フォントサイズ（ドキュメント単位）で割る
                     var fontSizeRaw = parseFloat(ui.baseFontSizeInput.text) || 9.5;
                     var fontSize = ui.rbUnitMmQ.value ? fontSizeRaw / PT_TO_Q : fontSizeRaw;
-                    var charCount = Math.floor(cellWidthPt / fontSize);
+                    var fontSizeInUnit = fontSize / ptPerUnit;
+                    var charCount = Math.floor(cellWidth / fontSizeInUnit);
 
                     ui.colCharInput.text = String(charCount);
                 } catch (e) { }
