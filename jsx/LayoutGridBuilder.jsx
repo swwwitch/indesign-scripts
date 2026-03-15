@@ -6,9 +6,9 @@
         // アクティブページに罫線・フレーム・タイトルエリア・塗り・区切り線などの
         // レイアウト要素をダイアログで設定し、一括作成するスクリプト。
         //
-        // バージョン: v0.1.4
+        // バージョン: v0.2.0
         // 作成日: 2026-03-12
-        // 更新日: 2026-03-13
+        // 更新日: 2026-03-15
         // 日英ローカライズ対応
         // 外側エリアと実コンテンツ領域を分離し、タイトルエリアとカラムエリア（＋アキ）を実コンテンツ領域から差し引くよう調整
         // ローカライズの直書き箇所（自動調整・仮グリッド・表示/残す・表示パネル名）をLABELSへ集約
@@ -16,8 +16,9 @@
         // Autoボタン幅を統一し、列幅の文字数ラベルをLABELSへ集約
         // 単位パネル名を具体化し、単位ラジオボタンを縦並びと詳細表記へ変更
         // 見開き対応のため、自動調整系で使うページ境界をスプレッド座標へ統一
+        // 区切り線「点線」を「破線」に改称し、破線・点線をitemByName("破線 (3 & 2)"/"点線 (1 & 1)")で取得するよう変更
 
-        var SCRIPT_VERSION = "0.1.4";
+        var SCRIPT_VERSION = "0.2.0";
 
         // 言語判定
         function getCurrentLang() {
@@ -84,7 +85,7 @@
 
             dividerEnable: { ja: "区切り線を描画", en: "Draw dividers" },
             lineSolid: { ja: "実線", en: "Solid" },
-            lineDashed: { ja: "点線", en: "Dashed" },
+            lineDashed: { ja: "破線", en: "Dashed" },
             lineDotted: { ja: "ドット点線", en: "Dotted" },
             lineWeight: { ja: "線幅:", en: "Weight:" },
             enabled: { ja: "有効", en: "Enable" },
@@ -2029,16 +2030,18 @@
                     var divStrokeStyle = null;
                     var divEndCap = EndCap.BUTT_END_CAP;
                     if (lineType === "dashed") {
-                        var dashedNames = ["Dashed (3 and 2)", "破線（3 - 2）", "Dashed (4 and 4)", "破線（4 - 4）"];
-                        for (var dn = 0; dn < dashedNames.length; dn++) {
-                            try { var tmp = doc.strokeStyles.item(dashedNames[dn]); tmp.name; divStrokeStyle = tmp; break; } catch (e) { }
+                        var dashedStyle = doc.strokeStyles.itemByName("破線 (3 & 2)");
+                        if (dashedStyle.isValid) {
+                            divStrokeStyle = dashedStyle;
+                        } else {
+                            alert("線種『破線 (3 & 2)』がドキュメントにありません。実線で描画します。");
                         }
                     } else if (lineType === "dotted") {
-                        // ドット点線: 線幅と同じ間隔の丸型線端で表現
-                        divEndCap = EndCap.ROUND_END_CAP;
-                        var dottedNames = ["Japanese Dots", "ドット", "Dotted"];
-                        for (var dn2 = 0; dn2 < dottedNames.length; dn2++) {
-                            try { var tmp2 = doc.strokeStyles.item(dottedNames[dn2]); tmp2.name; divStrokeStyle = tmp2; break; } catch (e) { }
+                        var dottedStyle = doc.strokeStyles.itemByName("点線 (1 & 1)");
+                        if (dottedStyle.isValid) {
+                            divStrokeStyle = dottedStyle;
+                        } else {
+                            alert("線種『点線 (1 & 1)』がドキュメントにありません。実線で描画します。");
                         }
                     }
 
