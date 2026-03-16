@@ -5,7 +5,9 @@
 // Original script is based on Adobe InDesign's bundled FindChangeByList.jsx.
 // memo https://note.com/dtp_tranist/n/n8c0211d92c96
 
-var SCRIPT_VERSION = "v1.0";
+(function () {
+
+var SCRIPT_VERSION = "v1.0.1";
 
 function getCurrentLang() {
 	return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -19,9 +21,14 @@ var LABELS = {
 	progressLabel: { ja: "Markdown → 段落スタイル変換", en: "Markdown to Paragraph Styles" },
 	undoName: { ja: "Markdown → 段落スタイル変換", en: "Markdown to Paragraph Styles" },
 	// スコープ
+	scopeLabel: { ja: "スコープ", en: "Scope" },
 	scopeDoc: { ja: "ドキュメント", en: "Document" },
 	scopeStory: { ja: "ストーリー", en: "Story" },
 	scopeSelection: { ja: "選択範囲", en: "Selection" },
+	// ソース形式
+	sourceLabel: { ja: "形式", en: "Format" },
+	sourceHTML: { ja: "HTML", en: "HTML" },
+	sourceMSWord: { ja: "MS Word", en: "MS Word" },
 	// パネル
 	panelHeadings: { ja: "基本段落と見出し", en: "Paragraph & Headings" },
 	panelList: { ja: "リスト", en: "List" },
@@ -86,8 +93,6 @@ function L(key) {
 	return LABELS[key][lang] || LABELS[key]["en"];
 }
 
-main();
-
 function main() {
 	app.scriptPreferences.userInteractionLevel = UserInteractionLevels.interactWithAll;
 	if (app.documents.length == 0) {
@@ -97,24 +102,67 @@ function main() {
 	showDialog();
 }
 
-// ドロップダウン生成ヘルパー：preferredを先頭にしたリストを返す
-function addStyleDropdown(parent, names, preferred, width) {
+// ドロップダウンの項目を名前で選択するヘルパー
+function selectDropdownByName(dd, name) {
+	for (var i = 0; i < dd.items.length; i++) {
+		if (dd.items[i].text == name) {
+			dd.selection = i;
+			return;
+		}
+	}
+}
+
+// ソース形式ごとのデフォルトスタイル名
+var STYLE_PRESETS = {
+	html: {
+		paragraph: "p", h1: "h1", h2: "h2", h3: "h3", h4: "h4", h5: "h5", h6: "h6",
+		bullet: "ul-li", bulletSub: "ul-ul-li", numbered: "ol-li",
+		blockquote: "p.blockquote", caption: "p.caption",
+		codeBlock: "p.code", codeInline: "code",
+		image: "p.img", cell: "td", headerCell: "th",
+		bold: "strong-bold", emphasis: "em-i-marker", link: "link"
+	},
+	msword: {
+		paragraph: "Paragraph", h1: "Header1", h2: "Header2", h3: "Header3", h4: "Header4", h5: "Header4", h6: "Header4",
+		bullet: "BulList > first", bulletSub: "BulList > BulList > first", numbered: "NumList > first",
+		blockquote: "Blockquote > Paragraph", caption: "Caption",
+		codeBlock: "CodeBlock", codeInline: "Code",
+		image: "Figure", cell: "TablePar", headerCell: "TablePar > TableHeader",
+		bold: "Bold", emphasis: "Italic", link: "Link"
+	}
+};
+
+// ドロップダウン生成ヘルパー：preferred＋全プリセット候補を先頭にまとめたリストを返す
+// presetKey: STYLE_PRESETS内のキー名（例: "paragraph", "h1"）。省略可。
+function addStyleDropdown(parent, names, preferred, width, presetKey) {
+	// preferred＋各プリセットの候補名を収集（重複排除）
+	var candidates = [preferred];
+	if (presetKey) {
+		for (var p in STYLE_PRESETS) {
+			if (STYLE_PRESETS.hasOwnProperty(p) && STYLE_PRESETS[p][presetKey]) {
+				var cand = STYLE_PRESETS[p][presetKey];
+				var dup = false;
+				for (var c = 0; c < candidates.length; c++) {
+					if (candidates[c] == cand) { dup = true; break; }
+				}
+				if (!dup) candidates.push(cand);
+			}
+		}
+	}
+
+	// candidatesを先頭に、残りのドキュメントスタイルを後ろに
 	var sorted = [];
-	var idx = 0;
+	for (var c = 0; c < candidates.length; c++) {
+		sorted.push(candidates[c]);
+	}
 	for (var i = 0; i < names.length; i++) {
-		if (names[i] == preferred) { idx = -1; }
-	}
-	if (idx == -1) {
-		sorted.push(preferred);
-		for (var i = 0; i < names.length; i++) {
-			if (names[i] != preferred) sorted.push(names[i]);
+		var exists = false;
+		for (var c = 0; c < candidates.length; c++) {
+			if (names[i] == candidates[c]) { exists = true; break; }
 		}
-	} else {
-		sorted.push(preferred);
-		for (var i = 0; i < names.length; i++) {
-			sorted.push(names[i]);
-		}
+		if (!exists) sorted.push(names[i]);
 	}
+
 	var dd = parent.add("dropdownlist", [0, 0, width, 24], sorted);
 	dd.selection = 0;
 	return dd;
@@ -158,13 +206,26 @@ function showDialog() {
 	w.orientation = "column";
 	w.alignChildren = ["fill", "top"];
 
-	// ── スコープ ──
-	var scopeGroup = w.add("group");
-	scopeGroup.alignment = ["center", "top"];
+	// ── スコープ・ソース形式（中央配置、内部左揃え） ──
+	var topOuter = w.add("group");
+	topOuter.alignment = ["center", "top"];
+	topOuter.orientation = "column";
+	topOuter.alignChildren = ["left", "top"];
+
+	var labelWidth = 80;
+
+	var scopeGroup = topOuter.add("group");
+	scopeGroup.add("statictext", [0, 0, labelWidth, 20], L("scopeLabel") + L("resultSep"));
 	var rbDoc = scopeGroup.add("radiobutton", undefined, L("scopeDoc"));
 	var rbStory = scopeGroup.add("radiobutton", undefined, L("scopeStory"));
 	var rbSel = scopeGroup.add("radiobutton", undefined, L("scopeSelection"));
 	rbStory.value = true;
+
+	var sourceGroup = topOuter.add("group");
+	sourceGroup.add("statictext", [0, 0, labelWidth, 20], L("sourceLabel") + L("resultSep"));
+	var rbHTML = sourceGroup.add("radiobutton", undefined, L("sourceHTML"));
+	var rbMSWord = sourceGroup.add("radiobutton", undefined, L("sourceMSWord"));
+	rbHTML.value = true;
 
 	// ── 2カラム ──
 	var columns = w.add("group");
@@ -191,15 +252,15 @@ function showDialog() {
 	var chkP = rowP.add("checkbox", undefined, "");
 	chkP.value = true;
 	rowP.add("statictext", [0, 0, 120, 20], L("labelParagraph"));
-	var styleP = addStyleDropdown(rowP, paraStyleNames, "p", 160);
+	var styleP = addStyleDropdown(rowP, paraStyleNames, "p", 160, "paragraph");
 
 	var headings = [
-		{ label: L("labelHeading1"), md: "#", style: "h1" },
-		{ label: L("labelHeading2"), md: "##", style: "h2" },
-		{ label: L("labelHeading3"), md: "###", style: "h3" },
-		{ label: L("labelHeading4"), md: "####", style: "h4" },
-		{ label: L("labelHeading5"), md: "#####", style: "h5" },
-		{ label: L("labelHeading6"), md: "######", style: "h6" }
+		{ label: L("labelHeading1"), md: "#", style: "h1", key: "h1" },
+		{ label: L("labelHeading2"), md: "##", style: "h2", key: "h2" },
+		{ label: L("labelHeading3"), md: "###", style: "h3", key: "h3" },
+		{ label: L("labelHeading4"), md: "####", style: "h4", key: "h4" },
+		{ label: L("labelHeading5"), md: "#####", style: "h5", key: "h5" },
+		{ label: L("labelHeading6"), md: "######", style: "h6", key: "h6" }
 	];
 
 	var chkH = [], styleH = [];
@@ -208,7 +269,7 @@ function showDialog() {
 		chkH[i] = row.add("checkbox", undefined, "");
 		chkH[i].value = true;
 		row.add("statictext", [0, 0, 120, 20], headings[i].label);
-		styleH[i] = addStyleDropdown(row, paraStyleNames, headings[i].style, 160);
+		styleH[i] = addStyleDropdown(row, paraStyleNames, headings[i].style, 160, headings[i].key);
 	}
 
 	// ── リスト ──
@@ -220,19 +281,19 @@ function showDialog() {
 	var chkUl = rowUl.add("checkbox", undefined, "");
 	chkUl.value = true;
 	rowUl.add("statictext", [0, 0, 120, 20], L("labelBullet"));
-	var styleUl = addStyleDropdown(rowUl, paraStyleNames, "ul-li", 160);
+	var styleUl = addStyleDropdown(rowUl, paraStyleNames, "ul-li", 160, "bullet");
 
 	var rowUl2 = listPanel.add("group");
 	var chkUl2 = rowUl2.add("checkbox", undefined, "");
 	chkUl2.value = true;
 	rowUl2.add("statictext", [0, 0, 120, 20], L("labelBulletSub"));
-	var styleUl2 = addStyleDropdown(rowUl2, paraStyleNames, "ul-ul-li", 160);
+	var styleUl2 = addStyleDropdown(rowUl2, paraStyleNames, "ul-ul-li", 160, "bulletSub");
 
 	var rowOl = listPanel.add("group");
 	var chkOl = rowOl.add("checkbox", undefined, "");
 	chkOl.value = true;
 	rowOl.add("statictext", [0, 0, 120, 20], L("labelNumbered"));
-	var styleOl = addStyleDropdown(rowOl, paraStyleNames, "ol-li", 160);
+	var styleOl = addStyleDropdown(rowOl, paraStyleNames, "ol-li", 160, "numbered");
 
 	// ── オプション ──
 	var optPanel2 = colL.add("panel", undefined, L("panelOptions"));
@@ -243,13 +304,13 @@ function showDialog() {
 	var chkBq = rowBq.add("checkbox", undefined, "");
 	chkBq.value = true;
 	rowBq.add("statictext", [0, 0, 120, 20], L("labelBlockquote"));
-	var styleBq = addStyleDropdown(rowBq, paraStyleNames, "p.blockquote", 160);
+	var styleBq = addStyleDropdown(rowBq, paraStyleNames, "p.blockquote", 160, "blockquote");
 
 	var rowCaption = optPanel2.add("group");
 	var chkCaption = rowCaption.add("checkbox", undefined, "");
 	chkCaption.value = true;
 	rowCaption.add("statictext", [0, 0, 120, 20], L("labelCaption"));
-	var styleCaption = addStyleDropdown(rowCaption, paraStyleNames, "p.caption", 160);
+	var styleCaption = addStyleDropdown(rowCaption, paraStyleNames, "p.caption", 160, "caption");
 
 	// ── ソースコード ──
 	var codePanel = colL.add("panel", undefined, L("panelCode"));
@@ -260,13 +321,13 @@ function showDialog() {
 	var chkCodeBlock = rowCodeBlock.add("checkbox", undefined, "");
 	chkCodeBlock.value = true;
 	rowCodeBlock.add("statictext", [0, 0, 120, 20], L("labelCodeBlock"));
-	var styleCodeBlock = addStyleDropdown(rowCodeBlock, paraStyleNames, "p.code", 160);
+	var styleCodeBlock = addStyleDropdown(rowCodeBlock, paraStyleNames, "p.code", 160, "codeBlock");
 
 	var rowCodeInline = codePanel.add("group");
 	var chkCodeInline = rowCodeInline.add("checkbox", undefined, "");
 	chkCodeInline.value = true;
 	rowCodeInline.add("statictext", [0, 0, 120, 20], L("labelCodeInline"));
-	var styleCodeInline = addStyleDropdown(rowCodeInline, charStyleNames, "code", 160);
+	var styleCodeInline = addStyleDropdown(rowCodeInline, charStyleNames, "code", 160, "codeInline");
 
 	// ━━ 右列 ━━
 
@@ -279,7 +340,7 @@ function showDialog() {
 	var chkImg = rowImg.add("checkbox", undefined, "");
 	chkImg.value = true;
 	rowImg.add("statictext", [0, 0, 120, 20], L("labelImage"));
-	var styleImg = addStyleDropdown(rowImg, paraStyleNames, "p.img", 160);
+	var styleImg = addStyleDropdown(rowImg, paraStyleNames, "p.img", 160, "image");
 
 	// ── 表組み ──
 	var tablePanel = colR.add("panel", undefined, L("panelTable"));
@@ -290,13 +351,13 @@ function showDialog() {
 	var chkTable = rowTd.add("checkbox", undefined, "");
 	chkTable.value = true;
 	rowTd.add("statictext", [0, 0, 120, 20], L("labelCell"));
-	var styleTable = addStyleDropdown(rowTd, paraStyleNames, "td", 160);
+	var styleTable = addStyleDropdown(rowTd, paraStyleNames, "td", 160, "cell");
 
 	var rowTh = tablePanel.add("group");
 	var chkTh = rowTh.add("checkbox", undefined, "");
 	chkTh.value = true;
 	rowTh.add("statictext", [0, 0, 120, 20], L("labelHeaderCell"));
-	var styleTh = addStyleDropdown(rowTh, paraStyleNames, "th", 160);
+	var styleTh = addStyleDropdown(rowTh, paraStyleNames, "th", 160, "headerCell");
 
 	// ── 文字スタイル ──
 	var charPanel = colR.add("panel", undefined, L("panelCharStyle"));
@@ -304,9 +365,9 @@ function showDialog() {
 	charPanel.margins = [15, 20, 15, 10];
 
 	var charItems = [
-		{ label: L("labelBold"), find: "\\*\\*([^*\\r\\n]+)\\*\\*", style: "strong-bold" },
-		{ label: L("labelEmphasis"), find: "\\*([^*\\r\\n]+)\\*", style: "em-i-marker" },
-		{ label: L("labelLink"), find: "\\[([^\\]\\r\\n]+)\\]\\(([^)\\r\\n]+)\\)", style: "link", changeTo: "$1 <$2>" }
+		{ label: L("labelBold"), find: "\\*\\*([^*\\r\\n]+)\\*\\*", style: "strong-bold", key: "bold" },
+		{ label: L("labelEmphasis"), find: "\\*([^*\\r\\n]+)\\*", style: "em-i-marker", key: "emphasis" },
+		{ label: L("labelLink"), find: "\\[([^\\]\\r\\n]+)\\]\\(([^)\\r\\n]+)\\)", style: "link", changeTo: "$1 <$2>", key: "link" }
 	];
 
 	var chkCh = [], styleCh = [];
@@ -315,7 +376,7 @@ function showDialog() {
 		chkCh[i] = row.add("checkbox", undefined, "");
 		chkCh[i].value = true;
 		row.add("statictext", [0, 0, 120, 20], charItems[i].label);
-		styleCh[i] = addStyleDropdown(row, charStyleNames, charItems[i].style, 160);
+		styleCh[i] = addStyleDropdown(row, charStyleNames, charItems[i].style, 160, charItems[i].key);
 	}
 
 	// ── スペース ──
@@ -341,6 +402,29 @@ function showDialog() {
 	chkHr.value = true;
 	var chkGeta = optPanel.add("checkbox", undefined, L("labelGeta"));
 	chkGeta.value = false;
+
+	// ── ソース形式プリセット切替 ──
+	var ddMap = {
+		paragraph: styleP, h1: styleH[0], h2: styleH[1], h3: styleH[2], h4: styleH[3], h5: styleH[4], h6: styleH[5],
+		bullet: styleUl, bulletSub: styleUl2, numbered: styleOl,
+		blockquote: styleBq, caption: styleCaption,
+		codeBlock: styleCodeBlock, codeInline: styleCodeInline,
+		image: styleImg, cell: styleTable, headerCell: styleTh,
+		bold: styleCh[0], emphasis: styleCh[1], link: styleCh[2]
+	};
+
+	function applyPreset(presetName) {
+		var preset = STYLE_PRESETS[presetName];
+		if (!preset) return;
+		for (var key in preset) {
+			if (preset.hasOwnProperty(key) && ddMap[key]) {
+				selectDropdownByName(ddMap[key], preset[key]);
+			}
+		}
+	}
+
+	rbHTML.onClick = function () { applyPreset("html"); };
+	rbMSWord.onClick = function () { applyPreset("msword"); };
 
 	// ── ボタン ──
 	var btnGroup = w.add("group");
@@ -653,3 +737,7 @@ function findChangeText(target, findWhat, changeTo) {
 
 	return found.length;
 }
+
+main();
+
+})();
