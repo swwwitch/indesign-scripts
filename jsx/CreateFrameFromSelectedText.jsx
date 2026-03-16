@@ -1,30 +1,35 @@
 #target "InDesign"
 
-var SCRIPT_VERSION = "v2.5";
+var SCRIPT_VERSION = "v2.6";
 
 /*
  * 選択した文字列からフレーム作成 / Create Frame from Selected Text
  *
  * 概要:
- * 文字ツールで選択したテキスト範囲をもとに、同サイズのグラフィックフレームを作成します。
- * インライン（アンカー付き）またはページ上への配置を選択でき、段落スタイル、オブジェクトスタイル、
- * テキストの回り込みを指定できます。
+ * 選択したテキストのサイズをもとに、同サイズのグラフィックフレームを作成します。
+ * テキスト選択時はインライン（アンカー付き）またはページ上への配置を選択でき、
+ * 挿入行の段落スタイル、オブジェクトスタイル、テキストの回り込みを指定できます。
+ * テキスト未選択時は、ページ上にグラフィックフレームを作成できます。
  *
  * Summary:
- * Creates a graphic frame based on the bounds of the text range selected with the Type tool.
- * Supports either inline (anchored) insertion or placement on the page, with paragraph style,
- * object style, and text wrap options.
+ * Creates a graphic frame based on the size of the selected text.
+ * When text is selected, you can choose either inline (anchored) insertion or placement on the page,
+ * and specify the paragraph style for the inserted line, object style, and text wrap options.
+ * When no text is selected, the script can create a graphic frame on the page.
  *
  * 更新日: 2026-03-17
  * Updated: 2026-03-17
  *
+ * 紹介記事 / Article
+ * https://note.com/dtp_tranist/n/ndd1b7c5246a3
+ * 
  * 更新履歴:
  * - v1.0
- * - v2.5 選択範囲座標取得の軽量化を追加（全体アウトライン優先＋文字単位フォールバック）
+ * - v2.6 行数モードの概算tooltip追加、InsertionPointガード強化、単位変換整理
  *
  * Version history:
  * - v1.0
- * - v2.5 Added lighter bounds detection (whole-selection outline first, per-character fallback)
+ * - v2.6 Added approximate-height tooltip for line count mode, strengthened insertion point guards, and cleaned up unit conversion
  */
 
 // オリジナルアイデア
@@ -45,22 +50,27 @@ var LABELS = {
         en: "Please select text."
     },
     selectTextBeforeRun: {
-        ja: "テキスト項目を1つ選択してから実行してください。",
-        en: "Select one text item before running the script."
+        ja: "テキスト項目を1つだけ選択してから実行してください。",
+        en: "Select only one text item before running the script."
     },
     boundsError: {
         ja: "選択したテキストの座標を取得できませんでした。",
         en: "Could not get the bounds of the selected text."
     },
     parentPageError: {
-        ja: "親ページを取得できませんでした。",
-        en: "Could not get the parent page."
+        ja: "配置先のページを取得できませんでした。",
+        en: "Could not determine the destination page."
     },
-    methodPanel: { ja: "追加方法", en: "Insert Method" },
+    parentTextFrameError: {
+        ja: "挿入位置の親テキストフレームを取得できませんでした。",
+        en: "Could not get the parent text frame for the insertion point."
+    },
+    methodPanel: { ja: "配置方法", en: "Placement" },
     graphicFrame: { ja: "グラフィックフレーム", en: "Graphic Frame" },
     inlineFrame: { ja: "インライン（アンカー付き）", en: "Inline (Anchored)" },
-    widthPanel: { ja: "フレーム幅", en: "Frame Width" },
-    widthText: { ja: "選択した文字", en: "Selected Text" },
+    frameSizePanel: { ja: "フレームサイズ", en: "Frame Size" },
+    widthPanel: { ja: "幅", en: "Width" },
+    widthText: { ja: "選択したテキスト", en: "Selected Text" },
     widthColumn: { ja: "カラム幅", en: "Column Width" },
     widthFrame: { ja: "親フレーム", en: "Parent Frame" },
     textSettingsPanel: { ja: "テキスト設定", en: "Text Settings" },
@@ -76,7 +86,21 @@ var LABELS = {
     autoLeading: { ja: "行送り：自動", en: "Leading: Auto" },
     cancel: { ja: "キャンセル", en: "Cancel" },
     ok: { ja: "OK", en: "OK" },
-    undoName: { ja: "フレーム作成", en: "Create Frame" }
+    undoName: { ja: "フレーム作成", en: "Create Frame" },
+    dialogTitleNoSelection: {
+        ja: "グラフィックフレーム作成",
+        en: "Create Graphic Frame"
+    },
+    widthMargin: { ja: "ページのマージン", en: "Page Margins" },
+    heightPanel: { ja: "高さ", en: "Height" },
+    heightLines: { ja: "行数", en: "Line Count" },
+    heightLinesTip: {
+        ja: "行数モードの高さは概算です。1行目の文字サイズ＋残り行数×行送りで計算します。",
+        en: "Line Count height is approximate. It is calculated as first-line point size plus leading for the remaining lines."
+    },
+    heightSize: { ja: "サイズ指定", en: "Specify Size" },
+    unitLines: { ja: "行", en: "lines" },
+    unitMm: { ja: "mm", en: "mm" }
 };
 
 function L(key) {
@@ -94,30 +118,42 @@ var lang = getCurrentLang();
         return;
     }
 
-    if (app.selection.length !== 1) {
+    var selection = null;
+    var isInsertionPoint = false;
+    var noSelection = false;
+
+    if (app.selection.length === 0) {
+        // 何も選択していない場合
+        noSelection = true;
+    } else if (app.selection.length !== 1) {
         alert(L("selectTextBeforeRun"));
         return;
-    }
-
-    var selection = app.selection[0];
-
-    // 選択がテキスト系か確認
-    if (!isTextSelection(selection)) {
-        alert(L("selectText"));
-        return;
+    } else {
+        selection = app.selection[0];
+        if (selection.constructor && selection.constructor.name === "InsertionPoint") {
+            isInsertionPoint = true;
+        } else if (!isTextSelection(selection)) {
+            alert(L("selectText"));
+            return;
+        }
     }
 
     var doc = app.activeDocument;
 
-    // 選択テキスト範囲の外接矩形を取得
-    var selectionBounds = getTextSelectionBounds(selection);
-    if (!selectionBounds) {
-        alert(L("boundsError"));
-        return;
+    // 選択テキスト範囲の外接矩形を取得（InsertionPoint・未選択時はスキップ）
+    var selectionBounds = null;
+    var hasTextBounds = false;
+    if (!isInsertionPoint && !noSelection) {
+        selectionBounds = getTextSelectionBounds(selection);
+        if (!selectionBounds) {
+            alert(L("boundsError"));
+            return;
+        }
+        hasTextBounds = true;
     }
 
-    var width = selectionBounds[3] - selectionBounds[1];
-    var height = selectionBounds[2] - selectionBounds[0];
+    var width = hasTextBounds ? (selectionBounds[3] - selectionBounds[1]) : 0;
+    var height = hasTextBounds ? (selectionBounds[2] - selectionBounds[0]) : 0;
 
     // オブジェクトスタイル一覧を取得
     var objStyleNames = [];
@@ -162,7 +198,8 @@ var lang = getCurrentLang();
     }
 
     // ScriptUIダイアログ
-    var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+    var dlgTitle = (isInsertionPoint || noSelection) ? L("dialogTitleNoSelection") : L("dialogTitle");
+    var dlg = new Window("dialog", dlgTitle + " " + SCRIPT_VERSION);
     dlg.alignChildren = ["left", "top"];
 
     // 追加方法パネル
@@ -171,29 +208,92 @@ var lang = getCurrentLang();
     methodPanel.margins = [15, 20, 15, 10];
     var radioGraphic = methodPanel.add("radiobutton", undefined, L("graphicFrame"));
     var radioInline = methodPanel.add("radiobutton", undefined, L("inlineFrame"));
-    radioInline.value = true;
+    if (isInsertionPoint || noSelection) {
+        radioGraphic.value = true;
+        // 未選択時はインラインを無効化（テキスト挿入位置がない）
+        if (noSelection) radioInline.enabled = false;
+    } else {
+        radioInline.value = true;
+    }
 
     // 2カラムレイアウト
     var mainColumnsGroup = dlg.add("group");
     mainColumnsGroup.orientation = "row";
     mainColumnsGroup.alignChildren = ["fill", "top"];
 
-    // 左カラム: フレーム幅
+    // 左カラム: フレームサイズ
     var leftColumnGroup = mainColumnsGroup.add("group");
     leftColumnGroup.orientation = "column";
     leftColumnGroup.alignChildren = ["fill", "top"];
 
-    var widthPanel = leftColumnGroup.add("panel", undefined, L("widthPanel"));
+    var frameSizePanel = leftColumnGroup.add("panel", undefined, L("frameSizePanel"));
+    frameSizePanel.alignChildren = ["fill", "top"];
+    frameSizePanel.margins = [15, 20, 15, 10];
+
+    // 幅
+    var widthPanel = frameSizePanel.add("panel", undefined, L("widthPanel"));
     widthPanel.alignChildren = ["left", "top"];
     widthPanel.margins = [15, 20, 15, 10];
     // Keep explicit reference for UI symmetry with the other width options.
-    // Even though it is not currently read in logic, retaining the variable
-    // makes the three radio options structurally consistent and easier to
-    // extend in the future.
+    // This variable is also used by updateState() for enable/disable control
+    // and fallback selection handling, while keeping the three radio options
+    // structurally consistent and easier to extend in future updates.
     var radioWidthSelectedText = widthPanel.add("radiobutton", undefined, L("widthText"));
     var radioWidthColumn = widthPanel.add("radiobutton", undefined, L("widthColumn"));
     var radioWidthParentFrame = widthPanel.add("radiobutton", undefined, L("widthFrame"));
-    radioWidthColumn.value = true;
+    var radioWidthMargin = widthPanel.add("radiobutton", undefined, L("widthMargin"));
+
+    // テキスト未選択時: 「ページのマージン」を自動選択、「選択した文字」をディム
+    if (isInsertionPoint || noSelection) {
+        radioWidthMargin.value = true;
+        radioWidthSelectedText.enabled = false;
+        if (noSelection) {
+            radioWidthColumn.enabled = false;
+            radioWidthParentFrame.enabled = false;
+        }
+    } else {
+        radioWidthColumn.value = true;
+    }
+
+    // 高さ（テキスト未選択時のみ表示）
+    var heightInput = null;
+    var radioHeightLines = null;
+    var radioHeightSize = null;
+    if (!hasTextBounds) {
+        var heightPanel = frameSizePanel.add("panel", undefined, L("heightPanel"));
+        heightPanel.alignChildren = ["left", "top"];
+        heightPanel.margins = [15, 20, 15, 10];
+
+        radioHeightLines = heightPanel.add("radiobutton", undefined, L("heightLines"));
+        radioHeightLines.helpTip = L("heightLinesTip");
+        radioHeightSize = heightPanel.add("radiobutton", undefined, L("heightSize"));
+
+        // 入力欄＋単位ラベル（共有）
+        var heightInputGroup = heightPanel.add("group");
+        heightInputGroup.alignment = ["left", "top"];
+        heightInput = heightInputGroup.add("edittext", undefined, noSelection ? "40" : "1");
+        if (!noSelection) heightInput.helpTip = L("heightLinesTip");
+        heightInput.characters = 8;
+        var heightUnitLabel = heightInputGroup.add("statictext", undefined, noSelection ? L("unitMm") : L("unitLines"));
+
+        // 未選択時は行数モード無効（行送り参照不可）
+        if (noSelection) {
+            radioHeightSize.value = true;
+            radioHeightLines.enabled = false;
+        } else {
+            radioHeightLines.value = true;
+        }
+
+        // ラジオボタン切替で入力値と単位を切替
+        radioHeightLines.onClick = function () {
+            heightInput.text = "1";
+            heightUnitLabel.text = L("unitLines");
+        };
+        radioHeightSize.onClick = function () {
+            heightInput.text = "40";
+            heightUnitLabel.text = L("unitMm");
+        };
+    }
 
     // 右カラム: 段落スタイル、行送り、オブジェクトスタイル、回り込み
     var rightColumnGroup = mainColumnsGroup.add("group");
@@ -234,8 +334,31 @@ var lang = getCurrentLang();
         paraStyleDropdown.enabled = isInline;
         autoLeadingCheck.enabled = isInline;
 
-        // インライン → 親フレームをディム
-        radioWidthParentFrame.enabled = !isInline;
+        // 新しい有効・無効ロジックとラジオボタン選択解除
+        var disableSelectedText = !hasTextBounds;
+        var disableColumn = noSelection;
+        var disableParentFrame = isInline || noSelection;
+        var disableMargin = isInline;
+
+        radioWidthSelectedText.enabled = !disableSelectedText;
+        radioWidthColumn.enabled = !disableColumn;
+        radioWidthParentFrame.enabled = !disableParentFrame;
+        radioWidthMargin.enabled = !disableMargin;
+
+        if ((radioWidthSelectedText.value && disableSelectedText) ||
+            (radioWidthColumn.value && disableColumn) ||
+            (radioWidthParentFrame.value && disableParentFrame) ||
+            (radioWidthMargin.value && disableMargin)) {
+            if (!disableSelectedText) {
+                radioWidthSelectedText.value = true;
+            } else if (!disableColumn) {
+                radioWidthColumn.value = true;
+            } else if (!disableParentFrame) {
+                radioWidthParentFrame.value = true;
+            } else if (!disableMargin) {
+                radioWidthMargin.value = true;
+            }
+        }
 
         // インライン → テキストの回り込みをディム
         // グラフィックフレームでもオブジェクトスタイルが「なし」以外ならディム
@@ -261,6 +384,37 @@ var lang = getCurrentLang();
     var selectedParaStyleIndex = paraStyleDropdown.selection.index;
     var useAutoLeading = autoLeadingCheck.value;
 
+    // フレーム高さを決定
+    var frameHeight = height;
+    if (radioHeightLines && radioHeightSize) {
+        if (radioHeightLines.value) {
+            // 行数モード: 1行目の文字サイズ + (残り行数 × 行送り値) で計算
+            var lineCount = parseFloat(heightInput.text) || 1;
+            if (lineCount < 1) lineCount = 1;
+            try {
+                var textFrame = isInsertionPoint ? getInsertionPointTextFrame(selection) : selection.parentTextFrames[0];
+                if (!textFrame) throw new Error("No parent text frame");
+                var story = textFrame.parentStory;
+                var ipIndex = isInsertionPoint ? selection.index : selection.characters[0].index;
+                var refChar = (ipIndex < story.characters.length)
+                    ? story.characters[ipIndex]
+                    : story.characters[story.characters.length - 1];
+                var pointSizeVal = refChar.pointSize;
+                var leadingVal = refChar.leading;
+                if (leadingVal === Leading.AUTO) {
+                    leadingVal = pointSizeVal * (refChar.autoLeading / 100);
+                }
+                frameHeight = pointSizeVal + Math.max(0, lineCount - 1) * leadingVal;
+            } catch (_) {
+                frameHeight = 14 + Math.max(0, lineCount - 1) * 14; // フォールバック
+            }
+        } else {
+            // サイズ指定モード: mm入力をポイントへ変換
+            var sizeVal = parseFloat(heightInput.text) || 40;
+            frameHeight = sizeVal * 2.834645669;
+        }
+    }
+
     // フレーム幅を決定
     var frameWidth = width;
     if (radioWidthColumn.value) {
@@ -284,19 +438,43 @@ var lang = getCurrentLang();
             var textFrameBounds = textFrame.geometricBounds;
             frameWidth = textFrameBounds[3] - textFrameBounds[1];
         } catch (_) { }
+    } else if (radioWidthMargin.value) {
+        try {
+            var parentPage;
+            if (noSelection) {
+                parentPage = app.activeWindow.activePage;
+            } else if (isInsertionPoint) {
+                var insertionPointTextFrame = getInsertionPointTextFrame(selection);
+                parentPage = insertionPointTextFrame ? insertionPointTextFrame.parentPage : null;
+            } else {
+                parentPage = getParentPage(selection);
+            }
+            if (parentPage) {
+                var pageBounds = parentPage.bounds;
+                var mp = parentPage.marginPreferences;
+                frameWidth = (pageBounds[3] - pageBounds[1]) - mp.left - mp.right;
+            }
+        } catch (_) { }
     }
 
     app.doScript(function () {
         if (isInline) {
-            // インライン（アンカー付き）: 選択テキストの直前が改行でなければ改行を挿入
-            var textFrame = selection.parentTextFrames[0];
+            // インライン（アンカー付き）
+            var textFrame = getInsertionPointTextFrame(selection);
+            if (!textFrame) {
+                alert(L("parentTextFrameError"));
+                return;
+            }
             var story = textFrame.parentStory;
-            var charIndex = selection.characters[0].index;
+            var charIndex = isInsertionPoint ? selection.index : selection.characters[0].index;
 
             // 元のテキストの段落スタイルを保持
-            var originalParaStyle = selection.characters[0].appliedParagraphStyle;
-            var originalFirstChar = selection.characters[0];
-            var originalPara = originalFirstChar.paragraphs[0];
+            var originalParaStyle = null;
+            var originalPara = null;
+            if (!isInsertionPoint) {
+                originalParaStyle = selection.characters[0].appliedParagraphStyle;
+                originalPara = selection.characters[0].paragraphs[0];
+            }
 
             // 直前の文字が改行かチェック
             var needReturn = true;
@@ -317,7 +495,7 @@ var lang = getCurrentLang();
             // 改行直後のインサーションポイントにアンカー付きフレームを作成
             var anchorIP = story.insertionPoints[charIndex];
             var frameRect = anchorIP.rectangles.add();
-            frameRect.geometricBounds = [0, 0, height, frameWidth];
+            frameRect.geometricBounds = [0, 0, frameHeight, frameWidth];
             frameRect.contentType = ContentType.GRAPHIC_TYPE;
             frameRect.anchoredObjectSettings.anchoredPosition = AnchorPosition.ANCHORED;
 
@@ -339,21 +517,41 @@ var lang = getCurrentLang();
             }
 
             // 元のテキストの段落スタイルを復元
-            try {
-                originalPara.appliedParagraphStyle = originalParaStyle;
-            } catch (_) { }
+            if (originalPara && originalParaStyle) {
+                try {
+                    originalPara.appliedParagraphStyle = originalParaStyle;
+                } catch (_) { }
+            }
         } else {
             // グラフィックフレーム: ページ上に配置
-            var parentPage = getParentPage(selection);
+            var parentPage;
+            if (noSelection) {
+                parentPage = app.activeWindow.activePage;
+            } else if (isInsertionPoint) {
+                var insertionPointTextFrame = getInsertionPointTextFrame(selection);
+                parentPage = insertionPointTextFrame ? insertionPointTextFrame.parentPage : null;
+            } else {
+                parentPage = getParentPage(selection);
+            }
             if (!parentPage) {
                 alert(L("parentPageError"));
                 return;
             }
 
-            var frameLeft = selectionBounds[1];
-            var frameRight = frameLeft + frameWidth;
+            var frameTop, frameLeft, frameRight;
+            if (hasTextBounds) {
+                frameTop = selectionBounds[0];
+                frameLeft = selectionBounds[1];
+            } else {
+                // InsertionPoint: マージン左上を基準に配置
+                var mp = parentPage.marginPreferences;
+                var pageBounds = parentPage.bounds;
+                frameTop = pageBounds[0] + mp.top;
+                frameLeft = pageBounds[1] + mp.left;
+            }
+            frameRight = frameLeft + frameWidth;
             var frameRect = parentPage.rectangles.add();
-            frameRect.geometricBounds = [selectionBounds[0], frameLeft, selectionBounds[2], frameRight];
+            frameRect.geometricBounds = [frameTop, frameLeft, frameTop + frameHeight, frameRight];
             frameRect.contentType = ContentType.GRAPHIC_TYPE;
 
             // オブジェクトスタイルを適用
@@ -365,6 +563,15 @@ var lang = getCurrentLang();
             }
         }
     }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L("undoName"));
+
+    function getInsertionPointTextFrame(insertionPointObj) {
+        try {
+            if (insertionPointObj && insertionPointObj.parentTextFrames && insertionPointObj.parentTextFrames.length > 0) {
+                return insertionPointObj.parentTextFrames[0];
+            }
+        } catch (_) { }
+        return null;
+    }
 
     function getParentPage(textObj) {
         try {
