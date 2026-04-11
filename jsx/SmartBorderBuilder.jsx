@@ -3,7 +3,7 @@
 /*
  * スクリプトの概要：
  * 選択中の表セルに対して、罫線の描画・消去を切り替えながら適用できるスクリプトです。
- * 「すべて」「境界線のみ」「内部のみ」「水平線のみ」「垂直線のみ」「すべて消去」に対応しています。
+ * 「すべて」「境界線のみ」「内部のみ」「水平線のみ」「垂直線のみ」「見出し行」「見出し列」「左右の境界線を消去」「すべて消去」に対応しています。
  *
  * 左カラムではモードと描画オプションを設定し、右カラムでは線幅とカラーを設定します。
  * 線幅は mm 単位で入力でき、プリセットのラジオボタンから「なし」「0.1」「0.2」「0.25」「0.35」「0.5」を素早く選択できます。
@@ -18,7 +18,8 @@
  *
  * 主な機能：
  * - 選択中の表セルに対する罫線の描画／消去
- * - 外枠・内部・水平・垂直の各モード切り替え
+ * - 外枠・内部・水平・垂直・見出し行・見出し列・左右の境界線を消去・すべて消去の各モード切り替え
+ * - モード切り替え用ショートカットキー対応（A/E/I/H/V/U/L/R/C）
  * - 「描画前に消去」の ON/OFF 切り替え
  * - mm 単位の線幅入力
  * - 線幅プリセットのラジオボタン選択
@@ -29,7 +30,7 @@
  * - 日本語／英語UI対応
  */
 
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.3.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -48,6 +49,9 @@ var LABELS = {
     inner: { ja: "内部のみ", en: "Inner Borders Only" },
     horizontal: { ja: "水平線のみ", en: "Horizontal Borders Only" },
     vertical: { ja: "垂直線のみ", en: "Vertical Borders Only" },
+    headerRow: { ja: "見出し行", en: "Header Row" },
+    headerColumn: { ja: "見出し列", en: "Header Column" },
+    clearLeftRight: { ja: "左右の境界線を消去", en: "Clear Left/Right Borders" },
     allOff: { ja: "すべて消去", en: "Clear All Borders" },
     lineWidthPanel: { ja: "線幅", en: "Border Weight" },
     lineWidthUnit: { ja: "mm", en: "mm" },
@@ -67,7 +71,16 @@ var LABELS = {
     alertSelect: { ja: "表のセルを選択してください。", en: "Please select table cells." },
     alertWeight: { ja: "線幅には0以上の数値を入力してください。", en: "Enter a value of 0 or greater for weight." },
     undoPreview: { ja: "罫線プレビュー", en: "Border Preview" },
-    undoApply: { ja: "罫線の設定", en: "Apply Border Settings" }
+    undoApply: { ja: "罫線の設定", en: "Apply Border Settings" },
+    tipAll: { ja: "ショートカット: A", en: "Shortcut: A" },
+    tipOuter: { ja: "ショートカット: E", en: "Shortcut: E" },
+    tipInner: { ja: "ショートカット: I", en: "Shortcut: I" },
+    tipHorizontal: { ja: "ショートカット: H", en: "Shortcut: H" },
+    tipVertical: { ja: "ショートカット: V", en: "Shortcut: V" },
+    tipHeaderRow: { ja: "ショートカット: U", en: "Shortcut: U" },
+    tipHeaderColumn: { ja: "ショートカット: L", en: "Shortcut: L" },
+    tipClearLeftRight: { ja: "ショートカット: R", en: "Shortcut: R" },
+    tipAllOff: { ja: "ショートカット: C", en: "Shortcut: C" }
 };
 
 function L(key) {
@@ -126,11 +139,23 @@ function L(key) {
         panelMode.margins = [15, 20, 15, 10];
 
         var rbAll = panelMode.add("radiobutton", undefined, L('all'));
+        rbAll.helpTip = L('tipAll');
         var rbOuter = panelMode.add("radiobutton", undefined, L('outer'));
+        rbOuter.helpTip = L('tipOuter');
         var rbInnerOnly = panelMode.add("radiobutton", undefined, L('inner'));
+        rbInnerOnly.helpTip = L('tipInner');
         var rbHorzOnly = panelMode.add("radiobutton", undefined, L('horizontal'));
+        rbHorzOnly.helpTip = L('tipHorizontal');
         var rbVertOnly = panelMode.add("radiobutton", undefined, L('vertical'));
+        rbVertOnly.helpTip = L('tipVertical');
+        var rbHeaderRow = panelMode.add("radiobutton", undefined, L('headerRow'));
+        rbHeaderRow.helpTip = L('tipHeaderRow');
+        var rbHeaderColumn = panelMode.add("radiobutton", undefined, L('headerColumn'));
+        rbHeaderColumn.helpTip = L('tipHeaderColumn');
+        var rbClearLeftRight = panelMode.add("radiobutton", undefined, L('clearLeftRight'));
+        rbClearLeftRight.helpTip = L('tipClearLeftRight');
         var rbAllOff = panelMode.add("radiobutton", undefined, L('allOff'));
+        rbAllOff.helpTip = L('tipAllOff');
         var panelDrawingOptions = leftColumn.add("panel", undefined, L('panelDrawingOptions'));
         panelDrawingOptions.orientation = "column";
         panelDrawingOptions.alignChildren = "left";
@@ -255,6 +280,9 @@ function L(key) {
             rbInnerOnly: rbInnerOnly,
             rbHorzOnly: rbHorzOnly,
             rbVertOnly: rbVertOnly,
+            rbHeaderRow: rbHeaderRow,
+            rbHeaderColumn: rbHeaderColumn,
+            rbClearLeftRight: rbClearLeftRight,
             rbAllOff: rbAllOff,
             weightInput: weightInput,
             rbWeightNone: rbWeightNone,
@@ -270,7 +298,7 @@ function L(key) {
             cbPreview: cbPreview,
             btnCancel: btnCancel,
             btnOk: btnOk,
-            drawButtons: [rbAll, rbOuter, rbInnerOnly, rbHorzOnly, rbVertOnly, rbAllOff]
+            drawButtons: [rbAll, rbOuter, rbInnerOnly, rbHorzOnly, rbVertOnly, rbHeaderRow, rbHeaderColumn, rbClearLeftRight, rbAllOff]
         };
     }
 
@@ -319,6 +347,9 @@ function L(key) {
             syncWeightPresetFromInput(ui);
             doPreview(ui, state);
         });
+
+        addDrawingOptionKeyHandler(ui.dlg, ui, state);
+        addModeShortcutKeyHandler(ui.dlg, ui, state);
 
         ui.dlg.onShow = function () {
             doPreview(ui, state);
@@ -399,6 +430,50 @@ function L(key) {
         return keyName;
     }
 
+    function addDrawingOptionKeyHandler(dialog, ui, state) {
+        dialog.addEventListener("keydown", function (event) {
+            if (event.keyName == "M") {
+                ui.cbClearFirst.value = !ui.cbClearFirst.value;
+                event.preventDefault();
+                doPreview(ui, state);
+            }
+        });
+    }
+
+    function addModeShortcutKeyHandler(dialog, ui, state) {
+        dialog.addEventListener("keydown", function (event) {
+            var keyName = String(event.keyName);
+            var handled = true;
+
+            if (keyName == "A") {
+                ui.rbAll.value = true;
+            } else if (keyName == "E") {
+                ui.rbOuter.value = true;
+            } else if (keyName == "I") {
+                ui.rbInnerOnly.value = true;
+            } else if (keyName == "H") {
+                ui.rbHorzOnly.value = true;
+            } else if (keyName == "V") {
+                ui.rbVertOnly.value = true;
+            } else if (keyName == "U") {
+                ui.rbHeaderRow.value = true;
+            } else if (keyName == "L") {
+                ui.rbHeaderColumn.value = true;
+            } else if (keyName == "R") {
+                ui.rbClearLeftRight.value = true;
+            } else if (keyName == "C") {
+                ui.rbAllOff.value = true;
+            } else {
+                handled = false;
+            }
+
+            if (handled) {
+                event.preventDefault();
+                doPreview(ui, state);
+            }
+        });
+    }
+
     // =========================================
     // プレビューと確定 / Preview & Apply
     // =========================================
@@ -472,6 +547,9 @@ function L(key) {
         if (ui.rbInnerOnly.value) return "innerOnly";
         if (ui.rbHorzOnly.value) return "horizontal";
         if (ui.rbVertOnly.value) return "vertical";
+        if (ui.rbHeaderRow.value) return "headerRow";
+        if (ui.rbHeaderColumn.value) return "headerColumn";
+        if (ui.rbClearLeftRight.value) return "clearLeftRight";
         if (ui.rbAllOff.value) return "allOff";
 
         return "";
@@ -778,6 +856,47 @@ function L(key) {
             applyVertical(cells, weight, clearFirst, swatch);
             return;
         }
+
+        if (mode === "headerRow") {
+            applyHeaderRow(cells, bounds, weight, clearFirst, swatch);
+            return;
+        }
+
+        if (mode === "headerColumn") {
+            applyHeaderColumn(cells, bounds, weight, clearFirst, swatch);
+            return;
+        }
+
+        if (mode === "clearLeftRight") {
+            applyClearLeftRight(cells);
+            return;
+        }
+    }
+
+    function applyHeaderRow(cells, bounds, weight, clearFirst, swatch) {
+        var i, cell, range;
+        var isFirstRow, isLastRow;
+
+        if (clearFirst) clearAllEdges(cells);
+
+        for (i = 0; i < cells.length; i++) {
+            cell = cells[i];
+            range = getCellRange(cell);
+
+            isFirstRow = (range.startRow === bounds.minRow);
+            isLastRow = (range.endRow === bounds.maxRow);
+
+            if (isFirstRow) {
+                cell.topEdgeStrokeWeight = weight;
+                cell.bottomEdgeStrokeWeight = weight;
+                setCellEdgeColors(cell, swatch, swatch, null, null);
+            }
+
+            if (isLastRow) {
+                cell.bottomEdgeStrokeWeight = weight;
+                setCellEdgeColors(cell, null, swatch, null, null);
+            }
+        }
     }
 
     function applyAllOff(cells) {
@@ -870,6 +989,90 @@ function L(key) {
             cell.rightEdgeStrokeWeight = weight;
             setCellEdgeColors(cell, null, null, swatch, swatch);
         }
+    }
+    function applyClearLeftRight(cells) {
+        var i, cell;
+        var hasLeftNeighbor, hasRightNeighbor;
+
+        for (i = 0; i < cells.length; i++) {
+            cell = cells[i];
+            hasLeftNeighbor = hasAdjacentSelectedCellOnLeft(cell, cells);
+            hasRightNeighbor = hasAdjacentSelectedCellOnRight(cell, cells);
+
+            if (!hasLeftNeighbor) {
+                cell.leftEdgeStrokeWeight = 0;
+                try {
+                    cell.leftEdgeStrokeColor = NothingEnum.NOTHING;
+                } catch (e) { }
+            }
+
+            if (!hasRightNeighbor) {
+                cell.rightEdgeStrokeWeight = 0;
+                try {
+                    cell.rightEdgeStrokeColor = NothingEnum.NOTHING;
+                } catch (e) { }
+            }
+        }
+    }
+
+    function applyHeaderColumn(cells, bounds, weight, clearFirst, swatch) {
+        var i, cell, range;
+        var isFirstCol, isLastCol;
+
+        if (clearFirst) clearAllEdges(cells);
+
+        for (i = 0; i < cells.length; i++) {
+            cell = cells[i];
+            range = getCellRange(cell);
+
+            isFirstCol = (range.startCol === bounds.minCol);
+            isLastCol = (range.endCol === bounds.maxCol);
+
+            if (isFirstCol) {
+                cell.leftEdgeStrokeWeight = weight;
+                cell.rightEdgeStrokeWeight = weight;
+                setCellEdgeColors(cell, null, null, swatch, swatch);
+            }
+
+            if (isLastCol) {
+                cell.rightEdgeStrokeWeight = weight;
+                setCellEdgeColors(cell, null, null, null, swatch);
+            }
+        }
+    }
+
+    function hasAdjacentSelectedCellOnLeft(cell, cells) {
+        return hasAdjacentSelectedCell(cell, cells, -1);
+    }
+
+    function hasAdjacentSelectedCellOnRight(cell, cells) {
+        return hasAdjacentSelectedCell(cell, cells, 1);
+    }
+
+    function hasAdjacentSelectedCell(cell, cells, direction) {
+        var baseRange = getCellRange(cell);
+        var i, other, otherRange;
+
+        for (i = 0; i < cells.length; i++) {
+            other = cells[i];
+            if (other === cell) continue;
+
+            otherRange = getCellRange(other);
+
+            if (!rangesOverlapVertically(baseRange, otherRange)) continue;
+
+            if (direction < 0) {
+                if (otherRange.endCol + 1 === baseRange.startCol) return true;
+            } else {
+                if (baseRange.endCol + 1 === otherRange.startCol) return true;
+            }
+        }
+
+        return false;
+    }
+
+    function rangesOverlapVertically(a, b) {
+        return !(a.endRow < b.startRow || b.endRow < a.startRow);
     }
 
     function clearAllEdges(cells) {
