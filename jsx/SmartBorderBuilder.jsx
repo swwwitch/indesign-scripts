@@ -11,7 +11,8 @@
  * プリセットから「なし」「0.1」「0.2」「0.25」「0.35」「0.5」を素早く選択できます。
  * カラーはドキュメントのスウォッチから選択でき、選択したスウォッチが罫線色として反映されます。
  * 結合セルはセル範囲として扱い、境界判定や重複除外に反映します。
- * プレビューを確認しながら適用でき、「適用前に消去」をOFFにすると既存の罫線を残したまま上書きできます。
+ * 常にプレビューを確認しながら適用でき、「適用前に消去」をOFFにすると既存の罫線を残したまま上書きできます。
+ * ボタンエリア左の［プレビュー／標準モード］ボタンで画面表示モードを切り替えられます。
  * =========================================
  * Script Overview (English)
  * =========================================
@@ -22,7 +23,8 @@
  * Preset buttons let you quickly choose common stroke weights.
  * You can choose a color from the document swatches and apply it to the borders.
  * Merged cells are treated as cell ranges so boundary detection and duplicate handling remain accurate.
- * You can preview the result before applying it. When "Clear Before Apply" is off, new borders are applied without removing existing ones.
+ * The result is always previewed interactively before applying. When "Clear Before Apply" is off, new borders are applied without removing existing ones.
+ * Use the "Preview / Standard" button to toggle the screen display mode.
  */
 
 var SCRIPT_VERSION = "v1.5.0";
@@ -34,7 +36,7 @@ var lang = getCurrentLang();
 
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
-    dialogTitle: { ja: "罫線の設定", en: "Border Settings" },
+    dialogTitle: { ja: "罫線・塗りの調整", en: "Borders & Fill" },
 
     modePanel: { ja: "適用範囲", en: "Border Scope" },
     stylePanel: { ja: "スタイル", en: "Style" },
