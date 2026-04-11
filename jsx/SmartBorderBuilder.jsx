@@ -1,44 +1,31 @@
 #target "InDesign"
 
 /*
- * スクリプトの概要：
+ * =========================================
+ * スクリプトの概要（日本語）
+ * =========================================
  * 選択中の表セルに対して、罫線の描画・消去を切り替えながら適用できるスクリプトです。
- * 「すべて」「境界線のみ」「内部のみ」「水平線のみ」「垂直線のみ」「見出し行」「見出し列」「左右の境界線を消去」「すべて消去」に対応しています。
- *
- * 左カラムではモードと描画オプションを設定し、右カラムでは線幅とカラーを設定します。
+ * 「すべて」「境界線のみ」「内部のみ」「水平線のみ」「垂直線のみ」「上下端」「左右端」「左右の罫線を消去」「すべて消去」に対応しています。
+ * 左カラムでは適用範囲と適用オプションを設定し、右カラムではスタイルを設定します。
  * 線幅はドキュメントの線幅単位の環境設定に合わせて入力でき、UI表示・入力値・適用時の単位指定を一致させています。
- * 線幅は内部で単位付きの値として適用し、ミリメートル環境では 0.1 を 0.1mm、ポイント環境では 0.1 を 0.1pt としてそのまま反映します。
- * プリセットのラジオボタンから「なし」「0.1」「0.2」「0.25」「0.35」「0.5」を素早く選択でき、ポイント単位のときは初期値に 0.25pt を使用します。
- * 線幅入力欄では ↑↓ で 0.1 単位、shift + ↑↓ で 1 単位の増減が可能です。
- *
- * カラーはドキュメントのスウォッチから選択でき、選択したスウォッチは罫線色として反映されます。
- * スウォッチ名はUI表示用に整形され、日本語UIでは Black→黒、Paper→紙色、None→なし と表示されます。
- * Registration / レジストレーションはカラー候補に表示しません。
- *
- * 見出し行は、選択範囲の1行目に上下の罫線を描画し、最終行に下の罫線を描画します。
- * 見出し列は、選択範囲の1列目に左右の罫線を描画し、最終列に右の罫線を描画します。
- * 左右の境界線を消去では、左右に隣接する選択セル間の線を無視し、選択ブロックの左端・右端にある線だけを消去します。
+ * プリセットから「なし」「0.1」「0.2」「0.25」「0.35」「0.5」を素早く選択できます。
+ * カラーはドキュメントのスウォッチから選択でき、選択したスウォッチが罫線色として反映されます。
  * 結合セルはセル範囲として扱い、境界判定や重複除外に反映します。
- *
- * プレビューを確認しながら適用でき、「描画前に消去」を OFF にすると既存の罫線を残したまま上書きできます。
- * 例：すべてを細線 → 境界線のみを太線、のような段階的な組み合わせ調整が可能です。
- *
- * 主な機能：
- * - 選択中の表セルに対する罫線の描画／消去
- * - 外枠・内部・水平・垂直・見出し行・見出し列・左右の境界線を消去・すべて消去の各モード切り替え
- * - モード切り替え用ショートカットキー対応（A/E/I/H/V/U/L/R/C）
- * - 「描画前に消去」の ON/OFF 切り替え（Mキーで切り替え）
- * - ドキュメントの線幅単位の環境設定に追従した線幅表示・入力・適用
- * - 線幅プリセットのラジオボタン選択
- * - 線幅入力欄でのキー操作による値変更
- * - スウォッチによる罫線カラー指定
- * - スウォッチプレビュー表示
- * - プレビュー表示による確認
- * - 結合セルを考慮した境界判定
- * - 日本語／英語UI対応
+ * プレビューを確認しながら適用でき、「適用前に消去」をOFFにすると既存の罫線を残したまま上書きできます。
+ * =========================================
+ * Script Overview (English)
+ * =========================================
+ * This script lets you apply or remove table borders on selected cells using a range of border modes.
+ * Available modes include All, Outer Borders, Inner Borders, Horizontal Borders, Vertical Borders, Top & Bottom, Left & Right, Remove Side Borders, and Clear All.
+ * The left column contains border scope and apply options, while the right column contains style settings.
+ * Stroke weight follows the document's measurement units so the UI, input values, and applied results stay consistent.
+ * Preset buttons let you quickly choose common stroke weights.
+ * You can choose a color from the document swatches and apply it to the borders.
+ * Merged cells are treated as cell ranges so boundary detection and duplicate handling remain accurate.
+ * You can preview the result before applying it. When "Clear Before Apply" is off, new borders are applied without removing existing ones.
  */
 
-var SCRIPT_VERSION = "v1.4.1";
+var SCRIPT_VERSION = "v1.5.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -48,43 +35,53 @@ var lang = getCurrentLang();
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     dialogTitle: { ja: "罫線の設定", en: "Border Settings" },
-    panelDrawingOptions: { ja: "描画オプション", en: "Drawing Options" },
-    modePanel: { ja: "モード", en: "Mode" },
+
+    modePanel: { ja: "適用範囲", en: "Border Scope" },
     stylePanel: { ja: "スタイル", en: "Style" },
-    clearFirst: { ja: "描画前に消去", en: "Clear Existing Borders First" },
+    drawingOptionsPanel: { ja: "適用オプション", en: "Apply Options" },
+    clearFirst: { ja: "適用前に消去", en: "Clear Before Apply" },
+
     all: { ja: "すべて", en: "All" },
-    outer: { ja: "境界線のみ", en: "Outer Borders Only" },
-    inner: { ja: "内部のみ", en: "Inner Borders Only" },
-    horizontal: { ja: "水平線のみ", en: "Horizontal Borders Only" },
-    vertical: { ja: "垂直線のみ", en: "Vertical Borders Only" },
-    headerRow: { ja: "見出し行", en: "Header Row" },
-    headerColumn: { ja: "見出し列", en: "Header Column" },
-    clearLeftRight: { ja: "左右の境界線を消去", en: "Clear Left/Right Borders" },
-    allOff: { ja: "すべて消去", en: "Clear All Borders" },
-    lineWidthPanel: { ja: "線幅", en: "Border Weight" },
-    lineWidthUnitMm: { ja: "mm", en: "mm" },
-    lineWidthUnitPt: { ja: "pt", en: "pt" },
-    lineWidthUnitCm: { ja: "cm", en: "cm" },
-    lineWidthUnitIn: { ja: "in", en: "in" },
-    lineWidthUnitPica: { ja: "pica", en: "pica" },
-    lineWidthUnitQ: { ja: "Q", en: "Q" },
+    outer: { ja: "境界線のみ", en: "Outer Borders" },
+    inner: { ja: "内部のみ", en: "Inner Borders" },
+    horizontal: { ja: "水平線のみ", en: "Horizontal Borders" },
+    vertical: { ja: "垂直線のみ", en: "Vertical Borders" },
+    headerRow: { ja: "上下端", en: "Top & Bottom" },
+    headerColumn: { ja: "左右端", en: "Left & Right" },
+    clearLeftRight: { ja: "左右の罫線を消去", en: "Remove Side Borders" },
+    allOff: { ja: "すべて消去", en: "Clear All" },
+
+    lineWidthLabel: { ja: "線幅：", en: "Stroke Weight:" },
+    lineWidthUnitMm: "mm",
+    lineWidthUnitPt: "pt",
+    lineWidthUnitCm: "cm",
+    lineWidthUnitIn: "in",
+    lineWidthUnitPica: "pica",
+    lineWidthUnitQ: "Q",
+
     lineWidthPresetNone: { ja: "なし", en: "None" },
-    lineWidthPreset01: { ja: "0.1", en: "0.1" },
-    lineWidthPreset02: { ja: "0.2", en: "0.2" },
-    lineWidthPreset025: { ja: "0.25", en: "0.25" },
-    lineWidthPreset035: { ja: "0.35", en: "0.35" },
-    lineWidthPreset05: { ja: "0.5", en: "0.5" },
-    colorPanel: { ja: "カラー", en: "Border Color" },
+    lineWidthPreset01: "0.1",
+    lineWidthPreset02: "0.2",
+    lineWidthPreset025: "0.25",
+    lineWidthPreset035: "0.35",
+    lineWidthPreset05: "0.5",
+
+    colorLabel: { ja: "カラー：", en: "Color:" },
+
     swatchBlack: { ja: "黒", en: "Black" },
     swatchPaper: { ja: "紙色", en: "Paper" },
     swatchNone: { ja: "なし", en: "None" },
-    preview: { ja: "プレビュー", en: "Preview" },
+
+    previewMode: { ja: "プレビュー", en: "Preview" },
     ok: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" },
+
     alertSelect: { ja: "表のセルを選択してください。", en: "Please select table cells." },
-    alertWeight: { ja: "線幅には0以上の数値を入力してください。", en: "Enter a value of 0 or greater for weight." },
+    alertWeight: { ja: "線幅には0以上の数値を入力してください。", en: "Enter a stroke weight of 0 or greater." },
+
     undoPreview: { ja: "罫線プレビュー", en: "Border Preview" },
-    undoApply: { ja: "罫線の設定", en: "Apply Border Settings" },
+    undoApply: { ja: "罫線の設定", en: "Apply Borders" },
+
     tipAll: { ja: "ショートカット: A", en: "Shortcut: A" },
     tipOuter: { ja: "ショートカット: E", en: "Shortcut: E" },
     tipInner: { ja: "ショートカット: I", en: "Shortcut: I" },
@@ -93,11 +90,28 @@ var LABELS = {
     tipHeaderRow: { ja: "ショートカット: U", en: "Shortcut: U" },
     tipHeaderColumn: { ja: "ショートカット: L", en: "Shortcut: L" },
     tipClearLeftRight: { ja: "ショートカット: R", en: "Shortcut: R" },
-    tipAllOff: { ja: "ショートカット: C", en: "Shortcut: C" }
+    tipAllOff: { ja: "ショートカット: C", en: "Shortcut: C" },
+
+    tabBorder: { ja: "罫線", en: "Borders" },
+    tabFill: { ja: "塗り", en: "Cell Fill" },
+
+    fillOddPanel: { ja: "奇数行", en: "Odd Rows" },
+    fillEvenPanel: { ja: "偶数行", en: "Even Rows" },
+    fillColorLabel: { ja: "カラー：", en: "Color:" },
+    fillTintLabel: { ja: "濃淡：", en: "Tint:" },
+    fillSwapButton: { ja: "交換", en: "Swap" },
+    fillSkipHeader: { ja: "ヘッダー行を無視", en: "Skip Header Row" },
+    fillSkipFooter: { ja: "フッター行を無視", en: "Skip Footer Row" },
+
+    undoFillPreview: { ja: "塗りプレビュー", en: "Fill Preview" },
+    undoFillApply: { ja: "塗りの設定", en: "Apply Fill Colors" }
 };
 
 function L(key) {
-    return LABELS[key] ? LABELS[key][lang] : key;
+    var v = LABELS[key];
+    if (v == null) return key;
+    if (typeof v === "string") return v;
+    return v[lang] || v.en || key;
 }
 
 (function () {
@@ -133,11 +147,25 @@ function L(key) {
         dlg.orientation = "column";
         dlg.alignChildren = "fill";
 
-        var settingsColumns = dlg.add("group");
+        var tabbedPanel = dlg.add("tabbedpanel");
+        tabbedPanel.alignChildren = ["fill", "fill"];
+        tabbedPanel.alignment = ["fill", "fill"];
+
+        var tabBorder = tabbedPanel.add("tab", undefined, L('tabBorder'));
+        tabBorder.orientation = "column";
+        tabBorder.alignChildren = "fill";
+        tabBorder.margins = [15, 20, 5, 10];
+
+        var tabFill = tabbedPanel.add("tab", undefined, L('tabFill'));
+        tabFill.orientation = "column";
+        tabFill.alignChildren = "fill";
+        tabFill.margins = [15, 20, 5, 10];
+
+        var settingsColumns = tabBorder.add("group");
         settingsColumns.orientation = "row";
         settingsColumns.alignChildren = ["fill", "top"];
         settingsColumns.alignment = ["fill", "top"];
-        settingsColumns.spacing = 10;
+        settingsColumns.spacing = 15;
 
         var leftColumn = settingsColumns.add("group");
         leftColumn.orientation = "column";
@@ -169,57 +197,52 @@ function L(key) {
         rbClearLeftRight.helpTip = L('tipClearLeftRight');
         var rbAllOff = panelMode.add("radiobutton", undefined, L('allOff'));
         rbAllOff.helpTip = L('tipAllOff');
-        var panelDrawingOptions = leftColumn.add("panel", undefined, L('panelDrawingOptions'));
+
+        // 適用オプションパネル / Apply options panel
+        var panelDrawingOptions = leftColumn.add("group");
         panelDrawingOptions.orientation = "column";
         panelDrawingOptions.alignChildren = "left";
         panelDrawingOptions.alignment = ["fill", "top"];
-        panelDrawingOptions.margins = [15, 20, 15, 10];
+        panelDrawingOptions.margins = [15, 5, 0, 0];
 
         var cbClearFirst = panelDrawingOptions.add("checkbox", undefined, L('clearFirst'));
         cbClearFirst.value = true;
 
+        var rightColumn = settingsColumns.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = ["fill", "top"];
+        rightColumn.alignment = ["fill", "top"];
+        rightColumn.spacing = 10;
 
-        var panelStyle = settingsColumns.add("panel", undefined, L('stylePanel'));
+        var panelStyle = rightColumn.add("panel", undefined, L('stylePanel'));
         panelStyle.orientation = "column";
         panelStyle.alignChildren = ["fill", "top"];
         panelStyle.alignment = ["fill", "top"];
         panelStyle.margins = [15, 20, 15, 10];
 
-        var panelWeight = panelStyle.add("panel", undefined, L('lineWidthPanel'));
+        var panelWeight = panelStyle.add("group");
         panelWeight.orientation = "column";
         panelWeight.alignChildren = ["fill", "top"];
         panelWeight.alignment = ["fill", "top"];
-        panelWeight.margins = [15, 20, 15, 10];
 
-        var weightGroup = panelWeight.add("group");
-        weightGroup.orientation = "column";
-        weightGroup.alignChildren = ["left", "top"];
-        weightGroup.alignment = ["fill", "top"];
-        weightGroup.spacing = 8;
-
-        var weightRow = weightGroup.add("group");
+        var weightRow = panelWeight.add("group");
         weightRow.orientation = "row";
         weightRow.alignChildren = ["left", "center"];
         weightRow.alignment = ["left", "center"];
         weightRow.spacing = 8;
 
+        weightRow.add("statictext", undefined, L('lineWidthLabel'));
         var weightInput = weightRow.add("edittext", undefined, getDefaultLineWidthText());
-        weightInput.characters = 6;
-        weightInput.minimumSize.width = 60;
+        weightInput.characters = 5;
 
         weightRow.add("statictext", undefined, getCurrentLineWidthUnitLabel());
 
-        var weightPresetContainer = weightGroup.add("panel", undefined);
-        weightPresetContainer.orientation = "column";
-        weightPresetContainer.alignChildren = ["left", "center"];
-        weightPresetContainer.alignment = ["fill", "top"];
-        weightPresetContainer.margins = [15, 10, 15, 0];
-
-        var weightPresetGroup = weightPresetContainer.add("group");
+        var weightPresetGroup = panelWeight.add("group");
         weightPresetGroup.orientation = "column";
         weightPresetGroup.alignChildren = ["left", "center"];
         weightPresetGroup.alignment = ["left", "top"];
         weightPresetGroup.spacing = 4;
+        weightPresetGroup.margins = [15, 5, 15, 10];
 
         var rbWeightNone = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPresetNone'));
         var rbWeight01 = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPreset01'));
@@ -237,21 +260,109 @@ function L(key) {
             rbWeight05: rbWeight05
         }, getDefaultLineWidthText());
 
-        var panelColor = panelStyle.add("panel", undefined, L('colorPanel'));
+        var panelColor = panelStyle.add("group");
         panelColor.orientation = "column";
         panelColor.alignChildren = ["left", "top"];
         panelColor.alignment = ["fill", "top"];
-        panelColor.margins = [15, 20, 15, 10];
+
+        var colorLabelRow = panelColor.add("group");
+        colorLabelRow.orientation = "row";
+        colorLabelRow.alignChildren = ["left", "center"];
+        colorLabelRow.add("statictext", undefined, L('colorLabel'));
+        var colorPreviewBox = createSwatchPreviewBox(colorLabelRow);
 
         var swatchEntries = getSwatchEntries();
-        var colorPicker = createSwatchDropdownWithPreview(panelColor, swatchEntries, getDefaultColorIndex(swatchEntries));
-        var colorPreviewBox = colorPicker.previewBox;
-        var colorDropdown = colorPicker.dropdown;
+        var colorDropdown = createSwatchDropdown(panelColor, swatchEntries, getDefaultColorIndex(swatchEntries));
+
 
         rbAll.value = true;
 
         // カラープレビューの初期表示
         updateSwatchPreview(colorPreviewBox, colorDropdown, dlg);
+
+        // =========================================
+        // 塗りタブの内容 / Fill tab content
+        // =========================================
+        var fillDefaults = getDefaultFillSettings(state.cells);
+        var fillSwatchEntries = getSwatchEntries();
+
+        var fillMainGroup = tabFill.add("group");
+        fillMainGroup.orientation = "row";
+        fillMainGroup.alignChildren = "top";
+        fillMainGroup.spacing = 15;
+
+        // 奇数行パネル / Odd rows panel
+        var fillOddPanel = fillMainGroup.add("panel", undefined, L('fillOddPanel'));
+        fillOddPanel.orientation = "column";
+        fillOddPanel.alignChildren = "left";
+        fillOddPanel.spacing = 10;
+        fillOddPanel.margins = [15, 20, 15, 10];
+
+        var fillOddColorGroup = fillOddPanel.add("group");
+        fillOddColorGroup.orientation = "column";
+        fillOddColorGroup.alignChildren = "left";
+        fillOddColorGroup.margins = [0, 10, 0, 10];
+        var fillOddColorLabelRow = fillOddColorGroup.add("group");
+        fillOddColorLabelRow.orientation = "row";
+        fillOddColorLabelRow.alignChildren = ["left", "center"];
+        fillOddColorLabelRow.add("statictext", undefined, L('fillColorLabel'));
+        var fillOddColorPreviewBox = createSwatchPreviewBox(fillOddColorLabelRow);
+        var fillOddColorDropdown = createSwatchDropdown(fillOddColorGroup, fillSwatchEntries, getFillDefaultColorIndex(fillSwatchEntries, fillDefaults.oddColorName));
+
+        var fillOddTintGroup = fillOddPanel.add("group");
+        fillOddTintGroup.orientation = "column";
+        fillOddTintGroup.alignChildren = "left";
+        fillOddTintGroup.margins = [0, 10, 0, 10];
+        var fillOddTintLabelRow = fillOddTintGroup.add("group");
+        fillOddTintLabelRow.orientation = "row";
+        fillOddTintLabelRow.alignChildren = ["left", "center"];
+        fillOddTintLabelRow.add("statictext", undefined, L('fillTintLabel'));
+        var fillOddTintText = fillOddTintLabelRow.add("edittext", undefined, String(fillDefaults.oddTint));
+        fillOddTintText.preferredSize.width = 50;
+        var fillOddSlider = fillOddTintGroup.add("slider", undefined, fillDefaults.oddTint, 0, 100);
+        fillOddSlider.preferredSize.width = 150;
+
+        // 偶数行パネル / Even rows panel
+        var fillEvenPanel = fillMainGroup.add("panel", undefined, L('fillEvenPanel'));
+        fillEvenPanel.orientation = "column";
+        fillEvenPanel.alignChildren = "left";
+        fillEvenPanel.spacing = 10;
+        fillEvenPanel.margins = [15, 20, 15, 10];
+
+        var fillEvenColorGroup = fillEvenPanel.add("group");
+        fillEvenColorGroup.orientation = "column";
+        fillEvenColorGroup.alignChildren = "left";
+        fillEvenColorGroup.margins = [0, 10, 0, 10];
+        var fillEvenColorLabelRow = fillEvenColorGroup.add("group");
+        fillEvenColorLabelRow.orientation = "row";
+        fillEvenColorLabelRow.alignChildren = ["left", "center"];
+        fillEvenColorLabelRow.add("statictext", undefined, L('fillColorLabel'));
+        var fillEvenColorPreviewBox = createSwatchPreviewBox(fillEvenColorLabelRow);
+        var fillEvenColorDropdown = createSwatchDropdown(fillEvenColorGroup, fillSwatchEntries, getFillDefaultColorIndex(fillSwatchEntries, fillDefaults.evenColorName));
+
+        var fillEvenTintGroup = fillEvenPanel.add("group");
+        fillEvenTintGroup.orientation = "column";
+        fillEvenTintGroup.alignChildren = "left";
+        fillEvenTintGroup.margins = [0, 10, 0, 10];
+        var fillEvenTintLabelRow = fillEvenTintGroup.add("group");
+        fillEvenTintLabelRow.orientation = "row";
+        fillEvenTintLabelRow.alignChildren = ["left", "center"];
+        fillEvenTintLabelRow.add("statictext", undefined, L('fillTintLabel'));
+        var fillEvenTintText = fillEvenTintLabelRow.add("edittext", undefined, String(fillDefaults.evenTint));
+        fillEvenTintText.preferredSize.width = 50;
+        var fillEvenSlider = fillEvenTintGroup.add("slider", undefined, fillDefaults.evenTint, 0, 100);
+        fillEvenSlider.preferredSize.width = 150;
+
+        // 交換チェックボックス / Swap checkbox
+        var fillSwapWrapper = tabFill.add("group");
+        fillSwapWrapper.orientation = "column";
+        fillSwapWrapper.alignChildren = ["left", "top"];
+        fillSwapWrapper.alignment = ["left", "top"];
+        fillSwapWrapper.margins = [0, 10, 0, 0];
+
+        var fillSwapCheckbox = fillSwapWrapper.add("checkbox", undefined, L('fillSwapButton'));
+        var fillSkipHeaderCheckbox = fillSwapWrapper.add("checkbox", undefined, L('fillSkipHeader'));
+        var fillSkipFooterCheckbox = fillSwapWrapper.add("checkbox", undefined, L('fillSkipFooter'));
 
         var btnArea = dlg.add("group");
         btnArea.orientation = "row";
@@ -264,8 +375,8 @@ function L(key) {
         btnLeftGroup.alignChildren = ["left", "center"];
         btnLeftGroup.alignment = ["left", "fill"];
 
-        var cbPreview = btnLeftGroup.add("checkbox", undefined, L('preview'));
-        cbPreview.value = true;
+        var btnPreviewToggle = btnLeftGroup.add("button", undefined, getPreviewToggleButtonLabel());
+        btnPreviewToggle.alignment = ["left", "center"];
 
         var btnCenterGroup = btnArea.add("group");
         btnCenterGroup.orientation = "column";
@@ -315,10 +426,24 @@ function L(key) {
             colorPreviewBox: colorPreviewBox,
 
             cbClearFirst: cbClearFirst,
-            cbPreview: cbPreview,
             btnCancel: btnCancel,
             btnOk: btnOk,
-            drawButtons: [rbAll, rbOuter, rbInnerOnly, rbHorzOnly, rbVertOnly, rbHeaderRow, rbHeaderColumn, rbClearLeftRight, rbAllOff]
+            drawButtons: [rbAll, rbOuter, rbInnerOnly, rbHorzOnly, rbVertOnly, rbHeaderRow, rbHeaderColumn, rbClearLeftRight, rbAllOff],
+            tabbedPanel: tabbedPanel,
+            tabBorder: tabBorder,
+            tabFill: tabFill,
+            fillOddColorDropdown: fillOddColorDropdown,
+            fillOddColorPreviewBox: fillOddColorPreviewBox,
+            fillEvenColorDropdown: fillEvenColorDropdown,
+            fillEvenColorPreviewBox: fillEvenColorPreviewBox,
+            fillOddSlider: fillOddSlider,
+            fillOddTintText: fillOddTintText,
+            fillEvenSlider: fillEvenSlider,
+            fillEvenTintText: fillEvenTintText,
+            fillSwapCheckbox: fillSwapCheckbox,
+            fillSkipHeaderCheckbox: fillSkipHeaderCheckbox,
+            fillSkipFooterCheckbox: fillSkipFooterCheckbox,
+            btnPreviewToggle: btnPreviewToggle
         };
     }
 
@@ -341,13 +466,6 @@ function L(key) {
         ui.rbWeight035.onClick = function () { applyWeightPreset(ui, "0.35", state); };
         ui.rbWeight05.onClick = function () { applyWeightPreset(ui, "0.5", state); };
 
-        ui.cbPreview.onClick = function () {
-            if (ui.cbPreview.value) {
-                doPreview(ui, state);
-            } else {
-                clearPreview(state);
-            }
-        };
 
         ui.weightInput.onChange = function () {
             syncWeightPresetFromInput(ui);
@@ -356,6 +474,10 @@ function L(key) {
 
         ui.colorDropdown.onChange = function () {
             updateSwatchPreview(ui.colorPreviewBox, ui.colorDropdown, ui.dlg);
+            if (ui.colorDropdown.selection && isNoneSwatchName(String(ui.colorDropdown.selection._swatchName || ""))) {
+                ui.weightInput.text = "0";
+                syncWeightPresetFromInput(ui);
+            }
             doPreview(ui, state);
         };
 
@@ -371,9 +493,103 @@ function L(key) {
         addDrawingOptionKeyHandler(ui.dlg, ui, state);
         addModeShortcutKeyHandler(ui.dlg, ui, state);
 
+        // 塗りタブ イベント / Fill tab events
+        ui.tabbedPanel.onChange = function () {
+            doPreview(ui, state);
+        };
+
+        ui.fillOddColorDropdown.onChange = function () {
+            updateSwatchPreview(ui.fillOddColorPreviewBox, ui.fillOddColorDropdown, ui.dlg);
+            updateFillTintUI(ui, true);
+            doPreview(ui, state);
+        };
+        ui.fillEvenColorDropdown.onChange = function () {
+            updateSwatchPreview(ui.fillEvenColorPreviewBox, ui.fillEvenColorDropdown, ui.dlg);
+            updateFillTintUI(ui, false);
+            doPreview(ui, state);
+        };
+
+        ui.fillOddSlider.onChanging = function () {
+            var v = adjustFillTintValue(this.value);
+            this.value = v;
+            ui.fillOddTintText.text = String(v);
+            doPreview(ui, state);
+        };
+        ui.fillOddTintText.onChange = function () {
+            var v = adjustFillTintValue(parseFloat(this.text));
+            this.text = String(v);
+            ui.fillOddSlider.value = v;
+            doPreview(ui, state);
+        };
+
+        ui.fillEvenSlider.onChanging = function () {
+            var v = adjustFillTintValue(this.value);
+            this.value = v;
+            ui.fillEvenTintText.text = String(v);
+            doPreview(ui, state);
+        };
+        ui.fillEvenTintText.onChange = function () {
+            var v = adjustFillTintValue(parseFloat(this.text));
+            this.text = String(v);
+            ui.fillEvenSlider.value = v;
+            doPreview(ui, state);
+        };
+
+        ui.fillSwapCheckbox.onClick = function () {
+            doPreview(ui, state);
+        };
+        ui.fillSkipHeaderCheckbox.onClick = function () {
+            doPreview(ui, state);
+        };
+        ui.fillSkipFooterCheckbox.onClick = function () {
+            doPreview(ui, state);
+        };
+
+        // 初期状態で濃淡UIを更新
+        updateFillTintUI(ui, true);
+        updateFillTintUI(ui, false);
+
+        // 塗りカラープレビューの初期表示
+        updateSwatchPreview(ui.fillOddColorPreviewBox, ui.fillOddColorDropdown, ui.dlg);
+        updateSwatchPreview(ui.fillEvenColorPreviewBox, ui.fillEvenColorDropdown, ui.dlg);
+
         ui.dlg.onShow = function () {
             doPreview(ui, state);
         };
+
+        ui.btnPreviewToggle.onClick = function () {
+            togglePreviewScreenMode();
+            updatePreviewToggleButtonLabel(ui.btnPreviewToggle);
+        };
+    }
+
+    function getPreviewToggleButtonLabel() {
+        return isPreviewScreenMode() ? "プレビュー" : "標準モード";
+    }
+
+    function updatePreviewToggleButtonLabel(button) {
+        if (!button) return;
+        button.text = getPreviewToggleButtonLabel();
+    }
+
+    function isPreviewScreenMode() {
+        try {
+            return app.activeWindow && app.activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function togglePreviewScreenMode() {
+        try {
+            var w = app.activeWindow;
+            if (!w) return;
+            if (w.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE) {
+                w.screenMode = ScreenModeOptions.PREVIEW_OFF;
+            } else {
+                w.screenMode = ScreenModeOptions.PREVIEW_TO_PAGE;
+            }
+        } catch (e) { }
     }
 
     function onRadioClick(ui, state) {
@@ -445,6 +661,9 @@ function L(key) {
 
     function addDrawingOptionKeyHandler(dialog, ui, state) {
         dialog.addEventListener("keydown", function (event) {
+            var ks = ScriptUI.environment.keyboardState;
+            if (ks.metaKey || ks.ctrlKey || ks.altKey) return;
+
             if (event.keyName == "M") {
                 ui.cbClearFirst.value = !ui.cbClearFirst.value;
                 event.preventDefault();
@@ -455,6 +674,9 @@ function L(key) {
 
     function addModeShortcutKeyHandler(dialog, ui, state) {
         dialog.addEventListener("keydown", function (event) {
+            var ks = ScriptUI.environment.keyboardState;
+            if (ks.metaKey || ks.ctrlKey || ks.altKey) return;
+
             var keyName = String(event.keyName);
             var handled = true;
 
@@ -490,24 +712,36 @@ function L(key) {
     // =========================================
     // プレビューと確定 / Preview & Apply
     // =========================================
+    function isFillTabActive(ui) {
+        return ui.tabbedPanel.selection === ui.tabFill;
+    }
+
     function doPreview(ui, state) {
-        var weight;
-        var swatch;
-        if (!ui.cbPreview.value) return;
-
-        weight = parseLineWeight(getSelectedWeightText(ui));
-        if (!isValidLineWeight(weight)) {
-            clearPreview(state);
-            return;
-        }
-
-        swatch = getSelectedSwatch(ui);
-        if (!swatch) {
-            clearPreview(state);
-            return;
-        }
-
         clearPreview(state);
+
+        if (isFillTabActive(ui)) {
+            var fillSettings = getFillSettingsFromUI(ui);
+            try {
+                app.doScript(function () {
+                    applyFillZebra(state.cells, fillSettings.oddColorName, fillSettings.evenColorName, fillSettings.oddTint, fillSettings.evenTint, fillSettings.skipHeader, fillSettings.skipFooter);
+                }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoFillPreview'));
+                state.previewed = true;
+                app.activeDocument.recompose();
+            } catch (e) {
+                state.previewed = false;
+            }
+            return;
+        }
+
+        var weight = parseLineWeight(getSelectedWeightText(ui));
+        if (!isValidLineWeight(weight)) {
+            return;
+        }
+
+        var swatch = getSelectedSwatch(ui);
+        if (!swatch) {
+            return;
+        }
 
         try {
             app.doScript(function () {
@@ -530,21 +764,28 @@ function L(key) {
     }
 
     function applyFinalFromDialog(ui, state) {
+        if (state.previewed) {
+            clearPreview(state);
+        }
+
+        if (isFillTabActive(ui)) {
+            var fillSettings = getFillSettingsFromUI(ui);
+            app.doScript(function () {
+                applyFillZebra(state.cells, fillSettings.oddColorName, fillSettings.evenColorName, fillSettings.oddTint, fillSettings.evenTint, fillSettings.skipHeader, fillSettings.skipFooter);
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoFillApply'));
+            return;
+        }
+
         var mode = getMode(ui);
         var weight = parseLineWeight(getSelectedWeightText(ui));
         var swatch = getSelectedSwatch(ui);
 
         if (!isValidLineWeight(weight)) {
-            clearPreview(state);
             alert(L('alertWeight'));
             return;
         }
 
         if (!swatch) return;
-
-        if (state.previewed) {
-            clearPreview(state);
-        }
 
         app.doScript(function () {
             applyBorders(state.cells, mode, weight, ui.cbClearFirst.value, swatch);
@@ -602,21 +843,51 @@ function L(key) {
     }
 
     function getDisplaySwatchName(name) {
-        if (isNoneSwatchName(name)) return L('swatchNone');
-        if (isBlackSwatchName(name)) return L('swatchBlack');
-        if (isPaperSwatchName(name)) return L('swatchPaper');
+        var kind = getLocalizedSwatchDisplayKind(name);
+        if (kind === "none") return L('swatchNone');
+        if (kind === "black") return L('swatchBlack');
+        if (kind === "paper") return L('swatchPaper');
         return String(name);
     }
 
+    function getLocalizedSwatchDisplayKind(name) {
+        if (isNoneSwatchName(name)) return "none";
+        if (isBlackSwatchName(name)) return "black";
+        if (isPaperSwatchName(name)) return "paper";
+        return "";
+    }
+
+
+    function normalizeSwatchName(name) {
+        if (name == null) return "";
+        var n = String(name);
+
+        // remove brackets like [Black]
+        n = n.replace(/^\[|\]$/g, "");
+
+        // trim and lowercase for comparison
+        n = n.replace(/^\s+|\s+$/g, "").toLowerCase();
+
+        return n;
+    }
 
     function isRegistrationSwatchName(name) {
-        return name === "Registration" || name === "[Registration]" || name === "レジストレーション" || name === "[レジストレーション]";
+        var n = normalizeSwatchName(name);
+        return n === "registration" || n === "レジストレーション";
     }
 
     function getDefaultColorIndex(swatchEntries) {
         var i;
         for (i = 0; i < swatchEntries.length; i++) {
             if (isBlackSwatchName(String(swatchEntries[i].actualName))) return i;
+        }
+        return 0;
+    }
+
+    function getFillDefaultColorIndex(swatchEntries, colorName) {
+        var i;
+        for (i = 0; i < swatchEntries.length; i++) {
+            if (swatchEntries[i].actualName === colorName) return i;
         }
         return 0;
     }
@@ -636,24 +907,8 @@ function L(key) {
     }
 
     // =========================================
-    // スウォッチUIヘルパー / Swatch UI helpers
+    // スウォッチUIとプレビュー / Swatch UI and preview helpers
     // =========================================
-    function createSwatchDropdownWithPreview(parent, swatchEntries, defaultIndex) {
-        var row = parent.add("group");
-        row.orientation = "row";
-        row.alignChildren = ["left", "center"];
-        row.spacing = 6;
-
-        var previewBox = createSwatchPreviewBox(row);
-        var dropdown = createSwatchDropdown(row, swatchEntries, defaultIndex);
-
-        return {
-            row: row,
-            previewBox: previewBox,
-            dropdown: dropdown
-        };
-    }
-
     function createSwatchPreviewBox(parent) {
         var previewBox = parent.add("group");
         previewBox.preferredSize = [18, 18];
@@ -674,8 +929,8 @@ function L(key) {
 
         dropdown = parent.add("dropdownlist", undefined, displayNames);
         dropdown.minimumSize.height = 22;
-        dropdown.minimumSize.width = 90;
-        dropdown.preferredSize.width = 90;
+        dropdown.minimumSize.width = 130;
+        dropdown.preferredSize.width = 130;
 
         for (i = 0; i < dropdown.items.length && i < swatchEntries.length; i++) {
             dropdown.items[i]._swatchName = String(swatchEntries[i].actualName);
@@ -707,9 +962,12 @@ function L(key) {
     }
 
     function getSwatchByName(swatchName) {
+        var swatch;
         try {
             if (!swatchName) return null;
-            return app.activeDocument.swatches.itemByName(String(swatchName));
+            swatch = app.activeDocument.swatches.itemByName(String(swatchName));
+            if (!swatch || !swatch.isValid) return null;
+            return swatch;
         } catch (e) {
             return null;
         }
@@ -726,8 +984,8 @@ function L(key) {
 
         if (!swatch) return [0.5, 0.5, 0.5];
 
-        if (isWhiteLikeSwatch(swatch)) return [1, 1, 1];
-        if (isBlackLikeSwatch(swatch)) return [0, 0, 0];
+        if (isWhitePreviewSwatch(swatch)) return [1, 1, 1];
+        if (isBlackPreviewSwatch(swatch)) return [0, 0, 0];
 
         try {
             if (swatch.hasOwnProperty("colorValue")) {
@@ -748,14 +1006,23 @@ function L(key) {
         return [0.5, 0.5, 0.5];
     }
 
-    function isWhiteLikeSwatch(swatch) {
-        var name = swatch && swatch.name != null ? String(swatch.name) : "";
-        return isNoneSwatchName(name) || isPaperSwatchName(name);
+    function isWhitePreviewSwatch(swatch) {
+        var kind = getPreviewSwatchKind(swatch);
+        return kind === "none" || kind === "paper";
     }
 
-    function isBlackLikeSwatch(swatch) {
+    function isBlackPreviewSwatch(swatch) {
+        var kind = getPreviewSwatchKind(swatch);
+        return kind === "registration" || kind === "black";
+    }
+
+    function getPreviewSwatchKind(swatch) {
         var name = swatch && swatch.name != null ? String(swatch.name) : "";
-        return isRegistrationSwatchName(name) || isBlackSwatchName(name);
+        if (isNoneSwatchName(name)) return "none";
+        if (isPaperSwatchName(name)) return "paper";
+        if (isRegistrationSwatchName(name)) return "registration";
+        if (isBlackSwatchName(name)) return "black";
+        return "";
     }
 
     function getCurrentMeasurementUnit() {
@@ -912,6 +1179,143 @@ function L(key) {
     }
 
     // =========================================
+    // 塗りヘルパー / Fill helpers
+    // =========================================
+    function getDefaultFillSettings(cells) {
+        var result = { oddColorName: "Black", evenColorName: "Black", oddTint: 100, evenTint: 100 };
+        if (!cells || cells.length === 0) return result;
+
+        try {
+            var comboCounts = {};
+            var combos = [];
+            var i, c, colorName, tint, key, k;
+
+            for (i = 0; i < cells.length; i++) {
+                c = cells[i];
+                colorName = (c.fillColor && c.fillColor.name) ? c.fillColor.name : "Black";
+                tint = (!isNaN(c.fillTint) && c.fillTint >= 0) ? c.fillTint : 100;
+                key = colorName + "||" + tint;
+                if (!comboCounts[key]) {
+                    comboCounts[key] = { count: 0, colorName: colorName, tint: tint };
+                }
+                comboCounts[key].count++;
+            }
+            for (k in comboCounts) {
+                combos.push(comboCounts[k]);
+            }
+            combos.sort(function (a, b) { return b.count - a.count; });
+
+            if (combos.length >= 1) {
+                result.oddColorName = combos[0].colorName;
+                result.oddTint = combos[0].tint;
+            }
+            if (combos.length >= 2) {
+                result.evenColorName = combos[1].colorName;
+                result.evenTint = combos[1].tint;
+            } else {
+                result.evenColorName = result.oddColorName;
+                result.evenTint = result.oddTint;
+            }
+        } catch (e) { }
+        return result;
+    }
+
+    function getSelectedFillColorName(dropdown) {
+        return getSelectedSwatchNameFromDropdown(dropdown);
+    }
+
+    function getFillSettingsFromUI(ui) {
+        var oddColorName = getSelectedFillColorName(ui.fillOddColorDropdown);
+        var evenColorName = getSelectedFillColorName(ui.fillEvenColorDropdown);
+        var oddTint = clampTintValue(parseFloat(ui.fillOddTintText.text));
+        var evenTint = clampTintValue(parseFloat(ui.fillEvenTintText.text));
+        var skipHeader = !!(ui.fillSkipHeaderCheckbox && ui.fillSkipHeaderCheckbox.value);
+        var skipFooter = !!(ui.fillSkipFooterCheckbox && ui.fillSkipFooterCheckbox.value);
+        if (ui.fillSwapCheckbox && ui.fillSwapCheckbox.value) {
+            return { oddColorName: evenColorName, evenColorName: oddColorName, oddTint: evenTint, evenTint: oddTint, skipHeader: skipHeader, skipFooter: skipFooter };
+        }
+        return { oddColorName: oddColorName, evenColorName: evenColorName, oddTint: oddTint, evenTint: evenTint, skipHeader: skipHeader, skipFooter: skipFooter };
+    }
+
+    function clampTintValue(v) {
+        if (isNaN(v)) v = 100;
+        if (v < 0) v = 0;
+        if (v > 100) v = 100;
+        return v;
+    }
+
+    function adjustFillTintValue(v) {
+        v = clampTintValue(v);
+        var ks = ScriptUI.environment.keyboardState;
+        var step = ks.altKey ? 1 : (ks.shiftKey ? 10 : 5);
+        v = Math.round(v / step) * step;
+        if (v < 0) v = 0;
+        if (v > 100) v = 100;
+        return v;
+    }
+
+    function updateFillTintUI(ui, isOdd) {
+        var name = isOdd
+            ? getSelectedFillColorName(ui.fillOddColorDropdown)
+            : getSelectedFillColorName(ui.fillEvenColorDropdown);
+        var disabled = isNoneSwatchName(name) || isPaperSwatchName(name);
+
+        if (isOdd) {
+            ui.fillOddSlider.enabled = !disabled;
+            ui.fillOddTintText.enabled = !disabled;
+        } else {
+            ui.fillEvenSlider.enabled = !disabled;
+            ui.fillEvenTintText.enabled = !disabled;
+        }
+    }
+
+    function applyFillZebra(cells, oddColorName, evenColorName, oddTint, evenTint, skipHeader, skipFooter) {
+        if (!cells || cells.length === 0) return;
+
+        var doc = app.activeDocument;
+        var oddSwatch = doc.swatches.item(oddColorName);
+        var evenSwatch = doc.swatches.item(evenColorName);
+
+        var rowIndexMap = {};
+        var selectedRowIndices = [];
+        var i, rIndex, n, cell, localRowOrder, rowType;
+
+        for (i = 0; i < cells.length; i++) {
+            rowType = null;
+            try { rowType = cells[i].parentRow.rowType; } catch (e) { }
+            if (skipHeader && rowType === RowTypes.HEADER_ROW) continue;
+            if (skipFooter && rowType === RowTypes.FOOTER_ROW) continue;
+            rIndex = cells[i].parentRow.index;
+            if (rowIndexMap[rIndex] === undefined) {
+                rowIndexMap[rIndex] = selectedRowIndices.length;
+                selectedRowIndices.push(rIndex);
+            }
+        }
+
+        for (n = 0; n < cells.length; n++) {
+            cell = cells[n];
+            rowType = null;
+            try { rowType = cell.parentRow.rowType; } catch (e) { }
+            if (skipHeader && rowType === RowTypes.HEADER_ROW) continue;
+            if (skipFooter && rowType === RowTypes.FOOTER_ROW) continue;
+            localRowOrder = rowIndexMap[cell.parentRow.index];
+
+            if (localRowOrder % 2 === 0) {
+                cell.fillColor = oddSwatch;
+                if (!isNoneSwatchName(oddColorName) && !isPaperSwatchName(oddColorName)) {
+                    try { cell.fillTint = oddTint; } catch (e) { }
+                }
+            } else {
+                cell.fillColor = evenSwatch;
+                if (!isNoneSwatchName(evenColorName) && !isPaperSwatchName(evenColorName)) {
+                    try { cell.fillTint = evenTint; } catch (e) { }
+                }
+            }
+        }
+    }
+
+
+    // =========================================
     // 罫線適用 / Apply borders
     // =========================================
     function applyBorders(cells, mode, weight, clearFirst, swatch) {
@@ -951,12 +1355,12 @@ function L(key) {
         }
 
         if (mode === "headerRow") {
-            applyHeaderRow(cells, bounds, weight, clearFirst, swatch);
+            applyTopAndBottomRows(cells, bounds, weight, clearFirst, swatch);
             return;
         }
 
         if (mode === "headerColumn") {
-            applyHeaderColumn(cells, bounds, weight, clearFirst, swatch);
+            applyLeftAndRightColumns(cells, bounds, weight, clearFirst, swatch);
             return;
         }
 
@@ -966,7 +1370,7 @@ function L(key) {
         }
     }
 
-    function applyHeaderRow(cells, bounds, weight, clearFirst, swatch) {
+    function applyTopAndBottomRows(cells, bounds, weight, clearFirst, swatch) {
         var i, cell, range;
         var isFirstRow, isLastRow;
 
@@ -993,19 +1397,7 @@ function L(key) {
     }
 
     function applyAllOff(cells) {
-        var i, cell;
-        for (i = 0; i < cells.length; i++) {
-            cell = cells[i];
-            // reset weights
-            setCellEdges(cell, 0, 0, 0, 0);
-            // reset colors to Nothing
-            try {
-                cell.topEdgeStrokeColor = NothingEnum.NOTHING;
-                cell.bottomEdgeStrokeColor = NothingEnum.NOTHING;
-                cell.leftEdgeStrokeColor = NothingEnum.NOTHING;
-                cell.rightEdgeStrokeColor = NothingEnum.NOTHING;
-            } catch (e) { }
-        }
+        clearAllEdges(cells);
     }
 
     function applyAll(cells, weight, swatch) {
@@ -1108,7 +1500,7 @@ function L(key) {
         }
     }
 
-    function applyHeaderColumn(cells, bounds, weight, clearFirst, swatch) {
+    function applyLeftAndRightColumns(cells, bounds, weight, clearFirst, swatch) {
         var i, cell, range;
         var isFirstCol, isLastCol;
 
@@ -1169,9 +1561,16 @@ function L(key) {
     }
 
     function clearAllEdges(cells) {
-        var i;
+        var i, cell;
         for (i = 0; i < cells.length; i++) {
-            setCellEdges(cells[i], 0, 0, 0, 0);
+            cell = cells[i];
+            setCellEdges(cell, 0, 0, 0, 0);
+            try {
+                cell.topEdgeStrokeColor = NothingEnum.NOTHING;
+                cell.bottomEdgeStrokeColor = NothingEnum.NOTHING;
+                cell.leftEdgeStrokeColor = NothingEnum.NOTHING;
+                cell.rightEdgeStrokeColor = NothingEnum.NOTHING;
+            } catch (e) { }
         }
     }
 
@@ -1259,14 +1658,17 @@ function L(key) {
     }
 
     function isNoneSwatchName(name) {
-        return name === "None" || name === "[None]" || name === "なし" || name === "[なし]";
+        var n = normalizeSwatchName(name);
+        return n === "none" || n === "なし";
     }
 
     function isBlackSwatchName(name) {
-        return name === "Black" || name === "[Black]" || name === "ブラック" || name === "黒";
+        var n = normalizeSwatchName(name);
+        return n === "black" || n === "ブラック" || n === "黒";
     }
 
     function isPaperSwatchName(name) {
-        return name === "Paper" || name === "[Paper]" || name === "紙色" || name === "[紙色]";
+        var n = normalizeSwatchName(name);
+        return n === "paper" || n === "紙色";
     }
 })();
