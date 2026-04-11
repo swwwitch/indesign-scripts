@@ -708,11 +708,15 @@ function L(key) {
     }
 
     function getCellKey(cell) {
+        var range;
         try {
+            range = getCellRange(cell);
             return [
                 cell.parent && cell.parent.id,
-                cell.parentRow && cell.parentRow.index,
-                cell.parentColumn && cell.parentColumn.index
+                range.startRow,
+                range.endRow,
+                range.startCol,
+                range.endCol
             ].join(":");
         } catch (e) {
             return String(cell);
@@ -876,14 +880,13 @@ function L(key) {
     }
 
     function getCellEdgeFlags(cell, bounds) {
-        var rowIndex = cell.parentRow.index;
-        var colIndex = cell.parentColumn.index;
+        var range = getCellRange(cell);
 
         return {
-            top: rowIndex === bounds.minRow,
-            bottom: rowIndex === bounds.maxRow,
-            left: colIndex === bounds.minCol,
-            right: colIndex === bounds.maxCol
+            top: range.startRow === bounds.minRow,
+            bottom: range.endRow === bounds.maxRow,
+            left: range.startCol === bounds.minCol,
+            right: range.endCol === bounds.maxCol
         };
     }
 
@@ -892,17 +895,15 @@ function L(key) {
         var maxRow = -1;
         var minCol = 999999;
         var maxCol = -1;
-        var i, c, r, col;
+        var i, range;
 
         for (i = 0; i < cells.length; i++) {
-            c = cells[i];
-            r = c.parentRow.index;
-            col = c.parentColumn.index;
+            range = getCellRange(cells[i]);
 
-            if (r < minRow) minRow = r;
-            if (r > maxRow) maxRow = r;
-            if (col < minCol) minCol = col;
-            if (col > maxCol) maxCol = col;
+            if (range.startRow < minRow) minRow = range.startRow;
+            if (range.endRow > maxRow) maxRow = range.endRow;
+            if (range.startCol < minCol) minCol = range.startCol;
+            if (range.endCol > maxCol) maxCol = range.endCol;
         }
 
         return {
@@ -910,6 +911,40 @@ function L(key) {
             maxRow: maxRow,
             minCol: minCol,
             maxCol: maxCol
+        };
+    }
+
+    function getCellRange(cell) {
+        var startRow = 0;
+        var endRow = 0;
+        var startCol = 0;
+        var endCol = 0;
+        var rowSpan = 1;
+        var colSpan = 1;
+
+        startRow = cell.parentRow.index;
+        startCol = cell.parentColumn.index;
+
+        try {
+            if (cell.rowSpan != null && !isNaN(Number(cell.rowSpan))) {
+                rowSpan = Math.max(1, Number(cell.rowSpan));
+            }
+        } catch (e) { }
+
+        try {
+            if (cell.columnSpan != null && !isNaN(Number(cell.columnSpan))) {
+                colSpan = Math.max(1, Number(cell.columnSpan));
+            }
+        } catch (e) { }
+
+        endRow = startRow + rowSpan - 1;
+        endCol = startCol + colSpan - 1;
+
+        return {
+            startRow: startRow,
+            endRow: endRow,
+            startCol: startCol,
+            endCol: endCol
         };
     }
 
