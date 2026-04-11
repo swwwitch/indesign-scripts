@@ -5,23 +5,31 @@
  * 選択中の表セルに対して、罫線の描画・消去を切り替えながら適用できるスクリプトです。
  * 「すべて」「境界線のみ」「内部のみ」「水平線のみ」「垂直線のみ」「すべて消去」に対応しています。
  *
- * 線幅は mm 固定のドロップダウンから選択し、カラーはドキュメントのスウォッチから選択できます。
- * プレビューを確認しながら適用でき、選択したスウォッチは罫線色として反映されます。
+ * 左カラムではモードと描画オプションを設定し、右カラムでは線幅とカラーを設定します。
+ * 線幅は mm 単位で入力でき、プリセットのラジオボタンから「なし」「0.1」「0.2」「0.25」「0.35」「0.5」を素早く選択できます。
+ * 線幅入力欄では ↑↓ で 0.1 単位、shift + ↑↓ で 1 単位の増減が可能です。
  *
- * 「描画前に消去」を OFF にすると、既存の罫線を残したまま上書きできるため、
+ * カラーはドキュメントのスウォッチから選択でき、選択したスウォッチは罫線色として反映されます。
+ * スウォッチ名はUI表示用に整形され、日本語UIでは Black→黒、Paper→紙色、None→なし と表示されます。
+ * Registration / レジストレーションはカラー候補に表示しません。
+ *
+ * プレビューを確認しながら適用でき、「描画前に消去」を OFF にすると既存の罫線を残したまま上書きできます。
  * 例：すべてを細線 → 境界線のみを太線、のような段階的な組み合わせ調整が可能です。
  *
  * 主な機能：
  * - 選択中の表セルに対する罫線の描画／消去
  * - 外枠・内部・水平・垂直の各モード切り替え
  * - 「描画前に消去」の ON/OFF 切り替え
- * - mm 固定の線幅指定
+ * - mm 単位の線幅入力
+ * - 線幅プリセットのラジオボタン選択
+ * - 線幅入力欄でのキー操作による値変更
  * - スウォッチによる罫線カラー指定
+ * - スウォッチプレビュー表示
  * - プレビュー表示による確認
  * - 日本語／英語UI対応
  */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -31,24 +39,35 @@ var lang = getCurrentLang();
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     dialogTitle: { ja: "罫線の設定", en: "Border Settings" },
-    panelDraw: { ja: "罫線の描画", en: "Draw Borders" },
-    panelErase: { ja: "オプション", en: "Settings" },
-    clearFirst: { ja: "描画前に消去", en: "Clear Before Draw" },
+    panelDrawingOptions: { ja: "描画オプション", en: "Drawing Options" },
+    modePanel: { ja: "モード", en: "Mode" },
+    stylePanel: { ja: "スタイル", en: "Style" },
+    clearFirst: { ja: "描画前に消去", en: "Clear Existing Borders First" },
     all: { ja: "すべて", en: "All" },
-    outer: { ja: "境界線のみ", en: "Outer Only" },
-    inner: { ja: "内部のみ", en: "Inner Only" },
-    horizontal: { ja: "水平線のみ", en: "Horizontal Only" },
-    vertical: { ja: "垂直線のみ", en: "Vertical Only" },
-    allOff: { ja: "すべて消去", en: "Clear All" },
-    outerOnly: { ja: "境界線を消去", en: "Clear Outer Border" },
-    lineWidth: { ja: "線幅：", en: "Stroke Weight:" },
+    outer: { ja: "境界線のみ", en: "Outer Borders Only" },
+    inner: { ja: "内部のみ", en: "Inner Borders Only" },
+    horizontal: { ja: "水平線のみ", en: "Horizontal Borders Only" },
+    vertical: { ja: "垂直線のみ", en: "Vertical Borders Only" },
+    allOff: { ja: "すべて消去", en: "Clear All Borders" },
+    lineWidthPanel: { ja: "線幅", en: "Border Weight" },
     lineWidthUnit: { ja: "mm", en: "mm" },
-    color: { ja: "カラー：", en: "Stroke Color:" },
+    lineWidthPresetNone: { ja: "なし", en: "None" },
+    lineWidthPreset01: { ja: "0.1", en: "0.1" },
+    lineWidthPreset02: { ja: "0.2", en: "0.2" },
+    lineWidthPreset025: { ja: "0.25", en: "0.25" },
+    lineWidthPreset035: { ja: "0.35", en: "0.35" },
+    lineWidthPreset05: { ja: "0.5", en: "0.5" },
+    colorPanel: { ja: "カラー", en: "Border Color" },
+    swatchBlack: { ja: "黒", en: "Black" },
+    swatchPaper: { ja: "紙色", en: "Paper" },
+    swatchNone: { ja: "なし", en: "None" },
     preview: { ja: "プレビュー", en: "Preview" },
     ok: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" },
     alertSelect: { ja: "表のセルを選択してください。", en: "Please select table cells." },
-    alertWeight: { ja: "線幅には0以上の数値を入力してください。", en: "Enter a value of 0 or greater for weight." }
+    alertWeight: { ja: "線幅には0以上の数値を入力してください。", en: "Enter a value of 0 or greater for weight." },
+    undoPreview: { ja: "罫線プレビュー", en: "Border Preview" },
+    undoApply: { ja: "罫線の設定", en: "Apply Border Settings" }
 };
 
 function L(key) {
@@ -88,70 +107,147 @@ function L(key) {
         dlg.orientation = "column";
         dlg.alignChildren = "fill";
 
-        var columns = dlg.add("group");
-        columns.orientation = "row";
-        columns.alignChildren = ["fill", "top"];
+        var settingsColumns = dlg.add("group");
+        settingsColumns.orientation = "row";
+        settingsColumns.alignChildren = ["fill", "top"];
+        settingsColumns.alignment = ["fill", "top"];
+        settingsColumns.spacing = 10;
 
-        var panelDraw = columns.add("panel", undefined, L('panelDraw'));
-        panelDraw.orientation = "column";
-        panelDraw.alignChildren = "left";
-        panelDraw.margins = [15, 20, 15, 10];
+        var leftColumn = settingsColumns.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = ["fill", "top"];
+        leftColumn.alignment = ["fill", "top"];
+        leftColumn.spacing = 10;
 
-        var rbAll = panelDraw.add("radiobutton", undefined, L('all'));
-        var rbOuter = panelDraw.add("radiobutton", undefined, L('outer'));
-        var rbInnerOnly = panelDraw.add("radiobutton", undefined, L('inner'));
-        var rbHorzOnly = panelDraw.add("radiobutton", undefined, L('horizontal'));
-        var rbVertOnly = panelDraw.add("radiobutton", undefined, L('vertical'));
-        var rbAllOff = panelDraw.add("radiobutton", undefined, L('allOff'));
+        var panelMode = leftColumn.add("panel", undefined, L('modePanel'));
+        panelMode.orientation = "column";
+        panelMode.alignChildren = "left";
+        panelMode.alignment = ["fill", "top"];
+        panelMode.margins = [15, 20, 15, 10];
 
-        var panelErase = columns.add("panel", undefined, L('panelErase'));
-        panelErase.orientation = "column";
-        panelErase.alignChildren = "left";
-        panelErase.margins = [15, 20, 15, 10];
+        var rbAll = panelMode.add("radiobutton", undefined, L('all'));
+        var rbOuter = panelMode.add("radiobutton", undefined, L('outer'));
+        var rbInnerOnly = panelMode.add("radiobutton", undefined, L('inner'));
+        var rbHorzOnly = panelMode.add("radiobutton", undefined, L('horizontal'));
+        var rbVertOnly = panelMode.add("radiobutton", undefined, L('vertical'));
+        var rbAllOff = panelMode.add("radiobutton", undefined, L('allOff'));
+        var panelDrawingOptions = leftColumn.add("panel", undefined, L('panelDrawingOptions'));
+        panelDrawingOptions.orientation = "column";
+        panelDrawingOptions.alignChildren = "left";
+        panelDrawingOptions.alignment = ["fill", "top"];
+        panelDrawingOptions.margins = [15, 20, 15, 10];
 
-        var cbClearFirst = panelErase.add("checkbox", undefined, L('clearFirst'));
+        var cbClearFirst = panelDrawingOptions.add("checkbox", undefined, L('clearFirst'));
         cbClearFirst.value = true;
 
-        var weightRow = panelErase.add("group");
+
+        var panelStyle = settingsColumns.add("panel", undefined, L('stylePanel'));
+        panelStyle.orientation = "column";
+        panelStyle.alignChildren = ["fill", "top"];
+        panelStyle.alignment = ["fill", "top"];
+        panelStyle.margins = [15, 20, 15, 10];
+
+        var panelWeight = panelStyle.add("panel", undefined, L('lineWidthPanel'));
+        panelWeight.orientation = "column";
+        panelWeight.alignChildren = ["fill", "top"];
+        panelWeight.alignment = ["fill", "top"];
+        panelWeight.margins = [15, 20, 15, 10];
+
+        var weightGroup = panelWeight.add("group");
+        weightGroup.orientation = "column";
+        weightGroup.alignChildren = ["left", "top"];
+        weightGroup.alignment = ["fill", "top"];
+        weightGroup.spacing = 8;
+
+        var weightRow = weightGroup.add("group");
         weightRow.orientation = "row";
         weightRow.alignChildren = ["left", "center"];
-        weightRow.alignment = ["fill", "top"];
+        weightRow.alignment = ["left", "center"];
         weightRow.spacing = 8;
 
-        weightRow.add("statictext", undefined, L('lineWidth'));
-        var weightValues = ["0", "0.1", "0.25", "0.35", "0.5", "0.75", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "15", "20", "25", "30"];
-        var weightDropdown = weightRow.add("dropdownlist", undefined, weightValues);
-        weightDropdown.selection = getDefaultWeightIndex(weightValues);
-        weightDropdown.minimumSize.width = 60;
+        var weightInput = weightRow.add("edittext", undefined, "0.1");
+        weightInput.characters = 6;
+        weightInput.minimumSize.width = 60;
+
         weightRow.add("statictext", undefined, L('lineWidthUnit'));
 
-        panelErase.add("statictext", undefined, L('color'));
+        var weightPresetContainer = weightGroup.add("panel", undefined);
+        weightPresetContainer.orientation = "column";
+        weightPresetContainer.alignChildren = ["left", "center"];
+        weightPresetContainer.alignment = ["fill", "top"];
+        weightPresetContainer.margins = [15, 10, 15, 0];
 
-        var colorNames = getSwatchNames();
-        var colorDropdown = panelErase.add("dropdownlist", undefined, colorNames);
-        colorDropdown.minimumSize.height = 22;
-        colorDropdown.minimumSize.width = 160;
-        colorDropdown.preferredSize.width = 140;
-        colorDropdown.selection = getDefaultColorIndex(colorNames);
+        var weightPresetGroup = weightPresetContainer.add("group");
+        weightPresetGroup.orientation = "column";
+        weightPresetGroup.alignChildren = ["left", "center"];
+        weightPresetGroup.alignment = ["left", "top"];
+        weightPresetGroup.spacing = 4;
+
+        var rbWeightNone = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPresetNone'));
+        var rbWeight01 = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPreset01'));
+        var rbWeight02 = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPreset02'));
+        var rbWeight025 = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPreset025'));
+        var rbWeight035 = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPreset035'));
+        var rbWeight05 = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPreset05'));
+
+        rbWeight01.value = true;
+
+        var panelColor = panelStyle.add("panel", undefined, L('colorPanel'));
+        panelColor.orientation = "column";
+        panelColor.alignChildren = ["left", "top"];
+        panelColor.alignment = ["fill", "top"];
+        panelColor.margins = [15, 20, 15, 10];
+
+        var swatchEntries = getSwatchEntries();
+        var colorPicker = createSwatchDropdownWithPreview(panelColor, swatchEntries, getDefaultColorIndex(swatchEntries));
+        var colorPreviewBox = colorPicker.previewBox;
+        var colorDropdown = colorPicker.dropdown;
 
         rbAll.value = true;
 
+        // カラープレビューの初期表示
+        updateSwatchPreview(colorPreviewBox, colorDropdown, dlg);
 
-        var btnRowGroup = dlg.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignChildren = ["left", "center"];
-        btnRowGroup.alignment = "fill";
+        var btnArea = dlg.add("group");
+        btnArea.orientation = "row";
+        btnArea.alignChildren = ["fill", "fill"];
+        btnArea.alignment = ["fill", "bottom"];
+        btnArea.margins = [0, 8, 0, 0];
 
-        var cbPreview = btnRowGroup.add("checkbox", undefined, L('preview'));
+        var btnLeftGroup = btnArea.add("group");
+        btnLeftGroup.orientation = "column";
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.alignment = ["left", "fill"];
+
+        var cbPreview = btnLeftGroup.add("checkbox", undefined, L('preview'));
         cbPreview.value = true;
 
-        var spacer = btnRowGroup.add("group");
+        var btnCenterGroup = btnArea.add("group");
+        btnCenterGroup.orientation = "column";
+        btnCenterGroup.alignChildren = ["fill", "fill"];
+        btnCenterGroup.alignment = ["fill", "fill"];
+
+        var spacer = btnCenterGroup.add("group");
         spacer.alignment = ["fill", "fill"];
         spacer.minimumSize.width = 40;
 
-        var btnCancel = btnRowGroup.add("button", undefined, L('cancel'), { name: "cancel" });
-        var btnOk = btnRowGroup.add("button", undefined, L('ok'), { name: "ok" });
+        var btnRightGroup = btnArea.add("group");
+        btnRightGroup.orientation = "column";
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.alignment = ["right", "fill"];
 
+        var buttonRow = btnRightGroup.add("group");
+        buttonRow.orientation = "row";
+        buttonRow.alignChildren = ["right", "center"];
+        buttonRow.alignment = ["right", "center"];
+        buttonRow.spacing = 8;
+
+        var btnCancel = buttonRow.add("button", undefined, L('cancel'), { name: "cancel" });
+        var btnOk = buttonRow.add("button", undefined, L('ok'), { name: "ok" });
+
+        dlg.layout.layout(true);
+        dlg.layout.resize();
+        dlg.onResizing = dlg.onResize = function () { this.layout.resize(); };
         return {
             dlg: dlg,
             rbAll: rbAll,
@@ -160,15 +256,21 @@ function L(key) {
             rbHorzOnly: rbHorzOnly,
             rbVertOnly: rbVertOnly,
             rbAllOff: rbAllOff,
-            weightDropdown: weightDropdown,
+            weightInput: weightInput,
+            rbWeightNone: rbWeightNone,
+            rbWeight01: rbWeight01,
+            rbWeight02: rbWeight02,
+            rbWeight025: rbWeight025,
+            rbWeight035: rbWeight035,
+            rbWeight05: rbWeight05,
             colorDropdown: colorDropdown,
+            colorPreviewBox: colorPreviewBox,
 
             cbClearFirst: cbClearFirst,
             cbPreview: cbPreview,
             btnCancel: btnCancel,
             btnOk: btnOk,
-            drawButtons: [rbAll, rbOuter, rbInnerOnly, rbHorzOnly, rbVertOnly, rbAllOff],
-            eraseButtons: []
+            drawButtons: [rbAll, rbOuter, rbInnerOnly, rbHorzOnly, rbVertOnly, rbAllOff]
         };
     }
 
@@ -177,18 +279,19 @@ function L(key) {
     // =========================================
     function bindDialogEvents(ui, state) {
         var di;
-        var ei;
 
         for (di = 0; di < ui.drawButtons.length; di++) {
             ui.drawButtons[di].onClick = function () {
-                onRadioClick(true, ui, state);
+                onRadioClick(ui, state);
             };
         }
-        for (ei = 0; ei < ui.eraseButtons.length; ei++) {
-            ui.eraseButtons[ei].onClick = function () {
-                onRadioClick(false, ui, state);
-            };
-        }
+
+        ui.rbWeightNone.onClick = function () { applyWeightPreset(ui, "0", state); };
+        ui.rbWeight01.onClick = function () { applyWeightPreset(ui, "0.1", state); };
+        ui.rbWeight02.onClick = function () { applyWeightPreset(ui, "0.2", state); };
+        ui.rbWeight025.onClick = function () { applyWeightPreset(ui, "0.25", state); };
+        ui.rbWeight035.onClick = function () { applyWeightPreset(ui, "0.35", state); };
+        ui.rbWeight05.onClick = function () { applyWeightPreset(ui, "0.5", state); };
 
         ui.cbPreview.onClick = function () {
             if (ui.cbPreview.value) {
@@ -198,11 +301,13 @@ function L(key) {
             }
         };
 
-        ui.weightDropdown.onChange = function () {
+        ui.weightInput.onChange = function () {
+            syncWeightPresetFromInput(ui);
             doPreview(ui, state);
         };
 
         ui.colorDropdown.onChange = function () {
+            updateSwatchPreview(ui.colorPreviewBox, ui.colorDropdown, ui.dlg);
             doPreview(ui, state);
         };
 
@@ -210,19 +315,88 @@ function L(key) {
             doPreview(ui, state);
         };
 
+        changeValueByArrowKey(ui.weightInput, false, function () {
+            syncWeightPresetFromInput(ui);
+            doPreview(ui, state);
+        });
+
         ui.dlg.onShow = function () {
             doPreview(ui, state);
         };
     }
 
-    function onRadioClick(isDrawBtn, ui, state) {
-        var i;
-        if (isDrawBtn) {
-            for (i = 0; i < ui.eraseButtons.length; i++) ui.eraseButtons[i].value = false;
-        } else {
-            for (i = 0; i < ui.drawButtons.length; i++) ui.drawButtons[i].value = false;
-        }
+    function onRadioClick(ui, state) {
         doPreview(ui, state);
+    }
+
+    function applyWeightPreset(ui, value, state) {
+        if (!ui || !ui.weightInput) return;
+
+        ui.weightInput.text = String(value);
+        syncWeightPresetFromInput(ui);
+        doPreview(ui, state);
+    }
+
+    function syncWeightPresetFromInput(ui) {
+        var value = parseFloat(getSelectedWeightText(ui));
+        if (!ui || isNaN(value)) return;
+
+        if (ui.rbWeightNone) ui.rbWeightNone.value = (value === 0);
+        if (ui.rbWeight01) ui.rbWeight01.value = (value === 0.1);
+        if (ui.rbWeight02) ui.rbWeight02.value = (value === 0.2);
+        if (ui.rbWeight025) ui.rbWeight025.value = (value === 0.25);
+        if (ui.rbWeight035) ui.rbWeight035.value = (value === 0.35);
+        if (ui.rbWeight05) ui.rbWeight05.value = (value === 0.5);
+    }
+
+    function changeValueByArrowKey(editText, allowNegative, onAfterChange) {
+        editText.addEventListener("keydown", function (event) {
+            if (applyArrowStepToEditText(editText, allowNegative, event, onAfterChange)) {
+                event.preventDefault();
+            }
+        });
+    }
+
+    function applyArrowStepToEditText(editText, allowNegative, event, onAfterChange) {
+        var value = Number(editText.text);
+        var keyboard = ScriptUI.environment.keyboardState;
+        var keyName = normalizeArrowKeyName(event ? event.keyName : "");
+        var isShift = !!(keyboard.shiftKey || (event && event.shiftKey));
+
+        if (isNaN(value)) return false;
+        if (keyName !== "Up" && keyName !== "Down") return false;
+
+        if (isShift) {
+            if (keyName == "Up") {
+                value = Math.floor(value) + 1;
+            } else {
+                value = Math.ceil(value) - 1;
+            }
+        } else {
+            if (keyName == "Up") {
+                value += 0.1;
+            } else {
+                value -= 0.1;
+            }
+        }
+
+        if (!allowNegative && value < 0) value = 0;
+
+        value = Math.round(value * 10) / 10;
+        editText.text = String(value.toFixed(1).replace(/\.0$/, ""));
+
+        if (typeof onAfterChange === "function") onAfterChange();
+        return true;
+    }
+
+    function normalizeArrowKeyName(keyName) {
+        keyName = String(keyName);
+        if (keyName === "Up" || keyName === "Down") return keyName;
+        if (keyName === "UpArrow") return "Up";
+        if (keyName === "DownArrow") return "Down";
+        if (keyName === "PageUp") return "Up";
+        if (keyName === "PageDown") return "Down";
+        return keyName;
     }
 
     // =========================================
@@ -234,17 +408,23 @@ function L(key) {
         if (!ui.cbPreview.value) return;
 
         weight = parseLineWeight(getSelectedWeightText(ui));
-        if (isNaN(weight) || weight < 0) return;
+        if (isNaN(weight) || weight < 0) {
+            clearPreview(state);
+            return;
+        }
 
         swatch = getSelectedSwatch(ui);
-        if (!swatch) return;
+        if (!swatch) {
+            clearPreview(state);
+            return;
+        }
 
         clearPreview(state);
 
         try {
             app.doScript(function () {
                 applyBorders(state.cells, getMode(ui), weight, ui.cbClearFirst.value, swatch);
-            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "罫線プレビュー");
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoPreview'));
             state.previewed = true;
             app.activeDocument.recompose();
         } catch (e) {
@@ -272,13 +452,15 @@ function L(key) {
             return;
         }
 
-        if (state.previewed) return;
-
         if (!swatch) return;
+
+        if (state.previewed) {
+            clearPreview(state);
+        }
 
         app.doScript(function () {
             applyBorders(state.cells, mode, weight, ui.cbClearFirst.value, swatch);
-        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "罫線の設定");
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoApply'));
     }
 
     // =========================================
@@ -295,57 +477,194 @@ function L(key) {
         return "";
     }
 
-
     function getSelectedWeightText(ui) {
-        if (!ui.weightDropdown || !ui.weightDropdown.selection) return "0.1";
-        return String(ui.weightDropdown.selection.text);
-    }
+        var text = "";
 
-    function getDefaultWeightIndex(weightValues) {
-        var i;
-        for (i = 0; i < weightValues.length; i++) {
-            if (weightValues[i] === "0.1") return i;
+        if (ui.weightInput && ui.weightInput.text != null) {
+            text = String(ui.weightInput.text).replace(/^\s+|\s+$/g, "");
+            if (text !== "") return text;
         }
-        return 0;
+
+        return "0.1";
     }
 
-    function getSwatchNames() {
-        var names = [];
+    function getSwatchEntries() {
+        var entries = [];
         var i;
+        var swatch;
+        var actualName;
         try {
             for (i = 0; i < app.activeDocument.swatches.length; i++) {
-                names.push(String(app.activeDocument.swatches[i].name));
+                swatch = app.activeDocument.swatches[i];
+                actualName = String(swatch.name);
+                if (isRegistrationSwatchName(actualName)) continue;
+                entries.push({
+                    displayName: getDisplaySwatchName(actualName),
+                    actualName: actualName
+                });
             }
         } catch (e) { }
-        if (names.length === 0) names.push("Black");
-        return names;
+        if (entries.length === 0) {
+            entries.push({ displayName: L('swatchBlack'), actualName: 'Black' });
+        }
+        return entries;
     }
 
-    function getDefaultColorIndex(colorNames) {
-        var preferred = ["Black", "[Black]", "ブラック", "黒"];
-        var i, j;
+    function getDisplaySwatchName(name) {
+        if (isNoneSwatchName(name)) return L('swatchNone');
+        if (isBlackSwatchName(name)) return L('swatchBlack');
+        if (isPaperSwatchName(name)) return L('swatchPaper');
+        return String(name);
+    }
 
-        for (i = 0; i < preferred.length; i++) {
-            for (j = 0; j < colorNames.length; j++) {
-                if (colorNames[j] === preferred[i]) return j;
-            }
+
+    function isRegistrationSwatchName(name) {
+        return name === "Registration" || name === "[Registration]" || name === "レジストレーション" || name === "[レジストレーション]";
+    }
+
+    function getDefaultColorIndex(swatchEntries) {
+        var i;
+        for (i = 0; i < swatchEntries.length; i++) {
+            if (isBlackSwatchName(String(swatchEntries[i].actualName))) return i;
         }
         return 0;
     }
 
     function getSelectedColorName(ui) {
-        if (!ui.colorDropdown || !ui.colorDropdown.selection) return "";
-        return String(ui.colorDropdown.selection.text);
+        return getSelectedSwatchNameFromDropdown(ui ? ui.colorDropdown : null);
+    }
+
+    function getSelectedSwatchNameFromDropdown(dropdown) {
+        if (!dropdown || !dropdown.selection) return "";
+        if (dropdown.selection._swatchName != null) return String(dropdown.selection._swatchName);
+        return String(dropdown.selection.text);
     }
 
     function getSelectedSwatch(ui) {
-        var swatchName = getSelectedColorName(ui);
+        return getSwatchByName(getSelectedColorName(ui));
+    }
+
+    // =========================================
+    // スウォッチUIヘルパー / Swatch UI helpers
+    // =========================================
+    function createSwatchDropdownWithPreview(parent, swatchEntries, defaultIndex) {
+        var row = parent.add("group");
+        row.orientation = "row";
+        row.alignChildren = ["left", "center"];
+        row.spacing = 6;
+
+        var previewBox = createSwatchPreviewBox(row);
+        var dropdown = createSwatchDropdown(row, swatchEntries, defaultIndex);
+
+        return {
+            row: row,
+            previewBox: previewBox,
+            dropdown: dropdown
+        };
+    }
+
+    function createSwatchPreviewBox(parent) {
+        var previewBox = parent.add("group");
+        previewBox.preferredSize = [18, 18];
+        previewBox.minimumSize = [18, 18];
+        previewBox.maximumSize = [18, 18];
+        return previewBox;
+    }
+
+    function createSwatchDropdown(parent, swatchEntries, defaultIndex) {
+        var dropdown;
+        var displayNames = [];
+        var i;
+
+        swatchEntries = swatchEntries || [];
+        for (i = 0; i < swatchEntries.length; i++) {
+            displayNames.push(String(swatchEntries[i].displayName));
+        }
+
+        dropdown = parent.add("dropdownlist", undefined, displayNames);
+        dropdown.minimumSize.height = 22;
+        dropdown.minimumSize.width = 90;
+        dropdown.preferredSize.width = 90;
+
+        for (i = 0; i < dropdown.items.length && i < swatchEntries.length; i++) {
+            dropdown.items[i]._swatchName = String(swatchEntries[i].actualName);
+        }
+
+        if (dropdown.items.length > 0) {
+            if (typeof defaultIndex === "number" && defaultIndex >= 0 && defaultIndex < dropdown.items.length) {
+                dropdown.selection = defaultIndex;
+            } else {
+                dropdown.selection = 0;
+            }
+        }
+
+        return dropdown;
+    }
+
+    function updateSwatchPreview(previewBox, dropdown, dlg) {
+        var swatch;
+        if (!previewBox || !dropdown || !dropdown.selection) return;
+
+        swatch = getSwatchByName(getSelectedSwatchNameFromDropdown(dropdown));
+        if (!swatch) return;
+
+        previewBox.graphics.backgroundColor = previewBox.graphics.newBrush(
+            previewBox.graphics.BrushType.SOLID_COLOR,
+            getSwatchPreviewRGBAFromSwatch(swatch)
+        );
+        if (dlg) dlg.update();
+    }
+
+    function getSwatchByName(swatchName) {
         try {
             if (!swatchName) return null;
-            return app.activeDocument.swatches.itemByName(swatchName);
+            return app.activeDocument.swatches.itemByName(String(swatchName));
         } catch (e) {
             return null;
         }
+    }
+
+    function getSwatchPreviewRGBAFromSwatch(swatch) {
+        var rgb = convertSwatchToPreviewRGB(swatch);
+        return [rgb[0], rgb[1], rgb[2], 1];
+    }
+
+    function convertSwatchToPreviewRGB(swatch) {
+        var vals;
+        var c, m, y, k;
+
+        if (!swatch) return [0.5, 0.5, 0.5];
+
+        if (isWhiteLikeSwatch(swatch)) return [1, 1, 1];
+        if (isBlackLikeSwatch(swatch)) return [0, 0, 0];
+
+        try {
+            if (swatch.hasOwnProperty("colorValue")) {
+                vals = swatch.colorValue;
+                if (swatch.space === ColorSpace.RGB) {
+                    return [vals[0] / 255, vals[1] / 255, vals[2] / 255];
+                }
+                if (swatch.space === ColorSpace.CMYK) {
+                    c = vals[0] / 100;
+                    m = vals[1] / 100;
+                    y = vals[2] / 100;
+                    k = vals[3] / 100;
+                    return [(1 - c) * (1 - k), (1 - m) * (1 - k), (1 - y) * (1 - k)];
+                }
+            }
+        } catch (e) { }
+
+        return [0.5, 0.5, 0.5];
+    }
+
+    function isWhiteLikeSwatch(swatch) {
+        var name = swatch && swatch.name != null ? String(swatch.name) : "";
+        return isNoneSwatchName(name) || isPaperSwatchName(name);
+    }
+
+    function isBlackLikeSwatch(swatch) {
+        var name = swatch && swatch.name != null ? String(swatch.name) : "";
+        return isRegistrationSwatchName(name) || isBlackSwatchName(name);
     }
 
     // =========================================
@@ -365,8 +684,39 @@ function L(key) {
     // 選択取得 / Selection
     // =========================================
     function getSelectedCellsFromApp() {
+        var result = [];
+        var seen = {};
+        var i;
+        var cells;
+        var j;
+        var key;
+
         if (app.selection.length === 0) return [];
-        return getSelectedCells(app.selection[0]);
+
+        for (i = 0; i < app.selection.length; i++) {
+            cells = getSelectedCells(app.selection[i]);
+            for (j = 0; j < cells.length; j++) {
+                key = getCellKey(cells[j]);
+                if (!seen[key]) {
+                    seen[key] = true;
+                    result.push(cells[j]);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    function getCellKey(cell) {
+        try {
+            return [
+                cell.parent && cell.parent.id,
+                cell.parentRow && cell.parentRow.index,
+                cell.parentColumn && cell.parentColumn.index
+            ].join(":");
+        } catch (e) {
+            return String(cell);
+        }
     }
 
     function getSelectedCells(sel) {
@@ -438,7 +788,7 @@ function L(key) {
                 cell.bottomEdgeStrokeColor = NothingEnum.NOTHING;
                 cell.leftEdgeStrokeColor = NothingEnum.NOTHING;
                 cell.rightEdgeStrokeColor = NothingEnum.NOTHING;
-            } catch (e) {}
+            } catch (e) { }
         }
     }
 
@@ -575,5 +925,17 @@ function L(key) {
         if (bottom != null) cell.bottomEdgeStrokeColor = bottom;
         if (left != null) cell.leftEdgeStrokeColor = left;
         if (right != null) cell.rightEdgeStrokeColor = right;
+    }
+
+    function isNoneSwatchName(name) {
+        return name === "None" || name === "[None]" || name === "なし" || name === "[なし]";
+    }
+
+    function isBlackSwatchName(name) {
+        return name === "Black" || name === "[Black]" || name === "ブラック" || name === "黒";
+    }
+
+    function isPaperSwatchName(name) {
+        return name === "Paper" || name === "[Paper]" || name === "紙色" || name === "[紙色]";
     }
 })();
