@@ -6,7 +6,9 @@
  * 「すべて」「境界線のみ」「内部のみ」「水平線のみ」「垂直線のみ」「見出し行」「見出し列」「左右の境界線を消去」「すべて消去」に対応しています。
  *
  * 左カラムではモードと描画オプションを設定し、右カラムでは線幅とカラーを設定します。
- * 線幅は mm 単位で入力でき、プリセットのラジオボタンから「なし」「0.1」「0.2」「0.25」「0.35」「0.5」を素早く選択できます。
+ * 線幅はドキュメントの線幅単位の環境設定に合わせて入力でき、UI表示・入力値・適用時の単位指定を一致させています。
+ * 線幅は内部で単位付きの値として適用し、ミリメートル環境では 0.1 を 0.1mm、ポイント環境では 0.1 を 0.1pt としてそのまま反映します。
+ * プリセットのラジオボタンから「なし」「0.1」「0.2」「0.25」「0.35」「0.5」を素早く選択でき、ポイント単位のときは初期値に 0.25pt を使用します。
  * 線幅入力欄では ↑↓ で 0.1 単位、shift + ↑↓ で 1 単位の増減が可能です。
  *
  * カラーはドキュメントのスウォッチから選択でき、選択したスウォッチは罫線色として反映されます。
@@ -26,7 +28,7 @@
  * - 外枠・内部・水平・垂直・見出し行・見出し列・左右の境界線を消去・すべて消去の各モード切り替え
  * - モード切り替え用ショートカットキー対応（A/E/I/H/V/U/L/R/C）
  * - 「描画前に消去」の ON/OFF 切り替え（Mキーで切り替え）
- * - mm 単位の線幅入力
+ * - ドキュメントの線幅単位の環境設定に追従した線幅表示・入力・適用
  * - 線幅プリセットのラジオボタン選択
  * - 線幅入力欄でのキー操作による値変更
  * - スウォッチによる罫線カラー指定
@@ -36,7 +38,7 @@
  * - 日本語／英語UI対応
  */
 
-var SCRIPT_VERSION = "v1.4.0";
+var SCRIPT_VERSION = "v1.4.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -60,7 +62,12 @@ var LABELS = {
     clearLeftRight: { ja: "左右の境界線を消去", en: "Clear Left/Right Borders" },
     allOff: { ja: "すべて消去", en: "Clear All Borders" },
     lineWidthPanel: { ja: "線幅", en: "Border Weight" },
-    lineWidthUnit: { ja: "mm", en: "mm" },
+    lineWidthUnitMm: { ja: "mm", en: "mm" },
+    lineWidthUnitPt: { ja: "pt", en: "pt" },
+    lineWidthUnitCm: { ja: "cm", en: "cm" },
+    lineWidthUnitIn: { ja: "in", en: "in" },
+    lineWidthUnitPica: { ja: "pica", en: "pica" },
+    lineWidthUnitQ: { ja: "Q", en: "Q" },
     lineWidthPresetNone: { ja: "なし", en: "None" },
     lineWidthPreset01: { ja: "0.1", en: "0.1" },
     lineWidthPreset02: { ja: "0.2", en: "0.2" },
@@ -196,11 +203,11 @@ function L(key) {
         weightRow.alignment = ["left", "center"];
         weightRow.spacing = 8;
 
-        var weightInput = weightRow.add("edittext", undefined, "0.1");
+        var weightInput = weightRow.add("edittext", undefined, getDefaultLineWidthText());
         weightInput.characters = 6;
         weightInput.minimumSize.width = 60;
 
-        weightRow.add("statictext", undefined, L('lineWidthUnit'));
+        weightRow.add("statictext", undefined, getCurrentLineWidthUnitLabel());
 
         var weightPresetContainer = weightGroup.add("panel", undefined);
         weightPresetContainer.orientation = "column";
@@ -221,7 +228,14 @@ function L(key) {
         var rbWeight035 = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPreset035'));
         var rbWeight05 = weightPresetGroup.add("radiobutton", undefined, L('lineWidthPreset05'));
 
-        rbWeight01.value = true;
+        syncWeightPresetFromTextValue({
+            rbWeightNone: rbWeightNone,
+            rbWeight01: rbWeight01,
+            rbWeight02: rbWeight02,
+            rbWeight025: rbWeight025,
+            rbWeight035: rbWeight035,
+            rbWeight05: rbWeight05
+        }, getDefaultLineWidthText());
 
         var panelColor = panelStyle.add("panel", undefined, L('colorPanel'));
         panelColor.orientation = "column";
@@ -375,15 +389,8 @@ function L(key) {
     }
 
     function syncWeightPresetFromInput(ui) {
-        var value = parseFloat(getSelectedWeightText(ui));
-        if (!ui || isNaN(value)) return;
-
-        if (ui.rbWeightNone) ui.rbWeightNone.value = (value === 0);
-        if (ui.rbWeight01) ui.rbWeight01.value = (value === 0.1);
-        if (ui.rbWeight02) ui.rbWeight02.value = (value === 0.2);
-        if (ui.rbWeight025) ui.rbWeight025.value = (value === 0.25);
-        if (ui.rbWeight035) ui.rbWeight035.value = (value === 0.35);
-        if (ui.rbWeight05) ui.rbWeight05.value = (value === 0.5);
+        if (!ui) return;
+        syncWeightPresetFromTextValue(ui, getSelectedWeightText(ui));
     }
 
     function changeValueByArrowKey(editText, allowNegative, onAfterChange) {
@@ -489,7 +496,7 @@ function L(key) {
         if (!ui.cbPreview.value) return;
 
         weight = parseLineWeight(getSelectedWeightText(ui));
-        if (isNaN(weight) || weight < 0) {
+        if (!isValidLineWeight(weight)) {
             clearPreview(state);
             return;
         }
@@ -527,7 +534,7 @@ function L(key) {
         var weight = parseLineWeight(getSelectedWeightText(ui));
         var swatch = getSelectedSwatch(ui);
 
-        if (isNaN(weight) || weight < 0) {
+        if (!isValidLineWeight(weight)) {
             clearPreview(state);
             alert(L('alertWeight'));
             return;
@@ -569,7 +576,7 @@ function L(key) {
             if (text !== "") return text;
         }
 
-        return "0.1";
+        return getDefaultLineWidthText();
     }
 
     function getSwatchEntries() {
@@ -751,17 +758,97 @@ function L(key) {
         return isRegistrationSwatchName(name) || isBlackSwatchName(name);
     }
 
+    function getCurrentMeasurementUnit() {
+        try {
+            return app.activeDocument.viewPreferences.strokeMeasurementUnits;
+        } catch (e) {
+            return MeasurementUnits.POINTS;
+        }
+    }
+
+    function getCurrentLineWidthUnitLabel() {
+        switch (getCurrentMeasurementUnit()) {
+            case MeasurementUnits.MILLIMETERS:
+                return L('lineWidthUnitMm');
+            case MeasurementUnits.POINTS:
+                return L('lineWidthUnitPt');
+            case MeasurementUnits.CENTIMETERS:
+                return L('lineWidthUnitCm');
+            case MeasurementUnits.INCHES:
+                return L('lineWidthUnitIn');
+            case MeasurementUnits.PICAS:
+                return L('lineWidthUnitPica');
+            case MeasurementUnits.Q:
+                return L('lineWidthUnitQ');
+            default:
+                return L('lineWidthUnitPt');
+        }
+    }
+
+    function getDefaultLineWidthText() {
+        return getCurrentMeasurementUnit() === MeasurementUnits.POINTS ? "0.25" : "0.1";
+    }
+
+    function getCurrentLineWidthUnitSuffix() {
+        switch (getCurrentMeasurementUnit()) {
+            case MeasurementUnits.MILLIMETERS:
+                return "mm";
+            case MeasurementUnits.POINTS:
+                return "pt";
+            case MeasurementUnits.CENTIMETERS:
+                return "cm";
+            case MeasurementUnits.INCHES:
+                return "in";
+            case MeasurementUnits.PICAS:
+                return "p";
+            case MeasurementUnits.Q:
+                return "q";
+            default:
+                return "pt";
+        }
+    }
+
+    function syncWeightPresetFromTextValue(target, textValue) {
+        var value = parseFloat(textValue);
+        if (!target || isNaN(value)) return;
+
+        if (target.rbWeightNone) target.rbWeightNone.value = (value === 0);
+        if (target.rbWeight01) target.rbWeight01.value = (value === 0.1);
+        if (target.rbWeight02) target.rbWeight02.value = (value === 0.2);
+        if (target.rbWeight025) target.rbWeight025.value = (value === 0.25);
+        if (target.rbWeight035) target.rbWeight035.value = (value === 0.35);
+        if (target.rbWeight05) target.rbWeight05.value = (value === 0.5);
+    }
+
     // =========================================
     // 値変換 / Value conversion
     // =========================================
-    function convertMmToPoints(value) {
-        return value * 2.834645669291339;
-    }
-
     function parseLineWeight(text) {
         var value = parseFloat(text);
+        var suffix;
+
         if (isNaN(value)) return NaN;
-        return convertMmToPoints(value);
+        if (value === 0) return 0;
+
+        suffix = getCurrentLineWidthUnitSuffix();
+        if (suffix) {
+            return String(value) + suffix;
+        }
+
+        return value;
+    }
+
+    // =========================================
+    // 線幅バリデーション / Line weight validation
+    function extractLineWeightNumber(weight) {
+        if (typeof weight === "number") return weight;
+        if (typeof weight === "string") return parseFloat(weight);
+        return NaN;
+    }
+
+    function isValidLineWeight(weight) {
+        var numericWeight = extractLineWeightNumber(weight);
+        return !isNaN(numericWeight) && numericWeight >= 0;
     }
 
     // =========================================
