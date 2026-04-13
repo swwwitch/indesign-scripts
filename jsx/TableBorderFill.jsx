@@ -2,35 +2,55 @@
 
 /*
  * =========================================
- * 罫線・塗りの調整 / Borders & Fill
+ * 罫線の調整 / Borders
  * =========================================
  *
  * 【概要 / Overview】
- * 選択中の表セルに対して、罫線および塗りをインタラクティブに調整できるツールです。
- * 複数の適用範囲（すべて／境界線のみ／内部のみ／水平／垂直／上下端／左右端など）に対応し、
- * 線幅・カラー・塗り（奇数／偶数行）を一括で設定できます。
+ * 選択中の表セルに対して、罫線をインタラクティブに調整できるツールです。
+ * 複数の適用範囲（すべて／境界線のみ／内部のみ／水平線のみ／垂直線のみ／上下端／左右端／左右の罫線を消去／すべて消去）に対応し、
+ * 線幅・カラー・濃淡を一括で設定できます。
  *
- * This tool allows you to interactively adjust borders and fill for selected table cells.
- * Multiple application modes are supported (All, Outer, Inner, Horizontal, Vertical,
- * Top & Bottom, Left & Right, etc.), along with stroke weight, color, and zebra fill.
+ * This tool lets you interactively adjust borders for selected table cells.
+ * It supports multiple scope modes (All, Outer Borders, Inner Borders, Horizontal Borders,
+ * Vertical Borders, Top & Bottom, Left & Right, Remove Side Borders, Clear All)
+ * and lets you set stroke weight, color, and tint together.
+ *
+ * 【挙動 / Behavior】
+ * すべての適用範囲は、選択セルの外接矩形（bounds）を基準に判定されます。
+ * 結合セル（rowSpan / columnSpan）は考慮されます。
+ *
+ * All scope modes are evaluated against the bounding rectangle (bounds) of the selection.
+ * Merged cells (rowSpan / columnSpan) are respected.
+ *
+ * 【注意 / Notes】
+ * L字や飛び飛びなどの非矩形選択では、見た目どおりの結果にならない場合があります（矩形基準のため）。
+ *
+ * Non-rectangular selections (L-shaped, disjoint) may not match visual expectations
+ * because processing is strictly bounds-based.
  *
  * 【UI構成 / UI Structure】
  * 左カラム：適用範囲 + 適用オプション（適用前に消去）
- * 右カラム：スタイル（線幅・カラー）
+ * 右カラム：スタイル（線幅・カラー・濃淡）
  *
  * Left column: Border scope + apply options (Clear Before Apply)
- * Right column: Style (stroke weight and color)
+ * Right column: Style (stroke weight, color, and tint)
  *
  * 【特徴 / Features】
  * - 常時プレビューによるインタラクティブ操作
  * - ［プレビュー／標準モード］ボタンによる画面表示切替
+ * - ダイアログを開く前の画面モードに復帰
  * - スウォッチ連動のカラー適用
- * - 結合セルを考慮した境界処理
+ * - 線カラーの濃淡指定
+ * - 結合セルを考慮した境界処理（矩形基準内）
+ * - 適用範囲ボタンの Option+クリックで［適用前に消去］を切り替え
  *
  * - Always-on interactive preview
  * - Screen mode toggle (Preview / Standard)
+ * - Restores the previous screen mode when the dialog closes
  * - Swatch-based color application
- * - Proper handling of merged cells
+ * - Stroke tint control
+ * - Handles merged cells within bounds-based logic
+ * - Option+Click on scope buttons toggles "Clear Before Apply"
  *
  * =========================================
  */
@@ -44,11 +64,10 @@ var lang = getCurrentLang();
 
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
-    dialogTitle: { ja: "罫線・塗りの調整", en: "Borders & Fill" },
+    dialogTitle: { ja: "罫線の調整", en: "Borders" },
 
     modePanel: { ja: "適用範囲", en: "Border Scope" },
     stylePanel: { ja: "スタイル", en: "Style" },
-    drawingOptionsPanel: { ja: "適用オプション", en: "Apply Options" },
     clearFirst: { ja: "適用前に消去", en: "Clear Before Apply" },
 
     all: { ja: "すべて", en: "All" },
@@ -77,12 +96,12 @@ var LABELS = {
     lineWidthPreset05: "0.5",
 
     colorLabel: { ja: "カラー：", en: "Color:" },
+    tintLabel: { ja: "濃淡：", en: "Tint:" },
 
     swatchBlack: { ja: "黒", en: "Black" },
     swatchPaper: { ja: "紙色", en: "Paper" },
     swatchNone: { ja: "なし", en: "None" },
 
-    previewMode: { ja: "プレビュー", en: "Preview" },
     ok: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" },
 
@@ -100,21 +119,7 @@ var LABELS = {
     tipHeaderRow: { ja: "ショートカット: U", en: "Shortcut: U" },
     tipHeaderColumn: { ja: "ショートカット: L", en: "Shortcut: L" },
     tipClearLeftRight: { ja: "ショートカット: R", en: "Shortcut: R" },
-    tipAllOff: { ja: "ショートカット: C", en: "Shortcut: C" },
-
-    tabBorder: { ja: "罫線", en: "Borders" },
-    tabFill: { ja: "塗り", en: "Cell Fill" },
-
-    fillOddPanel: { ja: "奇数行", en: "Odd Rows" },
-    fillEvenPanel: { ja: "偶数行", en: "Even Rows" },
-    fillColorLabel: { ja: "カラー：", en: "Color:" },
-    fillTintLabel: { ja: "濃淡：", en: "Tint:" },
-    fillSwapButton: { ja: "交換", en: "Swap" },
-    fillSkipHeader: { ja: "ヘッダー行を無視", en: "Skip Header Row" },
-    fillSkipFooter: { ja: "フッター行を無視", en: "Skip Footer Row" },
-
-    undoFillPreview: { ja: "塗りプレビュー", en: "Fill Preview" },
-    undoFillApply: { ja: "塗りの設定", en: "Apply Fill Colors" }
+    tipAllOff: { ja: "ショートカット: C", en: "Shortcut: C" }
 };
 
 function L(key) {
@@ -125,15 +130,20 @@ function L(key) {
 }
 
 (function () {
-    var cells = getSelectedCellsFromApp();
+    var cells = normalizeSelectedCells(getSelectedCellsFromApp());
     if (cells.length === 0) {
         alert(L('alertSelect'));
         return;
     }
 
+    var fullTable = isFullTableSelected(cells);
+
     var state = {
         cells: cells,
-        previewed: false
+        previewed: false,
+        initialScreenMode: getCurrentScreenModeSafe(),
+        previewToggleCount: 0,
+        isFullTable: fullTable
     };
 
     app.selection = NothingEnum.NOTHING;
@@ -144,10 +154,46 @@ function L(key) {
     var result = ui.dlg.show();
     if (result != 1) {
         clearPreview(state);
+        restoreScreenModeFromState(state);
         return;
     }
 
     applyFinalFromDialog(ui, state);
+    restoreScreenModeFromState(state);
+
+    function normalizeSelectedCells(cells) {
+        var result = [];
+        var seen = {};
+        var i, key;
+
+        if (!cells || cells.length === 0) return result;
+
+        for (i = 0; i < cells.length; i++) {
+            key = getCellKey(cells[i]);
+            if (!seen[key]) {
+                seen[key] = true;
+                result.push(cells[i]);
+            }
+        }
+
+        return result;
+    }
+
+    function getCellKey(cell) {
+        var range;
+        try {
+            range = getCellRange(cell);
+            return [
+                cell.parent && cell.parent.id,
+                range.startRow,
+                range.endRow,
+                range.startCol,
+                range.endCol
+            ].join(":");
+        } catch (e) {
+            return String(cell);
+        }
+    }
 
     // =========================================
     // UI構築 / Build UI
@@ -157,21 +203,7 @@ function L(key) {
         dlg.orientation = "column";
         dlg.alignChildren = "fill";
 
-        var tabbedPanel = dlg.add("tabbedpanel");
-        tabbedPanel.alignChildren = ["fill", "fill"];
-        tabbedPanel.alignment = ["fill", "fill"];
-
-        var tabBorder = tabbedPanel.add("tab", undefined, L('tabBorder'));
-        tabBorder.orientation = "column";
-        tabBorder.alignChildren = "fill";
-        tabBorder.margins = [15, 20, 5, 10];
-
-        var tabFill = tabbedPanel.add("tab", undefined, L('tabFill'));
-        tabFill.orientation = "column";
-        tabFill.alignChildren = "fill";
-        tabFill.margins = [15, 20, 5, 10];
-
-        var settingsColumns = tabBorder.add("group");
+        var settingsColumns = dlg.add("group");
         settingsColumns.orientation = "row";
         settingsColumns.alignChildren = ["fill", "top"];
         settingsColumns.alignment = ["fill", "top"];
@@ -284,95 +316,31 @@ function L(key) {
         var swatchEntries = getSwatchEntries();
         var colorDropdown = createSwatchDropdown(panelColor, swatchEntries, getDefaultColorIndex(swatchEntries));
 
+        var tintGroup = panelColor.add("group");
+        tintGroup.orientation = "column";
+        tintGroup.alignChildren = "left";
+        tintGroup.margins = [0, 10, 0, 10];
+        var tintLabelRow = tintGroup.add("group");
+        tintLabelRow.orientation = "row";
+        tintLabelRow.alignChildren = ["left", "center"];
+        tintLabelRow.add("statictext", undefined, L('tintLabel'));
+        var tintText = tintLabelRow.add("edittext", undefined, "100");
+        tintText.preferredSize.width = 50;
+        tintLabelRow.add("statictext", undefined, "%");
+        var tintSlider = tintGroup.add("slider", undefined, 100, 0, 100);
+        tintSlider.preferredSize.width = 150;
+        tintGroup.enabled = true;
+
 
         rbAll.value = true;
 
+        if (!state.isFullTable) {
+            rbHeaderRow.enabled = false;
+            rbHeaderColumn.enabled = false;
+        }
+
         // カラープレビューの初期表示
         updateSwatchPreview(colorPreviewBox, colorDropdown, dlg);
-
-        // =========================================
-        // 塗りタブの内容 / Fill tab content
-        // =========================================
-        var fillDefaults = getDefaultFillSettings(state.cells);
-        var fillSwatchEntries = getSwatchEntries();
-
-        var fillMainGroup = tabFill.add("group");
-        fillMainGroup.orientation = "row";
-        fillMainGroup.alignChildren = "top";
-        fillMainGroup.spacing = 15;
-
-        // 奇数行パネル / Odd rows panel
-        var fillOddPanel = fillMainGroup.add("panel", undefined, L('fillOddPanel'));
-        fillOddPanel.orientation = "column";
-        fillOddPanel.alignChildren = "left";
-        fillOddPanel.spacing = 10;
-        fillOddPanel.margins = [15, 20, 15, 10];
-
-        var fillOddColorGroup = fillOddPanel.add("group");
-        fillOddColorGroup.orientation = "column";
-        fillOddColorGroup.alignChildren = "left";
-        fillOddColorGroup.margins = [0, 10, 0, 10];
-        var fillOddColorLabelRow = fillOddColorGroup.add("group");
-        fillOddColorLabelRow.orientation = "row";
-        fillOddColorLabelRow.alignChildren = ["left", "center"];
-        fillOddColorLabelRow.add("statictext", undefined, L('fillColorLabel'));
-        var fillOddColorPreviewBox = createSwatchPreviewBox(fillOddColorLabelRow);
-        var fillOddColorDropdown = createSwatchDropdown(fillOddColorGroup, fillSwatchEntries, getFillDefaultColorIndex(fillSwatchEntries, fillDefaults.oddColorName));
-
-        var fillOddTintGroup = fillOddPanel.add("group");
-        fillOddTintGroup.orientation = "column";
-        fillOddTintGroup.alignChildren = "left";
-        fillOddTintGroup.margins = [0, 10, 0, 10];
-        var fillOddTintLabelRow = fillOddTintGroup.add("group");
-        fillOddTintLabelRow.orientation = "row";
-        fillOddTintLabelRow.alignChildren = ["left", "center"];
-        fillOddTintLabelRow.add("statictext", undefined, L('fillTintLabel'));
-        var fillOddTintText = fillOddTintLabelRow.add("edittext", undefined, String(fillDefaults.oddTint));
-        fillOddTintText.preferredSize.width = 50;
-        var fillOddSlider = fillOddTintGroup.add("slider", undefined, fillDefaults.oddTint, 0, 100);
-        fillOddSlider.preferredSize.width = 150;
-
-        // 偶数行パネル / Even rows panel
-        var fillEvenPanel = fillMainGroup.add("panel", undefined, L('fillEvenPanel'));
-        fillEvenPanel.orientation = "column";
-        fillEvenPanel.alignChildren = "left";
-        fillEvenPanel.spacing = 10;
-        fillEvenPanel.margins = [15, 20, 15, 10];
-
-        var fillEvenColorGroup = fillEvenPanel.add("group");
-        fillEvenColorGroup.orientation = "column";
-        fillEvenColorGroup.alignChildren = "left";
-        fillEvenColorGroup.margins = [0, 10, 0, 10];
-        var fillEvenColorLabelRow = fillEvenColorGroup.add("group");
-        fillEvenColorLabelRow.orientation = "row";
-        fillEvenColorLabelRow.alignChildren = ["left", "center"];
-        fillEvenColorLabelRow.add("statictext", undefined, L('fillColorLabel'));
-        var fillEvenColorPreviewBox = createSwatchPreviewBox(fillEvenColorLabelRow);
-        var fillEvenColorDropdown = createSwatchDropdown(fillEvenColorGroup, fillSwatchEntries, getFillDefaultColorIndex(fillSwatchEntries, fillDefaults.evenColorName));
-
-        var fillEvenTintGroup = fillEvenPanel.add("group");
-        fillEvenTintGroup.orientation = "column";
-        fillEvenTintGroup.alignChildren = "left";
-        fillEvenTintGroup.margins = [0, 10, 0, 10];
-        var fillEvenTintLabelRow = fillEvenTintGroup.add("group");
-        fillEvenTintLabelRow.orientation = "row";
-        fillEvenTintLabelRow.alignChildren = ["left", "center"];
-        fillEvenTintLabelRow.add("statictext", undefined, L('fillTintLabel'));
-        var fillEvenTintText = fillEvenTintLabelRow.add("edittext", undefined, String(fillDefaults.evenTint));
-        fillEvenTintText.preferredSize.width = 50;
-        var fillEvenSlider = fillEvenTintGroup.add("slider", undefined, fillDefaults.evenTint, 0, 100);
-        fillEvenSlider.preferredSize.width = 150;
-
-        // 交換チェックボックス / Swap checkbox
-        var fillSwapWrapper = tabFill.add("group");
-        fillSwapWrapper.orientation = "column";
-        fillSwapWrapper.alignChildren = ["left", "top"];
-        fillSwapWrapper.alignment = ["left", "top"];
-        fillSwapWrapper.margins = [0, 10, 0, 0];
-
-        var fillSwapCheckbox = fillSwapWrapper.add("checkbox", undefined, L('fillSwapButton'));
-        var fillSkipHeaderCheckbox = fillSwapWrapper.add("checkbox", undefined, L('fillSkipHeader'));
-        var fillSkipFooterCheckbox = fillSwapWrapper.add("checkbox", undefined, L('fillSkipFooter'));
 
         var btnArea = dlg.add("group");
         btnArea.orientation = "row";
@@ -434,25 +402,14 @@ function L(key) {
             rbWeight05: rbWeight05,
             colorDropdown: colorDropdown,
             colorPreviewBox: colorPreviewBox,
+            tintSlider: tintSlider,
+            tintText: tintText,
+            tintGroup: tintGroup,
 
             cbClearFirst: cbClearFirst,
             btnCancel: btnCancel,
             btnOk: btnOk,
             drawButtons: [rbAll, rbOuter, rbInnerOnly, rbHorzOnly, rbVertOnly, rbHeaderRow, rbHeaderColumn, rbClearLeftRight, rbAllOff],
-            tabbedPanel: tabbedPanel,
-            tabBorder: tabBorder,
-            tabFill: tabFill,
-            fillOddColorDropdown: fillOddColorDropdown,
-            fillOddColorPreviewBox: fillOddColorPreviewBox,
-            fillEvenColorDropdown: fillEvenColorDropdown,
-            fillEvenColorPreviewBox: fillEvenColorPreviewBox,
-            fillOddSlider: fillOddSlider,
-            fillOddTintText: fillOddTintText,
-            fillEvenSlider: fillEvenSlider,
-            fillEvenTintText: fillEvenTintText,
-            fillSwapCheckbox: fillSwapCheckbox,
-            fillSkipHeaderCheckbox: fillSkipHeaderCheckbox,
-            fillSkipFooterCheckbox: fillSkipFooterCheckbox,
             btnPreviewToggle: btnPreviewToggle
         };
     }
@@ -464,9 +421,11 @@ function L(key) {
         var di;
 
         for (di = 0; di < ui.drawButtons.length; di++) {
-            ui.drawButtons[di].onClick = function () {
-                onRadioClick(ui, state);
+            ui.drawButtons[di].onClick = function (event) {
+                onRadioClick(ui, state, event);
             };
+            if (typeof ui.drawButtons[di].helpTip !== "string") ui.drawButtons[di].helpTip = "";
+            ui.drawButtons[di].helpTip += "\nOption+Click: Toggle Clear Before Apply";
         }
 
         ui.rbWeightNone.onClick = function () { applyWeightPreset(ui, "0", state); };
@@ -484,6 +443,7 @@ function L(key) {
 
         ui.colorDropdown.onChange = function () {
             updateSwatchPreview(ui.colorPreviewBox, ui.colorDropdown, ui.dlg);
+            updateBorderTintEnabled(ui);
             if (ui.colorDropdown.selection && isNoneSwatchName(String(ui.colorDropdown.selection._swatchName || ""))) {
                 ui.weightInput.text = "0";
                 syncWeightPresetFromInput(ui);
@@ -500,77 +460,61 @@ function L(key) {
             doPreview(ui, state);
         });
 
+        ui.tintSlider.onChanging = function () {
+            var v = adjustFillTintValue(this.value);
+            this.value = v;
+            ui.tintText.text = String(v);
+            doPreview(ui, state);
+        };
+        ui.tintText.onChange = function () {
+            var v = adjustFillTintValue(parseFloat(this.text));
+            this.text = String(v);
+            ui.tintSlider.value = v;
+            doPreview(ui, state);
+        };
+
+        changeValueByArrowKey(ui.tintText, false, function () {
+            var v = adjustFillTintValue(parseFloat(ui.tintText.text));
+            ui.tintText.text = String(v);
+            ui.tintSlider.value = v;
+            doPreview(ui, state);
+        });
+
         addDrawingOptionKeyHandler(ui.dlg, ui, state);
         addModeShortcutKeyHandler(ui.dlg, ui, state);
 
-        // 塗りタブ イベント / Fill tab events
-        ui.tabbedPanel.onChange = function () {
-            doPreview(ui, state);
-        };
-
-        ui.fillOddColorDropdown.onChange = function () {
-            updateSwatchPreview(ui.fillOddColorPreviewBox, ui.fillOddColorDropdown, ui.dlg);
-            updateFillTintUI(ui, true);
-            doPreview(ui, state);
-        };
-        ui.fillEvenColorDropdown.onChange = function () {
-            updateSwatchPreview(ui.fillEvenColorPreviewBox, ui.fillEvenColorDropdown, ui.dlg);
-            updateFillTintUI(ui, false);
-            doPreview(ui, state);
-        };
-
-        ui.fillOddSlider.onChanging = function () {
-            var v = adjustFillTintValue(this.value);
-            this.value = v;
-            ui.fillOddTintText.text = String(v);
-            doPreview(ui, state);
-        };
-        ui.fillOddTintText.onChange = function () {
-            var v = adjustFillTintValue(parseFloat(this.text));
-            this.text = String(v);
-            ui.fillOddSlider.value = v;
-            doPreview(ui, state);
-        };
-
-        ui.fillEvenSlider.onChanging = function () {
-            var v = adjustFillTintValue(this.value);
-            this.value = v;
-            ui.fillEvenTintText.text = String(v);
-            doPreview(ui, state);
-        };
-        ui.fillEvenTintText.onChange = function () {
-            var v = adjustFillTintValue(parseFloat(this.text));
-            this.text = String(v);
-            ui.fillEvenSlider.value = v;
-            doPreview(ui, state);
-        };
-
-        ui.fillSwapCheckbox.onClick = function () {
-            doPreview(ui, state);
-        };
-        ui.fillSkipHeaderCheckbox.onClick = function () {
-            doPreview(ui, state);
-        };
-        ui.fillSkipFooterCheckbox.onClick = function () {
-            doPreview(ui, state);
-        };
-
-        // 初期状態で濃淡UIを更新
-        updateFillTintUI(ui, true);
-        updateFillTintUI(ui, false);
-
-        // 塗りカラープレビューの初期表示
-        updateSwatchPreview(ui.fillOddColorPreviewBox, ui.fillOddColorDropdown, ui.dlg);
-        updateSwatchPreview(ui.fillEvenColorPreviewBox, ui.fillEvenColorDropdown, ui.dlg);
-
         ui.dlg.onShow = function () {
+            updateBorderTintEnabled(ui);
             doPreview(ui, state);
         };
 
         ui.btnPreviewToggle.onClick = function () {
             togglePreviewScreenMode();
+            state.previewToggleCount++;
             updatePreviewToggleButtonLabel(ui.btnPreviewToggle);
         };
+    }
+
+    function getCurrentScreenModeSafe() {
+        try {
+            return app.activeWindow ? app.activeWindow.screenMode : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function setScreenModeSafe(mode) {
+        try {
+            if (app.activeWindow && mode != null) {
+                app.activeWindow.screenMode = mode;
+            }
+        } catch (e) { }
+    }
+
+    function restoreScreenModeFromState(state) {
+        if (!state) return;
+        if ((state.previewToggleCount % 2) === 0) return;
+        setScreenModeSafe(state.initialScreenMode);
     }
 
     function getPreviewToggleButtonLabel() {
@@ -602,7 +546,12 @@ function L(key) {
         } catch (e) { }
     }
 
-    function onRadioClick(ui, state) {
+    function onRadioClick(ui, state, event) {
+        var ks = ScriptUI.environment.keyboardState;
+        var isAlt = !!(ks && ks.altKey);
+        if (isAlt && ui && ui.cbClearFirst) {
+            ui.cbClearFirst.value = !ui.cbClearFirst.value;
+        }
         doPreview(ui, state);
     }
 
@@ -700,9 +649,9 @@ function L(key) {
                 ui.rbHorzOnly.value = true;
             } else if (keyName == "V") {
                 ui.rbVertOnly.value = true;
-            } else if (keyName == "U") {
+            } else if (keyName == "U" && ui.rbHeaderRow.enabled) {
                 ui.rbHeaderRow.value = true;
-            } else if (keyName == "L") {
+            } else if (keyName == "L" && ui.rbHeaderColumn.enabled) {
                 ui.rbHeaderColumn.value = true;
             } else if (keyName == "R") {
                 ui.rbClearLeftRight.value = true;
@@ -722,26 +671,8 @@ function L(key) {
     // =========================================
     // プレビューと確定 / Preview & Apply
     // =========================================
-    function isFillTabActive(ui) {
-        return ui.tabbedPanel.selection === ui.tabFill;
-    }
-
     function doPreview(ui, state) {
         clearPreview(state);
-
-        if (isFillTabActive(ui)) {
-            var fillSettings = getFillSettingsFromUI(ui);
-            try {
-                app.doScript(function () {
-                    applyFillZebra(state.cells, fillSettings.oddColorName, fillSettings.evenColorName, fillSettings.oddTint, fillSettings.evenTint, fillSettings.skipHeader, fillSettings.skipFooter);
-                }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoFillPreview'));
-                state.previewed = true;
-                app.activeDocument.recompose();
-            } catch (e) {
-                state.previewed = false;
-            }
-            return;
-        }
 
         var weight = parseLineWeight(getSelectedWeightText(ui));
         if (!isValidLineWeight(weight)) {
@@ -749,18 +680,20 @@ function L(key) {
         }
 
         var swatch = getSelectedSwatch(ui);
+        var tint = getBorderTintFromUI(ui);
         if (!swatch) {
             return;
         }
 
         try {
             app.doScript(function () {
-                applyBorders(state.cells, getMode(ui), weight, ui.cbClearFirst.value, swatch);
+                applyBorders(state.cells, getMode(ui), weight, ui.cbClearFirst.value, swatch, tint);
             }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoPreview'));
             state.previewed = true;
             app.activeDocument.recompose();
         } catch (e) {
             state.previewed = false;
+            try { $.writeln("[TableBorderFill] Preview error: " + e); } catch (_) { }
         }
     }
 
@@ -768,7 +701,9 @@ function L(key) {
         if (!state.previewed) return;
         try {
             app.undo();
-        } catch (e) { }
+        } catch (e) {
+            try { $.writeln("[TableBorderFill] Undo preview error: " + e); } catch (_) { }
+        }
         state.previewed = false;
         app.activeDocument.recompose();
     }
@@ -778,17 +713,10 @@ function L(key) {
             clearPreview(state);
         }
 
-        if (isFillTabActive(ui)) {
-            var fillSettings = getFillSettingsFromUI(ui);
-            app.doScript(function () {
-                applyFillZebra(state.cells, fillSettings.oddColorName, fillSettings.evenColorName, fillSettings.oddTint, fillSettings.evenTint, fillSettings.skipHeader, fillSettings.skipFooter);
-            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoFillApply'));
-            return;
-        }
-
         var mode = getMode(ui);
         var weight = parseLineWeight(getSelectedWeightText(ui));
         var swatch = getSelectedSwatch(ui);
+        var tint = getBorderTintFromUI(ui);
 
         if (!isValidLineWeight(weight)) {
             alert(L('alertWeight'));
@@ -797,9 +725,14 @@ function L(key) {
 
         if (!swatch) return;
 
-        app.doScript(function () {
-            applyBorders(state.cells, mode, weight, ui.cbClearFirst.value, swatch);
-        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoApply'));
+        try {
+            app.doScript(function () {
+                applyBorders(state.cells, mode, weight, ui.cbClearFirst.value, swatch, tint);
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoApply'));
+        } catch (e) {
+            try { $.writeln("[TableBorderFill] Apply error: " + e); } catch (_) { }
+            throw e;
+        }
     }
 
     // =========================================
@@ -894,14 +827,6 @@ function L(key) {
         return 0;
     }
 
-    function getFillDefaultColorIndex(swatchEntries, colorName) {
-        var i;
-        for (i = 0; i < swatchEntries.length; i++) {
-            if (swatchEntries[i].actualName === colorName) return i;
-        }
-        return 0;
-    }
-
     function getSelectedColorName(ui) {
         return getSelectedSwatchNameFromDropdown(ui ? ui.colorDropdown : null);
     }
@@ -916,6 +841,10 @@ function L(key) {
         return getSwatchByName(getSelectedColorName(ui));
     }
 
+    function getBorderTintFromUI(ui) {
+        if (!ui || !ui.tintText) return 100;
+        return clampTintValue(parseFloat(ui.tintText.text));
+    }
     // =========================================
     // スウォッチUIとプレビュー / Swatch UI and preview helpers
     // =========================================
@@ -1097,6 +1026,18 @@ function L(key) {
         if (target.rbWeight05) target.rbWeight05.value = (value === 0.5);
     }
 
+    function updateBorderTintEnabled(ui) {
+        var swatchName;
+        var enabled;
+
+        if (!ui || !ui.colorDropdown || !ui.tintGroup) return;
+
+        swatchName = getSelectedSwatchNameFromDropdown(ui.colorDropdown);
+        enabled = !(isNoneSwatchName(swatchName) || isPaperSwatchName(swatchName));
+
+        ui.tintGroup.enabled = enabled;
+    }
+
     // =========================================
     // 値変換 / Value conversion
     // =========================================
@@ -1133,42 +1074,20 @@ function L(key) {
     // =========================================
     function getSelectedCellsFromApp() {
         var result = [];
-        var seen = {};
         var i;
         var cells;
         var j;
-        var key;
 
         if (app.selection.length === 0) return [];
 
         for (i = 0; i < app.selection.length; i++) {
             cells = getSelectedCells(app.selection[i]);
             for (j = 0; j < cells.length; j++) {
-                key = getCellKey(cells[j]);
-                if (!seen[key]) {
-                    seen[key] = true;
-                    result.push(cells[j]);
-                }
+                result.push(cells[j]);
             }
         }
 
         return result;
-    }
-
-    function getCellKey(cell) {
-        var range;
-        try {
-            range = getCellRange(cell);
-            return [
-                cell.parent && cell.parent.id,
-                range.startRow,
-                range.endRow,
-                range.startCol,
-                range.endCol
-            ].join(":");
-        } catch (e) {
-            return String(cell);
-        }
     }
 
     function getSelectedCells(sel) {
@@ -1188,64 +1107,20 @@ function L(key) {
         return result;
     }
 
-    // =========================================
-    // 塗りヘルパー / Fill helpers
-    // =========================================
-    function getDefaultFillSettings(cells) {
-        var result = { oddColorName: "Black", evenColorName: "Black", oddTint: 100, evenTint: 100 };
-        if (!cells || cells.length === 0) return result;
-
+    function isFullTableSelected(cells) {
+        if (!cells || cells.length === 0) return false;
         try {
-            var comboCounts = {};
-            var combos = [];
-            var i, c, colorName, tint, key, k;
-
-            for (i = 0; i < cells.length; i++) {
-                c = cells[i];
-                colorName = (c.fillColor && c.fillColor.name) ? c.fillColor.name : "Black";
-                tint = (!isNaN(c.fillTint) && c.fillTint >= 0) ? c.fillTint : 100;
-                key = colorName + "||" + tint;
-                if (!comboCounts[key]) {
-                    comboCounts[key] = { count: 0, colorName: colorName, tint: tint };
-                }
-                comboCounts[key].count++;
-            }
-            for (k in comboCounts) {
-                combos.push(comboCounts[k]);
-            }
-            combos.sort(function (a, b) { return b.count - a.count; });
-
-            if (combos.length >= 1) {
-                result.oddColorName = combos[0].colorName;
-                result.oddTint = combos[0].tint;
-            }
-            if (combos.length >= 2) {
-                result.evenColorName = combos[1].colorName;
-                result.evenTint = combos[1].tint;
-            } else {
-                result.evenColorName = result.oddColorName;
-                result.evenTint = result.oddTint;
-            }
-        } catch (e) { }
-        return result;
-    }
-
-    function getSelectedFillColorName(dropdown) {
-        return getSelectedSwatchNameFromDropdown(dropdown);
-    }
-
-    function getFillSettingsFromUI(ui) {
-        var oddColorName = getSelectedFillColorName(ui.fillOddColorDropdown);
-        var evenColorName = getSelectedFillColorName(ui.fillEvenColorDropdown);
-        var oddTint = clampTintValue(parseFloat(ui.fillOddTintText.text));
-        var evenTint = clampTintValue(parseFloat(ui.fillEvenTintText.text));
-        var skipHeader = !!(ui.fillSkipHeaderCheckbox && ui.fillSkipHeaderCheckbox.value);
-        var skipFooter = !!(ui.fillSkipFooterCheckbox && ui.fillSkipFooterCheckbox.value);
-        if (ui.fillSwapCheckbox && ui.fillSwapCheckbox.value) {
-            return { oddColorName: evenColorName, evenColorName: oddColorName, oddTint: evenTint, evenTint: oddTint, skipHeader: skipHeader, skipFooter: skipFooter };
+            var table = cells[0].parentRow.parent;
+            var bounds = getBounds(cells);
+            return bounds.minRow === 0
+                && bounds.maxRow === table.rows.length - 1
+                && bounds.minCol === 0
+                && bounds.maxCol === table.columns.length - 1;
+        } catch (e) {
+            return false;
         }
-        return { oddColorName: oddColorName, evenColorName: evenColorName, oddTint: oddTint, evenTint: evenTint, skipHeader: skipHeader, skipFooter: skipFooter };
     }
+
 
     function clampTintValue(v) {
         if (isNaN(v)) v = 100;
@@ -1264,71 +1139,10 @@ function L(key) {
         return v;
     }
 
-    function updateFillTintUI(ui, isOdd) {
-        var name = isOdd
-            ? getSelectedFillColorName(ui.fillOddColorDropdown)
-            : getSelectedFillColorName(ui.fillEvenColorDropdown);
-        var disabled = isNoneSwatchName(name) || isPaperSwatchName(name);
-
-        if (isOdd) {
-            ui.fillOddSlider.enabled = !disabled;
-            ui.fillOddTintText.enabled = !disabled;
-        } else {
-            ui.fillEvenSlider.enabled = !disabled;
-            ui.fillEvenTintText.enabled = !disabled;
-        }
-    }
-
-    function applyFillZebra(cells, oddColorName, evenColorName, oddTint, evenTint, skipHeader, skipFooter) {
-        if (!cells || cells.length === 0) return;
-
-        var doc = app.activeDocument;
-        var oddSwatch = doc.swatches.item(oddColorName);
-        var evenSwatch = doc.swatches.item(evenColorName);
-
-        var rowIndexMap = {};
-        var selectedRowIndices = [];
-        var i, rIndex, n, cell, localRowOrder, rowType;
-
-        for (i = 0; i < cells.length; i++) {
-            rowType = null;
-            try { rowType = cells[i].parentRow.rowType; } catch (e) { }
-            if (skipHeader && rowType === RowTypes.HEADER_ROW) continue;
-            if (skipFooter && rowType === RowTypes.FOOTER_ROW) continue;
-            rIndex = cells[i].parentRow.index;
-            if (rowIndexMap[rIndex] === undefined) {
-                rowIndexMap[rIndex] = selectedRowIndices.length;
-                selectedRowIndices.push(rIndex);
-            }
-        }
-
-        for (n = 0; n < cells.length; n++) {
-            cell = cells[n];
-            rowType = null;
-            try { rowType = cell.parentRow.rowType; } catch (e) { }
-            if (skipHeader && rowType === RowTypes.HEADER_ROW) continue;
-            if (skipFooter && rowType === RowTypes.FOOTER_ROW) continue;
-            localRowOrder = rowIndexMap[cell.parentRow.index];
-
-            if (localRowOrder % 2 === 0) {
-                cell.fillColor = oddSwatch;
-                if (!isNoneSwatchName(oddColorName) && !isPaperSwatchName(oddColorName)) {
-                    try { cell.fillTint = oddTint; } catch (e) { }
-                }
-            } else {
-                cell.fillColor = evenSwatch;
-                if (!isNoneSwatchName(evenColorName) && !isPaperSwatchName(evenColorName)) {
-                    try { cell.fillTint = evenTint; } catch (e) { }
-                }
-            }
-        }
-    }
-
-
     // =========================================
     // 罫線適用 / Apply borders
     // =========================================
-    function applyBorders(cells, mode, weight, clearFirst, swatch) {
+    function applyBorders(cells, mode, weight, clearFirst, swatch, tint) {
         if (cells.length === 0) return;
 
         var bounds = getBounds(cells);
@@ -1340,47 +1154,47 @@ function L(key) {
 
 
         if (mode === "all") {
-            applyAll(cells, weight, swatch);
+            applyAll(cells, weight, clearFirst, swatch, tint);
             return;
         }
 
         if (mode === "outer") {
-            applyOuter(cells, bounds, weight, clearFirst, swatch);
+            applyOuter(cells, bounds, weight, clearFirst, swatch, tint);
             return;
         }
 
         if (mode === "innerOnly") {
-            applyInnerOnly(cells, bounds, weight, clearFirst, swatch);
+            applyInnerOnly(cells, bounds, weight, clearFirst, swatch, tint);
             return;
         }
 
         if (mode === "horizontal") {
-            applyHorizontal(cells, weight, clearFirst, swatch);
+            applyHorizontal(cells, bounds, weight, clearFirst, swatch, tint);
             return;
         }
 
         if (mode === "vertical") {
-            applyVertical(cells, weight, clearFirst, swatch);
+            applyVertical(cells, bounds, weight, clearFirst, swatch, tint);
             return;
         }
 
         if (mode === "headerRow") {
-            applyTopAndBottomRows(cells, bounds, weight, clearFirst, swatch);
+            applyTopAndBottomRows(cells, bounds, weight, clearFirst, swatch, tint);
             return;
         }
 
         if (mode === "headerColumn") {
-            applyLeftAndRightColumns(cells, bounds, weight, clearFirst, swatch);
+            applyLeftAndRightColumns(cells, bounds, weight, clearFirst, swatch, tint);
             return;
         }
 
         if (mode === "clearLeftRight") {
-            applyClearLeftRight(cells);
+            applyClearLeftRight(cells, bounds);
             return;
         }
     }
 
-    function applyTopAndBottomRows(cells, bounds, weight, clearFirst, swatch) {
+    function applyTopAndBottomRows(cells, bounds, weight, clearFirst, swatch, tint) {
         var i, cell, range;
         var isFirstRow, isLastRow;
 
@@ -1397,28 +1211,39 @@ function L(key) {
                 cell.topEdgeStrokeWeight = weight;
                 cell.bottomEdgeStrokeWeight = weight;
                 setCellEdgeColors(cell, swatch, swatch, null, null);
+                applyCellEdgeTints(cell, tint, tint, null, null, swatch, swatch, null, null);
             }
 
             if (isLastRow) {
                 cell.bottomEdgeStrokeWeight = weight;
                 setCellEdgeColors(cell, null, swatch, null, null);
+                applyCellEdgeTints(cell, null, tint, null, null, null, swatch, null, null);
             }
         }
     }
 
     function applyAllOff(cells) {
-        clearAllEdges(cells);
-    }
-
-    function applyAll(cells, weight, swatch) {
         var i;
         for (i = 0; i < cells.length; i++) {
-            setCellEdges(cells[i], weight, weight, weight, weight);
-            setCellEdgeColors(cells[i], swatch, swatch, swatch, swatch);
+            clearCellEdgesAndSelectedOpposites(cells[i], cells);
         }
     }
 
-    function applyOuter(cells, bounds, weight, clearFirst, swatch) {
+    function applyAll(cells, weight, clearFirst, swatch, tint) {
+        var i, cell;
+        if (clearFirst) {
+            applyAllOff(cells);
+        }
+        for (i = 0; i < cells.length; i++) {
+            cell = cells[i];
+            applyEdgeWithSelectedOpposite(cell, cells, "top", weight, swatch, tint);
+            applyEdgeWithSelectedOpposite(cell, cells, "bottom", weight, swatch, tint);
+            applyEdgeWithSelectedOpposite(cell, cells, "left", weight, swatch, tint);
+            applyEdgeWithSelectedOpposite(cell, cells, "right", weight, swatch, tint);
+        }
+    }
+
+    function applyOuter(cells, bounds, weight, clearFirst, swatch, tint) {
         if (clearFirst) clearAllEdges(cells);
 
         var i, c, edgeFlags;
@@ -1426,82 +1251,107 @@ function L(key) {
             c = cells[i];
             edgeFlags = getCellEdgeFlags(c, bounds);
 
-            if (edgeFlags.top) { c.topEdgeStrokeWeight = weight; c.topEdgeStrokeColor = swatch; }
-            if (edgeFlags.bottom) { c.bottomEdgeStrokeWeight = weight; c.bottomEdgeStrokeColor = swatch; }
-            if (edgeFlags.left) { c.leftEdgeStrokeWeight = weight; c.leftEdgeStrokeColor = swatch; }
-            if (edgeFlags.right) { c.rightEdgeStrokeWeight = weight; c.rightEdgeStrokeColor = swatch; }
+            if (edgeFlags.top) {
+                c.topEdgeStrokeWeight = weight;
+                c.topEdgeStrokeColor = swatch;
+                applyCellEdgeTints(c, tint, null, null, null, swatch, null, null, null);
+            }
+            if (edgeFlags.bottom) {
+                c.bottomEdgeStrokeWeight = weight;
+                c.bottomEdgeStrokeColor = swatch;
+                applyCellEdgeTints(c, null, tint, null, null, null, swatch, null, null);
+            }
+            if (edgeFlags.left) {
+                c.leftEdgeStrokeWeight = weight;
+                c.leftEdgeStrokeColor = swatch;
+                applyCellEdgeTints(c, null, null, tint, null, null, null, swatch, null);
+            }
+            if (edgeFlags.right) {
+                c.rightEdgeStrokeWeight = weight;
+                c.rightEdgeStrokeColor = swatch;
+                applyCellEdgeTints(c, null, null, null, tint, null, null, null, swatch);
+            }
         }
     }
 
-    function applyInnerOnly(cells, bounds, weight, clearFirst, swatch) {
-        if (clearFirst) clearAllEdges(cells);
+    function applyInnerOnly(cells, bounds, weight, clearFirst, swatch, tint) {
+        if (clearFirst) {
+            applyAllOff(cells);
+        }
 
         var i, c, edgeFlags;
         for (i = 0; i < cells.length; i++) {
             c = cells[i];
             edgeFlags = getCellEdgeFlags(c, bounds);
 
-            if (!edgeFlags.top) { c.topEdgeStrokeWeight = weight; c.topEdgeStrokeColor = swatch; }
-            if (!edgeFlags.bottom) { c.bottomEdgeStrokeWeight = weight; c.bottomEdgeStrokeColor = swatch; }
-            if (!edgeFlags.left) { c.leftEdgeStrokeWeight = weight; c.leftEdgeStrokeColor = swatch; }
-            if (!edgeFlags.right) { c.rightEdgeStrokeWeight = weight; c.rightEdgeStrokeColor = swatch; }
-        }
-    }
-
-    function applyHorizontal(cells, weight, clearFirst, swatch) {
-        var i, cell;
-        if (clearFirst) {
-            clearAllEdges(cells);
-            for (i = 0; i < cells.length; i++) {
-                setCellEdges(cells[i], weight, weight, 0, 0);
-                setCellEdgeColors(cells[i], swatch, swatch, null, null);
+            if (!edgeFlags.top) {
+                applyEdgeWithSelectedOpposite(c, cells, "top", weight, swatch, tint);
             }
-            return;
-        }
-
-        for (i = 0; i < cells.length; i++) {
-            cell = cells[i];
-            cell.topEdgeStrokeWeight = weight;
-            cell.bottomEdgeStrokeWeight = weight;
-            setCellEdgeColors(cell, swatch, swatch, null, null);
-        }
-    }
-
-    function applyVertical(cells, weight, clearFirst, swatch) {
-        var i, cell;
-        if (clearFirst) {
-            clearAllEdges(cells);
-            for (i = 0; i < cells.length; i++) {
-                setCellEdges(cells[i], 0, 0, weight, weight);
-                setCellEdgeColors(cells[i], null, null, swatch, swatch);
+            if (!edgeFlags.bottom) {
+                applyEdgeWithSelectedOpposite(c, cells, "bottom", weight, swatch, tint);
             }
-            return;
-        }
-
-        for (i = 0; i < cells.length; i++) {
-            cell = cells[i];
-            cell.leftEdgeStrokeWeight = weight;
-            cell.rightEdgeStrokeWeight = weight;
-            setCellEdgeColors(cell, null, null, swatch, swatch);
+            if (!edgeFlags.left) {
+                applyEdgeWithSelectedOpposite(c, cells, "left", weight, swatch, tint);
+            }
+            if (!edgeFlags.right) {
+                applyEdgeWithSelectedOpposite(c, cells, "right", weight, swatch, tint);
+            }
         }
     }
-    function applyClearLeftRight(cells) {
-        var i, cell;
-        var hasLeftNeighbor, hasRightNeighbor;
+
+    function applyHorizontal(cells, bounds, weight, clearFirst, swatch, tint) {
+        if (clearFirst) {
+            applyAllOff(cells);
+        }
+
+        var i, cell, edgeFlags;
+        for (i = 0; i < cells.length; i++) {
+            cell = cells[i];
+            edgeFlags = getCellEdgeFlags(cell, bounds);
+
+            if (!edgeFlags.top) {
+                applyEdgeWithSelectedOpposite(cell, cells, "top", weight, swatch, tint);
+            }
+            if (!edgeFlags.bottom) {
+                applyEdgeWithSelectedOpposite(cell, cells, "bottom", weight, swatch, tint);
+            }
+        }
+    }
+
+    function applyVertical(cells, bounds, weight, clearFirst, swatch, tint) {
+        if (clearFirst) {
+            applyAllOff(cells);
+        }
+
+        var i, cell, edgeFlags;
+        for (i = 0; i < cells.length; i++) {
+            cell = cells[i];
+            edgeFlags = getCellEdgeFlags(cell, bounds);
+
+            if (!edgeFlags.left) {
+                applyEdgeWithSelectedOpposite(cell, cells, "left", weight, swatch, tint);
+            }
+            if (!edgeFlags.right) {
+                applyEdgeWithSelectedOpposite(cell, cells, "right", weight, swatch, tint);
+            }
+        }
+    }
+
+    function applyClearLeftRight(cells, bounds) {
+        var i, cell, edgeFlags;
 
         for (i = 0; i < cells.length; i++) {
             cell = cells[i];
-            hasLeftNeighbor = hasAdjacentSelectedCellOnLeft(cell, cells);
-            hasRightNeighbor = hasAdjacentSelectedCellOnRight(cell, cells);
+            edgeFlags = getCellEdgeFlags(cell, bounds);
 
-            if (!hasLeftNeighbor) {
+            if (edgeFlags.left) {
                 cell.leftEdgeStrokeWeight = 0;
                 try {
                     cell.leftEdgeStrokeColor = NothingEnum.NOTHING;
                 } catch (e) { }
             }
 
-            if (!hasRightNeighbor) {
+            if (edgeFlags.right) {
                 cell.rightEdgeStrokeWeight = 0;
                 try {
                     cell.rightEdgeStrokeColor = NothingEnum.NOTHING;
@@ -1510,7 +1360,7 @@ function L(key) {
         }
     }
 
-    function applyLeftAndRightColumns(cells, bounds, weight, clearFirst, swatch) {
+    function applyLeftAndRightColumns(cells, bounds, weight, clearFirst, swatch, tint) {
         var i, cell, range;
         var isFirstCol, isLastCol;
 
@@ -1527,48 +1377,122 @@ function L(key) {
                 cell.leftEdgeStrokeWeight = weight;
                 cell.rightEdgeStrokeWeight = weight;
                 setCellEdgeColors(cell, null, null, swatch, swatch);
+                applyCellEdgeTints(cell, null, null, tint, tint, null, null, swatch, swatch);
             }
 
             if (isLastCol) {
                 cell.rightEdgeStrokeWeight = weight;
                 setCellEdgeColors(cell, null, null, null, swatch);
+                applyCellEdgeTints(cell, null, null, null, tint, null, null, null, swatch);
             }
         }
     }
 
-    function hasAdjacentSelectedCellOnLeft(cell, cells) {
-        return hasAdjacentSelectedCell(cell, cells, -1);
+    
+    function applyEdgeWithSelectedOpposite(cell, selectedCells, side, weight, swatch, tint) {
+        var adjacent = findAdjacentSelectedCell(cell, selectedCells, side);
+        setSingleCellEdge(cell, side, weight, swatch, tint);
+        if (adjacent) {
+            setSingleCellEdge(adjacent, getOppositeSide(side), weight, swatch, tint);
+        }
     }
 
-    function hasAdjacentSelectedCellOnRight(cell, cells) {
-        return hasAdjacentSelectedCell(cell, cells, 1);
+    function clearCellEdgesAndSelectedOpposites(cell, selectedCells) {
+        clearSingleCellEdge(cell, "top");
+        clearSingleCellEdge(cell, "bottom");
+        clearSingleCellEdge(cell, "left");
+        clearSingleCellEdge(cell, "right");
+
+        var topCell = findAdjacentSelectedCell(cell, selectedCells, "top");
+        var bottomCell = findAdjacentSelectedCell(cell, selectedCells, "bottom");
+        var leftCell = findAdjacentSelectedCell(cell, selectedCells, "left");
+        var rightCell = findAdjacentSelectedCell(cell, selectedCells, "right");
+
+        if (topCell) clearSingleCellEdge(topCell, "bottom");
+        if (bottomCell) clearSingleCellEdge(bottomCell, "top");
+        if (leftCell) clearSingleCellEdge(leftCell, "right");
+        if (rightCell) clearSingleCellEdge(rightCell, "left");
     }
 
-    function hasAdjacentSelectedCell(cell, cells, direction) {
+    function findAdjacentSelectedCell(cell, selectedCells, side) {
         var baseRange = getCellRange(cell);
         var i, other, otherRange;
 
-        for (i = 0; i < cells.length; i++) {
-            other = cells[i];
+        for (i = 0; i < selectedCells.length; i++) {
+            other = selectedCells[i];
             if (other === cell) continue;
-
             otherRange = getCellRange(other);
 
-            if (!rangesOverlapVertically(baseRange, otherRange)) continue;
-
-            if (direction < 0) {
-                if (otherRange.endCol + 1 === baseRange.startCol) return true;
-            } else {
-                if (baseRange.endCol + 1 === otherRange.startCol) return true;
+            if (side === "top") {
+                if (otherRange.endRow + 1 === baseRange.startRow && rangesOverlapHorizontally(baseRange, otherRange)) return other;
+            } else if (side === "bottom") {
+                if (baseRange.endRow + 1 === otherRange.startRow && rangesOverlapHorizontally(baseRange, otherRange)) return other;
+            } else if (side === "left") {
+                if (otherRange.endCol + 1 === baseRange.startCol && rangesOverlapVertically(baseRange, otherRange)) return other;
+            } else if (side === "right") {
+                if (baseRange.endCol + 1 === otherRange.startCol && rangesOverlapVertically(baseRange, otherRange)) return other;
             }
         }
 
-        return false;
+        return null;
+    }
+
+    function getOppositeSide(side) {
+        if (side === "top") return "bottom";
+        if (side === "bottom") return "top";
+        if (side === "left") return "right";
+        return "left";
+    }
+
+    function rangesOverlapHorizontally(a, b) {
+        return !(a.endCol < b.startCol || b.endCol < a.startCol);
     }
 
     function rangesOverlapVertically(a, b) {
         return !(a.endRow < b.startRow || b.endRow < a.startRow);
     }
+
+    function setSingleCellEdge(cell, side, weight, swatch, tint) {
+        try {
+            if (side === "top") {
+                cell.topEdgeStrokeWeight = weight;
+                cell.topEdgeStrokeColor = swatch;
+                applyCellEdgeTints(cell, tint, null, null, null, swatch, null, null, null);
+            } else if (side === "bottom") {
+                cell.bottomEdgeStrokeWeight = weight;
+                cell.bottomEdgeStrokeColor = swatch;
+                applyCellEdgeTints(cell, null, tint, null, null, null, swatch, null, null);
+            } else if (side === "left") {
+                cell.leftEdgeStrokeWeight = weight;
+                cell.leftEdgeStrokeColor = swatch;
+                applyCellEdgeTints(cell, null, null, tint, null, null, null, swatch, null);
+            } else if (side === "right") {
+                cell.rightEdgeStrokeWeight = weight;
+                cell.rightEdgeStrokeColor = swatch;
+                applyCellEdgeTints(cell, null, null, null, tint, null, null, null, swatch);
+            }
+        } catch (e) { }
+    }
+
+    function clearSingleCellEdge(cell, side) {
+        try {
+            if (side === "top") {
+                cell.topEdgeStrokeWeight = 0;
+                cell.topEdgeStrokeColor = NothingEnum.NOTHING;
+            } else if (side === "bottom") {
+                cell.bottomEdgeStrokeWeight = 0;
+                cell.bottomEdgeStrokeColor = NothingEnum.NOTHING;
+            } else if (side === "left") {
+                cell.leftEdgeStrokeWeight = 0;
+                cell.leftEdgeStrokeColor = NothingEnum.NOTHING;
+            } else if (side === "right") {
+                cell.rightEdgeStrokeWeight = 0;
+                cell.rightEdgeStrokeColor = NothingEnum.NOTHING;
+            }
+        } catch (e) { }
+    }
+
+
 
     function clearAllEdges(cells) {
         var i, cell;
@@ -1665,6 +1589,29 @@ function L(key) {
         if (bottom != null) cell.bottomEdgeStrokeColor = bottom;
         if (left != null) cell.leftEdgeStrokeColor = left;
         if (right != null) cell.rightEdgeStrokeColor = right;
+    }
+
+    function applyCellEdgeTints(cell, topTint, bottomTint, leftTint, rightTint, topSwatch, bottomSwatch, leftSwatch, rightSwatch) {
+        try {
+            if (topTint != null && topSwatch != null && !isNoneSwatchName(topSwatch.name) && !isPaperSwatchName(topSwatch.name)) {
+                cell.topEdgeStrokeTint = topTint;
+            }
+        } catch (e) { }
+        try {
+            if (bottomTint != null && bottomSwatch != null && !isNoneSwatchName(bottomSwatch.name) && !isPaperSwatchName(bottomSwatch.name)) {
+                cell.bottomEdgeStrokeTint = bottomTint;
+            }
+        } catch (e) { }
+        try {
+            if (leftTint != null && leftSwatch != null && !isNoneSwatchName(leftSwatch.name) && !isPaperSwatchName(leftSwatch.name)) {
+                cell.leftEdgeStrokeTint = leftTint;
+            }
+        } catch (e) { }
+        try {
+            if (rightTint != null && rightSwatch != null && !isNoneSwatchName(rightSwatch.name) && !isPaperSwatchName(rightSwatch.name)) {
+                cell.rightEdgeStrokeTint = rightTint;
+            }
+        } catch (e) { }
     }
 
     function isNoneSwatchName(name) {
