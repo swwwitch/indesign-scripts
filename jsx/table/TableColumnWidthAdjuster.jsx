@@ -23,7 +23,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 	- 列幅と左右の余白はドキュメントの単位設定に従う
 	- 文字数換算は、表内で最も支配的なフォントサイズを基準に計算
 	- 左右の余白は各列内すべてのセルに適用
-	- プレビュー ON 時は変更を即時反映し、キャンセル時は元に戻す
+	- 変更は常に即時反映し、キャンセル時は元に戻す
 
 	*/
 
@@ -40,7 +40,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 	// バージョンとローカライズ / Version and localization
 	// =========================================
 
-	var SCRIPT_VERSION = "v1.0.0";
+	var SCRIPT_VERSION = "v1.1.0";
 
 	function getCurrentLang() {
 		return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -191,6 +191,36 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		return L(key) + (lang === 'ja' ? '：' : ':');
 	}
 
+	function isPreviewScreenMode() {
+		try {
+			return app.activeWindow && app.activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	function togglePreviewScreenMode() {
+		try {
+			var w = app.activeWindow;
+			if (!w) return;
+			if (w.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE) {
+				w.screenMode = ScreenModeOptions.PREVIEW_OFF;
+			} else {
+				w.screenMode = ScreenModeOptions.PREVIEW_TO_PAGE;
+			}
+		} catch (e) { }
+	}
+
+	function getPreviewToggleButtonLabel(lang) {
+		return isPreviewScreenMode()
+			? (lang === "ja" ? "プレビュー" : "Preview")
+			: (lang === "ja" ? "標準モード" : "Normal Mode");
+	}
+
+	function updatePreviewToggleButtonLabel(btn, lang) {
+		btn.text = getPreviewToggleButtonLabel(lang);
+	}
+
 	/* 実行とエラー対策 / Execution and error handling */
 	main();
 	function main() {
@@ -201,6 +231,23 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		var selection = app.activeDocument.selection;
 		var targetTable = resolveTableFromSelection(selection);
 		if (!targetTable) return;
+
+		// 選択を記憶し、ダイアログ中はハイライトを消す / Save selection and hide highlight while dialog is open
+		var savedSelection = [];
+		for (var selectionIndex = 0; selectionIndex < selection.length; selectionIndex++) {
+			savedSelection.push(selection[selectionIndex]);
+		}
+		try {
+			app.select(NothingEnum.NOTHING);
+		} catch (e) { }
+
+		function restoreSelection() {
+			try {
+				if (savedSelection.length > 0) {
+					app.selection = savedSelection;
+				}
+			} catch (e) { }
+		}
 
 		var columnCount = targetTable.columns.length;
 		var originalWidths = getColumnWidths(targetTable);
@@ -317,16 +364,31 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		var batchHintText = batchInputPanel.add("statictext", undefined, L("batchHint"));
 
 		var footerGroup = dialog.add("group");
-		footerGroup.alignment = "fill";
 		footerGroup.orientation = "row";
-		footerGroup.alignChildren = "center";
+		footerGroup.alignment = "fill";
+		footerGroup.alignChildren = ["left", "center"];
 		footerGroup.margins = [0, 10, 0, 0];
-		var previewCheckbox = footerGroup.add("checkbox", undefined, L("checkboxPreview"));
-		previewCheckbox.value = true;
-		var footerSpacer = footerGroup.add("group");
-		footerSpacer.alignment = ["fill", "center"];
-		footerGroup.add("button", undefined, L("buttonCancel"), { name: "cancel" });
-		footerGroup.add("button", undefined, L("buttonOk"), { name: "ok" });
+
+		// 左：プレビューモード切替
+		var footerLeft = footerGroup.add("group");
+		footerLeft.orientation = "row";
+		footerLeft.alignment = ["left", "center"];
+		footerLeft.alignChildren = ["left", "center"];
+
+		var previewModeButton = footerLeft.add("button", undefined, getPreviewToggleButtonLabel(lang));
+
+		// 中央：spacer
+		var footerCenter = footerGroup.add("group");
+		footerCenter.alignment = ["fill", "center"];
+
+		// 右：ボタン
+		var footerRight = footerGroup.add("group");
+		footerRight.orientation = "row";
+		footerRight.alignment = ["right", "center"];
+		footerRight.alignChildren = ["right", "center"];
+
+		footerRight.add("button", undefined, L("buttonCancel"), { name: "cancel" });
+		footerRight.add("button", undefined, L("buttonOk"), { name: "ok" });
 
 		var primaryInputMode = "absolute";
 		var currentInputMethod = "perColumn";
@@ -566,13 +628,9 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			refreshControlStates();
 		};
 
-		previewCheckbox.onClick = function () {
-			if (previewCheckbox.value) {
-				applyColumnSettings();
-			}
-			else {
-				restoreOriginalColumnSettings();
-			}
+		previewModeButton.onClick = function () {
+			togglePreviewScreenMode();
+			updatePreviewToggleButtonLabel(previewModeButton, lang);
 		};
 
 		for (var i = 0; i < columnCount; i++) {
@@ -599,7 +657,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 						autoFitCheckboxes[idx].value = false;
 						refreshControlStates();
 					}
-					if (previewCheckbox.value) applyColumnSettings();
+					applyColumnSettings();
 				};
 				charCountInputs[idx].onChanging = function () {
 					updateWidthFromCharCount(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt);
@@ -623,7 +681,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 						autoFitCheckboxes[idx].value = false;
 						refreshControlStates();
 					}
-					if (previewCheckbox.value) applyColumnSettings();
+					applyColumnSettings();
 				};
 				sideInsetInputs[idx].onChanging = function () {
 					if (autoFitCheckboxes[idx].value) {
@@ -661,7 +719,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 						columnStates[idx].width = isNaN(manualWidth) ? columnStates[idx].width : manualWidth;
 					}
 
-					if (previewCheckbox.value) applyColumnSettings();
+					applyColumnSettings();
 				};
 				function handleAutoFitToggle() {
 					var isAutoFitOn = !!autoFitCheckboxes[idx].value;
@@ -669,7 +727,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 						applyAutoFitToColumn(idx);
 					}
 					refreshControlStates();
-					if (previewCheckbox.value) applyColumnSettings();
+					applyColumnSettings();
 				}
 				autoFitCheckboxes[idx].onClick = handleAutoFitToggle;
 				autoFitCheckboxes[idx].onChange = handleAutoFitToggle;
@@ -708,7 +766,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 				if (autoFitCheckboxes[i].value) autoFitCheckboxes[i].value = false;
 			}
 
-			if (previewCheckbox.value) applyColumnSettings();
+			applyColumnSettings();
 		}
 
 		// 自動適用は無効 / Auto-apply disabled
@@ -723,10 +781,12 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 
 		if (dialogResult != 1) {
 			if (isPreviewCurrentlyApplied) restoreOriginalColumnSettings();
+			restoreSelection();
 			return;
 		}
 
 		applyColumnSettings();
+		restoreSelection();
 	}
 
 	// =========================================
