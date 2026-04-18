@@ -32,7 +32,7 @@
         // =========================================
         // バージョンとローカライズ / Version and localization
         // =========================================
-        var SCRIPT_VERSION = "v1.0";
+        var SCRIPT_VERSION = "v1.1.0";
 
         function getCurrentLang() {
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -141,21 +141,8 @@
             }
         }
 
-        function convertToPointsByRulerUnit(value) {
-            var unitInfo = getCurrentRulerUnitInfo();
-            return UnitValue(value, unitInfo.unitValue).as("pt");
-        }
-
         function roundToOneDecimal(value) {
             return Math.round(value * 10) / 10;
-        }
-
-        function getTotalTableWidth(table) {
-            var totalWidth = 0;
-            for (var columnIndex = 0; columnIndex < table.columns.length; columnIndex++) {
-                totalWidth += table.columns[columnIndex].width;
-            }
-            return totalWidth;
         }
 
         function getFirstColumnWidth(table) {
@@ -178,28 +165,22 @@
             var targetTable = null;
             var selectionType = selectionTarget.constructor.name;
 
-            // テーブルを含むセルを見つける
-            if (selectionType === "Cell" || selectionType === "Row" || selectionType === "Column") {
-                targetTable = selectionTarget.parent;
+            // 選択範囲から表オブジェクトを特定する
+            if (selectionType === "TextFrame") {
+                if (selectionTarget.tables.length > 0) {
+                    targetTable = selectionTarget.tables[0];
+                }
+            } else if (selectionType === "Cell" || selectionType === "Row" || selectionType === "Column" || selectionType === "InsertionPoint" || selectionType === "Text") {
+                try {
+                    targetTable = selectionTarget.parent;
+                    while (targetTable && targetTable.constructor.name !== "Table") {
+                        targetTable = targetTable.parent;
+                    }
+                } catch (e) {
+                    targetTable = null;
+                }
             } else if (selectionType === "Table") {
                 targetTable = selectionTarget;
-            } else if (selectionType === "InsertionPoint") {
-                if (selectionTarget.parent.constructor.name === "Cell") {
-                    targetTable = selectionTarget.parent.parent;
-                }
-            } else if (selectionType === "Text" || selectionTarget.hasOwnProperty('baseline')) {
-                if (selectionTarget.parentTextFrames.length > 0) {
-                    var frame = selectionTarget.parentTextFrames[0];
-                    if (frame.tables.length > 0) {
-                        for (var i = 0; i < frame.tables.length; i++) {
-                            var table = frame.tables[i];
-                            if (table.storyOffset.index <= selectionTarget.index && selectionTarget.index <= table.storyOffset.index + table.characters.length) {
-                                targetTable = table;
-                                break;
-                            }
-                        }
-                    }
-                }
             }
 
             if (!targetTable) {
@@ -225,7 +206,7 @@
             }
 
             // 元の状態をスナップショット(プレビュー復元用)
-            var originalTableWidth = getTotalTableWidth(targetTable);
+            var originalTableWidth = targetTable.width;
             var originalColumnWidths = [];
             var originalLeftInsets = [];
             var originalRightInsets = [];
@@ -257,14 +238,14 @@
                 // 1. 目標の表幅を算出(この時点では代入しない)
                 var widthMode = result.tableWidth.value;
                 var columnWidthMode = result.columnWidth.value;
-                var targetTableWidth = getTotalTableWidth(targetTable); // default: keep
+                var targetTableWidth = targetTable.width; // default: keep
                 var autoWidth = false;
                 var originalAutoFitColumnWidths = null;
                 var originalAutoFitTableWidth = null;
 
                 if (columnWidthMode === "custom") {
                     if (isNaN(result.columnWidth.input) || result.columnWidth.input <= 0) return;
-                    var customColumnWidth = convertToPointsByRulerUnit(result.columnWidth.input);
+                    var customColumnWidth = result.columnWidth.input;
                     for (var columnIndex = 0; columnIndex < targetTable.columns.length; columnIndex++) {
                         targetTable.columns[columnIndex].width = customColumnWidth;
                     }
@@ -277,7 +258,7 @@
                     for (var columnIndex = 0; columnIndex < targetTable.columns.length; columnIndex++) {
                         originalAutoFitColumnWidths.push(targetTable.columns[columnIndex].width);
                     }
-                    originalAutoFitTableWidth = getTotalTableWidth(targetTable);
+                    originalAutoFitTableWidth = targetTable.width;
                 }
 
                 if (widthMode === "fit") {
@@ -292,7 +273,7 @@
                     targetTableWidth = textFrame.geometricBounds[3] - textFrame.geometricBounds[1];
                 } else if (widthMode === "custom") {
                     if (isNaN(result.tableWidth.input) || result.tableWidth.input <= 0) return;
-                    targetTableWidth = convertToPointsByRulerUnit(result.tableWidth.input);
+                    targetTableWidth = result.tableWidth.input;
                 } else if (widthMode === "auto") {
                     autoWidth = true;
                 }
@@ -331,7 +312,7 @@
                 } else if (columnWidthMode === "natural") {
                     fitColumnsToContent(targetTable, 2);
                 } else if (columnWidthMode === "naturalPlus") {
-                    var widthDelta = getTotalTableWidth(targetTable) - originalAutoFitTableWidth;
+                    var widthDelta = targetTable.width - originalAutoFitTableWidth;
                     var deltaPerColumn = widthDelta / targetTable.columns.length;
                     for (var columnIndex = 0; columnIndex < targetTable.columns.length; columnIndex++) {
                         targetTable.columns[columnIndex].width = originalAutoFitColumnWidths[columnIndex] + deltaPerColumn;
@@ -340,8 +321,8 @@
             }
 
             var rulerUnitInfo = getCurrentRulerUnitInfo();
-            var currentColumnWidthValue = roundToOneDecimal(UnitValue(getFirstColumnWidth(targetTable), "pt").as(rulerUnitInfo.unitValue));
-            var currentTableWidthValue = roundToOneDecimal(currentColumnWidthValue * targetTable.columns.length);
+            var currentColumnWidthValue = roundToOneDecimal(getFirstColumnWidth(targetTable));
+            var currentTableWidthValue = roundToOneDecimal(targetTable.width);
             var result = showMultiPanelOptionDialog(L("dialogTitle"), [
                 {
                     key: "tableWidth",
@@ -380,7 +361,7 @@
          * 列幅を均等化 / Equalize column widths
          */
         function equalizeColumns(table) {
-            var avg = getTotalTableWidth(table) / table.columns.length;
+            var avg = table.width / table.columns.length;
             for (var j = 0; j < table.columns.length; j++) {
                 table.columns[j].width = avg;
             }
@@ -389,24 +370,46 @@
 
         /*
          * 内容に合わせて列幅を調整 / Fit column widths to content
+         * いったん表を親テキストフレームいっぱいまで広げ、各列を均等化して
+         * 各セルに余裕を持たせた状態で内容幅を計測する。
+         * その後、最大行幅に基づいて各列の幅を設定する。
          */
         function fitColumnsToContent(table, margin) {
             if (margin === undefined) margin = 2;
+
+            // 計測前に表を親フレームいっぱいまで広げ、列を均等化して余裕を作る
+            var textFrame = table.parent;
+            while (textFrame && textFrame.constructor.name !== "TextFrame" && textFrame.constructor.name !== "Story") {
+                textFrame = textFrame.parent;
+            }
+            if (textFrame && textFrame.constructor.name === "TextFrame") {
+                var parentFrameWidth = textFrame.geometricBounds[3] - textFrame.geometricBounds[1];
+                if (parentFrameWidth > 0) {
+                    table.width = parentFrameWidth;
+                    var evenColumnWidth = parentFrameWidth / table.columns.length;
+                    for (var equalIndex = 0; equalIndex < table.columns.length; equalIndex++) {
+                        table.columns[equalIndex].width = evenColumnWidth;
+                    }
+                }
+            }
+
             var columns = table.columns;
             for (var columnIndex = 0, columnCount = columns.length; columnIndex < columnCount; columnIndex++) {
                 var columnCells = columns[columnIndex].cells;
                 var contentWidths = [];
                 for (var cellIndex = 0, cellCount = columnCells.length; cellIndex < cellCount; cellIndex++) {
                     if (columnCells[cellIndex].texts[0].contents === "") continue;
-                    if (columnCells[cellIndex].overflows) {
-                        while (columnCells[cellIndex].overflows) {
-                            columnCells[cellIndex].width += 1;
-                            if (columnCells[cellIndex].properties['lines'] !== undefined) break;
-                        }
+
+                    // 複数行に渡るセル（ハードリターンや折り返し）も想定し、全行中の最大幅を採用
+                    var cellLines = columnCells[cellIndex].lines;
+                    var maxContentWidth = 0;
+                    for (var lineIndex = 0; lineIndex < cellLines.length; lineIndex++) {
+                        var lineStart = cellLines[lineIndex].insertionPoints[0].horizontalOffset;
+                        var lineEnd = cellLines[lineIndex].insertionPoints[-1].horizontalOffset;
+                        var lineWidth = lineEnd - lineStart;
+                        if (lineWidth > maxContentWidth) maxContentWidth = lineWidth;
                     }
-                    var contentStartOffset = columnCells[cellIndex].lines[0].insertionPoints[0].horizontalOffset;
-                    var contentEndOffset = columnCells[cellIndex].lines[0].insertionPoints[-1].horizontalOffset;
-                    contentWidths.push(contentEndOffset - contentStartOffset);
+                    contentWidths.push(maxContentWidth);
                 }
                 columns[columnIndex].rightInset = columns[columnIndex].leftInset = margin * 1.0;
                 var padding = columns[columnIndex].rightInset + columns[columnIndex].leftInset;
