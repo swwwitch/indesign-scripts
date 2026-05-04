@@ -369,6 +369,46 @@
 
 
         /*
+         * 行の組版後の実幅を取得 / Get composed line width
+         * 行頭と行末の insertionPoint の horizontalOffset 差分から、
+         * 実際に組版された行の横幅を返します。
+         *
+         * Returns the actual composed width of a line
+         * from the difference between the horizontal offsets of
+         * the first and last insertion points.
+         */
+        function getComposedLineWidth(line) {
+            if (!line) return 0;
+            try {
+                var lineStart = line.insertionPoints[0].horizontalOffset;
+                var lineEnd = line.insertionPoints[-1].horizontalOffset;
+                return lineEnd - lineStart;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        /*
+         * セル内の最長行幅を取得 / Get maximum composed line width in a cell
+         * ハードリターンや折り返しを含むセル内の全行を走査し、
+         * 組版後の実幅が最大の行の幅を返します。
+         *
+         * Scans all lines in a cell, including hard returns and wrapped lines,
+         * and returns the width of the longest composed line.
+         */
+        function getMaxComposedLineWidthInCell(cell) {
+            if (!cell || !cell.lines || cell.lines.length === 0) return 0;
+
+            var cellLines = cell.lines;
+            var maxContentWidth = 0;
+            for (var lineIndex = 0; lineIndex < cellLines.length; lineIndex++) {
+                var lineWidth = getComposedLineWidth(cellLines[lineIndex]);
+                if (lineWidth > maxContentWidth) maxContentWidth = lineWidth;
+            }
+            return maxContentWidth;
+        }
+
+        /*
          * 内容に合わせて列幅を調整 / Fit column widths to content
          * いったん表を親テキストフレームいっぱいまで広げ、各列を均等化して
          * 各セルに余裕を持たせた状態で内容幅を計測する。
@@ -401,21 +441,13 @@
                     if (columnCells[cellIndex].texts[0].contents === "") continue;
 
                     // 複数行に渡るセル（ハードリターンや折り返し）も想定し、全行中の最大幅を採用
-                    var cellLines = columnCells[cellIndex].lines;
-                    var maxContentWidth = 0;
-                    for (var lineIndex = 0; lineIndex < cellLines.length; lineIndex++) {
-                        var lineStart = cellLines[lineIndex].insertionPoints[0].horizontalOffset;
-                        var lineEnd = cellLines[lineIndex].insertionPoints[-1].horizontalOffset;
-                        var lineWidth = lineEnd - lineStart;
-                        if (lineWidth > maxContentWidth) maxContentWidth = lineWidth;
-                    }
-                    contentWidths.push(maxContentWidth);
+                    contentWidths.push(getMaxComposedLineWidthInCell(columnCells[cellIndex]));
                 }
                 columns[columnIndex].rightInset = columns[columnIndex].leftInset = margin * 1.0;
                 var padding = columns[columnIndex].rightInset + columns[columnIndex].leftInset;
                 var lineWeight = columns[columnIndex].rightEdgeStrokeWeight * 0.5 + columns[columnIndex].leftEdgeStrokeWeight * 0.5;
                 if (contentWidths.length > 0) {
-                    columns[columnIndex].width = contentWidths.sort(function (a, b) { return b > a; })[0] + padding + lineWeight;
+                    columns[columnIndex].width = contentWidths.sort(function (a, b) { return b - a; })[0] + padding + lineWeight;
                 }
             }
         }
