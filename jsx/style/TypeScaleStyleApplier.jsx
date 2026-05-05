@@ -71,7 +71,7 @@ var DEFAULT_BODY_SPACE_AFTER_PERCENT = 10; // 本文の段落後のアキ(%)
 
    ========================================= */
 
-var SCRIPT_VERSION = "v1.1.2";
+var SCRIPT_VERSION = "v1.1.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1077,7 +1077,20 @@ function getStyleWeightRank(styleName, familyName) {
             var previewHeaderSpacer = previewPanel.add("group");
             previewHeaderSpacer.preferredSize.height = 4;
 
-            function createPreviewRow(parent, label, defaultStyleName) {
+            function selectDropdownByCandidates(dropdownList, candidates) {
+                for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
+                    for (var itemIndex = 0; itemIndex < dropdownList.items.length; itemIndex++) {
+                        if (dropdownList.items[itemIndex].text === candidates[candidateIndex]) {
+                            dropdownList.selection = itemIndex;
+                            return true;
+                        }
+                    }
+                }
+                if (dropdownList.items.length > 0) dropdownList.selection = 0;
+                return false;
+            }
+
+            function createPreviewRow(parent, label, defaultStyleNames) {
                 var row = parent.add("group");
                 row.orientation = "row";
                 row.alignChildren = "center";
@@ -1089,7 +1102,8 @@ function getStyleWeightRank(styleName, familyName) {
                 leadingText.preferredSize.width = PREVIEW_LEADING_WIDTH;
                 var styleDD = row.add("dropdownlist", undefined, styleNames);
                 styleDD.preferredSize.width = 160;
-                selectDropdownByText(styleDD, defaultStyleName);
+                var candidateList = (defaultStyleNames instanceof Array) ? defaultStyleNames : [defaultStyleNames];
+                selectDropdownByCandidates(styleDD, candidateList);
 
                 var fontStyleDD = row.add("dropdownlist", undefined, [L("noFontChange")]);
                 fontStyleDD.preferredSize.width = 130;
@@ -1107,12 +1121,13 @@ function getStyleWeightRank(styleName, familyName) {
 
             var levelRows = [];
             for (var levelNumber = 1; levelNumber <= 6; levelNumber++) {
-                levelRows.push(createPreviewRow(previewPanel, L("levelPrefix") + levelNumber, "h" + levelNumber));
+                var levelCandidates = ["h" + levelNumber, "Heading " + levelNumber];
+                levelRows.push(createPreviewRow(previewPanel, L("levelPrefix") + levelNumber, levelCandidates));
             }
 
             return {
                 levelRows: levelRows,
-                baseRow: createPreviewRow(previewPanel, L("baseBodyPreview"), "p"),
+                baseRow: createPreviewRow(previewPanel, L("baseBodyPreview"), ["p", "Normal"]),
                 captionRow: createPreviewRow(previewPanel, L("captionPreview"), "p.caption")
             };
         }
