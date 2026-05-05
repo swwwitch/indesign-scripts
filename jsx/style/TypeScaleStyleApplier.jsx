@@ -1,29 +1,18 @@
 #target indesign
 
-
 /*
 概要 / Overview
 
 【日本語】
-タイプスケールを使って、見出し・本文・キャプション用の段落スタイルを一括設定するInDesign用スクリプトです。
-基準サイズ（本文）、倍率、見出しレベル数、サイズの丸め、行送り（%指定）、段落前／段落後のアキ、カーニング（本文／見出し別）を設定できます。
-
-フォント指定オプションでは、次の3つのモードを選択できます：
-・本文と見出しで共通
-・本文と見出しで別々に指定
-・フォントを変更しない
-
-フォントファミリーを選択すると、そのフォントで使用可能なスタイル（ウエイト）を自動取得し、各段落スタイルに適用できます。
-共通指定の場合は本文のフォント設定を見出しにも適用し、別々に指定する場合は見出し専用のフォント設定を使用します。
-なお、「別々に指定」の場合でも、デフォルトでは本文のフォントを参照し、必要に応じて見出し側で上書きできます。
-
-段落スタイルとサイズプレビューでは、各レベル（h1〜h6）、本文、キャプションのフォントサイズと行送りを確認できます。
-ライブプレビューに対応しており、ダイアログ操作中に結果をリアルタイムで確認できます。
-
-見出しは左揃え、本文・キャプションは均等配置（最終行左）に自動設定されます。
-段落前／段落後のアキは、見出しと本文で個別に%指定できます。
-
-ダイアログを閉じる際には、オーバーライドをクリアして最終状態を適用します。
+概要：
+InDesign の段落スタイルに対して、本文サイズを基準にタイプスケールで見出し／本文／キャプションのサイズを一括設定します。
+単純倍率のスケールと、Browser Default のようなプリセットスケールを scaleOptions で管理します。
+本文／見出しのフォント指定は、共通指定・別指定・変更しない、から選択できます。
+見出し側は本文フォントを参照しつつ、ウエイト／スタイルのみ変更できます。
+行送り、カーニング、段落前後のアキ、サイズの丸め単位を指定できます。
+本文の段落前後のアキの初期値は 15% です。
+プレビュー上でサイズ／段落前後のアキを確認し、必要に応じて個別調整できます。
+フォント一覧はキャッシュして高速化し、必要に応じてキャッシュをクリアして再読み込みできます。
 
 【English】
 This InDesign script batch-configures paragraph styles for headings, body text, and captions using a type scale.
@@ -37,7 +26,7 @@ The font options panel provides three modes:
 When a font family is selected, available font styles (weights) are automatically collected and applied.
 In separate mode, headings reference the body font by default and can optionally override it.
 
-The preview panel displays font size and leading for each level (h1–h6), body, and caption.
+The preview panel displays font size and space before for each level (h1–h6), body, and caption.
 Live preview allows real-time confirmation while adjusting settings.
 
 Headings are set to left alignment, while body text and captions use left-justified alignment.
@@ -62,8 +51,8 @@ var DEFAULT_BODY_LEADING_PERCENT = 160; // 本文の行送り(%)
 var DEFAULT_HEADING_LEADING_PERCENT = 115; // 見出しの行送り(%)
 var DEFAULT_SPACE_BEFORE_PERCENT = 10; // 見出しの段落前のアキ(%)
 var DEFAULT_SPACE_AFTER_PERCENT = 10; // 見出しの段落後のアキ(%)
-var DEFAULT_BODY_SPACE_BEFORE_PERCENT = 10; // 本文の段落前のアキ(%)
-var DEFAULT_BODY_SPACE_AFTER_PERCENT = 10; // 本文の段落後のアキ(%)
+var DEFAULT_BODY_SPACE_BEFORE_PERCENT = 15; // 本文の段落前のアキ(%)
+var DEFAULT_BODY_SPACE_AFTER_PERCENT = 15; // 本文の段落後のアキ(%)
 
 /* =========================================
 
@@ -71,7 +60,7 @@ var DEFAULT_BODY_SPACE_AFTER_PERCENT = 10; // 本文の段落後のアキ(%)
 
    ========================================= */
 
-var SCRIPT_VERSION = "v1.1.3";
+var SCRIPT_VERSION = "v1.1.5";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -89,8 +78,12 @@ var LABELS = {
     fontSettingsPanel: { ja: "フォント指定オプション", en: "Font Assignment" },
     disableFontSelection: { ja: "フォントを変更しない", en: "Do not change fonts" },
     useSameFontForBodyAndHeading: { ja: "本文と見出しで共通", en: "Use same font for body and headings" },
-    separateFontForBodyAndHeading: { ja: "本文と見出しで別々に指定", en: "Separate fonts" },
-    refBodyFont: { ja: "本文のフォントを参照", en: "Use body font" },
+    separateFontForBodyAndHeading: {
+        ja: "本文と見出しで別々に指定", en: "Specify body and heading fonts separately"
+    },
+    refBodyFont: {
+        ja: "本文のフォントを参照", en: "Reference body font"
+    },
     bodyTextPanel: { ja: "本文", en: "Body" },
     headingTextPanel: { ja: "見出し", en: "Headings" },
     baseSizeBody: { ja: "基準サイズ", en: "Base Size (Body)" },
@@ -105,7 +98,7 @@ var LABELS = {
     kerningMetrics: { ja: "メトリクス", en: "Metrics" },
     kerningOptical: { ja: "オプティカル", en: "Optical" },
     scaleSettingsPanel: { ja: "スケール設定", en: "Scale Settings" },
-    scaleRatio: { ja: "倍率", en: "Scale Ratio" },
+    scaleRatio: { ja: "スケール方式", en: "Scale Method" },
     headingLevelCount: { ja: "見出しレベル数", en: "Heading Levels" },
     sizeRounding: { ja: "サイズの丸め", en: "Size Rounding" },
     roundInteger: { ja: "整数", en: "Integer" },
@@ -114,8 +107,9 @@ var LABELS = {
     roundSecondDecimal: { ja: "小数点第2位", en: "2 decimal places" },
     previewPanel: { ja: "段落スタイルとサイズプレビュー", en: "Paragraph Styles & Size Preview" },
     levelHeader: { ja: "レベル", en: "Level" },
-    fontSizeHeader: { ja: "フォントサイズ", en: "Font Size" },
-    leadingHeader: { ja: "行送り", en: "Leading" },
+    fontSizeHeader: { ja: "サイズ", en: "Size" },
+    spaceBeforeHeader: { ja: "段落前アキ", en: "Space Before" },
+    spaceAfterHeader: { ja: "段落後のアキ", en: "Space After" },
     paragraphStyleHeader: { ja: "段落スタイル", en: "Paragraph Style" },
     levelPrefix: { ja: "レベル", en: "Level " },
     baseBodyPreview: { ja: "基準（本文）", en: "Base (Body)" },
@@ -125,7 +119,17 @@ var LABELS = {
     ok: { ja: "OK", en: "OK" },
     loadingTitle: { ja: "処理中", en: "Processing" },
     loadingFonts: { ja: "フォント情報を読み込んでいます…", en: "Loading font information..." },
-    buildingCacheNote: { ja: "キャッシュを作成しています。（初回は時間がかかります）", en: "Building cache (first run may take longer)" }
+    buildingCacheNote: { ja: "キャッシュを作成しています。（初回は時間がかかります）", en: "Building cache (first run may take longer)" },
+    notAvailable: { ja: "—", en: "—" },
+    ratioMinorSecond: { ja: "短2度", en: "Minor Second" },
+    ratioMajorSecond: { ja: "長2度", en: "Major Second" },
+    ratioMinorThird: { ja: "短3度", en: "Minor Third" },
+    ratioMajorThird: { ja: "長3度", en: "Major Third" },
+    ratioGoldenHalf: { ja: "黄金比：1/2", en: "Golden Ratio: ½" },
+    ratioPerfectFourth: { ja: "完全4度", en: "Perfect Fourth" },
+    ratioAugmentedFourth: { ja: "増4度", en: "Augmented Fourth" },
+    ratioGolden: { ja: "黄金比", en: "Golden Ratio" },
+    ratioBrowserDefault: { ja: "ブラウザー既定", en: "Browser Default" }
 };
 
 function L(key) {
@@ -438,15 +442,26 @@ function getStyleWeightRank(styleName, familyName) {
         var bodySpaceBeforePercent = (typeof typescaleSettings.bodySpaceBeforePercent === "number" && typescaleSettings.bodySpaceBeforePercent >= 0)
             ? typescaleSettings.bodySpaceBeforePercent
             : DEFAULT_BODY_SPACE_BEFORE_PERCENT;
-        function applyParagraphStyleSettings(styleName, sizeInUnit, leadingMult, isHeading, fontFamilyName, fontStyleName) {
+        function applyParagraphStyleSettings(styleName, sizeInUnit, leadingMult, isHeading, fontFamilyName, fontStyleName, sizeOverrideInUnit, spaceBeforeOverrideInUnit, spaceAfterOverrideInUnit) {
             if (!styleName) return;
-            var rounded = roundTo(sizeInUnit, typescaleSettings.roundDigits);
+            var effectiveSize = (typeof sizeOverrideInUnit === "number") ? sizeOverrideInUnit : sizeInUnit;
+            var rounded = roundTo(effectiveSize, typescaleSettings.roundDigits);
             var sizePt = toPoints(rounded, unit);
             var leadingPt = (typeof leadingMult === "number") ? sizePt * leadingMult : null;
             var spaceBeforePercent = isHeading ? headingSpaceBeforePercent : bodySpaceBeforePercent;
             var spaceAfterPercent = isHeading ? headingSpaceAfterPercent : bodySpaceAfterPercent;
-            var spaceBeforePt = sizePt * spaceBeforePercent / 100;
-            var spaceAfterPt = sizePt * spaceAfterPercent / 100;
+            var spaceBeforePt;
+            if (typeof spaceBeforeOverrideInUnit === "number") {
+                spaceBeforePt = toPoints(roundTo(spaceBeforeOverrideInUnit, typescaleSettings.roundDigits), unit);
+            } else {
+                spaceBeforePt = sizePt * spaceBeforePercent / 100;
+            }
+            var spaceAfterPt;
+            if (typeof spaceAfterOverrideInUnit === "number") {
+                spaceAfterPt = toPoints(roundTo(spaceAfterOverrideInUnit, typescaleSettings.roundDigits), unit);
+            } else {
+                spaceAfterPt = sizePt * spaceAfterPercent / 100;
+            }
             // フォントファミリー＋スタイルで解決。未指定時はファミリー内の推奨スタイルを使用
             var fontToUse = null;
             if (fontFamilyName) {
@@ -455,12 +470,15 @@ function getStyleWeightRank(styleName, familyName) {
             var kerningMethod = isHeading ? typescaleSettings.headingKerningMethod : typescaleSettings.bodyKerningMethod;
             setParagraphStyleProps(targetDocument, styleName, sizePt, fontToUse, leadingPt, spaceAfterPt, spaceBeforePt, kerningMethod, isHeading, silent);
         }
-        applyParagraphStyleSettings(typescaleSettings.baseStyleName, computedSizes.base, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.baseFontStyleName);
-        applyParagraphStyleSettings(typescaleSettings.captionStyleName, computedSizes.caption, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.captionFontStyleName);
+        applyParagraphStyleSettings(typescaleSettings.baseStyleName, computedSizes.base, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.baseFontStyleName, typescaleSettings.baseSizeOverride, typescaleSettings.baseSpaceBeforeOverride, typescaleSettings.baseSpaceAfterOverride);
+        applyParagraphStyleSettings(typescaleSettings.captionStyleName, computedSizes.caption, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.captionFontStyleName, typescaleSettings.captionSizeOverride, typescaleSettings.captionSpaceBeforeOverride, typescaleSettings.captionSpaceAfterOverride);
         for (var levelNumber = 1; levelNumber <= typescaleSettings.levelCount; levelNumber++) {
             var name = typescaleSettings.levelStyleNames && typescaleSettings.levelStyleNames[levelNumber - 1];
             var fontStyleName = typescaleSettings.levelFontStyleNames && typescaleSettings.levelFontStyleNames[levelNumber - 1];
-            applyParagraphStyleSettings(name, computedSizes.headingSizes[levelNumber - 1], typescaleSettings.headingLeading, true, typescaleSettings.headingFontFamily, fontStyleName);
+            var levelSizeOverride = typescaleSettings.levelSizeOverrides ? typescaleSettings.levelSizeOverrides[levelNumber - 1] : null;
+            var levelSpaceBeforeOverride = typescaleSettings.levelSpaceBeforeOverrides ? typescaleSettings.levelSpaceBeforeOverrides[levelNumber - 1] : null;
+            var levelSpaceAfterOverride = typescaleSettings.levelSpaceAfterOverrides ? typescaleSettings.levelSpaceAfterOverrides[levelNumber - 1] : null;
+            applyParagraphStyleSettings(name, computedSizes.headingSizes[levelNumber - 1], typescaleSettings.headingLeading, true, typescaleSettings.headingFontFamily, fontStyleName, levelSizeOverride, levelSpaceBeforeOverride, levelSpaceAfterOverride);
         }
     }
 
@@ -812,17 +830,22 @@ function getStyleWeightRank(styleName, familyName) {
             });
         }
 
-        var ratioOptions = [
-            { name: "Minor Second", value: 1.067 },
-            { name: "Major Second", value: 1.125 },
-            { name: "Minor Third", value: 1.2 },
-            { name: "Major Third", value: 1.25 },
-            { name: "Golden Ratio: ½", value: 1.309 },
-            { name: "Perfect Fourth", value: 1.333 },
-            { name: "Augmented Fourth", value: 1.414 },
-            { name: "Golden Ratio", value: 1.618 },
-            // ブラウザー既定の見出しサイズ（h1=2em, h2=1.5em, h3=1.17em, h4=1em, caption=0.83em）
-            { name: "ブラウザー", value: null, multipliers: [2.00, 1.50, 1.17, 1.00], captionMultiplier: 0.83, forcedLevelCount: 4 }
+        var scaleOptions = [
+            { type: "scale", key: "ratioMinorSecond", ratio: 1.067 },
+            { type: "scale", key: "ratioMajorSecond", ratio: 1.125 },
+            { type: "scale", key: "ratioMinorThird", ratio: 1.2 },
+            { type: "scale", key: "ratioMajorThird", ratio: 1.25 },
+            { type: "scale", key: "ratioGoldenHalf", ratio: 1.309 },
+            { type: "scale", key: "ratioPerfectFourth", ratio: 1.333 },
+            { type: "scale", key: "ratioAugmentedFourth", ratio: 1.414 },
+            { type: "scale", key: "ratioGolden", ratio: 1.618 },
+            {
+                type: "preset",
+                key: "ratioBrowserDefault",
+                multipliers: [2.00, 1.50, 1.17, 1.00],
+                captionMultiplier: 0.83,
+                forcedLevelCount: 4
+            }
         ];
         var levelOptions = [3, 4, 5, 6];
 
@@ -870,23 +893,11 @@ function getStyleWeightRank(styleName, familyName) {
             bodyKerningDD.preferredSize.width = 110;
             selectKerningDropdownByValue(bodyKerningDD, "和文等幅");
 
-            var bodySpaceBeforeGrp = addLabeledGroup(bodyPanel, labelText("spaceBeforeRatio"), labelWidth);
-            var bodySpaceBeforeInput = bodySpaceBeforeGrp.add("edittext", undefined, String(DEFAULT_BODY_SPACE_BEFORE_PERCENT));
-            bodySpaceBeforeInput.characters = 4;
-            bodySpaceBeforeGrp.add("statictext", undefined, "%");
-
-            var bodySpaceAfterGrp = addLabeledGroup(bodyPanel, labelText("spaceAfterRatio"), labelWidth);
-            var bodySpaceAfterInput = bodySpaceAfterGrp.add("edittext", undefined, String(DEFAULT_BODY_SPACE_AFTER_PERCENT));
-            bodySpaceAfterInput.characters = 4;
-            bodySpaceAfterGrp.add("statictext", undefined, "%");
-
             return {
                 fontDD: fontDD,
                 fontStyleDD: fontStyleDD,
                 leadingBodyInput: leadingBodyInput,
-                bodyKerningDD: bodyKerningDD,
-                bodySpaceBeforeInput: bodySpaceBeforeInput,
-                bodySpaceAfterInput: bodySpaceAfterInput
+                bodyKerningDD: bodyKerningDD
             };
         }
 
@@ -917,22 +928,10 @@ function getStyleWeightRank(styleName, familyName) {
             headingKerningDD.preferredSize.width = 110;
             selectKerningDropdownByValue(headingKerningDD, "メトリクス");
 
-            var spaceBeforeGrp = addLabeledGroup(headingPanel, labelText("spaceBeforeRatio"), labelWidth);
-            var spaceBeforeInput = spaceBeforeGrp.add("edittext", undefined, String(DEFAULT_SPACE_BEFORE_PERCENT));
-            spaceBeforeInput.characters = 4;
-            spaceBeforeGrp.add("statictext", undefined, "%");
-
-            var spaceAfterGrp = addLabeledGroup(headingPanel, labelText("spaceAfterRatio"), labelWidth);
-            var spaceAfterInput = spaceAfterGrp.add("edittext", undefined, String(DEFAULT_SPACE_AFTER_PERCENT));
-            spaceAfterInput.characters = 4;
-            spaceAfterGrp.add("statictext", undefined, "%");
-
             return {
                 headingFontDD: headingFontDD,
                 headingFontStyleDD: headingFontStyleDD,
                 leadingHeadingInput: leadingHeadingInput,
-                headingSpaceBeforeInput: spaceBeforeInput,
-                headingSpaceAfterInput: spaceAfterInput,
                 headingKerningDD: headingKerningDD
             };
         }
@@ -963,10 +962,6 @@ function getStyleWeightRank(styleName, familyName) {
                 headingFontStyleDD: headingUi.headingFontStyleDD,
                 leadingBodyInput: bodyUi.leadingBodyInput,
                 leadingHeadingInput: headingUi.leadingHeadingInput,
-                bodySpaceBeforeInput: bodyUi.bodySpaceBeforeInput,
-                bodySpaceAfterInput: bodyUi.bodySpaceAfterInput,
-                headingSpaceBeforeInput: headingUi.headingSpaceBeforeInput,
-                headingSpaceAfterInput: headingUi.headingSpaceAfterInput,
                 bodyKerningDD: bodyUi.bodyKerningDD,
                 headingKerningDD: headingUi.headingKerningDD
             };
@@ -1008,21 +1003,24 @@ function getStyleWeightRank(styleName, familyName) {
             baseInput.characters = 4;
             baseGrp.add("statictext", undefined, unitSym);
 
-            var ratioGrp = addLabeledGroup(optionsPanel, labelText("scaleRatio"), OPTIONS_LABEL_WIDTH);
-            var ratioLabels = [];
-            for (var ratioIndex = 0; ratioIndex < ratioOptions.length; ratioIndex++) {
-                var ratioLabel = ratioOptions[ratioIndex].name;
-                if (typeof ratioOptions[ratioIndex].value === "number") {
-                    ratioLabel += "  " + ratioOptions[ratioIndex].value;
+            var scaleGrp = addLabeledGroup(optionsPanel, labelText("scaleRatio"), OPTIONS_LABEL_WIDTH);
+            var scaleLabels = [];
+            for (var scaleOptionIndex = 0; scaleOptionIndex < scaleOptions.length; scaleOptionIndex++) {
+                var scaleLabel = L(scaleOptions[scaleOptionIndex].key);
+                if (scaleOptions[scaleOptionIndex].type === "scale") {
+                    scaleLabel += "  " + scaleOptions[scaleOptionIndex].ratio;
                 }
-                ratioLabels.push(ratioLabel);
+                scaleLabels.push(scaleLabel);
             }
-            var ratioDD = ratioGrp.add("dropdownlist", undefined, ratioLabels);
-            ratioDD.preferredSize.width = 200;
-            for (var selectedRatioIndex = 0; selectedRatioIndex < ratioOptions.length; selectedRatioIndex++) {
-                if (ratioOptions[selectedRatioIndex].value === defaultRatio) { ratioDD.selection = selectedRatioIndex; break; }
+            var scaleDD = scaleGrp.add("dropdownlist", undefined, scaleLabels);
+            scaleDD.preferredSize.width = 200;
+            for (var selectedScaleOptionIndex = 0; selectedScaleOptionIndex < scaleOptions.length; selectedScaleOptionIndex++) {
+                if (scaleOptions[selectedScaleOptionIndex].type === "scale" && scaleOptions[selectedScaleOptionIndex].ratio === defaultRatio) {
+                    scaleDD.selection = selectedScaleOptionIndex;
+                    break;
+                }
             }
-            if (!ratioDD.selection) ratioDD.selection = 0;
+            if (!scaleDD.selection) scaleDD.selection = 0;
 
             var levelGrp = addLabeledGroup(optionsPanel, labelText("headingLevelCount"), OPTIONS_LABEL_WIDTH);
             levelGrp.alignChildren = ["left", "bottom"];
@@ -1049,7 +1047,7 @@ function getStyleWeightRank(styleName, familyName) {
 
             return {
                 baseInput: baseInput,
-                ratioDD: ratioDD,
+                scaleDD: scaleDD,
                 levelRadios: levelRadios,
                 roundRadios: roundRadios
             };
@@ -1059,19 +1057,21 @@ function getStyleWeightRank(styleName, familyName) {
             var previewPanel = dialog.add("panel", undefined, L("previewPanel"));
             setupPanel(previewPanel, 2);
 
-            var PREVIEW_LABEL_WIDTH = 100;
-            var PREVIEW_SIZE_WIDTH = 110;
-            var PREVIEW_LEADING_WIDTH = 70;
+            var PREVIEW_LABEL_WIDTH = 84;
+            var PREVIEW_SIZE_WIDTH = 80;
+            var PREVIEW_SPACE_BEFORE_WIDTH = 80;
+            var PREVIEW_SPACE_AFTER_WIDTH = 80;
 
             var headerRow = previewPanel.add("group");
             headerRow.orientation = "row";
             headerRow.alignChildren = "left";
             headerRow.add("statictext", undefined, labelText("levelHeader")).preferredSize.width = PREVIEW_LABEL_WIDTH;
             headerRow.add("statictext", undefined, labelText("fontSizeHeader")).preferredSize.width = PREVIEW_SIZE_WIDTH;
-            headerRow.add("statictext", undefined, labelText("leadingHeader")).preferredSize.width = PREVIEW_LEADING_WIDTH;
-            headerRow.add("statictext", undefined, labelText("paragraphStyleHeader")).characters = 18;
+            headerRow.add("statictext", undefined, labelText("spaceBeforeHeader")).preferredSize.width = PREVIEW_SPACE_BEFORE_WIDTH;
+            headerRow.add("statictext", undefined, labelText("spaceAfterHeader")).preferredSize.width = PREVIEW_SPACE_AFTER_WIDTH;
+            headerRow.add("statictext", undefined, labelText("paragraphStyleHeader")).preferredSize.width = 100;
             var fontStyleHeader = headerRow.add("statictext", undefined, labelText("fontStyleHeader"));
-            fontStyleHeader.characters = 12;
+            fontStyleHeader.preferredSize.width = 100;
             fontStyleHeader.enabled = true;
 
             var previewHeaderSpacer = previewPanel.add("group");
@@ -1090,45 +1090,52 @@ function getStyleWeightRank(styleName, familyName) {
                 return false;
             }
 
-            function createPreviewRow(parent, label, defaultStyleNames) {
+            function createPreviewRow(parent, label, defaultStyleNames, isHeading) {
                 var row = parent.add("group");
                 row.orientation = "row";
                 row.alignChildren = "center";
                 var labelText = row.add("statictext", undefined, label);
                 labelText.preferredSize.width = PREVIEW_LABEL_WIDTH;
-                var sizeText = row.add("statictext", undefined, "");
+                var sizeText = row.add("edittext", undefined, "");
                 sizeText.preferredSize.width = PREVIEW_SIZE_WIDTH;
-                var leadingText = row.add("statictext", undefined, "");
-                leadingText.preferredSize.width = PREVIEW_LEADING_WIDTH;
+                var spaceBeforeText = row.add("edittext", undefined, "");
+                spaceBeforeText.preferredSize.width = PREVIEW_SPACE_BEFORE_WIDTH;
+                var spaceAfterText = row.add("edittext", undefined, "");
+                spaceAfterText.preferredSize.width = PREVIEW_SPACE_AFTER_WIDTH;
                 var styleDD = row.add("dropdownlist", undefined, styleNames);
-                styleDD.preferredSize.width = 160;
+                styleDD.preferredSize.width = 100;
                 var candidateList = (defaultStyleNames instanceof Array) ? defaultStyleNames : [defaultStyleNames];
                 selectDropdownByCandidates(styleDD, candidateList);
 
                 var fontStyleDD = row.add("dropdownlist", undefined, [L("noFontChange")]);
-                fontStyleDD.preferredSize.width = 130;
+                fontStyleDD.preferredSize.width = 100;
                 fontStyleDD.selection = 0;
                 fontStyleDD.enabled = true;
 
                 return {
                     lbl: labelText,
                     sizeText: sizeText,
-                    leadingText: leadingText,
+                    spaceBeforeText: spaceBeforeText,
+                    spaceAfterText: spaceAfterText,
                     styleDD: styleDD,
-                    fontStyleDD: fontStyleDD
+                    fontStyleDD: fontStyleDD,
+                    isHeading: !!isHeading,
+                    sizeOverride: null,
+                    spaceBeforeOverride: null,
+                    spaceAfterOverride: null
                 };
             }
 
             var levelRows = [];
             for (var levelNumber = 1; levelNumber <= 6; levelNumber++) {
                 var levelCandidates = ["h" + levelNumber, "Heading " + levelNumber];
-                levelRows.push(createPreviewRow(previewPanel, L("levelPrefix") + levelNumber, levelCandidates));
+                levelRows.push(createPreviewRow(previewPanel, L("levelPrefix") + levelNumber, levelCandidates, true));
             }
 
             return {
                 levelRows: levelRows,
-                baseRow: createPreviewRow(previewPanel, L("baseBodyPreview"), ["p", "Normal"]),
-                captionRow: createPreviewRow(previewPanel, L("captionPreview"), "p.caption")
+                baseRow: createPreviewRow(previewPanel, L("baseBodyPreview"), ["p", "Normal"], false),
+                captionRow: createPreviewRow(previewPanel, L("captionPreview"), "p.caption", false)
             };
         }
 
@@ -1190,13 +1197,9 @@ function getStyleWeightRank(styleName, familyName) {
                 headingFontStyleDD: textSettingsUi.headingFontStyleDD,
                 leadingBodyInput: textSettingsUi.leadingBodyInput,
                 leadingHeadingInput: textSettingsUi.leadingHeadingInput,
-                bodySpaceBeforeInput: textSettingsUi.bodySpaceBeforeInput,
-                bodySpaceAfterInput: textSettingsUi.bodySpaceAfterInput,
-                headingSpaceBeforeInput: textSettingsUi.headingSpaceBeforeInput,
-                headingSpaceAfterInput: textSettingsUi.headingSpaceAfterInput,
                 bodyKerningDD: textSettingsUi.bodyKerningDD,
                 headingKerningDD: textSettingsUi.headingKerningDD,
-                ratioDD: scaleSettingsUi.ratioDD,
+                scaleDD: scaleSettingsUi.scaleDD,
                 levelRadios: scaleSettingsUi.levelRadios,
                 roundRadios: scaleSettingsUi.roundRadios,
                 levelRows: previewUi.levelRows,
@@ -1240,19 +1243,20 @@ function getStyleWeightRank(styleName, familyName) {
             return valueKey ? options[dropdownList.selection.index][valueKey] : options[dropdownList.selection.index];
         }
 
-        function getCurrentRatio(dialogUi) {
-            if (!dialogUi.ratioDD.selection) return defaultRatio;
-            return ratioOptions[dialogUi.ratioDD.selection.index].value;
+        function getCurrentScaleRatio(dialogUi) {
+            if (!dialogUi.scaleDD.selection) return defaultRatio;
+            var scaleOption = scaleOptions[dialogUi.scaleDD.selection.index];
+            return (scaleOption && scaleOption.type === "scale") ? scaleOption.ratio : defaultRatio;
         }
 
         function getCurrentScaleOption(dialogUi) {
-            if (!dialogUi.ratioDD.selection) return null;
-            return ratioOptions[dialogUi.ratioDD.selection.index];
+            if (!dialogUi.scaleDD.selection) return null;
+            return scaleOptions[dialogUi.scaleDD.selection.index];
         }
 
         function getCurrentLevelCount(dialogUi) {
             var scaleOption = getCurrentScaleOption(dialogUi);
-            if (scaleOption && typeof scaleOption.forcedLevelCount === "number") {
+            if (scaleOption && scaleOption.type === "preset" && typeof scaleOption.forcedLevelCount === "number") {
                 return scaleOption.forcedLevelCount;
             }
             return getSelectedRadioValue(dialogUi.levelRadios, levelOptions, null, defaultLevelCount);
@@ -1306,19 +1310,19 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function getBodySpaceBeforePercent(dialogUi) {
-            return parseNonNegativeNumber(dialogUi.bodySpaceBeforeInput.text, DEFAULT_BODY_SPACE_BEFORE_PERCENT);
+            return DEFAULT_BODY_SPACE_BEFORE_PERCENT;
         }
 
         function getBodySpaceAfterPercent(dialogUi) {
-            return parseNonNegativeNumber(dialogUi.bodySpaceAfterInput.text, DEFAULT_BODY_SPACE_AFTER_PERCENT);
+            return DEFAULT_BODY_SPACE_AFTER_PERCENT;
         }
 
         function getHeadingSpaceBeforePercent(dialogUi) {
-            return parseNonNegativeNumber(dialogUi.headingSpaceBeforeInput.text, DEFAULT_SPACE_BEFORE_PERCENT);
+            return DEFAULT_SPACE_BEFORE_PERCENT;
         }
 
         function getHeadingSpaceAfterPercent(dialogUi) {
-            return parseNonNegativeNumber(dialogUi.headingSpaceAfterInput.text, DEFAULT_SPACE_AFTER_PERCENT);
+            return DEFAULT_SPACE_AFTER_PERCENT;
         }
 
         function getBaseSize(dialogUi) {
@@ -1326,7 +1330,7 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function formatLeadingValue(value, roundDigits) {
-            if (typeof value !== "number" || isNaN(value)) return "—";
+            if (typeof value !== "number" || isNaN(value)) return L("notAvailable");
             return String(roundTo(value, roundDigits)) + unitSym;
         }
 
@@ -1347,7 +1351,8 @@ function getStyleWeightRank(styleName, familyName) {
         function setRowEnabled(previewRow, enabled) {
             previewRow.lbl.enabled = enabled;
             previewRow.sizeText.enabled = enabled;
-            previewRow.leadingText.enabled = enabled;
+            previewRow.spaceBeforeText.enabled = enabled;
+            previewRow.spaceAfterText.enabled = enabled;
             previewRow.styleDD.enabled = enabled;
             previewRow.fontStyleDD.enabled = enabled;
         }
@@ -1493,14 +1498,38 @@ function getStyleWeightRank(styleName, familyName) {
             return levelFontStyleNames;
         }
 
+        function collectLevelSizeOverrides(dialogUi) {
+            var arr = [];
+            for (var i = 0; i < dialogUi.levelRows.length; i++) {
+                arr.push(dialogUi.levelRows[i].sizeOverride);
+            }
+            return arr;
+        }
+
+        function collectLevelSpaceBeforeOverrides(dialogUi) {
+            var arr = [];
+            for (var i = 0; i < dialogUi.levelRows.length; i++) {
+                arr.push(dialogUi.levelRows[i].spaceBeforeOverride);
+            }
+            return arr;
+        }
+
+        function collectLevelSpaceAfterOverrides(dialogUi) {
+            var arr = [];
+            for (var i = 0; i < dialogUi.levelRows.length; i++) {
+                arr.push(dialogUi.levelRows[i].spaceAfterOverride);
+            }
+            return arr;
+        }
+
         function collectTypescaleSettings(dialogUi) {
             var baseSize = getBaseSize(dialogUi);
             var scaleOption = getCurrentScaleOption(dialogUi);
             return {
                 baseSize: baseSize,
-                ratio: getCurrentRatio(dialogUi),
-                scaleMultipliers: scaleOption ? scaleOption.multipliers : null,
-                captionMultiplier: scaleOption ? scaleOption.captionMultiplier : null,
+                ratio: getCurrentScaleRatio(dialogUi),
+                scaleMultipliers: (scaleOption && scaleOption.type === "preset") ? scaleOption.multipliers : null,
+                captionMultiplier: (scaleOption && scaleOption.type === "preset") ? scaleOption.captionMultiplier : null,
                 levelCount: getCurrentLevelCount(dialogUi),
                 levelStyleNames: getLevelStyleNames(dialogUi),
                 levelFontStyleNames: getHeadingLevelFontStyleNames(dialogUi),
@@ -1520,49 +1549,79 @@ function getStyleWeightRank(styleName, familyName) {
                 bodySpaceBeforePercent: getBodySpaceBeforePercent(dialogUi),
                 bodySpaceAfterPercent: getBodySpaceAfterPercent(dialogUi),
                 headingSpaceBeforePercent: getHeadingSpaceBeforePercent(dialogUi),
-                headingSpaceAfterPercent: getHeadingSpaceAfterPercent(dialogUi)
+                headingSpaceAfterPercent: getHeadingSpaceAfterPercent(dialogUi),
+                levelSizeOverrides: collectLevelSizeOverrides(dialogUi),
+                levelSpaceBeforeOverrides: collectLevelSpaceBeforeOverrides(dialogUi),
+                levelSpaceAfterOverrides: collectLevelSpaceAfterOverrides(dialogUi),
+                baseSizeOverride: dialogUi.baseRow.sizeOverride,
+                baseSpaceBeforeOverride: dialogUi.baseRow.spaceBeforeOverride,
+                baseSpaceAfterOverride: dialogUi.baseRow.spaceAfterOverride,
+                captionSizeOverride: dialogUi.captionRow.sizeOverride,
+                captionSpaceBeforeOverride: dialogUi.captionRow.spaceBeforeOverride,
+                captionSpaceAfterOverride: dialogUi.captionRow.spaceAfterOverride
             };
         }
 
         function updateTypescalePreview(dialogUi) {
             var baseSize = getBaseSize(dialogUi);
-            var ratio = getCurrentRatio(dialogUi);
+            var ratio = getCurrentScaleRatio(dialogUi);
             var levelCount = getCurrentLevelCount(dialogUi);
             var roundDigits = getCurrentRoundDigits(dialogUi);
 
             if (baseSize === null) {
                 for (var levelRowIndex = 0; levelRowIndex < dialogUi.levelRows.length; levelRowIndex++) {
-                    dialogUi.levelRows[levelRowIndex].sizeText.text = "—";
-                    dialogUi.levelRows[levelRowIndex].leadingText.text = "—";
+                    dialogUi.levelRows[levelRowIndex].sizeText.text = L("notAvailable");
+                    dialogUi.levelRows[levelRowIndex].spaceBeforeText.text = L("notAvailable");
+                    dialogUi.levelRows[levelRowIndex].spaceAfterText.text = L("notAvailable");
                     setRowEnabled(dialogUi.levelRows[levelRowIndex], false);
                 }
-                dialogUi.baseRow.sizeText.text = "—";
-                dialogUi.baseRow.leadingText.text = "—";
-                dialogUi.captionRow.sizeText.text = "—";
-                dialogUi.captionRow.leadingText.text = "—";
+                dialogUi.baseRow.sizeText.text = L("notAvailable");
+                dialogUi.baseRow.spaceBeforeText.text = L("notAvailable");
+                dialogUi.baseRow.spaceAfterText.text = L("notAvailable");
+                dialogUi.captionRow.sizeText.text = L("notAvailable");
+                dialogUi.captionRow.spaceBeforeText.text = L("notAvailable");
+                dialogUi.captionRow.spaceAfterText.text = L("notAvailable");
                 return;
             }
 
             var scaleOption = getCurrentScaleOption(dialogUi);
-            var multipliers = scaleOption ? scaleOption.multipliers : null;
-            var captionMultiplier = scaleOption ? scaleOption.captionMultiplier : null;
+            var multipliers = (scaleOption && scaleOption.type === "preset") ? scaleOption.multipliers : null;
+            var captionMultiplier = (scaleOption && scaleOption.type === "preset") ? scaleOption.captionMultiplier : null;
             var computedSizes = computeSizes(baseSize, ratio, levelCount, multipliers, captionMultiplier);
+            var headingSpaceBeforeRatio = getHeadingSpaceBeforePercent(dialogUi) / 100;
+            var bodySpaceBeforeRatio = getBodySpaceBeforePercent(dialogUi) / 100;
+            var headingSpaceAfterRatio = getHeadingSpaceAfterPercent(dialogUi) / 100;
+            var bodySpaceAfterRatio = getBodySpaceAfterPercent(dialogUi) / 100;
             for (var levelNumber = 1; levelNumber <= dialogUi.levelRows.length; levelNumber++) {
+                var levelRow = dialogUi.levelRows[levelNumber - 1];
                 if (levelNumber <= levelCount) {
-                    var headingSize = computedSizes.headingSizes[levelNumber - 1];
-                    dialogUi.levelRows[levelNumber - 1].sizeText.text = roundTo(headingSize, roundDigits) + " " + unitSym;
-                    dialogUi.levelRows[levelNumber - 1].leadingText.text = formatLeadingValue(headingSize * getHeadingLeadingMultiplier(dialogUi), roundDigits);
-                    setRowEnabled(dialogUi.levelRows[levelNumber - 1], true);
+                    var computedHeadingSize = computedSizes.headingSizes[levelNumber - 1];
+                    var effectiveHeadingSize = (typeof levelRow.sizeOverride === "number") ? levelRow.sizeOverride : computedHeadingSize;
+                    levelRow.sizeText.text = roundTo(effectiveHeadingSize, roundDigits) + " " + unitSym;
+                    var effectiveHeadingSpaceBefore = (typeof levelRow.spaceBeforeOverride === "number") ? levelRow.spaceBeforeOverride : effectiveHeadingSize * headingSpaceBeforeRatio;
+                    levelRow.spaceBeforeText.text = formatLeadingValue(effectiveHeadingSpaceBefore, roundDigits);
+                    var effectiveHeadingSpaceAfter = (typeof levelRow.spaceAfterOverride === "number") ? levelRow.spaceAfterOverride : effectiveHeadingSize * headingSpaceAfterRatio;
+                    levelRow.spaceAfterText.text = formatLeadingValue(effectiveHeadingSpaceAfter, roundDigits);
+                    setRowEnabled(levelRow, true);
                 } else {
-                    dialogUi.levelRows[levelNumber - 1].sizeText.text = "—";
-                    dialogUi.levelRows[levelNumber - 1].leadingText.text = "—";
-                    setRowEnabled(dialogUi.levelRows[levelNumber - 1], false);
+                    levelRow.sizeText.text = L("notAvailable");
+                    levelRow.spaceBeforeText.text = L("notAvailable");
+                    levelRow.spaceAfterText.text = L("notAvailable");
+                    setRowEnabled(levelRow, false);
                 }
             }
-            dialogUi.baseRow.sizeText.text = roundTo(computedSizes.base, roundDigits) + " " + unitSym;
-            dialogUi.baseRow.leadingText.text = formatLeadingValue(computedSizes.base * getBodyLeadingMultiplier(dialogUi), roundDigits);
-            dialogUi.captionRow.sizeText.text = roundTo(computedSizes.caption, roundDigits) + " " + unitSym;
-            dialogUi.captionRow.leadingText.text = formatLeadingValue(computedSizes.caption * getBodyLeadingMultiplier(dialogUi), roundDigits);
+            var effectiveBaseSize = (typeof dialogUi.baseRow.sizeOverride === "number") ? dialogUi.baseRow.sizeOverride : computedSizes.base;
+            dialogUi.baseRow.sizeText.text = roundTo(effectiveBaseSize, roundDigits) + " " + unitSym;
+            var effectiveBaseSpaceBefore = (typeof dialogUi.baseRow.spaceBeforeOverride === "number") ? dialogUi.baseRow.spaceBeforeOverride : effectiveBaseSize * bodySpaceBeforeRatio;
+            dialogUi.baseRow.spaceBeforeText.text = formatLeadingValue(effectiveBaseSpaceBefore, roundDigits);
+            var effectiveBaseSpaceAfter = (typeof dialogUi.baseRow.spaceAfterOverride === "number") ? dialogUi.baseRow.spaceAfterOverride : effectiveBaseSize * bodySpaceAfterRatio;
+            dialogUi.baseRow.spaceAfterText.text = formatLeadingValue(effectiveBaseSpaceAfter, roundDigits);
+            var effectiveCaptionSize = (typeof dialogUi.captionRow.sizeOverride === "number") ? dialogUi.captionRow.sizeOverride : computedSizes.caption;
+            dialogUi.captionRow.sizeText.text = roundTo(effectiveCaptionSize, roundDigits) + " " + unitSym;
+            var effectiveCaptionSpaceBefore = (typeof dialogUi.captionRow.spaceBeforeOverride === "number") ? dialogUi.captionRow.spaceBeforeOverride : effectiveCaptionSize * bodySpaceBeforeRatio;
+            dialogUi.captionRow.spaceBeforeText.text = formatLeadingValue(effectiveCaptionSpaceBefore, roundDigits);
+            var effectiveCaptionSpaceAfter = (typeof dialogUi.captionRow.spaceAfterOverride === "number") ? dialogUi.captionRow.spaceAfterOverride : effectiveCaptionSize * bodySpaceAfterRatio;
+            dialogUi.captionRow.spaceAfterText.text = formatLeadingValue(effectiveCaptionSpaceAfter, roundDigits);
 
             applyTypescaleSettings(targetDocument, collectTypescaleSettings(dialogUi), true, unit);
         }
@@ -1622,12 +1681,13 @@ function getStyleWeightRank(styleName, familyName) {
 
         function syncLevelRadiosWithScaleOption(dialogUi) {
             var scaleOption = getCurrentScaleOption(dialogUi);
-            var forced = scaleOption && typeof scaleOption.forcedLevelCount === "number"
+            var forcedLevelCount = (scaleOption && scaleOption.type === "preset" && typeof scaleOption.forcedLevelCount === "number")
                 ? scaleOption.forcedLevelCount
                 : null;
+
             for (var radioIndex = 0; radioIndex < dialogUi.levelRadios.length; radioIndex++) {
-                if (forced !== null) {
-                    dialogUi.levelRadios[radioIndex].value = (levelOptions[radioIndex] === forced);
+                if (forcedLevelCount !== null) {
+                    dialogUi.levelRadios[radioIndex].value = (levelOptions[radioIndex] === forcedLevelCount);
                     dialogUi.levelRadios[radioIndex].enabled = false;
                 } else {
                     dialogUi.levelRadios[radioIndex].enabled = true;
@@ -1635,24 +1695,115 @@ function getStyleWeightRank(styleName, familyName) {
             }
         }
 
+        function clearAllPreviewOverrides(dialogUi) {
+            for (var levelClearIndex = 0; levelClearIndex < dialogUi.levelRows.length; levelClearIndex++) {
+                dialogUi.levelRows[levelClearIndex].sizeOverride = null;
+                dialogUi.levelRows[levelClearIndex].spaceBeforeOverride = null;
+                dialogUi.levelRows[levelClearIndex].spaceAfterOverride = null;
+            }
+            dialogUi.baseRow.sizeOverride = null;
+            dialogUi.baseRow.spaceBeforeOverride = null;
+            dialogUi.baseRow.spaceAfterOverride = null;
+            dialogUi.captionRow.sizeOverride = null;
+            dialogUi.captionRow.spaceBeforeOverride = null;
+            dialogUi.captionRow.spaceAfterOverride = null;
+        }
+
+        function changePreviewValueByArrowKey(editText, allowZero, applyValue) {
+            editText.addEventListener("keydown", function (event) {
+                if (event.keyName !== "Up" && event.keyName !== "Down") return;
+                var value = parseFloat(editText.text);
+                if (isNaN(value)) return;
+                var direction = (event.keyName === "Up") ? 1 : -1;
+                var keyboard = ScriptUI.environment.keyboardState;
+                if (keyboard.shiftKey) {
+                    var stepShift = 10;
+                    if (direction > 0) {
+                        value = Math.ceil((value + 1) / stepShift) * stepShift;
+                    } else {
+                        value = Math.floor((value - 1) / stepShift) * stepShift;
+                    }
+                } else if (keyboard.altKey) {
+                    value += 0.1 * direction;
+                } else {
+                    value += 1 * direction;
+                }
+                if (keyboard.altKey) {
+                    value = Math.round(value * 10) / 10;
+                } else {
+                    value = Math.round(value);
+                }
+                if (allowZero) {
+                    if (value < 0) value = 0;
+                } else {
+                    if (value < 1) value = 1;
+                }
+                event.preventDefault();
+                applyValue(value);
+            });
+        }
+
+        function bindPreviewCellEdit(dialogUi, previewRow, sizeCallback) {
+            var defaultSizeCallback = function (parsedValue) {
+                previewRow.sizeOverride = parsedValue;
+                updateTypescalePreview(dialogUi);
+            };
+            var resolvedSizeCallback = sizeCallback || defaultSizeCallback;
+            previewRow.sizeText.onChange = function () {
+                resolvedSizeCallback(parsePositiveNumber(previewRow.sizeText.text, null));
+            };
+            previewRow.spaceBeforeText.onChange = function () {
+                var parsed = parseNonNegativeNumber(previewRow.spaceBeforeText.text, null);
+                previewRow.spaceBeforeOverride = parsed;
+                updateTypescalePreview(dialogUi);
+            };
+            previewRow.spaceAfterText.onChange = function () {
+                var parsed = parseNonNegativeNumber(previewRow.spaceAfterText.text, null);
+                previewRow.spaceAfterOverride = parsed;
+                updateTypescalePreview(dialogUi);
+            };
+            changePreviewValueByArrowKey(previewRow.sizeText, false, resolvedSizeCallback);
+            changePreviewValueByArrowKey(previewRow.spaceBeforeText, true, function (newValue) {
+                previewRow.spaceBeforeOverride = newValue;
+                updateTypescalePreview(dialogUi);
+            });
+            changePreviewValueByArrowKey(previewRow.spaceAfterText, true, function (newValue) {
+                previewRow.spaceAfterOverride = newValue;
+                updateTypescalePreview(dialogUi);
+            });
+        }
+
         function bindTypescaleDialogEvents(dialogUi) {
             changeValueByArrowKey(dialogUi.baseInput, function () {
+                clearAllPreviewOverrides(dialogUi);
                 updateTypescalePreview(dialogUi);
             });
             changeValueByArrowKey(dialogUi.leadingBodyInput, function () { updateTypescalePreview(dialogUi); });
             changeValueByArrowKey(dialogUi.leadingHeadingInput, function () { updateTypescalePreview(dialogUi); });
-            changeValueByArrowKey(dialogUi.bodySpaceBeforeInput, function () { updateTypescalePreview(dialogUi); });
-            changeValueByArrowKey(dialogUi.bodySpaceAfterInput, function () { updateTypescalePreview(dialogUi); });
-            changeValueByArrowKey(dialogUi.headingSpaceBeforeInput, function () { updateTypescalePreview(dialogUi); });
-            changeValueByArrowKey(dialogUi.headingSpaceAfterInput, function () { updateTypescalePreview(dialogUi); });
-            dialogUi.baseInput.onChanging = function () { updateTypescalePreview(dialogUi); };
+            dialogUi.baseInput.onChanging = function () {
+                clearAllPreviewOverrides(dialogUi);
+                updateTypescalePreview(dialogUi);
+            };
             dialogUi.baseInput.onChange = function () {
+                clearAllPreviewOverrides(dialogUi);
                 updateTypescalePreview(dialogUi);
             };
             dialogUi.ratioDD.onChange = function () {
+                clearAllPreviewOverrides(dialogUi);
                 syncLevelRadiosWithScaleOption(dialogUi);
                 updateTypescalePreview(dialogUi);
             };
+            for (var levelRowEditIndex = 0; levelRowEditIndex < dialogUi.levelRows.length; levelRowEditIndex++) {
+                bindPreviewCellEdit(dialogUi, dialogUi.levelRows[levelRowEditIndex]);
+            }
+            bindPreviewCellEdit(dialogUi, dialogUi.baseRow, function (parsedValue) {
+                if (parsedValue !== null) {
+                    dialogUi.baseInput.text = String(parsedValue);
+                }
+                clearAllPreviewOverrides(dialogUi);
+                updateTypescalePreview(dialogUi);
+            });
+            bindPreviewCellEdit(dialogUi, dialogUi.captionRow);
             for (var levelRadioIndex = 0; levelRadioIndex < dialogUi.levelRadios.length; levelRadioIndex++) {
                 dialogUi.levelRadios[levelRadioIndex].onClick = function () { updateTypescalePreview(dialogUi); };
             }
@@ -1717,14 +1868,6 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.leadingHeadingInput.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.bodyKerningDD.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.headingKerningDD.onChange = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.bodySpaceBeforeInput.onChanging = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.bodySpaceBeforeInput.onChange = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.bodySpaceAfterInput.onChanging = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.bodySpaceAfterInput.onChange = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.headingSpaceBeforeInput.onChanging = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.headingSpaceBeforeInput.onChange = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.headingSpaceAfterInput.onChanging = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.headingSpaceAfterInput.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.clearCacheButton.onClick = function () { clearFontCacheAndReload(dialogUi); };
         }
 
