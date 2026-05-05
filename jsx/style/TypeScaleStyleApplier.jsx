@@ -1,11 +1,12 @@
 #target indesign
 
+
 /*
 概要 / Overview
 
 【日本語】
 タイプスケールを使って、見出し・本文・キャプション用の段落スタイルを一括設定するInDesign用スクリプトです。
-基準サイズ（本文）、倍率、見出しレベル数、サイズの丸め、行送り（%指定）、段落後のアキ、カーニング（本文／見出し別）を設定できます。
+基準サイズ（本文）、倍率、見出しレベル数、サイズの丸め、行送り（%指定）、段落前／段落後のアキ、カーニング（本文／見出し別）を設定できます。
 
 フォント指定オプションでは、次の3つのモードを選択できます：
 ・本文と見出しで共通
@@ -14,17 +15,19 @@
 
 フォントファミリーを選択すると、そのフォントで使用可能なスタイル（ウエイト）を自動取得し、各段落スタイルに適用できます。
 共通指定の場合は本文のフォント設定を見出しにも適用し、別々に指定する場合は見出し専用のフォント設定を使用します。
+なお、「別々に指定」の場合でも、デフォルトでは本文のフォントを参照し、必要に応じて見出し側で上書きできます。
 
 段落スタイルとサイズプレビューでは、各レベル（h1〜h6）、本文、キャプションのフォントサイズと行送りを確認できます。
 ライブプレビューに対応しており、ダイアログ操作中に結果をリアルタイムで確認できます。
 
 見出しは左揃え、本文・キャプションは均等配置（最終行左）に自動設定されます。
+段落前／段落後のアキは、見出しと本文で個別に%指定できます。
 
 ダイアログを閉じる際には、オーバーライドをクリアして最終状態を適用します。
 
 【English】
 This InDesign script batch-configures paragraph styles for headings, body text, and captions using a type scale.
-You can define the base body size, scale ratio, number of heading levels, size rounding, leading (percentage-based), space after, and kerning (separately for body and headings).
+You can define the base body size, scale ratio, number of heading levels, size rounding, leading (percentage-based), space before/after, and kerning (separately for body and headings).
 
 The font options panel provides three modes:
 - Use same font for body and headings
@@ -32,12 +35,13 @@ The font options panel provides three modes:
 - Do not change fonts
 
 When a font family is selected, available font styles (weights) are automatically collected and applied.
-When using shared mode, heading styles inherit the body font settings; when using separate mode, headings use their own font settings.
+In separate mode, headings reference the body font by default and can optionally override it.
 
 The preview panel displays font size and leading for each level (h1–h6), body, and caption.
 Live preview allows real-time confirmation while adjusting settings.
 
 Headings are set to left alignment, while body text and captions use left-justified alignment.
+Space before and space after can be specified independently for headings and body text.
 
 When the dialog is closed, overrides are cleared and final settings are applied.
 */
@@ -67,7 +71,7 @@ var DEFAULT_BODY_SPACE_AFTER_PERCENT = 10; // 本文の段落後のアキ(%)
 
    ========================================= */
 
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -86,6 +90,7 @@ var LABELS = {
     disableFontSelection: { ja: "フォントを変更しない", en: "Do not change fonts" },
     useSameFontForBodyAndHeading: { ja: "本文と見出しで共通", en: "Use same font for body and headings" },
     separateFontForBodyAndHeading: { ja: "本文と見出しで別々に指定", en: "Separate fonts" },
+    refBodyFont: { ja: "本文のフォントを参照", en: "Use body font" },
     bodyTextPanel: { ja: "本文", en: "Body" },
     headingTextPanel: { ja: "見出し", en: "Headings" },
     baseSizeBody: { ja: "基準サイズ", en: "Base Size (Body)" },
@@ -1249,9 +1254,18 @@ function getStyleWeightRank(styleName, familyName) {
 
         function getSelectedHeadingFontFamily(dialogUi) {
             if (dialogUi.disableFontRadio && dialogUi.disableFontRadio.value) return null;
-            if (dialogUi.useSameFontRadio && dialogUi.useSameFontRadio.value) return getSelectedFontFamily(dialogUi);
-            if (!dialogUi.headingFontDD.selection || dialogUi.headingFontDD.selection.index === 0) return null;
-            return dialogUi.headingFontDD.selection.text;
+
+            // 常に本文フォントを参照（ウエイトのみ変更できるようにする）
+            var bodyFont = getSelectedFontFamily(dialogUi);
+
+            // 見出し側で別フォントが明示指定されている場合のみそれを優先
+            if (dialogUi.separateFontRadio && dialogUi.separateFontRadio.value) {
+                if (dialogUi.headingFontDD.selection && dialogUi.headingFontDD.selection.index !== 0) {
+                    return dialogUi.headingFontDD.selection.text;
+                }
+            }
+
+            return bodyFont;
         }
 
         function getHeadingFontStyleName(dialogUi, previewRow) {
@@ -1432,6 +1446,10 @@ function getStyleWeightRank(styleName, familyName) {
             var selectedFontFamily = getSelectedHeadingFontFamily(dialogUi);
             var fontStyleOptions = selectedFontFamily ? getFontStylesInFamily(selectedFontFamily) : [L("noFontChange")];
             if (fontStyleOptions.length === 0) fontStyleOptions = [L("noFontChange")];
+
+            // 共通指定時はフォントを無効化（本文参照）
+            dialogUi.headingFontDD.enabled = false;
+            dialogUi.headingFontDD.helpTip = L("refBodyFont");
 
             resetDropdownItems(dialogUi.headingFontStyleDD, fontStyleOptions);
             dialogUi.headingFontStyleDD.enabled = true;
