@@ -55,13 +55,18 @@ var DEFAULT_SPACE_AFTER_PERCENT = 10; // 見出しの段落後のアキ(%)
 var DEFAULT_BODY_SPACE_BEFORE_PERCENT = 15; // 本文の段落前のアキ(%)
 var DEFAULT_BODY_SPACE_AFTER_PERCENT = 15; // 本文の段落後のアキ(%)
 
+// 段落前後のアキを段落スタイルへ適用するかどうかの ON/OFF スイッチ
+// false の場合、段落スタイルの spaceBefore / spaceAfter は変更されない
+var ENABLE_SPACE_BEFORE = true; // 段落前のアキ機能の ON/OFF
+var ENABLE_SPACE_AFTER = true;  // 段落後のアキ機能の ON/OFF
+
 /* =========================================
 
     バージョンとローカライズ / Version and Localization
 
    ========================================= */
 
-var SCRIPT_VERSION = "v1.5.0";
+var SCRIPT_VERSION = "v1.5.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -78,6 +83,7 @@ var LABELS = {
     textSettingsPanel: { ja: "テキスト設定", en: "Text Settings" },
     fontSettingsPanel: { ja: "フォント指定オプション", en: "Font Assignment" },
     disableFontSelection: { ja: "フォントを変更しない", en: "Do not change fonts" },
+    sizeOnly: { ja: "サイズのみ", en: "Size only" },
     useSameFontForBodyAndHeading: { ja: "本文と見出しで共通", en: "Use same font for body and headings" },
     separateFontForBodyAndHeading: {
         ja: "本文と見出しで別々に指定", en: "Specify body and heading fonts separately"
@@ -469,7 +475,8 @@ function getStyleWeightRank(styleName, familyName) {
                 fontToUse = fontStyleName ? findFontByFamilyAndStyle(fontFamilyName, fontStyleName) : findFontInFamily(fontFamilyName);
             }
             var kerningMethod = isHeading ? typescaleSettings.headingKerningMethod : typescaleSettings.bodyKerningMethod;
-            setParagraphStyleProps(targetDocument, styleName, sizePt, fontToUse, leadingPt, spaceAfterPt, spaceBeforePt, kerningMethod, isHeading, silent);
+            var originalProps = (typescaleSettings.originalStyleProps && typescaleSettings.originalStyleProps[styleName]) || null;
+            setParagraphStyleProps(targetDocument, styleName, sizePt, fontToUse, leadingPt, spaceAfterPt, spaceBeforePt, kerningMethod, isHeading, silent, !!typescaleSettings.sizeOnly, originalProps);
         }
         applyParagraphStyleSettings(typescaleSettings.baseStyleName, computedSizes.base, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.baseFontStyleName, typescaleSettings.baseSizeOverride, typescaleSettings.baseSpaceBeforeOverride, typescaleSettings.baseSpaceAfterOverride);
         applyParagraphStyleSettings(typescaleSettings.captionStyleName, computedSizes.caption, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.captionFontStyleName, typescaleSettings.captionSizeOverride, typescaleSettings.captionSpaceBeforeOverride, typescaleSettings.captionSpaceAfterOverride);
@@ -736,6 +743,8 @@ function getStyleWeightRank(styleName, familyName) {
     function showTypescaleDialog(targetDocument, defaultBase, defaultRatio, defaultLevelCount, unit) {
         var unitSym = unitSymbol(unit);
         var styleNames = getParagraphStyleNames(targetDocument);
+        // ダイアログ表示中のライブプレビューが値を書き換えるため、起動時に元値を退避しておく
+        var originalStyleProps = snapshotParagraphStyleProps(targetDocument);
         var loadingPalette = createProgressPalette(L("loadingFonts"));
         var fontFamilies = getFontFamilyNames();
         closeProgressPalette(loadingPalette);
@@ -985,10 +994,15 @@ function getStyleWeightRank(styleName, familyName) {
             separateFontRadio.value = false;
             disableFontRadio.value = false;
 
+            // 「サイズのみ」: ON で「フォントを変更しない」を強制し、行揃え／段落前後のアキの適用をスキップ
+            var sizeOnlyCheckbox = fontPanel.add("checkbox", undefined, L("sizeOnly"));
+            sizeOnlyCheckbox.value = false;
+
             return {
                 disableFontRadio: disableFontRadio,
                 useSameFontRadio: useSameFontRadio,
-                separateFontRadio: separateFontRadio
+                separateFontRadio: separateFontRadio,
+                sizeOnlyCheckbox: sizeOnlyCheckbox
             };
         }
 
@@ -1068,8 +1082,10 @@ function getStyleWeightRank(styleName, familyName) {
             headerRow.alignChildren = "left";
             headerRow.add("statictext", undefined, labelText("levelHeader")).preferredSize.width = PREVIEW_LABEL_WIDTH;
             headerRow.add("statictext", undefined, labelText("fontSizeHeader")).preferredSize.width = PREVIEW_SIZE_WIDTH;
-            headerRow.add("statictext", undefined, labelText("spaceBeforeHeader")).preferredSize.width = PREVIEW_SPACE_BEFORE_WIDTH;
-            headerRow.add("statictext", undefined, labelText("spaceAfterHeader")).preferredSize.width = PREVIEW_SPACE_AFTER_WIDTH;
+            var spaceBeforeHeader = headerRow.add("statictext", undefined, labelText("spaceBeforeHeader"));
+            spaceBeforeHeader.preferredSize.width = PREVIEW_SPACE_BEFORE_WIDTH;
+            var spaceAfterHeader = headerRow.add("statictext", undefined, labelText("spaceAfterHeader"));
+            spaceAfterHeader.preferredSize.width = PREVIEW_SPACE_AFTER_WIDTH;
             headerRow.add("statictext", undefined, labelText("paragraphStyleHeader")).preferredSize.width = 100;
             var fontStyleHeader = headerRow.add("statictext", undefined, labelText("fontStyleHeader"));
             fontStyleHeader.preferredSize.width = 100;
@@ -1136,7 +1152,10 @@ function getStyleWeightRank(styleName, familyName) {
             return {
                 levelRows: levelRows,
                 baseRow: createPreviewRow(previewPanel, L("baseBodyPreview"), ["p", "Normal"], false),
-                captionRow: createPreviewRow(previewPanel, L("captionPreview"), "p.caption", false)
+                captionRow: createPreviewRow(previewPanel, L("captionPreview"), "p.caption", false),
+                spaceBeforeHeader: spaceBeforeHeader,
+                spaceAfterHeader: spaceAfterHeader,
+                fontStyleHeader: fontStyleHeader
             };
         }
 
@@ -1206,10 +1225,14 @@ function getStyleWeightRank(styleName, familyName) {
                 levelRows: previewUi.levelRows,
                 baseRow: previewUi.baseRow,
                 captionRow: previewUi.captionRow,
+                spaceBeforeHeader: previewUi.spaceBeforeHeader,
+                spaceAfterHeader: previewUi.spaceAfterHeader,
+                fontStyleHeader: previewUi.fontStyleHeader,
                 clearCacheButton: buttonUi.clearCacheButton,
                 disableFontRadio: fontSettingsUi.disableFontRadio,
                 useSameFontRadio: fontSettingsUi.useSameFontRadio,
                 separateFontRadio: fontSettingsUi.separateFontRadio,
+                sizeOnlyCheckbox: fontSettingsUi.sizeOnlyCheckbox,
             };
         }
 
@@ -1408,6 +1431,18 @@ function getStyleWeightRank(styleName, familyName) {
             }
         }
 
+        function syncSpaceColumnsDimming(dialogUi) {
+            var enabled = !(dialogUi.sizeOnlyCheckbox && dialogUi.sizeOnlyCheckbox.value);
+            if (dialogUi.spaceBeforeHeader) dialogUi.spaceBeforeHeader.enabled = enabled;
+            if (dialogUi.spaceAfterHeader) dialogUi.spaceAfterHeader.enabled = enabled;
+            if (dialogUi.fontStyleHeader) dialogUi.fontStyleHeader.enabled = enabled;
+            var previewRows = getAllPreviewRows(dialogUi);
+            for (var previewRowIndex = 0; previewRowIndex < previewRows.length; previewRowIndex++) {
+                previewRows[previewRowIndex].spaceBeforeText.enabled = enabled;
+                previewRows[previewRowIndex].spaceAfterText.enabled = enabled;
+            }
+        }
+
         function syncFontSelectionEnabled(dialogUi) {
             var enabled = !(dialogUi.disableFontRadio && dialogUi.disableFontRadio.value);
             var headingFontEnabled = enabled && !(dialogUi.useSameFontRadio && dialogUi.useSameFontRadio.value);
@@ -1559,7 +1594,9 @@ function getStyleWeightRank(styleName, familyName) {
                 baseSpaceAfterOverride: dialogUi.baseRow.spaceAfterOverride,
                 captionSizeOverride: dialogUi.captionRow.sizeOverride,
                 captionSpaceBeforeOverride: dialogUi.captionRow.spaceBeforeOverride,
-                captionSpaceAfterOverride: dialogUi.captionRow.spaceAfterOverride
+                captionSpaceAfterOverride: dialogUi.captionRow.spaceAfterOverride,
+                sizeOnly: !!(dialogUi.sizeOnlyCheckbox && dialogUi.sizeOnlyCheckbox.value),
+                originalStyleProps: originalStyleProps
             };
         }
 
@@ -1625,6 +1662,7 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.captionRow.spaceAfterText.text = formatLeadingValue(effectiveCaptionSpaceAfter, roundDigits);
 
             applyTypescaleSettings(targetDocument, collectTypescaleSettings(dialogUi), true, unit);
+            syncSpaceColumnsDimming(dialogUi);
         }
 
         function clearTextOverridesInSelection() {
@@ -1827,6 +1865,7 @@ function getStyleWeightRank(styleName, familyName) {
             };
             dialogUi.useSameFontRadio.onClick = function () {
                 setFontOptionMode(dialogUi, "same");
+                if (dialogUi.sizeOnlyCheckbox) dialogUi.sizeOnlyCheckbox.value = false;
                 syncFontSelectionEnabled(dialogUi);
                 updateFontStyleDropdowns(dialogUi);
                 updateHeadingFontStyleDropdowns(dialogUi);
@@ -1835,9 +1874,20 @@ function getStyleWeightRank(styleName, familyName) {
             };
             dialogUi.separateFontRadio.onClick = function () {
                 setFontOptionMode(dialogUi, "separate");
+                if (dialogUi.sizeOnlyCheckbox) dialogUi.sizeOnlyCheckbox.value = false;
                 syncFontSelectionEnabled(dialogUi);
                 updateFontStyleDropdowns(dialogUi);
                 updateHeadingFontStyleDropdowns(dialogUi);
+                updateTypescalePreview(dialogUi);
+            };
+            dialogUi.sizeOnlyCheckbox.onClick = function () {
+                if (dialogUi.sizeOnlyCheckbox.value) {
+                    setFontOptionMode(dialogUi, "disable");
+                    syncFontSelectionEnabled(dialogUi);
+                    updateFontStyleDropdowns(dialogUi);
+                    updateHeadingFontStyleDropdowns(dialogUi);
+                }
+                syncSpaceColumnsDimming(dialogUi);
                 updateTypescalePreview(dialogUi);
             };
             dialogUi.fontDD.onChange = function () {
@@ -1893,11 +1943,39 @@ function getStyleWeightRank(styleName, familyName) {
         return collectTypescaleSettings(dialogUi);
     }
 
-    function setParagraphStyleProps(targetDocument, styleName, size, font, leading, spaceAfter, spaceBefore, kerningMethod, isHeading, silent) {
+    function setParagraphStyleProps(targetDocument, styleName, size, font, leading, spaceAfter, spaceBefore, kerningMethod, isHeading, silent, sizeOnly, originalProps) {
         var style = findParagraphStyle(targetDocument, styleName);
         if (style === null) {
             if (!silent) alert(formatLabel("errMissingParagraphStyle", styleName));
             return false;
+        }
+        // サイズのみモード: サイズだけを更新し、その他はダイアログ起動時の値に戻す
+        if (sizeOnly) {
+            style.pointSize = size;
+            if (originalProps) {
+                if (originalProps.appliedFont) {
+                    try { style.appliedFont = originalProps.appliedFont; } catch (eRF) { }
+                }
+                if (originalProps.fontStyle) {
+                    try { style.fontStyle = originalProps.fontStyle; } catch (eRFS) { }
+                }
+                if (typeof originalProps.leading !== "undefined") {
+                    try { style.leading = originalProps.leading; } catch (eRL) { }
+                }
+                if (typeof originalProps.spaceBefore !== "undefined") {
+                    try { style.spaceBefore = originalProps.spaceBefore; } catch (eRSB) { }
+                }
+                if (typeof originalProps.spaceAfter !== "undefined") {
+                    try { style.spaceAfter = originalProps.spaceAfter; } catch (eRSA) { }
+                }
+                if (typeof originalProps.kerningMethod !== "undefined") {
+                    try { style.kerningMethod = originalProps.kerningMethod; } catch (eRK) { }
+                }
+                if (typeof originalProps.justification !== "undefined") {
+                    try { style.justification = originalProps.justification; } catch (eRJ) { }
+                }
+            }
+            return true;
         }
         // 環境差異に対応するため、複数パターンでフォントを設定（fullName → object → name）
         if (font) {
@@ -1929,10 +2007,10 @@ function getStyleWeightRank(styleName, familyName) {
         if (typeof leading === "number" && leading > 0) {
             style.leading = leading;
         }
-        if (typeof spaceBefore === "number" && spaceBefore >= 0) {
+        if (ENABLE_SPACE_BEFORE && typeof spaceBefore === "number" && spaceBefore >= 0) {
             style.spaceBefore = spaceBefore;
         }
-        if (typeof spaceAfter === "number" && spaceAfter >= 0) {
+        if (ENABLE_SPACE_AFTER && typeof spaceAfter === "number" && spaceAfter >= 0) {
             style.spaceAfter = spaceAfter;
         }
         // フォントによっては設定不可のため、安全に無視
@@ -1949,6 +2027,25 @@ function getStyleWeightRank(styleName, familyName) {
             }
         } catch (e) { }
         return true;
+    }
+
+    // 「サイズのみ」復元用に、ダイアログ起動時点の段落スタイルのプロパティを記録する
+    function snapshotParagraphStyleProps(targetDocument) {
+        var snapshot = {};
+        var styles = targetDocument.allParagraphStyles;
+        for (var snapshotIndex = 0; snapshotIndex < styles.length; snapshotIndex++) {
+            var s = styles[snapshotIndex];
+            var entry = {};
+            try { entry.leading = s.leading; } catch (eL) { }
+            try { entry.spaceBefore = s.spaceBefore; } catch (eSB) { }
+            try { entry.spaceAfter = s.spaceAfter; } catch (eSA) { }
+            try { entry.justification = s.justification; } catch (eJ) { }
+            try { entry.appliedFont = s.appliedFont; } catch (eF) { }
+            try { entry.fontStyle = s.fontStyle; } catch (eFS) { }
+            try { entry.kerningMethod = s.kerningMethod; } catch (eK) { }
+            snapshot[s.name] = entry;
+        }
+        return snapshot;
     }
 
     function findParagraphStyle(targetDocument, styleName) {
