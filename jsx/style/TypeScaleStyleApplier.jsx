@@ -71,7 +71,7 @@ var DEFAULT_BODY_SPACE_AFTER_PERCENT = 10; // 本文の段落後のアキ(%)
 
    ========================================= */
 
-var SCRIPT_VERSION = "v1.1.1";
+var SCRIPT_VERSION = "v1.1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -897,7 +897,8 @@ function getStyleWeightRank(styleName, familyName) {
 
             // Font controls (like body panel)
             var headingFontGrp = addLabeledGroup(headingPanel, labelText("font"), labelWidth);
-            var headingFontDD = headingFontGrp.add("dropdownlist", undefined, fontOptions);
+            var headingFontOptions = [L("refBodyFont")].concat(fontFamilies);
+            var headingFontDD = headingFontGrp.add("dropdownlist", undefined, headingFontOptions);
             headingFontDD.preferredSize.width = 180;
             headingFontDD.selection = 0;
 
@@ -1399,7 +1400,7 @@ function getStyleWeightRank(styleName, familyName) {
             if (!enabled) {
                 selectDropdownByText(dialogUi.fontDD, L("noFontChange"));
                 resetDropdownItems(dialogUi.fontStyleDD, [L("noFontChange")]);
-                selectDropdownByText(dialogUi.headingFontDD, L("noFontChange"));
+                selectDropdownByText(dialogUi.headingFontDD, L("refBodyFont"));
                 resetDropdownItems(dialogUi.headingFontStyleDD, [L("noFontChange")]);
             }
             var previewRows = getAllPreviewRows(dialogUi);
@@ -1447,9 +1448,14 @@ function getStyleWeightRank(styleName, familyName) {
             var fontStyleOptions = selectedFontFamily ? getFontStylesInFamily(selectedFontFamily) : [L("noFontChange")];
             if (fontStyleOptions.length === 0) fontStyleOptions = [L("noFontChange")];
 
-            // 共通指定時はフォントを無効化（本文参照）
-            dialogUi.headingFontDD.enabled = false;
-            dialogUi.headingFontDD.helpTip = L("refBodyFont");
+            // 共通指定時のみ本文フォントを参照表示にする
+            if (dialogUi.useSameFontRadio && dialogUi.useSameFontRadio.value) {
+                dialogUi.headingFontDD.enabled = false;
+                dialogUi.headingFontDD.helpTip = L("refBodyFont");
+            } else {
+                dialogUi.headingFontDD.enabled = true;
+                dialogUi.headingFontDD.helpTip = "";
+            }
 
             resetDropdownItems(dialogUi.headingFontStyleDD, fontStyleOptions);
             dialogUi.headingFontStyleDD.enabled = true;
@@ -1580,10 +1586,11 @@ function getStyleWeightRank(styleName, familyName) {
             // ファミリー／スタイル一覧を再取得してドロップダウンを差し替え
             var refreshedFamilies = getFontFamilyNames();
             var refreshedFontOptions = [L("noFontChange")].concat(refreshedFamilies);
+            var refreshedHeadingFontOptions = [L("refBodyFont")].concat(refreshedFamilies);
             var previousFontText = getDropdownText(dialogUi.fontDD);
             var previousHeadingFontText = getDropdownText(dialogUi.headingFontDD);
             resetDropdownItems(dialogUi.fontDD, refreshedFontOptions);
-            resetDropdownItems(dialogUi.headingFontDD, refreshedFontOptions);
+            resetDropdownItems(dialogUi.headingFontDD, refreshedHeadingFontOptions);
             if (previousFontText) selectDropdownByText(dialogUi.fontDD, previousFontText);
             if (previousHeadingFontText) selectDropdownByText(dialogUi.headingFontDD, previousHeadingFontText);
 
