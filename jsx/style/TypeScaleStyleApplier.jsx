@@ -15,24 +15,25 @@ InDesign の段落スタイルに対して、本文サイズを基準にタイ�
 フォント一覧はキャッシュして高速化し、必要に応じてキャッシュをクリアして再読み込みできます。
 
 【English】
-This InDesign script batch-configures paragraph styles for headings, body text, and captions using a type scale.
-You can define the base body size, scale ratio, number of heading levels, size rounding, leading (percentage-based), space before/after, and kerning (separately for body and headings).
+Summary:
+Applies type-scale based sizes to InDesign paragraph styles for headings, body text, and captions using the body size as the base.
 
-The font options panel provides three modes:
-- Use same font for body and headings
-- Specify separately for body and headings
-- Do not change fonts
+Scale choices are managed through `scaleOptions`, supporting both ratio-based scales and preset scales such as Browser Default.
 
-When a font family is selected, available font styles (weights) are automatically collected and applied.
-In separate mode, headings reference the body font by default and can optionally override it.
+Font assignment can be configured as:
+- Shared font for body and headings
+- Separate fonts for body and headings
+- No font change
 
-The preview panel displays font size and space before for each level (h1–h6), body, and caption.
-Live preview allows real-time confirmation while adjusting settings.
+Headings can reference the body font while changing only weight/style.
 
-Headings are set to left alignment, while body text and captions use left-justified alignment.
-Space before and space after can be specified independently for headings and body text.
+Leading, kerning, space before/after, and size rounding can be configured independently.
+The default body space before/after value is 15%.
 
-When the dialog is closed, overrides are cleared and final settings are applied.
+The preview panel displays sizes and spacing for each level (h1–h6), body, and caption, and allows per-row overrides.
+Live preview updates in real time while adjusting settings.
+
+The font list is cached for faster loading and can be cleared and reloaded from the dialog.
 */
 
 
@@ -60,7 +61,7 @@ var DEFAULT_BODY_SPACE_AFTER_PERCENT = 15; // 本文の段落後のアキ(%)
 
    ========================================= */
 
-var SCRIPT_VERSION = "v1.1.5";
+var SCRIPT_VERSION = "v1.5.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1788,7 +1789,7 @@ function getStyleWeightRank(styleName, familyName) {
                 clearAllPreviewOverrides(dialogUi);
                 updateTypescalePreview(dialogUi);
             };
-            dialogUi.ratioDD.onChange = function () {
+            dialogUi.scaleDD.onChange = function () {
                 clearAllPreviewOverrides(dialogUi);
                 syncLevelRadiosWithScaleOption(dialogUi);
                 updateTypescalePreview(dialogUi);
