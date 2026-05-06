@@ -7,6 +7,8 @@ TypesettingStyleManager.jsx
 --------------------------------------------------------
 アクティブドキュメントの段落スタイルに対して、
 文字組版・基本文字設定・ハイフネーション設定・欧文合字（ligatures）を一括で適用する管理ツール。
+一部の設定（引用符・単位）は InDesign 環境設定として適用。
+引用符は「英文引用符を使用」と、辞書設定の二重引用符／引用符を含む。
 
 対象設定:
 ・自動カーニング
@@ -16,14 +18,17 @@ TypesettingStyleManager.jsx
 ・グリッド揃え
 ・コンポーザー
 ・欧文合字
-・スマート引用符
+・英文引用符を使用（環境設定）
+・二重引用符（辞書設定）
+・引用符（辞書設定）
+・単位（環境設定）
 ・言語
 ・禁則処理セット
 ・禁則調整方式
 ・ぶら下がり方法
 ・文字組みアキ量設定
 ・ハイフネーションおよび詳細設定
-・分離禁止、連数字処理、縦組み中の文字回転、行末全角スペース吸収など
+・分離禁止、連数字処理、縦組み中の文字回転、行末全角スペース吸収、欧文泣き別れなど
 
 主な機能:
 ・ダイアログで各設定を選び、OK 時に対象段落スタイルへ反映
@@ -31,7 +36,7 @@ TypesettingStyleManager.jsx
 ・選択中の段落から現在の組版設定・言語・ハイフネーション設定を読み込み、初期値として利用
 ・段落スタイルグループを再帰的に走査し、対象外グループを除外
 ・ハイフネーションの ON/OFF に応じて関連項目を有効／無効化
-・プリセット（欧文組版／グリッド優先／グリッド無視／ソースコード／InDesignのデフォルト）の適用と、現在の設定（言語・引用符を含む）をプリセットコードとして書き出し
+・プリセット（欧文組版／グリッド優先／グリッド無視／ソースコード／InDesignのデフォルト）の適用と、現在の設定（言語・引用符・単位を含む）をプリセットコードとして書き出し
 ・対象段落スタイル数を選択ダイアログ内に表示
 ・適用後、選択範囲のオーバーライドを常に消去
 
@@ -45,21 +50,23 @@ TypesettingStyleManager.jsx
 ・名前が "_" で始まるスタイルグループ配下の段落スタイル
 
 補足:
-・欧文泣き別れは UI 項目として保持しているが、対応する ParagraphStyle プロパティが未確認のため未適用
-・スマート引用符は app.textPreferences.useSmartQuotes を使用
+・欧文泣き別れは ParagraphStyle.allowArbitraryHyphenation で適用
+・英文引用符を使用は app.textPreferences.typographersQuotes を使用
 ・言語は app.languagesWithVendors から候補名を順に探索して適用
 ・文字組みアキ量設定は、組み込みプリセット enum とカスタム MojikumiTable の両方を可能な範囲で読み取る
 ・禁則設定は、選択段落から読めない場合に適用段落スタイル側も参照する
 ・コンポーザーは「基本設定」パネル内で設定
 ・一部のプリセット項目（グリッド優先、グリッド無視、ソースコード）は将来拡張用の空定義として保持
 ・設定適用時は lookupTables にまとめた enum / table 値を参照して段落スタイルへ反映
+・辞書設定の二重引用符／引用符は app.languagesWithVendors を使用
+・単位設定は app.viewPreferences を使用
 
 ハイフネーション設定：コンさん
 https://typesetterkon.blogspot.com/2011/06/indesign5.html
 
 */
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 // =========================================
 // 設定 / Settings
@@ -74,8 +81,27 @@ var LANGUAGE_CANDIDATES = {
     "none": ["[言語なし]", "[No Language]"]
 };
 
+// 二重引用符の候補 / Double quote options
+var DOUBLE_QUOTE_OPTIONS = [
+    "“”",
+    "«»",
+    "„“",
+    "『』",
+    "「」",
+    "\"\""
+];
+
+// 引用符の候補 / Single quote options
+var SINGLE_QUOTE_OPTIONS = [
+    "‘’",
+    "‹›",
+    "‚‘",
+    "〈〉",
+    "''"
+];
+
 // ドロップダウン幅 / Dropdown widths
-var W_DROP = 180;
+var W_DROP = 130;
 
 // パネルの共通マージン / Shared panel margins
 var PANEL_MARGINS = [15, 20, 15, 10];
@@ -387,13 +413,11 @@ function showParagraphStylePicker(paragraphStyleNames, currentSelectedIndexes) {
     var targetCountText = picker.add("statictext", undefined, "対象: " + paragraphStyleNames.length + " 件");
     targetCountText.alignment = "left";
 
-    var listPanel = picker.add("panel");
-    listPanel.orientation = "column";
-    listPanel.alignChildren = "left";
-    listPanel.margins = [10, 10, 10, 10];
-    listPanel.spacing = 4;
+    // listbox はスタイル数が多くても自動でスクロールバーが付く /
+    // listbox shows a scrollbar automatically when items overflow
+    var styleListbox = picker.add("listbox", undefined, paragraphStyleNames, { multiselect: true });
+    styleListbox.preferredSize = [360, 320];
 
-    var checkboxes = [];
     function isCurrentlySelected(index) {
         if (!currentSelectedIndexes) return true;
         for (var selectedIndexPosition = 0; selectedIndexPosition < currentSelectedIndexes.length; selectedIndexPosition++) {
@@ -402,25 +426,28 @@ function showParagraphStylePicker(paragraphStyleNames, currentSelectedIndexes) {
         return false;
     }
 
-    function bindAltClickToggle(checkbox) {
-        checkbox.onClick = function () {
-            if (ScriptUI.environment.keyboardState.altKey) {
-                var newValue = checkbox.value;
-                for (var checkboxIndex = 0; checkboxIndex < checkboxes.length; checkboxIndex++) {
-                    checkboxes[checkboxIndex].value = newValue;
-                }
-            }
-        };
-    }
-
+    var initialSelectionIndexes = [];
     for (var nameIndex = 0; nameIndex < paragraphStyleNames.length; nameIndex++) {
-        var checkbox = listPanel.add("checkbox", undefined, paragraphStyleNames[nameIndex]);
-        checkbox.value = isCurrentlySelected(nameIndex);
-        bindAltClickToggle(checkbox);
-        checkboxes.push(checkbox);
+        if (isCurrentlySelected(nameIndex)) initialSelectionIndexes.push(nameIndex);
     }
+    if (initialSelectionIndexes.length > 0) styleListbox.selection = initialSelectionIndexes;
 
-    var hint = picker.add("statictext", undefined, "Option（Alt）+ クリックで全選択／全解除を切り換え");
+    var toolRow = picker.add("group");
+    toolRow.alignment = "left";
+    toolRow.spacing = 6;
+    var selectAllButton = toolRow.add("button", undefined, "全選択");
+    var clearAllButton = toolRow.add("button", undefined, "全解除");
+
+    selectAllButton.onClick = function () {
+        var allIndexes = [];
+        for (var allIndex = 0; allIndex < styleListbox.items.length; allIndex++) allIndexes.push(allIndex);
+        styleListbox.selection = allIndexes;
+    };
+    clearAllButton.onClick = function () {
+        styleListbox.selection = null;
+    };
+
+    var hint = picker.add("statictext", undefined, "Shift / Cmd（Ctrl）+ クリックで複数選択");
     hint.alignment = "left";
 
     var buttonGroup = picker.add("group");
@@ -431,8 +458,10 @@ function showParagraphStylePicker(paragraphStyleNames, currentSelectedIndexes) {
     if (picker.show() !== 1) return null;
 
     var selectedIndexes = [];
-    for (var checkboxIndex = 0; checkboxIndex < checkboxes.length; checkboxIndex++) {
-        if (checkboxes[checkboxIndex].value) selectedIndexes.push(checkboxIndex);
+    if (styleListbox.selection) {
+        for (var selectionItemIndex = 0; selectionItemIndex < styleListbox.selection.length; selectionItemIndex++) {
+            selectedIndexes.push(styleListbox.selection[selectionItemIndex].index);
+        }
     }
     return selectedIndexes;
 }
@@ -489,158 +518,198 @@ function safeSetProperty(targetObject, propertyName, value) {
     return false;
 }
 
-/* プリセット定義（一部は将来拡張用の空定義） / Preset definitions; some entries are placeholders for future expansion */
+/* プリセット定義（段落スタイル設定と環境設定を分離） / Preset definitions split into paragraph style settings and app preferences */
 
 var PRESETS = {
     "欧文組版": {
-        kinsoku: "弱い禁則",
-        kinsokuType: "調整量を優先",
-        kinsokuHangType: "なし",
-        bunriKinshi: true,
-        mojikumi: "なし",
-        leadingModel: "欧文ベースライン",
-        rensuuji: true,
-        rotateSingleByte: false,
-        absorbLineEndIdeographicSpace: true,
-        latinWordBreak: false,
-        kerningMethod: "メトリクス",
-        autoLeading: 120,
-        characterAlignment: "欧文ベースライン",
-        gridAlignment: "欧文ベースライン",
-        composer: "欧文段落コンポーザー",
-        hyphenation: true,
-        hyphenateWordsLongerThan: 6,
-        hyphenateAfterFirst: 3,
-        hyphenateBeforeLast: 3,
-        hyphenateLadderLimit: 2,
-        hyphenationZone: 1.25,
-        hyphenateCapitalizedWords: false,
-        hyphenateAcrossColumns: false,
-        hyphenateLastWord: false,
-        useSmartQuotes: true,
-        ligatures: true,
-        language: "en"
+        styleSettings: {
+            kinsoku: "弱い禁則",
+            kinsokuType: "調整量を優先",
+            kinsokuHangType: "なし",
+            bunriKinshi: true,
+            mojikumi: "なし",
+            leadingModel: "欧文ベースライン",
+            rensuuji: true,
+            rotateSingleByte: false,
+            absorbLineEndIdeographicSpace: true,
+            latinWordBreak: false,
+            kerningMethod: "メトリクス",
+            autoLeading: 120,
+            characterAlignment: "欧文ベースライン",
+            gridAlignment: "欧文ベースライン",
+            composer: "欧文段落コンポーザー",
+            hyphenation: true,
+            hyphenateWordsLongerThan: 6,
+            hyphenateAfterFirst: 3,
+            hyphenateBeforeLast: 3,
+            hyphenateLadderLimit: 2,
+            hyphenationZone: 1.25,
+            hyphenateCapitalizedWords: false,
+            hyphenateAcrossColumns: false,
+            hyphenateLastWord: false,
+            ligatures: true,
+            language: "en"
+        },
+        appPreferences: {
+            useSmartQuotes: true,
+            doubleQuotes: "“”",
+            singleQuotes: "‘’",
+            textSizeUnit: "ポイント",
+            compositionUnit: "ポイント"
+        }
     },
     "グリッド優先": {
-        kinsoku: "弱い禁則",
-        kinsokuType: "追い込み優先",
-        kinsokuHangType: "なし",
-        bunriKinshi: true,
-        mojikumi: "行末約物半角",
-        leadingModel: "仮想ボディの中央",
-        rensuuji: true,
-        rotateSingleByte: false,
-        absorbLineEndIdeographicSpace: true,
-        latinWordBreak: false,
-        kerningMethod: "和文等幅",
-        autoLeading: 100,
-        characterAlignment: "仮想ボディの中央",
-        gridAlignment: "仮想ボディの中央",
-        composer: "日本語段落コンポーザー",
-        hyphenation: false,
-        hyphenateWordsLongerThan: 6,
-        hyphenateAfterFirst: 3,
-        hyphenateBeforeLast: 3,
-        hyphenateLadderLimit: 2,
-        hyphenationZone: 10,
-        hyphenateCapitalizedWords: false,
-        hyphenateAcrossColumns: false,
-        hyphenateLastWord: false,
-        useSmartQuotes: true,
-        ligatures: true,
-        language: "ja"
+        styleSettings: {
+            kinsoku: "弱い禁則",
+            kinsokuType: "追い込み優先",
+            kinsokuHangType: "なし",
+            bunriKinshi: true,
+            mojikumi: "行末約物半角",
+            leadingModel: "仮想ボディの中央",
+            rensuuji: false,
+            rotateSingleByte: false,
+            absorbLineEndIdeographicSpace: true,
+            latinWordBreak: false,
+            kerningMethod: "和文等幅",
+            autoLeading: 100,
+            characterAlignment: "仮想ボディの中央",
+            gridAlignment: "仮想ボディの中央",
+            composer: "日本語単数行コンポーザー",
+            hyphenation: false,
+            hyphenateWordsLongerThan: 6,
+            hyphenateAfterFirst: 3,
+            hyphenateBeforeLast: 3,
+            hyphenateLadderLimit: 2,
+            hyphenationZone: 10,
+            hyphenateCapitalizedWords: false,
+            hyphenateAcrossColumns: false,
+            hyphenateLastWord: false,
+            ligatures: true,
+            language: "ja"
+        },
+        appPreferences: {
+            useSmartQuotes: false,
+            doubleQuotes: "“”",
+            singleQuotes: "‘’",
+            textSizeUnit: "級",
+            compositionUnit: "歯"
+        }
     },
     "グリッド無視": {
-        kinsoku: "弱い禁則",
-        kinsokuType: "調整量を優先",
-        kinsokuHangType: "なし",
-        bunriKinshi: true,
-        mojikumi: "行末約物半角",
-        leadingModel: "欧文ベースライン",
-        rensuuji: true,
-        rotateSingleByte: false,
-        absorbLineEndIdeographicSpace: true,
-        latinWordBreak: false,
-        kerningMethod: "メトリクス",
-        autoLeading: 175,
-        characterAlignment: "欧文ベースライン",
-        gridAlignment: "なし",
-        composer: "日本語段落コンポーザー",
-        hyphenation: false,
-        hyphenateWordsLongerThan: 6,
-        hyphenateAfterFirst: 3,
-        hyphenateBeforeLast: 3,
-        hyphenateLadderLimit: 2,
-        hyphenationZone: 10,
-        hyphenateCapitalizedWords: false,
-        hyphenateAcrossColumns: false,
-        hyphenateLastWord: false,
-        useSmartQuotes: true,
-        ligatures: true,
-        language: "ja"
+        styleSettings: {
+            kinsoku: "弱い禁則",
+            kinsokuType: "調整量を優先",
+            kinsokuHangType: "なし",
+            bunriKinshi: true,
+            mojikumi: "行末約物半角",
+            leadingModel: "欧文ベースライン",
+            rensuuji: true,
+            rotateSingleByte: false,
+            absorbLineEndIdeographicSpace: true,
+            latinWordBreak: false,
+            kerningMethod: "メトリクス",
+            autoLeading: 175,
+            characterAlignment: "欧文ベースライン",
+            gridAlignment: "なし",
+            composer: "日本語段落コンポーザー",
+            hyphenation: false,
+            hyphenateWordsLongerThan: 6,
+            hyphenateAfterFirst: 3,
+            hyphenateBeforeLast: 3,
+            hyphenateLadderLimit: 2,
+            hyphenationZone: 10,
+            hyphenateCapitalizedWords: false,
+            hyphenateAcrossColumns: false,
+            hyphenateLastWord: false,
+            ligatures: true,
+            language: "ja"
+        },
+        appPreferences: {
+            useSmartQuotes: true,
+            doubleQuotes: "“”",
+            singleQuotes: "‘’",
+            textSizeUnit: "ポイント",
+            compositionUnit: "ポイント"
+        }
     },
     "ソースコード": {
-        kinsoku: "弱い禁則",
-        kinsokuType: "追い込み優先",
-        kinsokuHangType: "なし",
-        bunriKinshi: false,
-        mojikumi: "なし",
-        leadingModel: "欧文ベースライン",
-        rensuuji: false,
-        rotateSingleByte: false,
-        absorbLineEndIdeographicSpace: false,
-        latinWordBreak: false,
-        kerningMethod: "0",
-        autoLeading: 120,
-        characterAlignment: "欧文ベースライン",
-        gridAlignment: "なし",
-        composer: "欧文単数行コンポーザー",
-        hyphenation: false,
-        hyphenateWordsLongerThan: 6,
-        hyphenateAfterFirst: 3,
-        hyphenateBeforeLast: 3,
-        hyphenateLadderLimit: 2,
-        hyphenationZone: 1.25,
-        hyphenateCapitalizedWords: false,
-        hyphenateAcrossColumns: false,
-        hyphenateLastWord: false,
-        useSmartQuotes: false,
-        ligatures: false,
-        language: "none"
+        styleSettings: {
+            kinsoku: "弱い禁則",
+            kinsokuType: "追い込み優先",
+            kinsokuHangType: "なし",
+            bunriKinshi: false,
+            mojikumi: "なし",
+            leadingModel: "欧文ベースライン",
+            rensuuji: false,
+            rotateSingleByte: false,
+            absorbLineEndIdeographicSpace: false,
+            latinWordBreak: false,
+            kerningMethod: "0",
+            autoLeading: 120,
+            characterAlignment: "欧文ベースライン",
+            gridAlignment: "なし",
+            composer: "欧文単数行コンポーザー",
+            hyphenation: false,
+            hyphenateWordsLongerThan: 6,
+            hyphenateAfterFirst: 3,
+            hyphenateBeforeLast: 3,
+            hyphenateLadderLimit: 2,
+            hyphenationZone: 1.25,
+            hyphenateCapitalizedWords: false,
+            hyphenateAcrossColumns: false,
+            hyphenateLastWord: false,
+            ligatures: false,
+            language: "none"
+        },
+        appPreferences: {
+            useSmartQuotes: false,
+            doubleQuotes: "\"\"",
+            singleQuotes: "''",
+            textSizeUnit: "ポイント",
+            compositionUnit: "ポイント"
+        }
     },
     "InDesignのデフォルト": {
-        kinsoku: "強い禁則",
-        kinsokuType: "追い込み優先",
-        kinsokuHangType: "なし",
-        bunriKinshi: true,
-        mojikumi: "行末約物半角",
-        leadingModel: "仮想ボディの上/右",
-        rensuuji: true,
-        rotateSingleByte: false,
-        absorbLineEndIdeographicSpace: true,
-        latinWordBreak: false,
-        kerningMethod: "和文等幅",
-        autoLeading: 175,
-        characterAlignment: "仮想ボディの中央",
-        gridAlignment: "なし",
-        composer: "日本語段落コンポーザー",
-        hyphenation: true,
-        hyphenateWordsLongerThan: 5,
-        hyphenateAfterFirst: 2,
-        hyphenateBeforeLast: 2,
-        hyphenateLadderLimit: 3,
-        hyphenationZone: 10,
-        hyphenateCapitalizedWords: true,
-        hyphenateAcrossColumns: true,
-        hyphenateLastWord: true,
-        useSmartQuotes: false,
-        ligatures: true,
-        language: "ja"
+        styleSettings: {
+            kinsoku: "強い禁則",
+            kinsokuType: "追い込み優先",
+            kinsokuHangType: "なし",
+            bunriKinshi: true,
+            mojikumi: "行末約物半角",
+            leadingModel: "仮想ボディの上/右",
+            rensuuji: true,
+            rotateSingleByte: false,
+            absorbLineEndIdeographicSpace: true,
+            latinWordBreak: false,
+            kerningMethod: "和文等幅",
+            autoLeading: 175,
+            characterAlignment: "仮想ボディの中央",
+            gridAlignment: "なし",
+            composer: "日本語段落コンポーザー",
+            hyphenation: true,
+            hyphenateWordsLongerThan: 5,
+            hyphenateAfterFirst: 2,
+            hyphenateBeforeLast: 2,
+            hyphenateLadderLimit: 3,
+            hyphenationZone: 10,
+            hyphenateCapitalizedWords: true,
+            hyphenateAcrossColumns: true,
+            hyphenateLastWord: true,
+            ligatures: true,
+            language: "ja"
+        },
+        appPreferences: {
+            useSmartQuotes: false,
+            doubleQuotes: "“”",
+            singleQuotes: "‘’",
+            textSizeUnit: "ポイント",
+            compositionUnit: "ポイント"
+        }
     }
 };
 
-/* プリセット対象フィールド定義を作成 / Create preset field definitions */
-function createPresetFields(dialogUi, dialogData) {
+/* 段落スタイル用プリセットフィールド定義を作成 / Create style-setting preset field definitions */
+function createStylePresetFields(dialogUi, dialogData) {
     return [
         { key: "kinsoku", type: "dd", control: dialogUi.kinsokuDropdown, names: dialogData.kinsokuNames },
         { key: "kinsokuType", type: "dd", control: dialogUi.kinsokuTypeDropdown, names: dialogData.kinsokuTypeNames },
@@ -666,9 +735,24 @@ function createPresetFields(dialogUi, dialogData) {
         { key: "hyphenateCapitalizedWords", type: "cb", control: dialogUi.hyphenateCapitalizedWordsCheckbox },
         { key: "hyphenateAcrossColumns", type: "cb", control: dialogUi.hyphenateAcrossColumnsCheckbox },
         { key: "hyphenateLastWord", type: "cb", control: dialogUi.hyphenateLastWordCheckbox },
-        /* 欧文合字も通常フィールドとしてプリセットに書き出す / Export ligatures as a regular preset field */
         { key: "ligatures", type: "cb", control: dialogUi.ligaturesCheckbox }
     ];
+}
+
+/* 環境設定用プリセットフィールド定義を作成 / Create app-preference preset field definitions */
+function createAppPreferencePresetFields(dialogUi) {
+    return [
+        { key: "textSizeUnit", type: "dd", control: dialogUi.textSizeUnitDropdown, names: ["ポイント", "級", "アメリカ式ポイント"] },
+        { key: "compositionUnit", type: "dd", control: dialogUi.compositionUnitDropdown, names: ["ポイント", "歯", "U", "倍", "ミルス", "アメリカ式ポイント"] }
+    ];
+}
+
+/* プリセット対象フィールド定義を作成 / Create preset field definitions */
+function createPresetFields(dialogUi, dialogData) {
+    return {
+        styleFields: createStylePresetFields(dialogUi, dialogData),
+        appPreferenceFields: createAppPreferencePresetFields(dialogUi)
+    };
 }
 
 /* ハイフネーション関連 UI の有効状態を更新 / Update hyphenation control enabled states */
@@ -879,6 +963,13 @@ function loadSettingsFromParagraph(paragraphObject, dialogUi, dialogData) {
     safeAssignCheckbox(dialogUi.rensuujiCheckbox, paragraphObject.rensuuji);
     safeAssignCheckbox(dialogUi.rotateSingleByteCheckbox, paragraphObject.rotateSingleByteCharacters);
     safeAssignCheckbox(dialogUi.absorbLineEndIdeographicSpaceCheckbox, paragraphObject.treatIdeographicSpaceAsSpace);
+    try {
+        safeAssignCheckbox(dialogUi.latinWordBreakCheckbox, paragraphObject.allowArbitraryHyphenation);
+    } catch (eLatinWordBreakFromParagraph) {
+        if (appliedParagraphStyle) {
+            try { safeAssignCheckbox(dialogUi.latinWordBreakCheckbox, appliedParagraphStyle.allowArbitraryHyphenation); } catch (eLatinWordBreakFromStyle) { }
+        }
+    }
     try { safeAssignCheckbox(dialogUi.ligaturesCheckbox, paragraphObject.ligatures); } catch (eLigatures) { }
     loadHyphenationSettingsFromParagraph(paragraphObject, dialogUi);
 
@@ -896,26 +987,36 @@ function loadSettingsFromParagraph(paragraphObject, dialogUi, dialogData) {
 function applyPreset(presetName, dialogUi, presetFields) {
     var preset = PRESETS[presetName];
     if (!preset) return;
+    var presetStyleSettings = preset.styleSettings || preset;
+    var presetAppPreferences = preset.appPreferences || preset;
 
-    for (var fieldIndex = 0; fieldIndex < presetFields.length; fieldIndex++) {
-        var presetField = presetFields[fieldIndex];
-        if (preset[presetField.key] === undefined) continue;
+    var mergedPresetFields = presetFields.styleFields.concat(presetFields.appPreferenceFields);
+
+    for (var fieldIndex = 0; fieldIndex < mergedPresetFields.length; fieldIndex++) {
+        var presetField = mergedPresetFields[fieldIndex];
+        if (presetStyleSettings[presetField.key] === undefined && presetAppPreferences[presetField.key] === undefined) continue;
+        var presetValue = presetStyleSettings[presetField.key] !== undefined ? presetStyleSettings[presetField.key] : presetAppPreferences[presetField.key];
         if (presetField.type === "dd") {
-            safeAssignDropdownFromName(presetField.control, presetField.names, preset[presetField.key]);
+            safeAssignDropdownFromName(presetField.control, presetField.names, presetValue);
         } else if (presetField.type === "cb") {
-            presetField.control.value = !!preset[presetField.key];
+            presetField.control.value = !!presetValue;
         } else if (presetField.type === "in") {
-            presetField.control.text = String(preset[presetField.key]);
+            presetField.control.text = String(presetValue);
         }
     }
 
-    if (preset.useSmartQuotes !== undefined) {
-        dialogUi.smartQuoteRadio.value = !!preset.useSmartQuotes;
-        dialogUi.straightQuoteRadio.value = !preset.useSmartQuotes;
+    if (presetAppPreferences.useSmartQuotes !== undefined) {
+        dialogUi.useTypographersQuotesCheckbox.value = !!presetAppPreferences.useSmartQuotes;
     }
-    if (preset.language !== undefined) {
-        if (preset.language === "en") activateLanguageRadio(dialogUi, dialogUi.languageEnglishRadio);
-        else if (preset.language === "none") activateLanguageRadio(dialogUi, dialogUi.languageNoneRadio);
+    if (presetAppPreferences.doubleQuotes !== undefined) {
+        safeAssignDropdownFromName(dialogUi.smartQuoteDropdown, DOUBLE_QUOTE_OPTIONS, presetAppPreferences.doubleQuotes);
+    }
+    if (presetAppPreferences.singleQuotes !== undefined) {
+        safeAssignDropdownFromName(dialogUi.smartSingleQuoteDropdown, SINGLE_QUOTE_OPTIONS, presetAppPreferences.singleQuotes);
+    }
+    if (presetStyleSettings.language !== undefined) {
+        if (presetStyleSettings.language === "en") activateLanguageRadio(dialogUi, dialogUi.languageEnglishRadio);
+        else if (presetStyleSettings.language === "none") activateLanguageRadio(dialogUi, dialogUi.languageNoneRadio);
         else activateLanguageRadio(dialogUi, dialogUi.languageJapaneseRadio);
     }
     updateHyphenationControlsEnabled(dialogUi);
@@ -947,12 +1048,28 @@ function showPresetNameInputDialog() {
 
 /* プリセットコードを生成 / Build preset code snippet */
 function buildPresetCodeSnippet(presetName, presetFields, dialogUi) {
-    var lines = [];
-    lines.push("// PRESETS マップに以下を追加してください（プリセットドロップダウン項目への追加もお忘れなく）");
-    lines.push("PRESETS[\"" + presetName + "\"] = {");
-    for (var fieldIndex = 0; fieldIndex < presetFields.length; fieldIndex++) {
-        var presetField = presetFields[fieldIndex];
+    var appPreferenceKeys = {
+        useSmartQuotes: true,
+        doubleQuotes: true,
+        singleQuotes: true,
+        textSizeUnit: true,
+        compositionUnit: true
+    };
+
+    var styleSettingLines = [];
+    var appPreferenceLines = [];
+
+    styleSettingLines.push("        language: \"" + getLanguageSelection(dialogUi) + "\"");
+    appPreferenceLines.push("        useSmartQuotes: " + (dialogUi.useTypographersQuotesCheckbox.value ? "true" : "false"));
+    appPreferenceLines.push("        doubleQuotes: \"" + (dialogUi.smartQuoteDropdown.selection ? dialogUi.smartQuoteDropdown.selection.text : "") + "\"");
+    appPreferenceLines.push("        singleQuotes: \"" + (dialogUi.smartSingleQuoteDropdown.selection ? dialogUi.smartSingleQuoteDropdown.selection.text : "") + "\"");
+
+    var mergedPresetFields = presetFields.styleFields.concat(presetFields.appPreferenceFields);
+
+    for (var fieldIndex = 0; fieldIndex < mergedPresetFields.length; fieldIndex++) {
+        var presetField = mergedPresetFields[fieldIndex];
         var valueText;
+
         if (presetField.type === "dd") {
             valueText = "\"" + presetField.control.selection.text + "\"";
         } else if (presetField.type === "cb") {
@@ -963,12 +1080,30 @@ function buildPresetCodeSnippet(presetName, presetFields, dialogUi) {
                 valueText = "\"" + valueText + "\"";
             }
         }
-        lines.push("    " + presetField.key + ": " + valueText + ",");
+
+        if (appPreferenceKeys[presetField.key]) {
+            appPreferenceLines.push("        " + presetField.key + ": " + valueText);
+        } else {
+            styleSettingLines.push("        " + presetField.key + ": " + valueText);
+        }
     }
-    lines.push("    useSmartQuotes: " + (dialogUi.smartQuoteRadio.value ? "true" : "false") + ",");
-    lines.push("    language: \"" + getLanguageSelection(dialogUi) + "\"");
+
+    var lines = [];
+    lines.push("// PRESETS マップに以下を追加してください（プリセットドロップダウン項目への追加もお忘れなく）");
+    lines.push("PRESETS[\"" + presetName + "\"] = {");
+    lines.push("    styleSettings: {");
+    lines.push(styleSettingLines.join(",\n"));
+    lines.push("    },");
+    lines.push("    appPreferences: {");
+    lines.push(appPreferenceLines.join(",\n"));
+    lines.push("    }");
     lines.push("};");
     return lines.join("\n");
+}
+
+/* ファイル名に使えない文字をアンダースコアに置換 / Replace filesystem-reserved characters with underscores */
+function sanitizeFileName(name) {
+    return name.replace(/[\/\\:*?"<>|]/g, "_");
 }
 
 /* プリセットコードを書き出す / Export preset code */
@@ -977,17 +1112,22 @@ function exportPresetCode(presetFields, dialogUi) {
     if (!presetName) return;
 
     var code = buildPresetCodeSnippet(presetName, presetFields, dialogUi);
+    var safeFileName = sanitizeFileName(presetName);
 
     try {
-        var file = File(Folder.desktop + "/" + encodeURI(presetName) + ".jsx");
+        var file = File(Folder.desktop + "/" + encodeURI(safeFileName) + ".jsx");
         if (file.exists) {
-            if (!confirm("「" + presetName + ".jsx」は既にデスクトップに存在します。上書きしますか？")) return;
+            if (!confirm("「" + safeFileName + ".jsx」は既にデスクトップに存在します。上書きしますか？")) return;
         }
         file.encoding = "UTF-8";
         if (file.open("w")) {
             file.write(code);
             file.close();
-            alert("プリセット「" + presetName + "」をデスクトップに書き出しました。");
+            var savedMessage = "プリセット「" + presetName + "」をデスクトップに書き出しました。";
+            if (safeFileName !== presetName) {
+                savedMessage += "\nファイル名: " + safeFileName + ".jsx";
+            }
+            alert(savedMessage);
         } else {
             alert("ファイルを開けませんでした。");
         }
@@ -1055,28 +1195,49 @@ function createDialogUI(dialogData) {
     var gridAlignmentDropdown = addDropdownRow(compositionExtraPanel, "グリッド揃え：", dialogData.gridAlignmentNames, defaultIndexes.gridAlignmentIndex);
     var composerDropdown = addDropdownRow(compositionExtraPanel, "コンポーザー：", dialogData.composerNames, defaultIndexes.composerIndex);
 
-    var ligaturesCheckbox = compositionExtraPanel.add("checkbox", undefined, "欧文合字");
-    ligaturesCheckbox.value = defaultIndexes.ligatures;
+    var compositionOptionalPanel = rightColumn.add("panel", undefined, "引用符（環境設定）");
+    setupPanel(compositionOptionalPanel, 8);
 
-    var smartQuotesInitial;
+    var useTypographersQuotesInitial;
+
     try {
-        smartQuotesInitial = !!app.textPreferences.useSmartQuotes;
-    } catch (smartQuotesReadError) {
-        smartQuotesInitial = true;
+        useTypographersQuotesInitial = !!app.textPreferences.typographersQuotes;
+    } catch (typographersQuotesReadError) {
+        useTypographersQuotesInitial = true;
     }
 
-    var smartQuoteRow = compositionExtraPanel.add("group");
-    smartQuoteRow.orientation = "row";
-    smartQuoteRow.alignChildren = ["left", "center"];
-    smartQuoteRow.spacing = 8;
+    var useTypographersQuotesCheckbox = compositionOptionalPanel.add(
+        "checkbox",
+        undefined,
+        "英文引用符を使用"
+    );
 
-    var smartQuoteLabel = smartQuoteRow.add("statictext", undefined, "引用符：");
-    smartQuoteLabel.preferredSize.width = 120;
+    useTypographersQuotesCheckbox.value = useTypographersQuotesInitial;
 
-    var smartQuoteRadio = smartQuoteRow.add("radiobutton", undefined, "“”");
-    var straightQuoteRadio = smartQuoteRow.add("radiobutton", undefined, "\"\"");
-    smartQuoteRadio.value = smartQuotesInitial;
-    straightQuoteRadio.value = !smartQuotesInitial;
+    var smartQuoteDropdown = addDropdownRow(
+        compositionOptionalPanel,
+        "二重引用符：",
+        DOUBLE_QUOTE_OPTIONS,
+        0
+    );
+
+    var smartSingleQuoteDropdown = addDropdownRow(
+        compositionOptionalPanel,
+        "引用符：",
+        SINGLE_QUOTE_OPTIONS,
+        0
+    );
+
+    var unitsPanel = rightColumn.add("panel", undefined, "単位");
+    setupPanel(unitsPanel, 8);
+
+    var textSizeUnitNames = ["ポイント", "級", "アメリカ式ポイント"];
+    var textSizeUnitDropdown = addDropdownRow(unitsPanel, "テキストサイズ：", textSizeUnitNames, 0);
+    textSizeUnitDropdown.preferredSize.width = W_DROP;
+
+    var compositionUnitNames = ["ポイント", "歯", "U", "倍", "ミルス", "アメリカ式ポイント"];
+    var compositionUnitDropdown = addDropdownRow(unitsPanel, "組版：", compositionUnitNames, 0);
+    compositionUnitDropdown.preferredSize.width = W_DROP;
 
     var languageRow = compositionExtraPanel.add("group");
     languageRow.orientation = "row";
@@ -1092,6 +1253,9 @@ function createDialogUI(dialogData) {
     languageJapaneseRadio.value = (defaultIndexes.language !== "en" && defaultIndexes.language !== "none");
     languageEnglishRadio.value = (defaultIndexes.language === "en");
     languageNoneRadio.value = (defaultIndexes.language === "none");
+
+    var ligaturesCheckbox = compositionExtraPanel.add("checkbox", undefined, "欧文合字");
+    ligaturesCheckbox.value = defaultIndexes.ligatures;
 
     var compositionPanel = leftColumn.add("panel", undefined, "日本語文字組版");
     setupPanel(compositionPanel, 8);
@@ -1141,16 +1305,14 @@ function createDialogUI(dialogData) {
     var hyphenateLadderLimitInput = addNumberRow(hyphenationPanel, "最大のハイフン数：", defaultIndexes.hyphenateLadderLimit, "ハイフン");
     var hyphenationZoneInput = addNumberRow(hyphenationPanel, "領域：", defaultIndexes.hyphenationZoneMm, "mm");
 
-    var hyphenationCheckboxesGroup = hyphenationPanel.add("group");
-    hyphenationCheckboxesGroup.orientation = "column";
-    hyphenationCheckboxesGroup.alignChildren = "left";
-    hyphenationCheckboxesGroup.spacing = 4;
-    hyphenationCheckboxesGroup.margins = [0, 10, 0, 0];
-    var hyphenateCapitalizedWordsCheckbox = hyphenationCheckboxesGroup.add("checkbox", undefined, "大文字の単語");
+    var hyphenateBreakPanel = hyphenationPanel.add("panel", undefined, "ハイフンで区切る");
+    setupPanel(hyphenateBreakPanel, 8);
+    hyphenateBreakPanel.alignChildren = "left";
+    var hyphenateCapitalizedWordsCheckbox = hyphenateBreakPanel.add("checkbox", undefined, "大文字の単語");
     hyphenateCapitalizedWordsCheckbox.value = defaultIndexes.hyphenateCapitalizedWords;
-    var hyphenateAcrossColumnsCheckbox = hyphenationCheckboxesGroup.add("checkbox", undefined, "段間、フレームにわたる単語");
+    var hyphenateAcrossColumnsCheckbox = hyphenateBreakPanel.add("checkbox", undefined, "段間、フレームにわたる単語");
     hyphenateAcrossColumnsCheckbox.value = defaultIndexes.hyphenateAcrossColumns;
-    var hyphenateLastWordCheckbox = hyphenationCheckboxesGroup.add("checkbox", undefined, "段落末尾の単語");
+    var hyphenateLastWordCheckbox = hyphenateBreakPanel.add("checkbox", undefined, "段落末尾の単語");
     hyphenateLastWordCheckbox.value = defaultIndexes.hyphenateLastWord;
 
     var buttonGroup = dialog.add("group");
@@ -1181,8 +1343,6 @@ function createDialogUI(dialogData) {
         autoLeadingInput: autoLeadingInput,
         characterAlignmentDropdown: characterAlignmentDropdown,
         gridAlignmentDropdown: gridAlignmentDropdown,
-        smartQuoteRadio: smartQuoteRadio,
-        straightQuoteRadio: straightQuoteRadio,
         languageJapaneseRadio: languageJapaneseRadio,
         languageEnglishRadio: languageEnglishRadio,
         languageNoneRadio: languageNoneRadio,
@@ -1197,6 +1357,11 @@ function createDialogUI(dialogData) {
         hyphenateCapitalizedWordsCheckbox: hyphenateCapitalizedWordsCheckbox,
         hyphenateAcrossColumnsCheckbox: hyphenateAcrossColumnsCheckbox,
         hyphenateLastWordCheckbox: hyphenateLastWordCheckbox,
+        useTypographersQuotesCheckbox: useTypographersQuotesCheckbox,
+        smartQuoteDropdown: smartQuoteDropdown,
+        smartSingleQuoteDropdown: smartSingleQuoteDropdown,
+        textSizeUnitDropdown: textSizeUnitDropdown,
+        compositionUnitDropdown: compositionUnitDropdown,
         selectedStyleIndexes: null
     };
 }
@@ -1222,14 +1387,6 @@ function bindDialogEvents(dialogUi, dialogData, presetFields) {
         }
     };
 
-    dialogUi.smartQuoteRadio.onClick = function () {
-        dialogUi.smartQuoteRadio.value = true;
-        dialogUi.straightQuoteRadio.value = false;
-    };
-    dialogUi.straightQuoteRadio.onClick = function () {
-        dialogUi.straightQuoteRadio.value = true;
-        dialogUi.smartQuoteRadio.value = false;
-    };
 
     dialogUi.languageJapaneseRadio.onClick = function () { activateLanguageRadio(dialogUi, dialogUi.languageJapaneseRadio); };
     dialogUi.languageEnglishRadio.onClick = function () { activateLanguageRadio(dialogUi, dialogUi.languageEnglishRadio); };
@@ -1247,8 +1404,8 @@ function bindDialogEvents(dialogUi, dialogData, presetFields) {
     };
 }
 
-/* ダイアログの入力値を結果オブジェクトにする / Build dialog result object */
-function buildDialogResult(dialogUi) {
+/* 段落スタイル設定の入力値を結果オブジェクトにする / Build paragraph style settings result object */
+function buildStyleSettingsResult(dialogUi) {
     return {
         targetMode: dialogUi.targetAllRadio.value ? "all" : (dialogUi.targetSelectionRadio.value ? "specified" : "selectedParagraphs"),
         selectedStyleIndexes: dialogUi.selectedStyleIndexes,
@@ -1277,9 +1434,43 @@ function buildDialogResult(dialogUi) {
         hyphenateAcrossColumns: dialogUi.hyphenateAcrossColumnsCheckbox.value,
         hyphenateLastWord: dialogUi.hyphenateLastWordCheckbox.value,
         ligatures: dialogUi.ligaturesCheckbox.value,
-        useSmartQuotes: dialogUi.smartQuoteRadio.value,
         language: getLanguageSelection(dialogUi)
     };
+}
+
+/* 環境設定の入力値を結果オブジェクトにする / Build app preferences result object */
+function buildAppPreferencesResult(dialogUi) {
+    return {
+        useSmartQuotes: dialogUi.useTypographersQuotesCheckbox.value,
+        doubleQuotes: dialogUi.smartQuoteDropdown.selection
+            ? dialogUi.smartQuoteDropdown.selection.text
+            : null,
+        singleQuotes: dialogUi.smartSingleQuoteDropdown.selection
+            ? dialogUi.smartSingleQuoteDropdown.selection.text
+            : null,
+        textSizeUnit: dialogUi.textSizeUnitDropdown.selection
+            ? dialogUi.textSizeUnitDropdown.selection.text
+            : null,
+        compositionUnit: dialogUi.compositionUnitDropdown.selection
+            ? dialogUi.compositionUnitDropdown.selection.text
+            : null
+    };
+}
+
+/* 結果オブジェクトを結合 / Merge result objects */
+function mergeDialogResults(styleSettingsResult, appPreferencesResult) {
+    for (var appPreferenceKey in appPreferencesResult) {
+        styleSettingsResult[appPreferenceKey] = appPreferencesResult[appPreferenceKey];
+    }
+    return styleSettingsResult;
+}
+
+/* ダイアログの入力値を結果オブジェクトにする / Build dialog result object */
+function buildDialogResult(dialogUi) {
+    return mergeDialogResults(
+        buildStyleSettingsResult(dialogUi),
+        buildAppPreferencesResult(dialogUi)
+    );
 }
 
 /* ダイアログを表示して結果を返す / Show the dialog and return the result */
@@ -1305,7 +1496,13 @@ function showTypesettingSettingsDialog(kinsokuNames, kinsokuTypeNames, kinsokuHa
     updateHyphenationControlsEnabled(dialogUi);
 
     if (dialogUi.targetSelectedParagraphsRadio.value) {
-        loadSettingsFromParagraph(getFirstParagraphFromSelection(), dialogUi, dialogData);
+        var selectedParagraph = getFirstParagraphFromSelection();
+
+        if (selectedParagraph) {
+            loadSettingsFromParagraph(selectedParagraph, dialogUi, dialogData);
+        } else {
+            activateTargetRadio(dialogUi, dialogUi.targetAllRadio);
+        }
     }
 
     if (dialogUi.dialog.show() !== 1) return null;
@@ -1412,6 +1609,48 @@ function resolveTargetParagraphStyles(allParagraphStyles, dialogResult) {
 // 設定の適用 / Apply settings
 // =========================================
 
+/* 辞書引用符設定を適用 / Apply dictionary quote settings */
+function applyDictionaryQuoteSettings(dialogResult) {
+    try {
+        if (dialogResult.doubleQuotes) {
+            app.languagesWithVendors.everyItem().doubleQuotes =
+                dialogResult.doubleQuotes;
+        }
+
+        if (dialogResult.singleQuotes) {
+            app.languagesWithVendors.everyItem().singleQuotes =
+                dialogResult.singleQuotes;
+        }
+    } catch (dictionaryQuotesApplyError) { }
+}
+
+/* 環境設定を適用 / Apply app preference settings */
+function applyAppPreferenceSettings(dialogResult) {
+    try {
+        app.textPreferences.typographersQuotes =
+            !!dialogResult.useSmartQuotes;
+    } catch (typographersQuotesApplyError) { }
+
+    applyDictionaryQuoteSettings(dialogResult);
+
+    // テキストサイズの単位 / Text size measurement units
+    try {
+        if (dialogResult.textSizeUnit === "ポイント") app.viewPreferences.textSizeMeasurementUnits = TextSizeMeasurementUnits.POINTS;
+        else if (dialogResult.textSizeUnit === "級") app.viewPreferences.textSizeMeasurementUnits = TextSizeMeasurementUnits.Q;
+        else if (dialogResult.textSizeUnit === "アメリカ式ポイント") app.viewPreferences.textSizeMeasurementUnits = TextSizeMeasurementUnits.AMERICAN_POINTS;
+    } catch (textSizeUnitApplyError) { }
+
+    // 組版の単位 / Composition (vertical) measurement units
+    try {
+        if (dialogResult.compositionUnit === "ポイント") app.viewPreferences.verticalMeasurementUnits = MeasurementUnits.POINTS;
+        else if (dialogResult.compositionUnit === "歯") app.viewPreferences.verticalMeasurementUnits = MeasurementUnits.HA;
+        else if (dialogResult.compositionUnit === "U") app.viewPreferences.verticalMeasurementUnits = MeasurementUnits.U;
+        else if (dialogResult.compositionUnit === "倍") app.viewPreferences.verticalMeasurementUnits = MeasurementUnits.BAI;
+        else if (dialogResult.compositionUnit === "ミルス") app.viewPreferences.verticalMeasurementUnits = MeasurementUnits.MILS;
+        else if (dialogResult.compositionUnit === "アメリカ式ポイント") app.viewPreferences.verticalMeasurementUnits = MeasurementUnits.AMERICAN_POINTS;
+    } catch (compositionUnitApplyError) { }
+}
+
 /* ダイアログの設定を対象段落スタイルに適用 / Apply dialog settings to target paragraph styles */
 function applyTypesettingSettingsToAll(targetParagraphStyles, dialogResult, lookupTables) {
     app.doScript(
@@ -1463,8 +1702,8 @@ function applyTypesettingSettingsToAll(targetParagraphStyles, dialogResult, look
                 safeSetProperty(paragraphStyle, "rensuuji", dialogResult.rensuuji);
                 safeSetProperty(paragraphStyle, "rotateSingleByteCharacters", dialogResult.rotateSingleByte);
                 safeSetProperty(paragraphStyle, "treatIdeographicSpaceAsSpace", dialogResult.absorbLineEndIdeographicSpace);
-                // 欧文泣き別れ: 対応する ParagraphStyle プロパティが DOM 上で確認できず未適用 / Latin word break: no confirmed DOM property
-                // safeSetProperty(paragraphStyle, "???", dialogResult.latinWordBreak);
+                // 欧文泣き別れ / Latin word break (allowArbitraryHyphenation)
+                safeSetProperty(paragraphStyle, "allowArbitraryHyphenation", dialogResult.latinWordBreak);
 
                 // ハイフネーション詳細設定 / Hyphenation detail settings
                 if (!isNaN(dialogResult.hyphenateWordsLongerThan)) {
@@ -1503,7 +1742,7 @@ function applyTypesettingSettingsToAll(targetParagraphStyles, dialogResult, look
                 }
             }
 
-            try { app.textPreferences.useSmartQuotes = !!dialogResult.useSmartQuotes; } catch (eSq) { }
+            applyAppPreferenceSettings(dialogResult);
 
             if (skipped > 0) {
                 alert("適用しましたが、" + skipped + " 件の段落スタイルでエラーが発生しました。\n\n" + errorDetails.join("\n"));
@@ -1550,7 +1789,7 @@ function applyTypesettingSettingsToAll(targetParagraphStyles, dialogResult, look
     var gridAlignmentOptions = createGridAlignmentOptions();
     var kerningMethodOptions = createKerningMethodOptions();
     var composerOptions = createComposerOptions();
-    var defaultPreset = PRESETS["InDesignのデフォルト"];
+    var defaultPreset = PRESETS["InDesignのデフォルト"].styleSettings;
     var defaultIndexes = {
         kinsokuIndex: getDefaultIndexByName(kinsokuTableData.names, defaultPreset.kinsoku),
         kinsokuTypeIndex: getDefaultIndexByName(kinsokuTypeOptions.names, defaultPreset.kinsokuType),
