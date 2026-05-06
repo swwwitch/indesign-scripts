@@ -32,7 +32,7 @@ JapaneseParagraphTypesettingManager.jsx
 ・名前が "_" で始まるスタイルグループ配下の段落スタイル
 */
 
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.2.0";
 
 // =========================================
 // 設定 / Settings
@@ -151,21 +151,39 @@ function collectTargetParagraphStyles(documentObject) {
     return { styles: styles, names: names };
 }
 
-/* コンポーザーの候補を定義 / Define composer options */
+/* コンポーザーの候補を定義（uiLabel と適用試行用エイリアス） / Define composer options with UI labels and aliases for assignment */
 function createComposerOptions() {
-    var values = [
-        "Adobe 日本語段落コンポーザー",
-        "Adobe 日本語単数行コンポーザー",
-        "Adobe World-Ready 段落コンポーザー",
-        "Adobe World-Ready 単数行コンポーザー",
-        "Adobe 段落コンポーザー",
-        "Adobe 単数行コンポーザー"
+    var table = [
+        {
+            uiLabel: "Adobe 日本語段落コンポーザー",
+            aliases: ["Adobe 日本語段落コンポーザー", "Adobe Japanese Paragraph Composer"]
+        },
+        {
+            uiLabel: "Adobe 日本語単数行コンポーザー",
+            aliases: ["Adobe 日本語単数行コンポーザー", "Adobe Japanese Single-line Composer"]
+        },
+        {
+            uiLabel: "Adobe World-Ready 段落コンポーザー",
+            aliases: ["$ID/HL Composer Optyca", "Adobe World-Ready Paragraph Composer", "Adobe 多言語対応段落コンポーザー", "Adobe World-Ready 段落コンポーザー"]
+        },
+        {
+            uiLabel: "Adobe World-Ready 単数行コンポーザー",
+            aliases: ["$ID/HL Single Optyca", "Adobe World-Ready Single-line Composer", "Adobe 多言語対応単数行コンポーザー", "Adobe World-Ready 単数行コンポーザー"]
+        },
+        {
+            uiLabel: "Adobe 欧文段落コンポーザー",
+            aliases: ["$ID/HL Composer", "Adobe Paragraph Composer", "Adobe 欧文段落コンポーザー", "Adobe 段落コンポーザー"]
+        },
+        {
+            uiLabel: "Adobe 欧文単数行コンポーザー",
+            aliases: ["$ID/HL Single", "Adobe Single-line Composer", "Adobe 欧文単数行コンポーザー", "Adobe 単数行コンポーザー"]
+        }
     ];
     var names = [];
-    for (var composerIndex = 0; composerIndex < values.length; composerIndex++) {
-        names.push(values[composerIndex].replace(/^Adobe\s+/, ""));
+    for (var composerIndex = 0; composerIndex < table.length; composerIndex++) {
+        names.push(table[composerIndex].uiLabel.replace(/^Adobe\s+/, ""));
     }
-    return { names: names, values: values };
+    return { names: names, table: table };
 }
 
 // =========================================
@@ -200,16 +218,6 @@ function getDefaultIndexByName(names, defaultName) {
     }
     return 0;
 }
-
-/* 名前または値から既定値のインデックスを探す / Resolve a default index from names or values */
-function getDefaultIndexByNameOrValue(names, values, defaultName) {
-    for (var itemIndex = 0; itemIndex < names.length; itemIndex++) {
-        if (names[itemIndex] === defaultName) return itemIndex;
-        if (values && itemIndex < values.length && values[itemIndex] === defaultName) return itemIndex;
-    }
-    return 0;
-}
-
 
 // =========================================
 // 段落スタイル設定の読み取り / Paragraph style setting readers
@@ -275,11 +283,17 @@ function readParagraphStyleTypesettingSettings(paragraphStyle, kinsokuTableData,
 
     try {
         var currentComposer = paragraphStyle.composer;
-        for (var composerIndex = 0; composerIndex < composerOptions.values.length; composerIndex++) {
-            if (composerOptions.values[composerIndex] === currentComposer || composerOptions.names[composerIndex] === currentComposer) {
-                styleSettings.composerIndex = composerIndex;
-                break;
+        var matchedComposer = false;
+        for (var composerIndex = 0; composerIndex < composerOptions.table.length; composerIndex++) {
+            var composerAliases = composerOptions.table[composerIndex].aliases;
+            for (var aliasIndex = 0; aliasIndex < composerAliases.length; aliasIndex++) {
+                if (composerAliases[aliasIndex] === currentComposer) {
+                    styleSettings.composerIndex = composerIndex;
+                    matchedComposer = true;
+                    break;
+                }
             }
+            if (matchedComposer) break;
         }
     } catch (e) { }
 
@@ -475,6 +489,20 @@ function showTypesettingSettingsDialog(kinsokuNames, kinsokuTypeNames, mojikumiN
 // 設定の適用 / Apply settings
 // =========================================
 
+/* エイリアスを順に試して段落スタイルにコンポーザーを設定 / Apply a composer to a paragraph style by trying aliases in order */
+function applyComposerToParagraphStyle(paragraphStyle, aliases) {
+    var lastError = null;
+    for (var aliasIndex = 0; aliasIndex < aliases.length; aliasIndex++) {
+        try {
+            paragraphStyle.composer = aliases[aliasIndex];
+            return;
+        } catch (e) {
+            lastError = e;
+        }
+    }
+    if (lastError) throw lastError;
+}
+
 /* ダイアログの設定を段落スタイルに適用 / Apply dialog settings to paragraph styles */
 function applyTypesettingSettingsToParagraphStyles(targetParagraphStyles, settingsByStyle, lookupTables) {
     app.doScript(
@@ -489,7 +517,7 @@ function applyTypesettingSettingsToParagraphStyles(targetParagraphStyles, settin
                     paragraphStyle.kinsokuType = lookupTables.kinsokuTypeValues[styleSettings.kinsokuTypeIndex];
                     var mojikumiTable = lookupTables.mojikumiTables[styleSettings.mojikumiIndex];
                     paragraphStyle.mojikumi = mojikumiTable === null ? NothingEnum.NOTHING : mojikumiTable;
-                    paragraphStyle.composer = lookupTables.composerValues[styleSettings.composerIndex];
+                    applyComposerToParagraphStyle(paragraphStyle, lookupTables.composerTable[styleSettings.composerIndex].aliases);
                 } catch (e) {
                     skipped++;
                     continue;
@@ -539,7 +567,7 @@ function applyTypesettingSettingsToParagraphStyles(targetParagraphStyles, settin
         kinsokuIndex: getDefaultIndexByName(kinsokuTableData.names, DEFAULT_KINSOKU_SET_NAME),
         kinsokuTypeIndex: getDefaultIndexByName(kinsokuTypeOptions.names, DEFAULT_KINSOKU_TYPE_NAME),
         mojikumiIndex: getDefaultIndexByName(mojikumiTableData.names, DEFAULT_MOJIKUMI_NAME),
-        composerIndex: getDefaultIndexByNameOrValue(composerOptions.names, composerOptions.values, DEFAULT_COMPOSER_NAME)
+        composerIndex: getDefaultIndexByName(composerOptions.names, DEFAULT_COMPOSER_NAME)
     };
 
     // 各段落スタイルの現在値を読み取り / Read current settings from each paragraph style
@@ -565,7 +593,7 @@ function applyTypesettingSettingsToParagraphStyles(targetParagraphStyles, settin
         kinsokuTables: kinsokuTableData.tables,
         kinsokuTypeValues: kinsokuTypeOptions.values,
         mojikumiTables: mojikumiTableData.tables,
-        composerValues: composerOptions.values
+        composerTable: composerOptions.table
     });
 
 })();
