@@ -61,12 +61,15 @@ TypesettingStyleManager.jsx
 ・辞書設定の二重引用符／引用符は app.languagesWithVendors を使用
 ・単位設定は app.viewPreferences を使用
 
-ハイフネーション設定：コンさん
+欧文組版でのハイフネーション設定：コンさん
 https://typesetterkon.blogspot.com/2011/06/indesign5.html
+
+紹介記事（note）
+https://note.com/dtp_tranist/n/n7f67e8da571f
 
 */
 
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.1.1";
 
 // =========================================
 // 設定 / Settings
@@ -536,14 +539,14 @@ var PRESETS = {
             kerningMethod: "メトリクス",
             autoLeading: 120,
             characterAlignment: "欧文ベースライン",
-            gridAlignment: "欧文ベースライン",
+            gridAlignment: "なし",
             composer: "欧文段落コンポーザー",
             hyphenation: true,
             hyphenateWordsLongerThan: 6,
             hyphenateAfterFirst: 3,
             hyphenateBeforeLast: 3,
             hyphenateLadderLimit: 2,
-            hyphenationZone: 1.25,
+            hyphenationZone: 6,
             hyphenateCapitalizedWords: false,
             hyphenateAcrossColumns: false,
             hyphenateLastWord: false,
@@ -560,13 +563,13 @@ var PRESETS = {
     },
     "グリッド優先": {
         styleSettings: {
-            kinsoku: "弱い禁則",
+            kinsoku: "強い禁則",
             kinsokuType: "追い込み優先",
             kinsokuHangType: "なし",
             bunriKinshi: true,
             mojikumi: "行末約物半角",
             leadingModel: "仮想ボディの中央",
-            rensuuji: false,
+            rensuuji: true,
             rotateSingleByte: false,
             absorbLineEndIdeographicSpace: true,
             latinWordBreak: false,
@@ -602,14 +605,14 @@ var PRESETS = {
             kinsokuHangType: "なし",
             bunriKinshi: true,
             mojikumi: "行末約物半角",
-            leadingModel: "欧文ベースライン",
+            leadingModel: "仮想ボディの中央",
             rensuuji: true,
             rotateSingleByte: false,
             absorbLineEndIdeographicSpace: true,
             latinWordBreak: false,
             kerningMethod: "メトリクス",
             autoLeading: 175,
-            characterAlignment: "欧文ベースライン",
+            characterAlignment: "仮想ボディの中央",
             gridAlignment: "なし",
             composer: "日本語段落コンポーザー",
             hyphenation: false,
@@ -1228,7 +1231,7 @@ function createDialogUI(dialogData) {
         0
     );
 
-    var unitsPanel = rightColumn.add("panel", undefined, "単位");
+    var unitsPanel = rightColumn.add("panel", undefined, "単位（環境設定）");
     setupPanel(unitsPanel, 8);
 
     var textSizeUnitNames = ["ポイント", "級", "アメリカ式ポイント"];
