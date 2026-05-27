@@ -13,7 +13,7 @@
     - ファイル名を base / date / text / version の各セグメントに分解し、元の出現順序を保持したまま編集できます。
       - base: 「ベース」として読み取り専用表示（先頭の固定部分）
       - date: 「タイムスタンプ」ラジオで「つけない / YYYYMMDD」を選択（デフォルト YYYYMMDD）
-      - text: 「タイトル」フィールドで編集
+      - text: 「タイトル」ラジオで「つけない / 親フォルダー / 指定（入力欄）」を選択
       - version: 「バージョン番号」ラジオで「つけない / -vN / -v0N」を選択（デフォルト -vN）
     - 動作モード: 「ファイル名の変更」「別名で保存」（デフォルト）「コピーを保存」（元ファイル維持＋別名コピー）
     - 区切り記号: 「変更しない / `-` / `_`」から選択。`-` または `_` を選ぶとファイル名全体で統一。
@@ -56,7 +56,7 @@
     - Decomposes the filename into base / date / text / version segments, preserving their original order.
       - base: displayed read-only as "Base" (the fixed prefix)
       - date: "Timestamp" radio selects "None / YYYYMMDD" (default YYYYMMDD)
-      - text: editable via the "Title" field
+      - text: chosen via the "Title" radio (None / Parent Folder / Custom input)
       - version: "Version" radio selects "None / -vN / -v0N" (default -vN)
     - Modes: "Rename", "Save As" (default), and "Save a Copy".
     - Separator: choose from "No Change", `-`, or `_`. Choosing `-` or `_` unifies separators across the filename.
@@ -132,19 +132,20 @@
                 saveAs: { ja: "別名で保存", en: "Save As" },
                 saveCopy: { ja: "コピーを保存", en: "Save a Copy" },
                 noChange: { ja: "変更しない", en: "No Change" },
+                titleNone: { ja: "つけない", en: "None" },
+                titleParent: { ja: "親フォルダー", en: "Parent Folder" },
+                titleCustom: { ja: "指定", en: "Custom" },
                 timestampNone: { ja: "つけない", en: "None" },
                 timestampDate: { ja: "YYYYMMDD", en: "YYYYMMDD" },
                 versionNone: { ja: "つけない", en: "None" },
                 versionShort: { ja: "-vN", en: "-vN" },
                 versionPadded: { ja: "-v0N", en: "-v0N" }
             },
-            checkbox: {
-                newName: { ja: "タイトル：", en: "Title:" }
-            },
             label: {
-                currentName: { ja: "現在：", en: "Current:" },
-                finalName: { ja: "変更後：", en: "Final:" },
-                base: { ja: "ベース：", en: "Base:" },
+                currentName: { ja: "現在", en: "Current" },
+                finalName: { ja: "変更後", en: "Final" },
+                base: { ja: "ベース", en: "Base" },
+                title: { ja: "タイトル", en: "Title" },
                 timestamp: { ja: "タイムスタンプ", en: "Timestamp" },
                 version: { ja: "バージョン番号", en: "Version" },
                 separator: { ja: "区切り記号", en: "Separator" }
@@ -162,9 +163,9 @@
                     ja: "元のファイルに上書き保存したうえで、別名のコピーを作成します。アクティブドキュメントは元のまま。",
                     en: "Saves the original, then creates a copy with the new name. The active document is unchanged."
                 },
-                newName: {
-                    ja: "ファイル名のタイトル部分を入力した値に置換します。",
-                    en: "Replaces the title part of the filename with this value."
+                title: {
+                    ja: "ファイル名のタイトル部分の扱いを選択します。「指定」で入力欄の文字列を使用します。",
+                    en: "Choose how to set the title part of the filename. With \"Custom\", the entered text is used."
                 },
                 timestamp: {
                     ja: "タイムスタンプの形式を選択。「つけない」で元の日付があっても削除します。",
@@ -203,6 +204,11 @@
                 if (!entry) return path;
             }
             return entry[lang] || entry.en || path;
+        }
+
+        /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+        function labelText(path) {
+            return L(path) + (lang === 'ja' ? '：' : ':');
         }
 
         // =========================================
@@ -412,11 +418,16 @@
         function gatherDocumentInfo(doc) {
             var fullName = doc.fullName;
             var currentName = decodePercentEncoded(fullName ? fullName.name : doc.name);
+            var parentFolderName = '';
+            if (fullName && fullName.parent) {
+                parentFolderName = decodePercentEncoded(fullName.parent.name);
+            }
             return {
                 currentName: currentName,
                 baseName: stripExtension(currentName),
                 fsPath: fullName ? fullName.fsName : null,
-                folder: fullName ? fullName.parent : null
+                folder: fullName ? fullName.parent : null,
+                parentFolderName: parentFolderName
             };
         }
 
@@ -473,7 +484,9 @@
                     return getFirstSegmentValue(segments, 'base');
                 }
                 if (kind === 'title') {
-                    return uiState.useNewName ? sanitizeFilename(uiState.newNameText) : '';
+                    if (uiState.titleMode === 'none') return '';
+                    if (uiState.titleMode === 'parent') return sanitizeFilename(uiState.parentFolderName);
+                    return sanitizeFilename(uiState.titleText);
                 }
                 if (kind === 'timestamp') {
                     return (uiState.timestamp === 'date') ? todayTimestamp() : '';
@@ -561,12 +574,12 @@
 
             var currentNameRow = panel.add('group');
             currentNameRow.orientation = 'row';
-            var currentNameLabel = currentNameRow.add('statictext', undefined, L('label.currentName'));
+            var currentNameLabel = currentNameRow.add('statictext', undefined, labelText('label.currentName'));
             currentNameRow.add('statictext', undefined, currentName);
 
             var finalNameRow = panel.add('group');
             finalNameRow.orientation = 'row';
-            var finalNameLabel = finalNameRow.add('statictext', undefined, L('label.finalName'));
+            var finalNameLabel = finalNameRow.add('statictext', undefined, labelText('label.finalName'));
             // 「変更後：」は statictext のためレイアウト後にサイズ固定。
             // 現在のファイル名と「入力フィールド + 余白」の大きい方を確保しておく
             var finalNameValue = finalNameRow.add('statictext', undefined, currentName + '.indd');
@@ -574,8 +587,8 @@
             finalNameValue.preferredSize.width = Math.max(currentNameWidth + 20, NEW_NAME_FIELD_WIDTH + 150);
 
             alignLabelWidths(panel, [
-                L('label.currentName'),
-                L('label.finalName')
+                labelText('label.currentName'),
+                labelText('label.finalName')
             ], [currentNameLabel, finalNameLabel]);
 
             return {
@@ -584,8 +597,8 @@
             };
         }
 
-        /* オプションパネルを構築（ベース表示・タイトル編集・タイムスタンプ・バージョン番号・区切り） / Build the options panel */
-        function buildOptionsPanel(parent, segments, prefs) {
+        /* オプションパネルを構築（ベース表示・タイトル選択・タイムスタンプ・バージョン番号・区切り） / Build the options panel */
+        function buildOptionsPanel(parent, segments, prefs, parentFolderName) {
             var panel = parent.add('panel', undefined, L('panel.options'));
             setupPanel(panel);
 
@@ -595,27 +608,62 @@
             // ベース（読み取り専用表示）
             var baseRow = panel.add('group');
             baseRow.orientation = 'row';
-            var baseLabel = baseRow.add('statictext', undefined, L('label.base'));
+            var baseLabel = baseRow.add('statictext', undefined, labelText('label.base'));
             baseRow.add('statictext', undefined, baseValue);
 
-            // タイトル（チェックボックス + 編集フィールド）
-            var newNameRow = panel.add('group');
-            newNameRow.orientation = 'row';
-            var newNameCheckbox = newNameRow.add('checkbox', undefined, L('checkbox.newName'));
-            newNameCheckbox.helpTip = L('tip.newName');
-            var newNameField = newNameRow.add('edittext', undefined, initialText);
-            newNameField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
-            newNameField.helpTip = L('tip.newName');
-            newNameCheckbox.value = !!initialText;
-            if (!initialText) {
-                newNameCheckbox.enabled = false;
-                newNameField.enabled = false;
+            // タイトル: 1 行目 = ラベル + 3 ラジオ、2 行目 = 「指定」用の入力欄
+            var titleSection = panel.add('group');
+            titleSection.orientation = 'column';
+            titleSection.alignChildren = ['fill', 'top'];
+            titleSection.spacing = 4;
+
+            var titleRow = titleSection.add('group');
+            titleRow.orientation = 'row';
+            titleRow.alignment = ['left', 'top'];
+            var titleLabel = titleRow.add('statictext', undefined, labelText('label.title'));
+            titleLabel.helpTip = L('tip.title');
+            var titleNoneRadio = titleRow.add('radiobutton', undefined, L('radio.titleNone'));
+            titleNoneRadio.helpTip = L('tip.title');
+            var titleParentRadio = titleRow.add('radiobutton', undefined, L('radio.titleParent'));
+            titleParentRadio.helpTip = parentFolderName
+                ? L('tip.title') + ' (' + parentFolderName + ')'
+                : L('tip.title');
+            if (!parentFolderName) titleParentRadio.enabled = false;
+            var titleCustomRadio = titleRow.add('radiobutton', undefined, L('radio.titleCustom'));
+            titleCustomRadio.helpTip = L('tip.title');
+
+            // 「指定」用の入力欄は次の行（ラベル列幅だけ左に余白を入れて radios に揃える）
+            var titleFieldRow = titleSection.add('group');
+            titleFieldRow.orientation = 'row';
+            titleFieldRow.alignment = ['left', 'top'];
+            var titleFieldSpacer = titleFieldRow.add('statictext', undefined, '');
+            var titleField = titleFieldRow.add('edittext', undefined, initialText);
+            titleField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
+            titleField.helpTip = L('tip.title');
+
+            // 初期モード: プリセット優先、無ければ初期テキスト有無で 'custom' / 'none'
+            var initialTitleMode;
+            if (prefs && (prefs.titleMode === 'none' || prefs.titleMode === 'parent' || prefs.titleMode === 'custom')) {
+                initialTitleMode = prefs.titleMode;
+            } else {
+                initialTitleMode = initialText ? 'custom' : 'none';
+            }
+            if (initialTitleMode === 'parent' && !parentFolderName) {
+                initialTitleMode = initialText ? 'custom' : 'none';
+            }
+            titleNoneRadio.value = (initialTitleMode === 'none');
+            titleParentRadio.value = (initialTitleMode === 'parent');
+            titleCustomRadio.value = (initialTitleMode === 'custom');
+            titleField.enabled = (initialTitleMode === 'custom');
+
+            function syncTitleFieldEnabled() {
+                titleField.enabled = titleCustomRadio.value;
             }
 
             // タイムスタンプ（つけない / YYYYMMDD。デフォルト YYYYMMDD）
             var timestampRow = panel.add('group');
             timestampRow.orientation = 'row';
-            var timestampLabel = timestampRow.add('statictext', undefined, L('label.timestamp'));
+            var timestampLabel = timestampRow.add('statictext', undefined, labelText('label.timestamp'));
             timestampLabel.helpTip = L('tip.timestamp');
             var timestampNoneRadio = timestampRow.add('radiobutton', undefined, L('radio.timestampNone'));
             timestampNoneRadio.helpTip = L('tip.timestamp');
@@ -628,7 +676,7 @@
             // バージョン番号（つけない / -vN / -v0N。デフォルト -vN）
             var versionRow = panel.add('group');
             versionRow.orientation = 'row';
-            var versionLabel = versionRow.add('statictext', undefined, L('label.version'));
+            var versionLabel = versionRow.add('statictext', undefined, labelText('label.version'));
             versionLabel.helpTip = L('tip.version');
             var versionNoneRadio = versionRow.add('radiobutton', undefined, L('radio.versionNone'));
             versionNoneRadio.helpTip = L('tip.version');
@@ -657,15 +705,25 @@
             dashRadio.value = (initialSeparator === '-');
             underscoreRadio.value = (initialSeparator === '_');
 
+            // 5 行のラベル幅を統一（区切り記号のみコロン無し）
             alignLabelWidths(panel, [
-                L('label.base'),
-                L('checkbox.newName')
-            ], [baseLabel, newNameCheckbox]);
+                labelText('label.base'),
+                labelText('label.title'),
+                labelText('label.timestamp'),
+                labelText('label.version'),
+                L('label.separator')
+            ], [baseLabel, titleLabel, timestampLabel, versionLabel, separatorLabel]);
+
+            // タイトル 2 行目「指定」入力欄の左余白をラベル列幅と一致させる
+            titleFieldSpacer.preferredSize = [titleLabel.preferredSize.width, 1];
 
             return {
                 panel: panel,
-                newNameCheckbox: newNameCheckbox,
-                newNameField: newNameField,
+                titleNoneRadio: titleNoneRadio,
+                titleParentRadio: titleParentRadio,
+                titleCustomRadio: titleCustomRadio,
+                titleField: titleField,
+                syncTitleFieldEnabled: syncTitleFieldEnabled,
                 timestampNoneRadio: timestampNoneRadio,
                 timestampDateRadio: timestampDateRadio,
                 versionNoneRadio: versionNoneRadio,
@@ -689,6 +747,12 @@
                     if (versionNoneRadio.value) return 'none';
                     if (versionShortRadio.value) return 'short';
                     return 'padded';
+                },
+                /* 'none' / 'parent' / 'custom' */
+                getTitleMode: function () {
+                    if (titleNoneRadio.value) return 'none';
+                    if (titleParentRadio.value) return 'parent';
+                    return 'custom';
                 }
             };
         }
@@ -719,7 +783,7 @@
         }
 
         /* ダイアログ全体を組み立て、イベント配線とプレビューを行う / Compose the full dialog, wire events, and run live preview */
-        function createDialog(segments, currentName, prefs) {
+        function createDialog(segments, currentName, prefs, parentFolderName) {
             var dialog = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
             dialog.opacity = DIALOG_OPACITY;
             dialog.orientation = 'column';
@@ -730,13 +794,14 @@
             // ファイル名行とオプションパネルの間に余白を入れる
             var optionsSpacer = filename.panel.add('group');
             optionsSpacer.preferredSize = [-1, 5];
-            var options = buildOptionsPanel(filename.panel, segments, prefs);
+            var options = buildOptionsPanel(filename.panel, segments, prefs, parentFolderName);
 
             // ---- ライブプレビュー ----
             function currentUIState() {
                 return {
-                    useNewName: options.newNameCheckbox.value,
-                    newNameText: options.newNameField.text,
+                    titleMode: options.getTitleMode(),
+                    titleText: options.titleField.text,
+                    parentFolderName: parentFolderName,
                     timestamp: options.getTimestamp(),
                     version: options.getVersion(),
                     separator: options.getSeparator()
@@ -744,12 +809,15 @@
             }
 
             function refreshPreviews() {
+                options.syncTitleFieldEnabled();
                 var finalBase = buildFinalName(segments, currentUIState());
                 filename.finalNameValue.text = finalBase + '.indd';
             }
 
-            options.newNameCheckbox.onClick = refreshPreviews;
-            options.newNameField.onChanging = refreshPreviews;
+            options.titleNoneRadio.onClick = refreshPreviews;
+            options.titleParentRadio.onClick = refreshPreviews;
+            options.titleCustomRadio.onClick = refreshPreviews;
+            options.titleField.onChanging = refreshPreviews;
             options.timestampNoneRadio.onClick = refreshPreviews;
             options.timestampDateRadio.onClick = refreshPreviews;
             options.versionNoneRadio.onClick = refreshPreviews;
@@ -789,7 +857,7 @@
             var segments = parseFileName(info.baseName);
             var prefs = loadPrefs();
 
-            var ui = createDialog(segments, info.currentName, prefs);
+            var ui = createDialog(segments, info.currentName, prefs, info.parentFolderName);
             if (ui.dialog.show() !== 1) return; // キャンセル
 
             var uiState = ui.getUIState();
@@ -810,6 +878,7 @@
                 // 成功したら今回の選択をプリセットとして保存
                 savePrefs({
                     mode: ui.getMode(),
+                    titleMode: uiState.titleMode,
                     timestamp: uiState.timestamp,
                     version: uiState.version,
                     separator: uiState.separator
