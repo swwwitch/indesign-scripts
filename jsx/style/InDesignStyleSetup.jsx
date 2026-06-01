@@ -6,6 +6,18 @@
 
 var SCRIPT_VERSION = "v1.1.0";
 
+// =========================================
+// 動作スイッチ / Behavior switches
+// =========================================
+
+/* true: 既存スタイルの属性（行揃え／言語／basedOn など）も上書きする /
+   false: 既存スタイルには触れず、今回新規作成したスタイルにのみ属性を適用する */
+var OVERWRITE_EXISTING_STYLES = false;
+
+/* true: 各スタイルに基準スタイル（basedOn）を設定する /
+   false: basedOn は設定しない（その他の属性は対象） */
+var APPLY_BASED_ON_RELATIONSHIPS = true;
+
 /*
 概要
 
@@ -13,9 +25,9 @@ var SCRIPT_VERSION = "v1.1.0";
 それぞれのグループ（フォルダー）を一括登録する。
 
 登録内容:
-- 段落スタイル（ルート）: h1〜h6, ul-li, p, p.caption, p.code, p.img, ol-li
+- 段落スタイル（ルート）: h1〜h6, ul-li, ol-li, p, p.caption, p.code, p.img
 - 段落スタイルグループ:
-    table -> th, td, td-left, td-center, td-right
+    table -> th, th-left, th-center, th-right, td, td-left, td-center, td-right
     toc   -> toc-title, toc-h1, toc-h2, toc-h3
     book  -> page-number, running-head, thumb-index
 - 文字スタイル（ルート）: strong-bold, em-italic, link, code-normal, code-strong,
@@ -28,7 +40,9 @@ var SCRIPT_VERSION = "v1.1.0";
 仕様:
 - 同じ場所に同名のスタイル／グループが既に存在する場合は追加せずスキップ
   （ルート直下と各グループ内を分けて判定）
+- h1〜h6 に行揃え「左揃え」を毎回上書き設定
 - p に行揃え「均等配置（最終行左揃え）」を毎回上書き設定
+- th-left / th-center / th-right に行揃えを毎回上書き設定
 - td-left / td-center / td-right に行揃えを毎回上書き設定
 - inline-graphic に前後四分のアキ（leadingAki/trailingAki = 0.25）を毎回上書き設定
 - lang-US の言語を「英語：米国」に設定
@@ -36,6 +50,7 @@ var SCRIPT_VERSION = "v1.1.0";
 - sumaru の noBreak（分割禁止）を有効化
 
 基準スタイル（basedOn）:
+- th-left / th-center / th-right → th （table グループ内）
 - td-left / td-center / td-right → td （table グループ内）
 - toc-h2 / toc-h3                → toc-h1 （toc グループ内）
 - code-strong                    → code-normal
@@ -50,6 +65,10 @@ var SCRIPT_VERSION = "v1.1.0";
 
 並び順:
 - パネル上の並び順は配列順に揃える（既存スタイルも move() で並び替え）
+
+動作スイッチ:
+- OVERWRITE_EXISTING_STYLES: 既存スタイルの属性も上書きするか（既定 false）
+- APPLY_BASED_ON_RELATIONSHIPS: 基準スタイル（basedOn）を設定するか（既定 true）
 */
 
 (function () {
@@ -65,9 +84,8 @@ var SCRIPT_VERSION = "v1.1.0";
 
     var paragraphStyleNames = [
         "h1", "h2", "h3", "h4", "h5", "h6",
-        "ul-li",
-        "p", "p.caption", "p.code", "p.img",
-        "ol-li"
+        "ul-li", "ol-li",
+        "p", "p.caption", "p.code", "p.img"
     ];
 
     var characterStyleNames = [
@@ -81,7 +99,7 @@ var SCRIPT_VERSION = "v1.1.0";
     ];
 
     var paragraphStylesInGroups = [
-        { group: "table", styles: ["th", "td", "td-left", "td-center", "td-right"] },
+        { group: "table", styles: ["th", "th-left", "th-center", "th-right", "td", "td-left", "td-center", "td-right"] },
         { group: "toc", styles: ["toc-title", "toc-h1", "toc-h2", "toc-h3"] },
         { group: "book", styles: ["page-number", "running-head", "thumb-index"] }
     ];
@@ -99,6 +117,11 @@ var SCRIPT_VERSION = "v1.1.0";
     // =========================================
     // スタイル／グループ作成（既存ならスキップ） / Ensure styles & groups (skip if exists)
     // =========================================
+
+    /* 今回のスクリプト実行で新規作成したスタイル名を記録（属性適用の対象判定に使う） /
+       Names of paragraph/character styles created during this run (used by attribute guards) */
+    var paragraphStyleNamesCreatedThisRun = {};
+    var characterStyleNamesCreatedThisRun = {};
 
     /* 段落スタイルグループを取得、無ければ作成 / Get a paragraph style group, create if missing */
     function ensureParagraphStyleGroup(doc, groupName) {
@@ -120,164 +143,203 @@ var SCRIPT_VERSION = "v1.1.0";
 
     /* 指定コンテナ（ドキュメントまたはグループ）の段落スタイルを取得、無ければ作成 /
        Get a paragraph style in the given container (doc or group), create if missing */
-    function ensureParagraphStyle(container, styleName) {
-        var paragraphStyle = container.paragraphStyles.itemByName(styleName);
+    function ensureParagraphStyle(styleContainer, styleName) {
+        var paragraphStyle = styleContainer.paragraphStyles.itemByName(styleName);
         if (!paragraphStyle.isValid) {
-            paragraphStyle = container.paragraphStyles.add({ name: styleName });
+            paragraphStyle = styleContainer.paragraphStyles.add({ name: styleName });
+            paragraphStyleNamesCreatedThisRun[styleName] = true;
         }
         return paragraphStyle;
     }
 
     /* 指定コンテナの文字スタイルを取得、無ければ作成 /
        Get a character style in the given container, create if missing */
-    function ensureCharacterStyle(container, styleName) {
-        var characterStyle = container.characterStyles.itemByName(styleName);
+    function ensureCharacterStyle(styleContainer, styleName) {
+        var characterStyle = styleContainer.characterStyles.itemByName(styleName);
         if (!characterStyle.isValid) {
-            characterStyle = container.characterStyles.add({ name: styleName });
+            characterStyle = styleContainer.characterStyles.add({ name: styleName });
+            characterStyleNamesCreatedThisRun[styleName] = true;
         }
         return characterStyle;
+    }
+
+    /* 段落スタイルへ属性を適用してよいか判定（新規作成 or 上書きスイッチ ON） /
+       Whether to apply attributes to a paragraph style (newly created OR overwrite switch on) */
+    function shouldApplyAttributesToParagraphStyle(styleName) {
+        return OVERWRITE_EXISTING_STYLES || paragraphStyleNamesCreatedThisRun[styleName] === true;
+    }
+
+    /* 文字スタイルへ属性を適用してよいか判定 /
+       Whether to apply attributes to a character style */
+    function shouldApplyAttributesToCharacterStyle(styleName) {
+        return OVERWRITE_EXISTING_STYLES || characterStyleNamesCreatedThisRun[styleName] === true;
     }
 
     // =========================================
     // 個別スタイルの属性適用 / Style-specific property settings
     // =========================================
+    // ※ 既存スタイルへの上書きは OVERWRITE_EXISTING_STYLES、basedOn は APPLY_BASED_ON_RELATIONSHIPS で制御。
+    //   shouldApplyAttributesTo* がガード。
+    //   Guarded by OVERWRITE_EXISTING_STYLES (overwrite) and APPLY_BASED_ON_RELATIONSHIPS (basedOn).
 
     /* p に均等配置（最終行左揃え）を設定 / Apply justify-with-last-line-left to "p" */
-    function applyBodyParagraphStyleSettings(doc) {
+    function applyParagraphJustificationForP(doc) {
+        if (!shouldApplyAttributesToParagraphStyle("p")) return;
         var bodyParagraphStyle = doc.paragraphStyles.itemByName("p");
         if (bodyParagraphStyle.isValid) {
             bodyParagraphStyle.justification = Justification.LEFT_JUSTIFIED;
         }
     }
 
-    /* table グループ内 td-* の行揃えと td ベースを設定 /
-       Set alignment and basedOn=td for td-left/td-center/td-right */
-    function applyTableParagraphStyleSettings(doc) {
+    /* h1〜h6 に左揃えを設定 / Apply left alignment to h1–h6 */
+    function applyHeadingJustification(doc) {
+        var headingStyleNames = ["h1", "h2", "h3", "h4", "h5", "h6"];
+        for (var headingIndex = 0; headingIndex < headingStyleNames.length; headingIndex++) {
+            var headingName = headingStyleNames[headingIndex];
+            if (!shouldApplyAttributesToParagraphStyle(headingName)) continue;
+            var headingStyle = doc.paragraphStyles.itemByName(headingName);
+            if (headingStyle.isValid) {
+                headingStyle.justification = Justification.LEFT_ALIGN;
+            }
+        }
+    }
+
+    /* table グループ内 th-* / td-* の行揃えと th / td ベースを設定 /
+       Set alignment and basedOn=th/td for th-* and td-* */
+    function applyTableCellAlignmentAndBasedOn(doc) {
         var tableGroup = doc.paragraphStyleGroups.itemByName("table");
-        if (tableGroup.isValid) {
-            var tdBase = tableGroup.paragraphStyles.itemByName("td");
-            var tdLeft = tableGroup.paragraphStyles.itemByName("td-left");
-            if (tdLeft.isValid) {
-                if (tdBase.isValid) tdLeft.basedOn = tdBase;
-                tdLeft.justification = Justification.LEFT_ALIGN;
+        if (!tableGroup.isValid) return;
+
+        var thBaseStyle = tableGroup.paragraphStyles.itemByName("th");
+        var thAlignmentTargets = [
+            { name: "th-left", justification: Justification.LEFT_ALIGN },
+            { name: "th-center", justification: Justification.CENTER_ALIGN },
+            { name: "th-right", justification: Justification.RIGHT_ALIGN }
+        ];
+        for (var thIndex = 0; thIndex < thAlignmentTargets.length; thIndex++) {
+            var thTarget = thAlignmentTargets[thIndex];
+            if (!shouldApplyAttributesToParagraphStyle(thTarget.name)) continue;
+            var thTargetStyle = tableGroup.paragraphStyles.itemByName(thTarget.name);
+            if (!thTargetStyle.isValid) continue;
+            if (APPLY_BASED_ON_RELATIONSHIPS && thBaseStyle.isValid) {
+                thTargetStyle.basedOn = thBaseStyle;
             }
-            var tdCenter = tableGroup.paragraphStyles.itemByName("td-center");
-            if (tdCenter.isValid) {
-                if (tdBase.isValid) tdCenter.basedOn = tdBase;
-                tdCenter.justification = Justification.CENTER_ALIGN;
+            thTargetStyle.justification = thTarget.justification;
+        }
+
+        var tdBaseStyle = tableGroup.paragraphStyles.itemByName("td");
+        var tdAlignmentTargets = [
+            { name: "td-left", justification: Justification.LEFT_ALIGN },
+            { name: "td-center", justification: Justification.CENTER_ALIGN },
+            { name: "td-right", justification: Justification.RIGHT_ALIGN }
+        ];
+        for (var tdIndex = 0; tdIndex < tdAlignmentTargets.length; tdIndex++) {
+            var tdTarget = tdAlignmentTargets[tdIndex];
+            if (!shouldApplyAttributesToParagraphStyle(tdTarget.name)) continue;
+            var tdTargetStyle = tableGroup.paragraphStyles.itemByName(tdTarget.name);
+            if (!tdTargetStyle.isValid) continue;
+            if (APPLY_BASED_ON_RELATIONSHIPS && tdBaseStyle.isValid) {
+                tdTargetStyle.basedOn = tdBaseStyle;
             }
-            var tdRight = tableGroup.paragraphStyles.itemByName("td-right");
-            if (tdRight.isValid) {
-                if (tdBase.isValid) tdRight.basedOn = tdBase;
-                tdRight.justification = Justification.RIGHT_ALIGN;
-            }
+            tdTargetStyle.justification = tdTarget.justification;
         }
     }
 
     /* toc グループ内 toc-h2 / toc-h3 を toc-h1 ベースに /
        Set basedOn=toc-h1 for toc-h2 and toc-h3 */
-    function applyTocParagraphStyleSettings(doc) {
+    function applyTocSubheadingBasedOn(doc) {
+        if (!APPLY_BASED_ON_RELATIONSHIPS) return;
         var tocGroup = doc.paragraphStyleGroups.itemByName("toc");
-        if (tocGroup.isValid) {
-            var tocH1 = tocGroup.paragraphStyles.itemByName("toc-h1");
-            if (tocH1.isValid) {
-                var tocH2 = tocGroup.paragraphStyles.itemByName("toc-h2");
-                if (tocH2.isValid) tocH2.basedOn = tocH1;
-                var tocH3 = tocGroup.paragraphStyles.itemByName("toc-h3");
-                if (tocH3.isValid) tocH3.basedOn = tocH1;
-            }
+        if (!tocGroup.isValid) return;
+        var tocH1Style = tocGroup.paragraphStyles.itemByName("toc-h1");
+        if (!tocH1Style.isValid) return;
+
+        var tocSubheadingNames = ["toc-h2", "toc-h3"];
+        for (var tocIndex = 0; tocIndex < tocSubheadingNames.length; tocIndex++) {
+            var tocSubheadingName = tocSubheadingNames[tocIndex];
+            if (!shouldApplyAttributesToParagraphStyle(tocSubheadingName)) continue;
+            var tocSubheadingStyle = tocGroup.paragraphStyles.itemByName(tocSubheadingName);
+            if (tocSubheadingStyle.isValid) tocSubheadingStyle.basedOn = tocH1Style;
         }
     }
 
     /* inline-graphic に前後四分のアキを設定 /
        Apply quarter-em leading/trailing spacing to inline-graphic */
-    function applyInlineGraphicCharacterStyleSettings(doc) {
-        var inlineGraphic = doc.characterStyles.itemByName("inline-graphic");
-        if (inlineGraphic.isValid) {
-            inlineGraphic.leadingAki = 0.25;
-            inlineGraphic.trailingAki = 0.25;
+    function applyInlineGraphicSpacing(doc) {
+        if (!shouldApplyAttributesToCharacterStyle("inline-graphic")) return;
+        var inlineGraphicStyle = doc.characterStyles.itemByName("inline-graphic");
+        if (inlineGraphicStyle.isValid) {
+            inlineGraphicStyle.leadingAki = 0.25;
+            inlineGraphicStyle.trailingAki = 0.25;
         }
     }
 
     /* sumaru の分割禁止を有効化 / Enable noBreak on sumaru */
-    function applySumaruCharacterStyleSettings(doc) {
-        var sumaru = doc.characterStyles.itemByName("sumaru");
-        if (sumaru.isValid) {
-            sumaru.noBreak = true;
+    function applySumaruNoBreak(doc) {
+        if (!shouldApplyAttributesToCharacterStyle("sumaru")) return;
+        var sumaruStyle = doc.characterStyles.itemByName("sumaru");
+        if (sumaruStyle.isValid) {
+            sumaruStyle.noBreak = true;
         }
     }
 
-    /* highlighter を strong-bold ベースに / Set basedOn=strong-bold on highlighter */
-    function applyHighlighterCharacterStyleSettings(doc) {
-        var highlighter = doc.characterStyles.itemByName("highlighter");
-        var strongBold = doc.characterStyles.itemByName("strong-bold");
-        if (highlighter.isValid && strongBold.isValid) {
-            highlighter.basedOn = strongBold;
-        }
-    }
-
-    /* code-strong を code-normal ベースに / Set basedOn=code-normal on code-strong */
-    function applyCodeStrongCharacterStyleSettings(doc) {
-        var codeStrong = doc.characterStyles.itemByName("code-strong");
-        var codeNormal = doc.characterStyles.itemByName("code-normal");
-        if (codeStrong.isValid && codeNormal.isValid) {
-            codeStrong.basedOn = codeNormal;
-        }
-    }
-
-    /* li-label を strong-bold ベースに / Set basedOn=strong-bold on li-label */
-    function applyLiLabelCharacterStyleSettings(doc) {
-        var liLabel = doc.characterStyles.itemByName("li-label");
-        var strongBoldForLi = doc.characterStyles.itemByName("strong-bold");
-        if (liLabel.isValid && strongBoldForLi.isValid) {
-            liLabel.basedOn = strongBoldForLi;
+    /* 1 つの文字スタイルの basedOn を別の文字スタイルに設定する共通処理 /
+       Common helper: set basedOn of one character style to another */
+    function applyCharacterStyleBasedOn(doc, targetStyleName, parentStyleName) {
+        if (!APPLY_BASED_ON_RELATIONSHIPS) return;
+        if (!shouldApplyAttributesToCharacterStyle(targetStyleName)) return;
+        var targetStyle = doc.characterStyles.itemByName(targetStyleName);
+        var parentStyle = doc.characterStyles.itemByName(parentStyleName);
+        if (targetStyle.isValid && parentStyle.isValid) {
+            targetStyle.basedOn = parentStyle;
         }
     }
 
     /* lang-US の言語を「英語：米国」に（環境差を考慮した候補順） /
        Set applied language to English: USA (try multiple localized names) */
-    function applyEnglishCharacterStyleSettings(doc) {
-        var langUS = doc.characterStyles.itemByName("lang-US");
-        if (langUS.isValid) {
-            var langNames = ["English: USA", "英語：米国"];
-            for (var languageIndex = 0; languageIndex < langNames.length; languageIndex++) {
-                var candidateLanguage = app.languagesWithVendors.itemByName(langNames[languageIndex]);
-                if (candidateLanguage.isValid) {
-                    langUS.appliedLanguage = candidateLanguage;
-                    break;
-                }
+    function applyLangUSLanguageSetting(doc) {
+        if (!shouldApplyAttributesToCharacterStyle("lang-US")) return;
+        var langUSStyle = doc.characterStyles.itemByName("lang-US");
+        if (!langUSStyle.isValid) return;
+        var englishLanguageNames = ["English: USA", "英語：米国"];
+        for (var englishNameIndex = 0; englishNameIndex < englishLanguageNames.length; englishNameIndex++) {
+            var englishLanguage = app.languagesWithVendors.itemByName(englishLanguageNames[englishNameIndex]);
+            if (englishLanguage.isValid) {
+                langUSStyle.appliedLanguage = englishLanguage;
+                break;
             }
         }
     }
 
     /* code-normal の言語を「なし」に（環境差を考慮した候補順） /
        Set applied language to [No Language] (try multiple localized names) */
-    function applyCodeNormalCharacterStyleSettings(doc) {
-        var codeNormal = doc.characterStyles.itemByName("code-normal");
-        if (codeNormal.isValid) {
-            var noLangNames = ["[No Language]", "[言語なし]", "[なし]"];
-            for (var noLangIndex = 0; noLangIndex < noLangNames.length; noLangIndex++) {
-                var noLangCandidate = app.languagesWithVendors.itemByName(noLangNames[noLangIndex]);
-                if (noLangCandidate.isValid) {
-                    codeNormal.appliedLanguage = noLangCandidate;
-                    break;
-                }
+    function applyCodeNormalLanguageSetting(doc) {
+        if (!shouldApplyAttributesToCharacterStyle("code-normal")) return;
+        var codeNormalStyle = doc.characterStyles.itemByName("code-normal");
+        if (!codeNormalStyle.isValid) return;
+        var noLanguageNames = ["[No Language]", "[言語なし]", "[なし]"];
+        for (var noLanguageNameIndex = 0; noLanguageNameIndex < noLanguageNames.length; noLanguageNameIndex++) {
+            var noLanguageEntry = app.languagesWithVendors.itemByName(noLanguageNames[noLanguageNameIndex]);
+            if (noLanguageEntry.isValid) {
+                codeNormalStyle.appliedLanguage = noLanguageEntry;
+                break;
             }
         }
     }
 
     /* 個別スタイルの属性適用をまとめて実行 / Run all style-specific settings */
-    function applyStyleSettings(doc) {
-        applyBodyParagraphStyleSettings(doc);
-        applyTableParagraphStyleSettings(doc);
-        applyTocParagraphStyleSettings(doc);
-        applyInlineGraphicCharacterStyleSettings(doc);
-        applyHighlighterCharacterStyleSettings(doc);
-        applyCodeStrongCharacterStyleSettings(doc);
-        applyLiLabelCharacterStyleSettings(doc);
-        applySumaruCharacterStyleSettings(doc);
-        applyEnglishCharacterStyleSettings(doc);
-        applyCodeNormalCharacterStyleSettings(doc);
+    function applyAllStyleAttributes(doc) {
+        applyHeadingJustification(doc);
+        applyParagraphJustificationForP(doc);
+        applyTableCellAlignmentAndBasedOn(doc);
+        applyTocSubheadingBasedOn(doc);
+        applyInlineGraphicSpacing(doc);
+        applyCharacterStyleBasedOn(doc, "highlighter", "strong-bold");
+        applyCharacterStyleBasedOn(doc, "code-strong", "code-normal");
+        applyCharacterStyleBasedOn(doc, "li-label", "strong-bold");
+        applySumaruNoBreak(doc);
+        applyLangUSLanguageSetting(doc);
+        applyCodeNormalLanguageSetting(doc);
     }
 
     // =========================================
@@ -285,7 +347,9 @@ var SCRIPT_VERSION = "v1.1.0";
     // =========================================
 
     /* 段落スタイルに正規表現スタイルを設定（同条件のものがあれば重複追加しない） /
-       Add nested GREP styles to paragraph styles (skip duplicates) */
+       Add nested GREP styles to paragraph styles (skip duplicates).
+       既存段落スタイルに対する追加は OVERWRITE_EXISTING_STYLES で制御 /
+       Adding to pre-existing paragraph styles is gated by OVERWRITE_EXISTING_STYLES. */
     function applyNestedGrepStyleSettings(doc) {
         var nestedGrepRules = [
             { paragraph: "ul-li", character: "li-label", expression: "^.+?(?=：)" },
@@ -296,6 +360,7 @@ var SCRIPT_VERSION = "v1.1.0";
 
         for (var grepRuleIndex = 0; grepRuleIndex < nestedGrepRules.length; grepRuleIndex++) {
             var grepRuleDefinition = nestedGrepRules[grepRuleIndex];
+            if (!shouldApplyAttributesToParagraphStyle(grepRuleDefinition.paragraph)) continue;
             var targetParagraphStyle = doc.paragraphStyles.itemByName(grepRuleDefinition.paragraph);
             var targetCharacterStyle = doc.characterStyles.itemByName(grepRuleDefinition.character);
             if (!targetParagraphStyle.isValid || !targetCharacterStyle.isValid) continue;
@@ -406,7 +471,7 @@ var SCRIPT_VERSION = "v1.1.0";
         }
     }
 
-    applyStyleSettings(doc);
+    applyAllStyleAttributes(doc);
     applyNestedGrepStyleSettings(doc);
 
     // パネル上の並び順を配列順に揃える（既存スタイルも含む） /
