@@ -537,6 +537,10 @@ function getStyleWeightRank(styleName, familyName) {
     var targetDocument = app.activeDocument;
     var unit = getTextSizeUnit();
 
+    // ライブプレビュー／適用で書き換えた段落スタイル名（キャンセル時の復元対象）
+    // showTypescaleDialog 内のライブプレビューより前に初期化しておく
+    var _previewModifiedStyles = {};
+
     // 基準サイズの初期値は段落スタイル "p" → "Normal" の本文サイズを参照する
     var defaultBaseSize = getBodyStyleBaseSize(targetDocument, unit);
     if (defaultBaseSize === null) {
@@ -676,9 +680,6 @@ function getStyleWeightRank(styleName, familyName) {
     }
 
     var _fontInfo = null;
-
-    // ライブプレビュー／適用で書き換えた段落スタイル名（キャンセル時の復元対象）
-    var _previewModifiedStyles = {};
 
     function getFontInfo() {
         if (_fontInfo) return _fontInfo;
