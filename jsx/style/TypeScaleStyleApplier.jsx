@@ -1,47 +1,50 @@
 #target indesign
 
 /*
-概要 / Overview
 
-【日本語】
-概要：
-InDesign の段落スタイルに対して、本文サイズを基準にタイプスケールで見出し／本文／キャプションのサイズを一括設定します。
-単純倍率のスケールと、Browser Default のようなプリセットスケールを scaleOptions で管理します。
-本文／見出しのフォント指定は、共通指定・別指定・変更しない、から選択できます。
-見出し側は本文フォントを参照しつつ、ウエイト／スタイルのみ変更できます。
-行送り、カーニング、段落前後のアキ、サイズの丸め単位を指定できます。
-本文の段落前後のアキの初期値は 15% です。
-プレビュー上でサイズ／段落前後のアキを確認し、必要に応じて個別調整できます。
-フォント一覧はキャッシュして高速化し、必要に応じてキャッシュをクリアして再読み込みできます。
+# TypeScaleStyleApplier
 
-【English】
-Summary:
-Applies type-scale based sizes to InDesign paragraph styles for headings, body text, and captions using the body size as the base.
+本文サイズを基準に、タイプスケールで InDesign の段落スタイル（見出し／本文／リスト／テーブル／キャプション）のサイズを一括設定するスクリプト。
 
-Scale choices are managed through `scaleOptions`, supporting both ratio-based scales and preset scales such as Browser Default.
+## 概要 / Overview（日本語）
 
-Font assignment can be configured as:
-- Shared font for body and headings
-- Separate fonts for body and headings
-- No font change
+- 見出し／本文／リスト／テーブル／キャプションのサイズを、本文サイズ基準のタイプスケールで一括設定
+- 基準サイズの初期値は段落スタイル「p」→「Normal」の本文サイズを参照（無ければ単位ごとの既定値）
+- 単純倍率のスケールと、Browser Default のようなプリセットスケールを `scaleOptions` で管理
+- リストは本文サイズの 100%、テーブルは 95% を基準に算出
+- 行送りは本文／見出しごとに％で指定、カーニングは方式を選択、サイズの丸め単位も選択可能
+- 段落前後のアキは固定の％（本文 15%・見出し 10%）で自動算出し、プレビュー欄で行ごとに個別上書き可能（サイズも同様）
+- ライブプレビューは設定変更に追従してリアルタイム更新
+- フォント指定は「共通指定／別指定／変更しない」から選択。見出しは本文フォントを参照しつつウエイト／スタイルのみ変更可
+- フォント情報は起動時には読み込まず、「フォント、スタイルを含める」ボタンで初めて読み込む（一覧はディスクにキャッシュ）
 
-Headings can reference the body font while changing only weight/style.
+### 紹介記事
 
-Leading, kerning, space before/after, and size rounding can be configured independently.
-The default body space before/after value is 15%.
+https://note.com/dtp_tranist/n/n4f9b0666db66
 
-The preview panel displays sizes and spacing for each level (h1–h6), body, and caption, and allows per-row overrides.
-Live preview updates in real time while adjusting settings.
+## Overview（English）
 
-The font list is cached for faster loading and can be cleared and reloaded from the dialog.
+- Applies type-scale based sizes to paragraph styles for headings, body, list, table, and caption using the body size as the base
+- The initial base size is read from the paragraph style "p" → "Normal" (falling back to a per-unit default)
+- Both ratio-based scales and preset scales such as Browser Default are managed through `scaleOptions`
+- List is computed at 100% and table at 95% of the body size
+- Leading is set as a percentage per body/heading, kerning method is selectable, and the size rounding unit is selectable
+- Space before/after is derived from fixed percentages (body 15%, heading 10%) and can be overridden per row in the preview (size likewise)
+- Live preview updates in real time as settings change
+- Font assignment is "shared / separate / no change"; headings can reference the body font while changing only weight/style
+- Font information is not loaded at startup; it is loaded only when the "Include fonts & styles" button is pressed (the font list is cached on disk)
+
 */
 
+// =========================================
+// バージョン / Version
+// =========================================
 
-/* =========================================
+var SCRIPT_VERSION = "v1.6.0";
 
-   ユーザー設定 / User Settings
-
-   ========================================= */
+// =========================================
+// ユーザー設定 / User Settings
+// =========================================
 
 var DEFAULT_BASE_SIZE_PT = 9; // 基準サイズ（本文, pt） / Base body size (pt)
 var DEFAULT_BASE_SIZE_Q = 13; // 基準サイズ（本文, Q） / Base body size (Q)
@@ -55,105 +58,174 @@ var DEFAULT_SPACE_AFTER_PERCENT = 10; // 見出しの段落後のアキ(%)
 var DEFAULT_BODY_SPACE_BEFORE_PERCENT = 15; // 本文の段落前のアキ(%)
 var DEFAULT_BODY_SPACE_AFTER_PERCENT = 15; // 本文の段落後のアキ(%)
 
+// 本文サイズに対するリスト／テーブルの文字サイズ比率(%) / List & table size as % of body size
+var DEFAULT_LIST_SIZE_PERCENT = 100; // リスト（ul-li / ol-li / List Paragraph）の文字サイズ(本文比, %)
+var DEFAULT_TABLE_SIZE_PERCENT = 95; // テーブル（td / th）の文字サイズ(本文比, %)
+
 // 段落前後のアキを段落スタイルへ適用するかどうかの ON/OFF スイッチ
 // false の場合、段落スタイルの spaceBefore / spaceAfter は変更されない
 var ENABLE_SPACE_BEFORE = true; // 段落前のアキ機能の ON/OFF
 var ENABLE_SPACE_AFTER = true;  // 段落後のアキ機能の ON/OFF
 
-/* =========================================
+// 字揃え（justification）を段落スタイルへ強制適用するかどうかの ON/OFF スイッチ
+// false の場合、字揃え（見出し=左揃え／本文=左均等）は変更せず、元の字揃えを保持する
+var ENABLE_JUSTIFICATION = false;
 
-    バージョンとローカライズ / Version and Localization
-
-   ========================================= */
-
-var SCRIPT_VERSION = "v1.5.1";
+// =========================================
+// ローカライズ / Localization
+// =========================================
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var lang = getCurrentLang();
+var currentLanguage = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
+/* 日英ラベル定義（カテゴリ別） / Japanese-English labels by category */
 var LABELS = {
-    dialogTitle: { ja: "タイプスケールで一括設定", en: "Type Scale Settings" },
-    errNoDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-    errInvalidBaseSize: { ja: "基準サイズ（本文）には正の数値を入力してください。", en: "Enter a positive number for Base Size (Body)." },
-    errMissingParagraphStyle: { ja: "段落スタイル「%1」が見つかりません。", en: "Paragraph style \"%1\" was not found." },
-    noFontChange: { ja: "（変更しない）", en: "(No change)" },
-    textSettingsPanel: { ja: "テキスト設定", en: "Text Settings" },
-    fontSettingsPanel: { ja: "フォント指定オプション", en: "Font Assignment" },
-    disableFontSelection: { ja: "フォントを変更しない", en: "Do not change fonts" },
-    sizeOnly: { ja: "サイズのみ", en: "Size only" },
-    useSameFontForBodyAndHeading: { ja: "本文と見出しで共通", en: "Use same font for body and headings" },
-    separateFontForBodyAndHeading: {
-        ja: "本文と見出しで別々に指定", en: "Specify body and heading fonts separately"
+    dialog: {
+        title: { ja: "タイプスケールで一括設定", en: "Type Scale Settings" }
     },
-    refBodyFont: {
-        ja: "本文のフォントを参照", en: "Reference body font"
+    undo: {
+        applyTypeScale: { ja: "タイプスケールで一括設定", en: "Apply Type Scale" }
     },
-    bodyTextPanel: { ja: "本文", en: "Body" },
-    headingTextPanel: { ja: "見出し", en: "Headings" },
-    baseSizeBody: { ja: "基準サイズ", en: "Base Size (Body)" },
-    font: { ja: "フォント", en: "Font" },
-    fontStyle: { ja: "スタイル", en: "Style" },
-    bodyLeadingRatio: { ja: "行送り", en: "Leading Ratio (Body)" },
-    headingLeadingRatio: { ja: "行送り", en: "Leading Ratio (Headings)" },
-    spaceBeforeRatio: { ja: "段落前のアキ", en: "Space Before" },
-    spaceAfterRatio: { ja: "段落後のアキ", en: "Space After" },
-    kerningMethod: { ja: "カーニング", en: "Kerning Method" },
-    kerningJapaneseMono: { ja: "和文等幅", en: "Japanese Mono" },
-    kerningMetrics: { ja: "メトリクス", en: "Metrics" },
-    kerningOptical: { ja: "オプティカル", en: "Optical" },
-    scaleSettingsPanel: { ja: "スケール設定", en: "Scale Settings" },
-    scaleRatio: { ja: "スケール方式", en: "Scale Method" },
-    headingLevelCount: { ja: "見出しレベル数", en: "Heading Levels" },
-    sizeRounding: { ja: "サイズの丸め", en: "Size Rounding" },
-    roundInteger: { ja: "整数", en: "Integer" },
-    fontStyleHeader: { ja: "スタイル", en: "Style" },
-    roundFirstDecimal: { ja: "小数点第1位", en: "1 decimal place" },
-    roundSecondDecimal: { ja: "小数点第2位", en: "2 decimal places" },
-    previewPanel: { ja: "段落スタイルとサイズプレビュー", en: "Paragraph Styles & Size Preview" },
-    levelHeader: { ja: "レベル", en: "Level" },
-    fontSizeHeader: { ja: "サイズ", en: "Size" },
-    spaceBeforeHeader: { ja: "段落前アキ", en: "Space Before" },
-    spaceAfterHeader: { ja: "段落後のアキ", en: "Space After" },
-    paragraphStyleHeader: { ja: "段落スタイル", en: "Paragraph Style" },
-    levelPrefix: { ja: "レベル", en: "Level " },
-    baseBodyPreview: { ja: "基準（本文）", en: "Base (Body)" },
-    captionPreview: { ja: "キャプション", en: "Caption" },
-    clearFontCache: { ja: "キャッシュをクリアして再読み込み", en: "Clear cache & reload" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    ok: { ja: "OK", en: "OK" },
-    loadingTitle: { ja: "処理中", en: "Processing" },
-    loadingFonts: { ja: "フォント情報を読み込んでいます…", en: "Loading font information..." },
-    buildingCacheNote: { ja: "キャッシュを作成しています。（初回は時間がかかります）", en: "Building cache (first run may take longer)" },
-    notAvailable: { ja: "—", en: "—" },
-    ratioMinorSecond: { ja: "短2度", en: "Minor Second" },
-    ratioMajorSecond: { ja: "長2度", en: "Major Second" },
-    ratioMinorThird: { ja: "短3度", en: "Minor Third" },
-    ratioMajorThird: { ja: "長3度", en: "Major Third" },
-    ratioGoldenHalf: { ja: "黄金比：1/2", en: "Golden Ratio: ½" },
-    ratioPerfectFourth: { ja: "完全4度", en: "Perfect Fourth" },
-    ratioAugmentedFourth: { ja: "増4度", en: "Augmented Fourth" },
-    ratioGolden: { ja: "黄金比", en: "Golden Ratio" },
-    ratioBrowserDefault: { ja: "ブラウザー既定", en: "Browser Default" }
+    error: {
+        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+        invalidBaseSize: {
+            ja: "基準サイズ（本文）には正の数値を入力してください。",
+            en: "Enter a positive number for Base Size (Body)."
+        },
+        missingStyle: {
+            ja: "段落スタイル「%1」が見つかりません。",
+            en: "Paragraph style \"%1\" was not found."
+        }
+    },
+    progress: {
+        title: { ja: "処理中", en: "Processing" },
+        loadingFonts: {
+            ja: "フォント情報を読み込んでいます…",
+            en: "Loading font information..."
+        },
+        buildingCache: {
+            ja: "キャッシュを作成しています。（初回は時間がかかります）",
+            en: "Building cache (first run may take longer)"
+        }
+    },
+    panel: {
+        bodyText: { ja: "本文", en: "Body" },
+        headingText: { ja: "見出し", en: "Headings" },
+        fontAssignment: { ja: "フォント指定オプション", en: "Font Assignment" },
+        scaleSettings: { ja: "スケール設定", en: "Scale Settings" },
+        preview: { ja: "段落スタイルとサイズプレビュー", en: "Paragraph Styles & Size Preview" }
+    },
+    fontMode: {
+        same: {
+            ja: "本文と見出しで共通",
+            en: "Use same font for body and headings"
+        },
+        separate: {
+            ja: "本文と見出しで別々に指定",
+            en: "Specify body and heading fonts separately"
+        },
+        none: { ja: "フォントを変更しない", en: "Do not change fonts" }
+    },
+    checkbox: {
+        sizeOnly: { ja: "サイズのみ", en: "Size only" }
+    },
+    field: {
+        baseSize: { ja: "基準サイズ", en: "Base Size (Body)" },
+        font: { ja: "フォント", en: "Font" },
+        fontStyle: { ja: "スタイル", en: "Style" },
+        bodyLeading: { ja: "行送り", en: "Leading Ratio (Body)" },
+        headingLeading: { ja: "行送り", en: "Leading Ratio (Headings)" },
+        spaceBefore: { ja: "段落前のアキ", en: "Space Before" },
+        spaceAfter: { ja: "段落後のアキ", en: "Space After" },
+        kerning: { ja: "カーニング", en: "Kerning Method" },
+        scaleMethod: { ja: "スケール方式", en: "Scale Method" },
+        headingLevels: { ja: "見出しレベル数", en: "Heading Levels" },
+        sizeRounding: { ja: "サイズの丸め", en: "Size Rounding" }
+    },
+    kerning: {
+        japaneseMono: { ja: "和文等幅", en: "Japanese Mono" },
+        metrics: { ja: "メトリクス", en: "Metrics" },
+        optical: { ja: "オプティカル", en: "Optical" }
+    },
+    rounding: {
+        integer: { ja: "整数", en: "Integer" },
+        firstDecimal: { ja: "小数点第1位", en: "1 decimal place" },
+        secondDecimal: { ja: "小数点第2位", en: "2 decimal places" }
+    },
+    column: {
+        level: { ja: "レベル", en: "Level" },
+        size: { ja: "サイズ", en: "Size" },
+        spaceBefore: { ja: "段落前アキ", en: "Space Before" },
+        spaceAfter: { ja: "段落後のアキ", en: "Space After" },
+        paragraphStyle: { ja: "段落スタイル", en: "Paragraph Style" },
+        fontStyle: { ja: "ウエイト", en: "Weight" }
+    },
+    row: {
+        levelPrefix: { ja: "レベル", en: "Level " },
+        baseBody: { ja: "★基準（本文）", en: "★Base (Body)" },
+        list: { ja: "リスト", en: "List" },
+        table: { ja: "テーブル", en: "Table" },
+        caption: { ja: "キャプション", en: "Caption" }
+    },
+    option: {
+        noFontChange: { ja: "（変更しない）", en: "(No change)" },
+        refBodyFont: { ja: "本文のフォントを参照", en: "Reference body font" },
+        notAvailable: { ja: "—", en: "—" }
+    },
+    button: {
+        includeFonts: {
+            ja: "フォント、スタイルを含める",
+            en: "Include fonts & styles"
+        },
+        cancel: { ja: "キャンセル", en: "Cancel" },
+        ok: { ja: "OK", en: "OK" }
+    },
+    ratio: {
+        minorSecond: { ja: "短2度", en: "Minor Second" },
+        majorSecond: { ja: "長2度", en: "Major Second" },
+        minorThird: { ja: "短3度", en: "Minor Third" },
+        majorThird: { ja: "長3度", en: "Major Third" },
+        goldenHalf: { ja: "黄金比：1/2", en: "Golden Ratio: ½" },
+        perfectFourth: { ja: "完全4度", en: "Perfect Fourth" },
+        augmentedFourth: { ja: "増4度", en: "Augmented Fourth" },
+        golden: { ja: "黄金比", en: "Golden Ratio" },
+        browserDefault: { ja: "ブラウザー既定", en: "Browser Default" }
+    }
 };
 
+/* ドット区切りのキーで多言語ラベルを取得（例：L("dialog.title")） / Resolve a dotted-path label key */
 function L(key) {
-    return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key;
+    var parts = key.split(".");
+    var node = LABELS;
+    for (var partIndex = 0; partIndex < parts.length; partIndex++) {
+        if (node && typeof node[parts[partIndex]] !== "undefined") {
+            node = node[parts[partIndex]];
+        } else {
+            return key;
+        }
+    }
+    // currentLanguage → en → key の順でフォールバック
+    if (node) {
+        if (node[currentLanguage]) return node[currentLanguage];
+        if (node.en) return node.en;
+    }
+    return key;
 }
 
 /* コロン付きラベル（日本語は全角、英語は半角） / Label with colon (full-width JA, half-width EN) */
 function labelText(key) {
-    return L(key) + (lang === "ja" ? "：" : ":");
+    return L(key) + (currentLanguage === "ja" ? "：" : ":");
 }
 
 function formatLabel(key, value) {
     return L(key).replace("%1", value);
 }
 
+/* 進捗パレット（モーダルダイアログを開く前の待機表示用。モーダル表示中は使わないこと） / Progress palette shown before the modal dialog */
 function createProgressPalette(message) {
-    var palette = new Window("palette", L("loadingTitle"));
+    var palette = new Window("palette", L("progress.title"));
     palette.orientation = "column";
     palette.alignChildren = ["fill", "center"];
     palette.margins = [20, 16, 20, 16];
@@ -161,12 +233,11 @@ function createProgressPalette(message) {
 
     var messageText = palette.add("statictext", undefined, message);
     messageText.preferredSize.width = 260;
-    var subMessageText = palette.add("statictext", undefined, L("buildingCacheNote"));
-    subMessageText.preferredSize.width = 260;
 
     var progressBar = palette.add("progressbar", undefined, 0, 100);
     progressBar.preferredSize.width = 260;
-    progressBar.value = 35;
+    progressBar.preferredSize.height = 6; // バーを細く
+    progressBar.value = 20;
 
     palette.show();
     try { palette.update(); } catch (e) { }
@@ -176,6 +247,73 @@ function createProgressPalette(message) {
 function closeProgressPalette(palette) {
     if (!palette) return;
     try { palette.close(); } catch (e) { }
+}
+
+// =========================================
+// 単位 / Units
+// =========================================
+
+/* ポイント換算係数（pt = 値 × factor） / Point conversion factor per unit */
+var UNIT_POINT_CONVERTERS = [
+    { name: "POINTS", label: "pt", factor: 1 },
+    { name: "MILLIMETERS", label: "mm", factor: 2.834645669 },
+    { name: "CENTIMETERS", label: "cm", factor: 28.34645669 },
+    { name: "INCHES", label: "inch", factor: 72 },
+    { name: "INCHES_DECIMAL", label: "inch", factor: 72 },
+    { name: "PICAS", label: "pica", factor: 12 },
+    { name: "CICEROS", label: "c", factor: 12.7896 },
+    { name: "AGATES", label: "ag", factor: 1 },
+    { name: "PIXELS", label: "px", factor: 1 },
+    { name: "Q", label: "Q", factor: 0.708661417 }, /* 1Q = 0.25mm / 1Q = 0.25mm */
+    { name: "HA", label: "H", factor: 0.708661417 }
+];
+
+function getMeasurementUnitValue(unitName) {
+    try {
+        return MeasurementUnits[unitName];
+    } catch (e) { }
+    return null;
+}
+
+function getTextSizeUnit() {
+    // テキスト単位優先 → 定規単位 → ptにフォールバック
+    try {
+        var textSizeUnit = app.viewPreferences.textSizeMeasurementUnits;
+        if (textSizeUnit !== undefined && textSizeUnit !== null) return textSizeUnit;
+    } catch (e) { }
+    try {
+        return app.viewPreferences.horizontalMeasurementUnits;
+    } catch (e) { }
+    return MeasurementUnits.POINTS;
+}
+
+function unitSymbol(unit) {
+    for (var unitIndex = 0; unitIndex < UNIT_POINT_CONVERTERS.length; unitIndex++) {
+        if (unit === getMeasurementUnitValue(UNIT_POINT_CONVERTERS[unitIndex].name)) {
+            return UNIT_POINT_CONVERTERS[unitIndex].label;
+        }
+    }
+    return "pt";
+}
+
+function toPoints(value, unit) {
+    // 各種単位をポイントに変換（内部計算はpt基準）
+    for (var unitIndex = 0; unitIndex < UNIT_POINT_CONVERTERS.length; unitIndex++) {
+        if (unit === getMeasurementUnitValue(UNIT_POINT_CONVERTERS[unitIndex].name)) {
+            return value * UNIT_POINT_CONVERTERS[unitIndex].factor;
+        }
+    }
+    return value;
+}
+
+function fromPoints(valueInPoints, unit) {
+    // ポイントを表示単位へ逆変換（pt → 表示単位）
+    for (var unitIndex = 0; unitIndex < UNIT_POINT_CONVERTERS.length; unitIndex++) {
+        if (unit === getMeasurementUnitValue(UNIT_POINT_CONVERTERS[unitIndex].name)) {
+            return valueInPoints / UNIT_POINT_CONVERTERS[unitIndex].factor;
+        }
+    }
+    return valueInPoints;
 }
 
 /* フォント一覧のキャッシュ：app.fonts.everyItem().getElements() が遅いので、ファミリー名・スタイル名のテーブルをディスクに保存して再利用する */
@@ -195,8 +333,8 @@ function getFontCacheFile() {
 function loadFontCache(currentFontCount) {
     var file = getFontCacheFile();
     if (!file || !file.exists) return null;
-    if (!file.open("r")) return null;
     file.encoding = "UTF-8";
+    if (!file.open("r")) return null;
     try {
         var headerLine = file.readln();
         if (!headerLine) return null;
@@ -231,8 +369,8 @@ function loadFontCache(currentFontCount) {
 function saveFontCache(fontCount, families, fontMap) {
     var file = getFontCacheFile();
     if (!file) return false;
-    if (!file.open("w")) return false;
     file.encoding = "UTF-8";
+    if (!file.open("w")) return false;
     try {
         file.writeln(FONT_CACHE_VERSION + "\t" + fontCount);
         for (var i = 0; i < families.length; i++) {
@@ -333,8 +471,8 @@ function getStyleWeightBaseRank(style, family) {
 }
 
 function getStyleWeightRank(styleName, familyName) {
-    var raw = (styleName || "").toString();
-    var style = raw.toLowerCase().replace(/[_\-]+/g, " ").replace(/^\s+|\s+$/g, "");
+    var rawStyleName = (styleName || "").toString();
+    var style = rawStyleName.toLowerCase().replace(/[_\-]+/g, " ").replace(/^\s+|\s+$/g, "");
     var words = style.split(/\s+/);
     var baseRank = getStyleWeightBaseRank(style, familyName);
     var offset = 0;
@@ -392,28 +530,48 @@ function getStyleWeightRank(styleName, familyName) {
 (function () {
 
     if (app.documents.length === 0) {
-        alert(L("errNoDocument"));
+        alert(L("error.noDocument"));
         return;
     }
 
     var targetDocument = app.activeDocument;
     var unit = getTextSizeUnit();
 
-    var defaultBaseSize = DEFAULT_BASE_SIZE_PT;
-    try {
-        if (unit === MeasurementUnits.POINTS) {
-            defaultBaseSize = DEFAULT_BASE_SIZE_PT;
-        } else if (unit === MeasurementUnits.Q) {
-            defaultBaseSize = DEFAULT_BASE_SIZE_Q;
-        } else if (unit === MeasurementUnits.MILLIMETERS) {
-            defaultBaseSize = DEFAULT_BASE_SIZE_Q * 0.25; // Q→mm
+    // 基準サイズの初期値は段落スタイル "p" → "Normal" の本文サイズを参照する
+    var defaultBaseSize = getBodyStyleBaseSize(targetDocument, unit);
+    if (defaultBaseSize === null) {
+        // "p" / "Normal" が無ければ単位ごとの既定値にフォールバック
+        defaultBaseSize = DEFAULT_BASE_SIZE_PT;
+        try {
+            if (unit === MeasurementUnits.Q) {
+                defaultBaseSize = DEFAULT_BASE_SIZE_Q;
+            } else if (unit === MeasurementUnits.MILLIMETERS) {
+                defaultBaseSize = DEFAULT_BASE_SIZE_Q * 0.25; // Q→mm
+            }
+        } catch (e) { }
+    }
+
+    // 段落スタイル "p" → "Normal" の本文サイズを表示単位で返す（無ければ null）
+    function getBodyStyleBaseSize(targetDocument, unit) {
+        var candidateNames = ["p", "Normal"];
+        for (var nameIndex = 0; nameIndex < candidateNames.length; nameIndex++) {
+            var style = findParagraphStyle(targetDocument, candidateNames[nameIndex]);
+            if (style === null) continue;
+            var sizePt = null;
+            try { sizePt = style.pointSize; } catch (eSize) { sizePt = null; }
+            if (typeof sizePt !== "number" || isNaN(sizePt) || sizePt <= 0) continue;
+            return roundTo(fromPoints(sizePt, unit), 2);
         }
-    } catch (e) { }
+        return null;
+    }
 
     var typescaleSettings = showTypescaleDialog(targetDocument, defaultBaseSize, DEFAULT_RATIO, DEFAULT_LEVEL_COUNT, unit);
 
     if (typescaleSettings !== null) {
-        applyTypescaleSettings(targetDocument, typescaleSettings, false, unit);
+        // OK 時の最終適用は 1 つの undo ステップにまとめる（Edit > 取り消し で一括に戻せる）
+        app.doScript(function () {
+            applyTypescaleSettings(targetDocument, typescaleSettings, false, unit);
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L("undo.applyTypeScale"));
     }
 
     function computeSizes(base, ratio, levelCount, multipliers, captionMultiplier) {
@@ -480,79 +638,20 @@ function getStyleWeightRank(styleName, familyName) {
         }
         applyParagraphStyleSettings(typescaleSettings.baseStyleName, computedSizes.base, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.baseFontStyleName, typescaleSettings.baseSizeOverride, typescaleSettings.baseSpaceBeforeOverride, typescaleSettings.baseSpaceAfterOverride);
         applyParagraphStyleSettings(typescaleSettings.captionStyleName, computedSizes.caption, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.captionFontStyleName, typescaleSettings.captionSizeOverride, typescaleSettings.captionSpaceBeforeOverride, typescaleSettings.captionSpaceAfterOverride);
+        // 本文派生行（リスト・テーブル）: 文字サイズは基準（本文）×係数。行送り・カーニング・フォントは本文と同じ
+        var bodyDerivedRows = typescaleSettings.bodyDerivedRows || [];
+        for (var bodyRowIndex = 0; bodyRowIndex < bodyDerivedRows.length; bodyRowIndex++) {
+            var bodyDerivedRow = bodyDerivedRows[bodyRowIndex];
+            applyParagraphStyleSettings(bodyDerivedRow.styleName, computedSizes.base * bodyDerivedRow.sizeFactor, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, bodyDerivedRow.fontStyleName, bodyDerivedRow.sizeOverride, bodyDerivedRow.spaceBeforeOverride, bodyDerivedRow.spaceAfterOverride);
+        }
         for (var levelNumber = 1; levelNumber <= typescaleSettings.levelCount; levelNumber++) {
-            var name = typescaleSettings.levelStyleNames && typescaleSettings.levelStyleNames[levelNumber - 1];
+            var levelStyleName = typescaleSettings.levelStyleNames && typescaleSettings.levelStyleNames[levelNumber - 1];
             var fontStyleName = typescaleSettings.levelFontStyleNames && typescaleSettings.levelFontStyleNames[levelNumber - 1];
             var levelSizeOverride = typescaleSettings.levelSizeOverrides ? typescaleSettings.levelSizeOverrides[levelNumber - 1] : null;
             var levelSpaceBeforeOverride = typescaleSettings.levelSpaceBeforeOverrides ? typescaleSettings.levelSpaceBeforeOverrides[levelNumber - 1] : null;
             var levelSpaceAfterOverride = typescaleSettings.levelSpaceAfterOverrides ? typescaleSettings.levelSpaceAfterOverrides[levelNumber - 1] : null;
-            applyParagraphStyleSettings(name, computedSizes.headingSizes[levelNumber - 1], typescaleSettings.headingLeading, true, typescaleSettings.headingFontFamily, fontStyleName, levelSizeOverride, levelSpaceBeforeOverride, levelSpaceAfterOverride);
+            applyParagraphStyleSettings(levelStyleName, computedSizes.headingSizes[levelNumber - 1], typescaleSettings.headingLeading, true, typescaleSettings.headingFontFamily, fontStyleName, levelSizeOverride, levelSpaceBeforeOverride, levelSpaceAfterOverride);
         }
-    }
-
-    function getTextSizeUnit() {
-        // テキスト単位優先 → 定規単位 → ptにフォールバック
-        try {
-            var textSizeUnit = app.viewPreferences.textSizeMeasurementUnits;
-            if (textSizeUnit !== undefined && textSizeUnit !== null) return textSizeUnit;
-        } catch (e) { }
-        try {
-            return app.viewPreferences.horizontalMeasurementUnits;
-        } catch (e) { }
-        return MeasurementUnits.POINTS;
-    }
-
-    function getMeasurementUnitValue(unitName) {
-        try {
-            return MeasurementUnits[unitName];
-        } catch (e) { }
-        return null;
-    }
-
-    function unitSymbol(unit) {
-        var unitLabels = [
-            { name: "POINTS", label: "pt" },
-            { name: "MILLIMETERS", label: "mm" },
-            { name: "CENTIMETERS", label: "cm" },
-            { name: "INCHES", label: "inch" },
-            { name: "INCHES_DECIMAL", label: "inch" },
-            { name: "PICAS", label: "pica" },
-            { name: "CICEROS", label: "c" },
-            { name: "AGATES", label: "ag" },
-            { name: "PIXELS", label: "px" },
-            { name: "Q", label: "Q" },
-            { name: "HA", label: "H" }
-        ];
-
-        for (var unitIndex = 0; unitIndex < unitLabels.length; unitIndex++) {
-            if (unit === getMeasurementUnitValue(unitLabels[unitIndex].name)) {
-                return unitLabels[unitIndex].label;
-            }
-        }
-        return "pt";
-    }
-
-    function toPoints(value, unit) {
-        // 各種単位をポイントに変換（内部計算はpt基準）
-        var pointConverters = [
-            { name: "POINTS", factor: 1 },
-            { name: "MILLIMETERS", factor: 2.834645669 },
-            { name: "CENTIMETERS", factor: 28.34645669 },
-            { name: "INCHES", factor: 72 },
-            { name: "INCHES_DECIMAL", factor: 72 },
-            { name: "PICAS", factor: 12 },
-            { name: "CICEROS", factor: 12.7896 },
-            { name: "PIXELS", factor: 1 },
-            { name: "Q", factor: 0.708661417 }, /* 1Q = 0.25mm / 1Q = 0.25mm */
-            { name: "HA", factor: 0.708661417 }
-        ];
-
-        for (var unitIndex = 0; unitIndex < pointConverters.length; unitIndex++) {
-            if (unit === getMeasurementUnitValue(pointConverters[unitIndex].name)) {
-                return value * pointConverters[unitIndex].factor;
-            }
-        }
-        return value;
     }
 
     function roundTo(num, places) {
@@ -577,6 +676,9 @@ function getStyleWeightRank(styleName, familyName) {
     }
 
     var _fontInfo = null;
+
+    // ライブプレビュー／適用で書き換えた段落スタイル名（キャンセル時の復元対象）
+    var _previewModifiedStyles = {};
 
     function getFontInfo() {
         if (_fontInfo) return _fontInfo;
@@ -743,24 +845,29 @@ function getStyleWeightRank(styleName, familyName) {
     function showTypescaleDialog(targetDocument, defaultBase, defaultRatio, defaultLevelCount, unit) {
         var unitSym = unitSymbol(unit);
         var styleNames = getParagraphStyleNames(targetDocument);
-        // ダイアログ表示中のライブプレビューが値を書き換えるため、起動時に元値を退避しておく
-        var originalStyleProps = snapshotParagraphStyleProps(targetDocument);
-        var loadingPalette = createProgressPalette(L("loadingFonts"));
+        // ダイアログ表示中のライブプレビューが値を書き換えるため、元値を退避する（取得はダイアログ構築直前に実行）
+        var originalStyleProps = null;
+        var _fontSectionActive = false;  // 「フォント、スタイルを含める」でフォント・スタイル指定を有効化したか
+
+        // フォント一覧は UI（パレット／ダイアログ Window）を組み立てる前に読み込む。
+        // ダイアログ Window 生成後やモーダル表示中に重いフォント列挙を行うと InDesign が落ちるため、
+        // 「パレット表示 → 読み込み → パレットを閉じる → その後にダイアログ構築」の順を厳守する。
+        var loadingPalette = createProgressPalette(L("progress.loadingFonts"));
         var fontFamilies = getFontFamilyNames();
         closeProgressPalette(loadingPalette);
-        var fontOptions = [L("noFontChange")].concat(fontFamilies);
+        var fontOptions = [L("option.noFontChange")].concat(fontFamilies);
         var roundOptions = [
-            { label: L("roundInteger"), digits: 0 },
-            { label: L("roundFirstDecimal"), digits: 1 },
-            { label: L("roundSecondDecimal"), digits: 2 }
+            { label: L("rounding.integer"), digits: 0 },
+            { label: L("rounding.firstDecimal"), digits: 1 },
+            { label: L("rounding.secondDecimal"), digits: 2 }
         ];
         var defaultRoundDigits = 1;
         var kerningOptions = [
-            { label: L("kerningJapaneseMono"), value: "和文等幅" },
-            { label: L("kerningMetrics"), value: "メトリクス" },
-            { label: L("kerningOptical"), value: "オプティカル" }
+            { label: L("kerning.japaneseMono"), value: "和文等幅" },
+            { label: L("kerning.metrics"), value: "メトリクス" },
+            { label: L("kerning.optical"), value: "オプティカル" }
         ];
-        var PANEL_MARGINS = [15, 20, 15, 10];
+        var PANEL_MARGINS = [16, 20, 16, 12];
 
         function setupPanel(panel, spacing) {
             panel.orientation = "column";
@@ -841,17 +948,17 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         var scaleOptions = [
-            { type: "scale", key: "ratioMinorSecond", ratio: 1.067 },
-            { type: "scale", key: "ratioMajorSecond", ratio: 1.125 },
-            { type: "scale", key: "ratioMinorThird", ratio: 1.2 },
-            { type: "scale", key: "ratioMajorThird", ratio: 1.25 },
-            { type: "scale", key: "ratioGoldenHalf", ratio: 1.309 },
-            { type: "scale", key: "ratioPerfectFourth", ratio: 1.333 },
-            { type: "scale", key: "ratioAugmentedFourth", ratio: 1.414 },
-            { type: "scale", key: "ratioGolden", ratio: 1.618 },
+            { type: "scale", key: "ratio.minorSecond", ratio: 1.067 },
+            { type: "scale", key: "ratio.majorSecond", ratio: 1.125 },
+            { type: "scale", key: "ratio.minorThird", ratio: 1.2 },
+            { type: "scale", key: "ratio.majorThird", ratio: 1.25 },
+            { type: "scale", key: "ratio.goldenHalf", ratio: 1.309 },
+            { type: "scale", key: "ratio.perfectFourth", ratio: 1.333 },
+            { type: "scale", key: "ratio.augmentedFourth", ratio: 1.414 },
+            { type: "scale", key: "ratio.golden", ratio: 1.618 },
             {
                 type: "preset",
-                key: "ratioBrowserDefault",
+                key: "ratio.browserDefault",
                 multipliers: [2.00, 1.50, 1.17, 1.00],
                 captionMultiplier: 0.83,
                 forcedLevelCount: 4
@@ -879,26 +986,26 @@ function getStyleWeightRank(styleName, familyName) {
 
 
         function createBodyTextPanel(parent, labelWidth) {
-            var bodyPanel = parent.add("panel", undefined, L("bodyTextPanel"));
+            var bodyPanel = parent.add("panel", undefined, L("panel.bodyText"));
             setupPanel(bodyPanel, 4);
             bodyPanel.alignment = ["fill", "top"];
 
-            var fontGrp = addLabeledGroup(bodyPanel, labelText("font"), labelWidth);
+            var fontGrp = addLabeledGroup(bodyPanel, labelText("field.font"), labelWidth);
             var fontDD = fontGrp.add("dropdownlist", undefined, fontOptions);
             fontDD.preferredSize.width = 180;
             fontDD.selection = 0;
 
-            var fontStyleGrp = addLabeledGroup(bodyPanel, labelText("fontStyle"), labelWidth);
-            var fontStyleDD = fontStyleGrp.add("dropdownlist", undefined, [L("noFontChange")]);
+            var fontStyleGrp = addLabeledGroup(bodyPanel, labelText("field.fontStyle"), labelWidth);
+            var fontStyleDD = fontStyleGrp.add("dropdownlist", undefined, [L("option.noFontChange")]);
             fontStyleDD.preferredSize.width = 130;
             fontStyleDD.selection = 0;
 
-            var leadingBodyGrp = addLabeledGroup(bodyPanel, labelText("bodyLeadingRatio"), labelWidth);
+            var leadingBodyGrp = addLabeledGroup(bodyPanel, labelText("field.bodyLeading"), labelWidth);
             var leadingBodyInput = leadingBodyGrp.add("edittext", undefined, String(DEFAULT_BODY_LEADING_PERCENT));
             leadingBodyInput.characters = 4;
             leadingBodyGrp.add("statictext", undefined, "%");
 
-            var bodyKerningGrp = addLabeledGroup(bodyPanel, labelText("kerningMethod"), labelWidth);
+            var bodyKerningGrp = addLabeledGroup(bodyPanel, labelText("field.kerning"), labelWidth);
             var bodyKerningDD = bodyKerningGrp.add("dropdownlist", undefined, getKerningOptionLabels());
             bodyKerningDD.preferredSize.width = 110;
             selectKerningDropdownByValue(bodyKerningDD, "和文等幅");
@@ -912,28 +1019,28 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function createHeadingTextPanel(parent, labelWidth) {
-            var headingPanel = parent.add("panel", undefined, L("headingTextPanel"));
+            var headingPanel = parent.add("panel", undefined, L("panel.headingText"));
             setupPanel(headingPanel, 4);
             headingPanel.alignment = ["fill", "top"];
 
             // Font controls (like body panel)
-            var headingFontGrp = addLabeledGroup(headingPanel, labelText("font"), labelWidth);
-            var headingFontOptions = [L("refBodyFont")].concat(fontFamilies);
+            var headingFontGrp = addLabeledGroup(headingPanel, labelText("field.font"), labelWidth);
+            var headingFontOptions = [L("option.refBodyFont")].concat(fontFamilies);
             var headingFontDD = headingFontGrp.add("dropdownlist", undefined, headingFontOptions);
             headingFontDD.preferredSize.width = 180;
             headingFontDD.selection = 0;
 
-            var headingFontStyleGrp = addLabeledGroup(headingPanel, labelText("fontStyle"), labelWidth);
-            var headingFontStyleDD = headingFontStyleGrp.add("dropdownlist", undefined, [L("noFontChange")]);
+            var headingFontStyleGrp = addLabeledGroup(headingPanel, labelText("field.fontStyle"), labelWidth);
+            var headingFontStyleDD = headingFontStyleGrp.add("dropdownlist", undefined, [L("option.noFontChange")]);
             headingFontStyleDD.preferredSize.width = 130;
             headingFontStyleDD.selection = 0;
 
-            var leadingHeadingGrp = addLabeledGroup(headingPanel, labelText("headingLeadingRatio"), labelWidth);
+            var leadingHeadingGrp = addLabeledGroup(headingPanel, labelText("field.headingLeading"), labelWidth);
             var leadingHeadingInput = leadingHeadingGrp.add("edittext", undefined, String(DEFAULT_HEADING_LEADING_PERCENT));
             leadingHeadingInput.characters = 4;
             leadingHeadingGrp.add("statictext", undefined, "%");
 
-            var headingKerningGrp = addLabeledGroup(headingPanel, labelText("kerningMethod"), labelWidth);
+            var headingKerningGrp = addLabeledGroup(headingPanel, labelText("field.kerning"), labelWidth);
             var headingKerningDD = headingKerningGrp.add("dropdownlist", undefined, getKerningOptionLabels());
             headingKerningDD.preferredSize.width = 110;
             selectKerningDropdownByValue(headingKerningDD, "メトリクス");
@@ -947,16 +1054,16 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function createTextSettingsPanel(dialog) {
-            var basicPanel = dialog.add("group");
-            basicPanel.orientation = "column";
-            basicPanel.alignChildren = "fill";
-            basicPanel.alignment = "fill";
-            basicPanel.spacing = 6;
+            var textSettingsGroup = dialog.add("group");
+            textSettingsGroup.orientation = "column";
+            textSettingsGroup.alignChildren = "fill";
+            textSettingsGroup.alignment = "fill";
+            textSettingsGroup.spacing = 6;
 
             var BODY_LABEL_WIDTH = 80;
             var HEADING_LABEL_WIDTH = 94;
 
-            var textColumnGroup = basicPanel.add("group");
+            var textColumnGroup = textSettingsGroup.add("group");
             textColumnGroup.orientation = "row";
             textColumnGroup.alignChildren = ["fill", "top"];
             textColumnGroup.alignment = "fill";
@@ -978,25 +1085,28 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function createFontSettingsPanel(dialog) {
-            var fontPanel = dialog.add("panel", undefined, L("fontSettingsPanel"));
+            var fontPanel = dialog.add("panel", undefined, L("panel.fontAssignment"));
             fontPanel.alignment = ["fill", "top"];
             setupPanel(fontPanel, 6);
 
-            var modeGroup = fontPanel.add("group");
-            modeGroup.orientation = "column";
-            modeGroup.alignChildren = ["left", "center"];
+            var fontModeGroup = fontPanel.add("group");
+            fontModeGroup.orientation = "column";
+            fontModeGroup.alignChildren = ["left", "center"];
 
-            var useSameFontRadio = modeGroup.add("radiobutton", undefined, L("useSameFontForBodyAndHeading"));
-            var separateFontRadio = modeGroup.add("radiobutton", undefined, L("separateFontForBodyAndHeading"));
-            var disableFontRadio = modeGroup.add("radiobutton", undefined, L("disableFontSelection"));
+            var useSameFontRadio = fontModeGroup.add("radiobutton", undefined, L("fontMode.same"));
+            var separateFontRadio = fontModeGroup.add("radiobutton", undefined, L("fontMode.separate"));
+            var disableFontRadio = fontModeGroup.add("radiobutton", undefined, L("fontMode.none"));
 
-            useSameFontRadio.value = true;
+            // 初期状態はフォント・スタイル設定を不可（フォントを読み込まないため）
+            useSameFontRadio.value = false;
             separateFontRadio.value = false;
-            disableFontRadio.value = false;
+            disableFontRadio.value = true;
 
-            // 「サイズのみ」: ON で「フォントを変更しない」を強制し、行揃え／段落前後のアキの適用をスキップ
-            var sizeOnlyCheckbox = fontPanel.add("checkbox", undefined, L("sizeOnly"));
-            sizeOnlyCheckbox.value = false;
+            // 「サイズのみ」: ON にするとサイズだけ更新し、フォント／行送り／アキ等は元の値を保持する
+            // （保持の実体は setParagraphStyleProps の sizeOnly 分岐。ON 時にフォント指定を「変更しない」へ切り替えるのは onClick ハンドラ側）
+            // 既定 ON：初回は非破壊的にサイズだけ適用する（フォント指定の既定 disable とも整合）
+            var sizeOnlyCheckbox = fontPanel.add("checkbox", undefined, L("checkbox.sizeOnly"));
+            sizeOnlyCheckbox.value = true;
 
             return {
                 disableFontRadio: disableFontRadio,
@@ -1007,18 +1117,18 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function createScaleSettingsPanel(dialog) {
-            var optionsPanel = dialog.add("panel", undefined, L("scaleSettingsPanel"));
-            optionsPanel.alignment = ["fill", "top"];
-            setupPanel(optionsPanel, 6);
+            var scaleSettingsPanel = dialog.add("panel", undefined, L("panel.scaleSettings"));
+            scaleSettingsPanel.alignment = ["fill", "top"];
+            setupPanel(scaleSettingsPanel, 6);
 
             var OPTIONS_LABEL_WIDTH = 110;
 
-            var baseGrp = addLabeledGroup(optionsPanel, labelText("baseSizeBody"), OPTIONS_LABEL_WIDTH);
+            var baseGrp = addLabeledGroup(scaleSettingsPanel, labelText("field.baseSize"), OPTIONS_LABEL_WIDTH);
             var baseInput = baseGrp.add("edittext", undefined, String(defaultBase));
             baseInput.characters = 4;
             baseGrp.add("statictext", undefined, unitSym);
 
-            var scaleGrp = addLabeledGroup(optionsPanel, labelText("scaleRatio"), OPTIONS_LABEL_WIDTH);
+            var scaleGrp = addLabeledGroup(scaleSettingsPanel, labelText("field.scaleMethod"), OPTIONS_LABEL_WIDTH);
             var scaleLabels = [];
             for (var scaleOptionIndex = 0; scaleOptionIndex < scaleOptions.length; scaleOptionIndex++) {
                 var scaleLabel = L(scaleOptions[scaleOptionIndex].key);
@@ -1037,7 +1147,7 @@ function getStyleWeightRank(styleName, familyName) {
             }
             if (!scaleDD.selection) scaleDD.selection = 0;
 
-            var levelGrp = addLabeledGroup(optionsPanel, labelText("headingLevelCount"), OPTIONS_LABEL_WIDTH);
+            var levelGrp = addLabeledGroup(scaleSettingsPanel, labelText("field.headingLevels"), OPTIONS_LABEL_WIDTH);
             levelGrp.alignChildren = ["left", "bottom"];
             var levelRadios = [];
             for (var levelOptionIndex = 0; levelOptionIndex < levelOptions.length; levelOptionIndex++) {
@@ -1050,7 +1160,7 @@ function getStyleWeightRank(styleName, familyName) {
                 levelRadios[0].value = true;
             }
 
-            var roundGrp = addLabeledGroup(optionsPanel, labelText("sizeRounding"), OPTIONS_LABEL_WIDTH);
+            var roundGrp = addLabeledGroup(scaleSettingsPanel, labelText("field.sizeRounding"), OPTIONS_LABEL_WIDTH);
             roundGrp.alignChildren = ["left", "bottom"];
             var roundRadios = [];
             for (var roundOptionIndex = 0; roundOptionIndex < roundOptions.length; roundOptionIndex++) {
@@ -1069,10 +1179,10 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function createPreviewPanel(dialog) {
-            var previewPanel = dialog.add("panel", undefined, L("previewPanel"));
+            var previewPanel = dialog.add("panel", undefined, L("panel.preview"));
             setupPanel(previewPanel, 2);
 
-            var PREVIEW_LABEL_WIDTH = 84;
+            var PREVIEW_LABEL_WIDTH = 96; // 1列目（レベル名）を約1文字分広げる（★基準（本文）などに対応）
             var PREVIEW_SIZE_WIDTH = 80;
             var PREVIEW_SPACE_BEFORE_WIDTH = 80;
             var PREVIEW_SPACE_AFTER_WIDTH = 80;
@@ -1080,14 +1190,14 @@ function getStyleWeightRank(styleName, familyName) {
             var headerRow = previewPanel.add("group");
             headerRow.orientation = "row";
             headerRow.alignChildren = "left";
-            headerRow.add("statictext", undefined, labelText("levelHeader")).preferredSize.width = PREVIEW_LABEL_WIDTH;
-            headerRow.add("statictext", undefined, labelText("fontSizeHeader")).preferredSize.width = PREVIEW_SIZE_WIDTH;
-            var spaceBeforeHeader = headerRow.add("statictext", undefined, labelText("spaceBeforeHeader"));
+            headerRow.add("statictext", undefined, labelText("column.level")).preferredSize.width = PREVIEW_LABEL_WIDTH;
+            headerRow.add("statictext", undefined, labelText("column.size")).preferredSize.width = PREVIEW_SIZE_WIDTH;
+            var spaceBeforeHeader = headerRow.add("statictext", undefined, labelText("column.spaceBefore"));
             spaceBeforeHeader.preferredSize.width = PREVIEW_SPACE_BEFORE_WIDTH;
-            var spaceAfterHeader = headerRow.add("statictext", undefined, labelText("spaceAfterHeader"));
+            var spaceAfterHeader = headerRow.add("statictext", undefined, labelText("column.spaceAfter"));
             spaceAfterHeader.preferredSize.width = PREVIEW_SPACE_AFTER_WIDTH;
-            headerRow.add("statictext", undefined, labelText("paragraphStyleHeader")).preferredSize.width = 100;
-            var fontStyleHeader = headerRow.add("statictext", undefined, labelText("fontStyleHeader"));
+            headerRow.add("statictext", undefined, labelText("column.paragraphStyle")).preferredSize.width = 100;
+            var fontStyleHeader = headerRow.add("statictext", undefined, labelText("column.fontStyle"));
             fontStyleHeader.preferredSize.width = 100;
             fontStyleHeader.enabled = true;
 
@@ -1121,10 +1231,10 @@ function getStyleWeightRank(styleName, familyName) {
                 spaceAfterText.preferredSize.width = PREVIEW_SPACE_AFTER_WIDTH;
                 var styleDD = row.add("dropdownlist", undefined, styleNames);
                 styleDD.preferredSize.width = 100;
-                var candidateList = (defaultStyleNames instanceof Array) ? defaultStyleNames : [defaultStyleNames];
+                var candidateList = (typeof defaultStyleNames === "string") ? [defaultStyleNames] : defaultStyleNames;
                 selectDropdownByCandidates(styleDD, candidateList);
 
-                var fontStyleDD = row.add("dropdownlist", undefined, [L("noFontChange")]);
+                var fontStyleDD = row.add("dropdownlist", undefined, [L("option.noFontChange")]);
                 fontStyleDD.preferredSize.width = 100;
                 fontStyleDD.selection = 0;
                 fontStyleDD.enabled = true;
@@ -1146,13 +1256,22 @@ function getStyleWeightRank(styleName, familyName) {
             var levelRows = [];
             for (var levelNumber = 1; levelNumber <= 6; levelNumber++) {
                 var levelCandidates = ["h" + levelNumber, "Heading " + levelNumber];
-                levelRows.push(createPreviewRow(previewPanel, L("levelPrefix") + levelNumber, levelCandidates, true));
+                levelRows.push(createPreviewRow(previewPanel, L("row.levelPrefix") + levelNumber, levelCandidates, true));
             }
+
+            // 基準（本文）の下に並ぶ、本文サイズ×係数で算出する行（係数はユーザー設定の比率(%)から）
+            var baseRow = createPreviewRow(previewPanel, L("row.baseBody"), ["p", "Normal"], false);
+            var listRow = createPreviewRow(previewPanel, L("row.list"), ["ul-li", "ol-li", "List Paragraph"], false);
+            listRow.bodySizeFactor = DEFAULT_LIST_SIZE_PERCENT / 100;
+            var tableRow = createPreviewRow(previewPanel, L("row.table"), ["td", "th"], false);
+            tableRow.bodySizeFactor = DEFAULT_TABLE_SIZE_PERCENT / 100;
+            var captionRow = createPreviewRow(previewPanel, L("row.caption"), "p.caption", false);
 
             return {
                 levelRows: levelRows,
-                baseRow: createPreviewRow(previewPanel, L("baseBodyPreview"), ["p", "Normal"], false),
-                captionRow: createPreviewRow(previewPanel, L("captionPreview"), "p.caption", false),
+                baseRow: baseRow,
+                bodyDerivedRows: [listRow, tableRow],
+                captionRow: captionRow,
                 spaceBeforeHeader: spaceBeforeHeader,
                 spaceAfterHeader: spaceAfterHeader,
                 fontStyleHeader: fontStyleHeader
@@ -1170,33 +1289,39 @@ function getStyleWeightRank(styleName, familyName) {
             leftButtonColumn.orientation = "row";
             leftButtonColumn.alignChildren = ["left", "center"];
 
-            var clearCacheButton = leftButtonColumn.add("button", undefined, L("clearFontCache"));
+            var includeFontsButton = leftButtonColumn.add("button", undefined, L("button.includeFonts"));
 
             var centerButtonColumn = bottomRow.add("group");
             centerButtonColumn.alignment = ["fill", "fill"];
             centerButtonColumn.minimumSize.width = 0;
+            // 「フォント、スタイルを含める」適用中の進捗バー。
+            // モーダル表示中は別ウィンドウ（パレット）を出すと落ちるため、ダイアログ内に置く
+            var applyProgressBar = centerButtonColumn.add("progressbar", undefined, 0, 100);
+            applyProgressBar.alignment = ["fill", "center"];
+            applyProgressBar.preferredSize.height = 6;
+            applyProgressBar.visible = false;
 
             var rightButtonColumn = bottomRow.add("group");
             rightButtonColumn.orientation = "row";
             rightButtonColumn.alignChildren = ["right", "center"];
             rightButtonColumn.alignment = ["right", "center"];
 
-            rightButtonColumn.add("button", undefined, L("cancel"), { name: "cancel" });
-            rightButtonColumn.add("button", undefined, L("ok"), { name: "ok" });
+            rightButtonColumn.add("button", undefined, L("button.cancel"), { name: "cancel" });
+            rightButtonColumn.add("button", undefined, L("button.ok"), { name: "ok" });
 
-            return { clearCacheButton: clearCacheButton };
+            return { includeFontsButton: includeFontsButton, applyProgressBar: applyProgressBar };
         }
 
         function createTypescaleDialog() {
-            var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
-            dlg.orientation = "column";
-            dlg.alignChildren = "fill";
-            dlg.margins = 16;
-            dlg.spacing = 10;
+            var dialogWindow = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
+            dialogWindow.orientation = "column";
+            dialogWindow.alignChildren = "fill";
+            dialogWindow.margins = 16;
+            dialogWindow.spacing = 10;
 
-            var textSettingsUi = createTextSettingsPanel(dlg);
+            var textSettingsUi = createTextSettingsPanel(dialogWindow);
 
-            var optionColumnGroup = dlg.add("group");
+            var optionColumnGroup = dialogWindow.add("group");
             optionColumnGroup.orientation = "row";
             optionColumnGroup.alignChildren = ["fill", "top"];
             optionColumnGroup.alignment = "fill";
@@ -1204,12 +1329,12 @@ function getStyleWeightRank(styleName, familyName) {
 
             var scaleSettingsUi = createScaleSettingsPanel(optionColumnGroup);
             var fontSettingsUi = createFontSettingsPanel(optionColumnGroup);
-            var previewUi = createPreviewPanel(dlg);
+            var previewUi = createPreviewPanel(dialogWindow);
 
-            var buttonUi = createButtonRow(dlg);
+            var buttonUi = createButtonRow(dialogWindow);
 
             return {
-                dialog: dlg,
+                dialog: dialogWindow,
                 baseInput: scaleSettingsUi.baseInput,
                 fontDD: textSettingsUi.fontDD,
                 fontStyleDD: textSettingsUi.fontStyleDD,
@@ -1224,15 +1349,17 @@ function getStyleWeightRank(styleName, familyName) {
                 roundRadios: scaleSettingsUi.roundRadios,
                 levelRows: previewUi.levelRows,
                 baseRow: previewUi.baseRow,
+                bodyDerivedRows: previewUi.bodyDerivedRows,
                 captionRow: previewUi.captionRow,
                 spaceBeforeHeader: previewUi.spaceBeforeHeader,
                 spaceAfterHeader: previewUi.spaceAfterHeader,
                 fontStyleHeader: previewUi.fontStyleHeader,
-                clearCacheButton: buttonUi.clearCacheButton,
+                includeFontsButton: buttonUi.includeFontsButton,
+                applyProgressBar: buttonUi.applyProgressBar,
                 disableFontRadio: fontSettingsUi.disableFontRadio,
                 useSameFontRadio: fontSettingsUi.useSameFontRadio,
                 separateFontRadio: fontSettingsUi.separateFontRadio,
-                sizeOnlyCheckbox: fontSettingsUi.sizeOnlyCheckbox,
+                sizeOnlyCheckbox: fontSettingsUi.sizeOnlyCheckbox
             };
         }
 
@@ -1354,7 +1481,7 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function formatLeadingValue(value, roundDigits) {
-            if (typeof value !== "number" || isNaN(value)) return L("notAvailable");
+            if (typeof value !== "number" || isNaN(value)) return L("option.notAvailable");
             return String(roundTo(value, roundDigits)) + unitSym;
         }
 
@@ -1368,7 +1495,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         function getFontStyleDropdownValue(dropdownList) {
             if (!dropdownList.selection) return null;
-            if (dropdownList.selection.text === L("noFontChange")) return null;
+            if (dropdownList.selection.text === L("option.noFontChange")) return null;
             return dropdownList.selection.text;
         }
 
@@ -1387,6 +1514,9 @@ function getStyleWeightRank(styleName, familyName) {
                 previewRows.push(dialogUi.levelRows[levelRowIndex]);
             }
             previewRows.push(dialogUi.baseRow);
+            for (var bodyRowIndex = 0; bodyRowIndex < dialogUi.bodyDerivedRows.length; bodyRowIndex++) {
+                previewRows.push(dialogUi.bodyDerivedRows[bodyRowIndex]);
+            }
             previewRows.push(dialogUi.captionRow);
             return previewRows;
         }
@@ -1416,7 +1546,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         function syncPreviewFontStylesFromTextSettings(dialogUi) {
             var selectedFontStyleName = getDropdownText(dialogUi.fontStyleDD);
-            if (!selectedFontStyleName || selectedFontStyleName === L("noFontChange")) return;
+            if (!selectedFontStyleName || selectedFontStyleName === L("option.noFontChange")) return;
             selectAllPreviewFontStyleDropdowns(dialogUi, selectedFontStyleName);
         }
 
@@ -1425,17 +1555,18 @@ function getStyleWeightRank(styleName, familyName) {
                 ? dialogUi.fontStyleDD
                 : dialogUi.headingFontStyleDD;
             var selectedFontStyleName = getDropdownText(sourceFontStyleDropdown);
-            if (!selectedFontStyleName || selectedFontStyleName === L("noFontChange")) return;
+            if (!selectedFontStyleName || selectedFontStyleName === L("option.noFontChange")) return;
             for (var levelRowIndex = 0; levelRowIndex < dialogUi.levelRows.length; levelRowIndex++) {
                 selectDropdownByText(dialogUi.levelRows[levelRowIndex].fontStyleDD, selectedFontStyleName);
             }
         }
 
-        function syncSpaceColumnsDimming(dialogUi) {
+        function syncSizeOnlyColumnDimming(dialogUi) {
+            // 「サイズのみ」に連動して、段落前後のアキ列だけを淡色化する
+            // （「スタイル」列のヘッダーは syncFontSelectionEnabled 側で制御）
             var enabled = !(dialogUi.sizeOnlyCheckbox && dialogUi.sizeOnlyCheckbox.value);
             if (dialogUi.spaceBeforeHeader) dialogUi.spaceBeforeHeader.enabled = enabled;
             if (dialogUi.spaceAfterHeader) dialogUi.spaceAfterHeader.enabled = enabled;
-            if (dialogUi.fontStyleHeader) dialogUi.fontStyleHeader.enabled = enabled;
             var previewRows = getAllPreviewRows(dialogUi);
             for (var previewRowIndex = 0; previewRowIndex < previewRows.length; previewRowIndex++) {
                 previewRows[previewRowIndex].spaceBeforeText.enabled = enabled;
@@ -1450,20 +1581,24 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.fontStyleDD.enabled = enabled;
             dialogUi.headingFontDD.enabled = headingFontEnabled;
             dialogUi.headingFontStyleDD.enabled = headingFontEnabled;
-            if (dialogUi.useSameFontRadio) dialogUi.useSameFontRadio.enabled = true;
-            if (dialogUi.separateFontRadio) dialogUi.separateFontRadio.enabled = true;
-            if (dialogUi.disableFontRadio) dialogUi.disableFontRadio.enabled = true;
+            // 「スタイル（ウエイト）」列は、フォント指定が有効なときだけ操作可能にする（未アクティブ／変更しない時はディム）
+            if (dialogUi.fontStyleHeader) dialogUi.fontStyleHeader.enabled = enabled;
+            // フォント指定モードのラジオは「フォント、スタイルを含める」で有効化するまで停止状態
+            var radiosEnabled = !!_fontSectionActive;
+            if (dialogUi.useSameFontRadio) dialogUi.useSameFontRadio.enabled = radiosEnabled;
+            if (dialogUi.separateFontRadio) dialogUi.separateFontRadio.enabled = radiosEnabled;
+            if (dialogUi.disableFontRadio) dialogUi.disableFontRadio.enabled = radiosEnabled;
             if (!enabled) {
-                selectDropdownByText(dialogUi.fontDD, L("noFontChange"));
-                resetDropdownItems(dialogUi.fontStyleDD, [L("noFontChange")]);
-                selectDropdownByText(dialogUi.headingFontDD, L("refBodyFont"));
-                resetDropdownItems(dialogUi.headingFontStyleDD, [L("noFontChange")]);
+                selectDropdownByText(dialogUi.fontDD, L("option.noFontChange"));
+                resetDropdownItems(dialogUi.fontStyleDD, [L("option.noFontChange")]);
+                selectDropdownByText(dialogUi.headingFontDD, L("option.refBodyFont"));
+                resetDropdownItems(dialogUi.headingFontStyleDD, [L("option.noFontChange")]);
             }
             var previewRows = getAllPreviewRows(dialogUi);
             for (var previewRowIndex = 0; previewRowIndex < previewRows.length; previewRowIndex++) {
                 previewRows[previewRowIndex].fontStyleDD.enabled = enabled;
                 if (!enabled) {
-                    resetDropdownItems(previewRows[previewRowIndex].fontStyleDD, [L("noFontChange")]);
+                    resetDropdownItems(previewRows[previewRowIndex].fontStyleDD, [L("option.noFontChange")]);
                 }
             }
         }
@@ -1474,8 +1609,8 @@ function getStyleWeightRank(styleName, familyName) {
                 return;
             }
             var selectedFontFamily = getSelectedFontFamily(dialogUi);
-            var fontStyleOptions = selectedFontFamily ? getFontStylesInFamily(selectedFontFamily) : [L("noFontChange")];
-            if (fontStyleOptions.length === 0) fontStyleOptions = [L("noFontChange")];
+            var fontStyleOptions = selectedFontFamily ? getFontStylesInFamily(selectedFontFamily) : [L("option.noFontChange")];
+            if (fontStyleOptions.length === 0) fontStyleOptions = [L("option.noFontChange")];
 
             resetDropdownItems(dialogUi.fontStyleDD, fontStyleOptions);
             dialogUi.fontStyleDD.enabled = true;
@@ -1486,7 +1621,7 @@ function getStyleWeightRank(styleName, familyName) {
                 resetDropdownItems(previewRows[previewRowIndex].fontStyleDD, fontStyleOptions);
                 previewRows[previewRowIndex].fontStyleDD.enabled = true;
             }
-            if (selectedMasterFontStyleName && selectedMasterFontStyleName !== L("noFontChange")) {
+            if (selectedMasterFontStyleName && selectedMasterFontStyleName !== L("option.noFontChange")) {
                 selectAllPreviewFontStyleDropdowns(dialogUi, selectedMasterFontStyleName);
             }
         }
@@ -1501,17 +1636,12 @@ function getStyleWeightRank(styleName, familyName) {
                 return;
             }
             var selectedFontFamily = getSelectedHeadingFontFamily(dialogUi);
-            var fontStyleOptions = selectedFontFamily ? getFontStylesInFamily(selectedFontFamily) : [L("noFontChange")];
-            if (fontStyleOptions.length === 0) fontStyleOptions = [L("noFontChange")];
+            var fontStyleOptions = selectedFontFamily ? getFontStylesInFamily(selectedFontFamily) : [L("option.noFontChange")];
+            if (fontStyleOptions.length === 0) fontStyleOptions = [L("option.noFontChange")];
 
-            // 共通指定時のみ本文フォントを参照表示にする
-            if (dialogUi.useSameFontRadio && dialogUi.useSameFontRadio.value) {
-                dialogUi.headingFontDD.enabled = false;
-                dialogUi.headingFontDD.helpTip = L("refBodyFont");
-            } else {
-                dialogUi.headingFontDD.enabled = true;
-                dialogUi.headingFontDD.helpTip = "";
-            }
+            // ここに到達するのは「別指定」モードのみ（共通指定は冒頭で return 済み）。見出しフォントは選択可能
+            dialogUi.headingFontDD.enabled = true;
+            dialogUi.headingFontDD.helpTip = "";
 
             resetDropdownItems(dialogUi.headingFontStyleDD, fontStyleOptions);
             dialogUi.headingFontStyleDD.enabled = true;
@@ -1521,7 +1651,7 @@ function getStyleWeightRank(styleName, familyName) {
                 resetDropdownItems(dialogUi.levelRows[levelRowIndex].fontStyleDD, fontStyleOptions);
                 dialogUi.levelRows[levelRowIndex].fontStyleDD.enabled = true;
             }
-            if (selectedHeadingFontStyleName && selectedHeadingFontStyleName !== L("noFontChange")) {
+            if (selectedHeadingFontStyleName && selectedHeadingFontStyleName !== L("option.noFontChange")) {
                 syncHeadingPreviewFontStylesFromTextSettings(dialogUi);
             }
         }
@@ -1535,27 +1665,44 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         function collectLevelSizeOverrides(dialogUi) {
-            var arr = [];
+            var levelOverrides = [];
             for (var i = 0; i < dialogUi.levelRows.length; i++) {
-                arr.push(dialogUi.levelRows[i].sizeOverride);
+                levelOverrides.push(dialogUi.levelRows[i].sizeOverride);
             }
-            return arr;
+            return levelOverrides;
         }
 
         function collectLevelSpaceBeforeOverrides(dialogUi) {
-            var arr = [];
+            var levelOverrides = [];
             for (var i = 0; i < dialogUi.levelRows.length; i++) {
-                arr.push(dialogUi.levelRows[i].spaceBeforeOverride);
+                levelOverrides.push(dialogUi.levelRows[i].spaceBeforeOverride);
             }
-            return arr;
+            return levelOverrides;
         }
 
         function collectLevelSpaceAfterOverrides(dialogUi) {
-            var arr = [];
+            var levelOverrides = [];
             for (var i = 0; i < dialogUi.levelRows.length; i++) {
-                arr.push(dialogUi.levelRows[i].spaceAfterOverride);
+                levelOverrides.push(dialogUi.levelRows[i].spaceAfterOverride);
             }
-            return arr;
+            return levelOverrides;
+        }
+
+        // 本文派生行（リスト・テーブル）の適用情報を収集する
+        function collectBodyDerivedRows(dialogUi) {
+            var rows = [];
+            for (var bodyRowIndex = 0; bodyRowIndex < dialogUi.bodyDerivedRows.length; bodyRowIndex++) {
+                var bodyRow = dialogUi.bodyDerivedRows[bodyRowIndex];
+                rows.push({
+                    styleName: getDropdownText(bodyRow.styleDD),
+                    fontStyleName: getFontStyleDropdownValue(bodyRow.fontStyleDD),
+                    sizeFactor: bodyRow.bodySizeFactor,
+                    sizeOverride: bodyRow.sizeOverride,
+                    spaceBeforeOverride: bodyRow.spaceBeforeOverride,
+                    spaceAfterOverride: bodyRow.spaceAfterOverride
+                });
+            }
+            return rows;
         }
 
         function collectTypescaleSettings(dialogUi) {
@@ -1595,6 +1742,7 @@ function getStyleWeightRank(styleName, familyName) {
                 captionSizeOverride: dialogUi.captionRow.sizeOverride,
                 captionSpaceBeforeOverride: dialogUi.captionRow.spaceBeforeOverride,
                 captionSpaceAfterOverride: dialogUi.captionRow.spaceAfterOverride,
+                bodyDerivedRows: collectBodyDerivedRows(dialogUi),
                 sizeOnly: !!(dialogUi.sizeOnlyCheckbox && dialogUi.sizeOnlyCheckbox.value),
                 originalStyleProps: originalStyleProps
             };
@@ -1608,17 +1756,22 @@ function getStyleWeightRank(styleName, familyName) {
 
             if (baseSize === null) {
                 for (var levelRowIndex = 0; levelRowIndex < dialogUi.levelRows.length; levelRowIndex++) {
-                    dialogUi.levelRows[levelRowIndex].sizeText.text = L("notAvailable");
-                    dialogUi.levelRows[levelRowIndex].spaceBeforeText.text = L("notAvailable");
-                    dialogUi.levelRows[levelRowIndex].spaceAfterText.text = L("notAvailable");
+                    dialogUi.levelRows[levelRowIndex].sizeText.text = L("option.notAvailable");
+                    dialogUi.levelRows[levelRowIndex].spaceBeforeText.text = L("option.notAvailable");
+                    dialogUi.levelRows[levelRowIndex].spaceAfterText.text = L("option.notAvailable");
                     setRowEnabled(dialogUi.levelRows[levelRowIndex], false);
                 }
-                dialogUi.baseRow.sizeText.text = L("notAvailable");
-                dialogUi.baseRow.spaceBeforeText.text = L("notAvailable");
-                dialogUi.baseRow.spaceAfterText.text = L("notAvailable");
-                dialogUi.captionRow.sizeText.text = L("notAvailable");
-                dialogUi.captionRow.spaceBeforeText.text = L("notAvailable");
-                dialogUi.captionRow.spaceAfterText.text = L("notAvailable");
+                dialogUi.baseRow.sizeText.text = L("option.notAvailable");
+                dialogUi.baseRow.spaceBeforeText.text = L("option.notAvailable");
+                dialogUi.baseRow.spaceAfterText.text = L("option.notAvailable");
+                for (var bodyRowIndex = 0; bodyRowIndex < dialogUi.bodyDerivedRows.length; bodyRowIndex++) {
+                    dialogUi.bodyDerivedRows[bodyRowIndex].sizeText.text = L("option.notAvailable");
+                    dialogUi.bodyDerivedRows[bodyRowIndex].spaceBeforeText.text = L("option.notAvailable");
+                    dialogUi.bodyDerivedRows[bodyRowIndex].spaceAfterText.text = L("option.notAvailable");
+                }
+                dialogUi.captionRow.sizeText.text = L("option.notAvailable");
+                dialogUi.captionRow.spaceBeforeText.text = L("option.notAvailable");
+                dialogUi.captionRow.spaceAfterText.text = L("option.notAvailable");
                 return;
             }
 
@@ -1642,9 +1795,9 @@ function getStyleWeightRank(styleName, familyName) {
                     levelRow.spaceAfterText.text = formatLeadingValue(effectiveHeadingSpaceAfter, roundDigits);
                     setRowEnabled(levelRow, true);
                 } else {
-                    levelRow.sizeText.text = L("notAvailable");
-                    levelRow.spaceBeforeText.text = L("notAvailable");
-                    levelRow.spaceAfterText.text = L("notAvailable");
+                    levelRow.sizeText.text = L("option.notAvailable");
+                    levelRow.spaceBeforeText.text = L("option.notAvailable");
+                    levelRow.spaceAfterText.text = L("option.notAvailable");
                     setRowEnabled(levelRow, false);
                 }
             }
@@ -1654,6 +1807,17 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.baseRow.spaceBeforeText.text = formatLeadingValue(effectiveBaseSpaceBefore, roundDigits);
             var effectiveBaseSpaceAfter = (typeof dialogUi.baseRow.spaceAfterOverride === "number") ? dialogUi.baseRow.spaceAfterOverride : effectiveBaseSize * bodySpaceAfterRatio;
             dialogUi.baseRow.spaceAfterText.text = formatLeadingValue(effectiveBaseSpaceAfter, roundDigits);
+            // 本文派生行（リスト・テーブル）: 文字サイズは基準（本文）×係数
+            for (var bodyRowIndex = 0; bodyRowIndex < dialogUi.bodyDerivedRows.length; bodyRowIndex++) {
+                var bodyRow = dialogUi.bodyDerivedRows[bodyRowIndex];
+                var bodyRowSize = computedSizes.base * bodyRow.bodySizeFactor;
+                var effectiveBodyRowSize = (typeof bodyRow.sizeOverride === "number") ? bodyRow.sizeOverride : bodyRowSize;
+                bodyRow.sizeText.text = roundTo(effectiveBodyRowSize, roundDigits) + " " + unitSym;
+                var effectiveBodyRowSpaceBefore = (typeof bodyRow.spaceBeforeOverride === "number") ? bodyRow.spaceBeforeOverride : effectiveBodyRowSize * bodySpaceBeforeRatio;
+                bodyRow.spaceBeforeText.text = formatLeadingValue(effectiveBodyRowSpaceBefore, roundDigits);
+                var effectiveBodyRowSpaceAfter = (typeof bodyRow.spaceAfterOverride === "number") ? bodyRow.spaceAfterOverride : effectiveBodyRowSize * bodySpaceAfterRatio;
+                bodyRow.spaceAfterText.text = formatLeadingValue(effectiveBodyRowSpaceAfter, roundDigits);
+            }
             var effectiveCaptionSize = (typeof dialogUi.captionRow.sizeOverride === "number") ? dialogUi.captionRow.sizeOverride : computedSizes.caption;
             dialogUi.captionRow.sizeText.text = roundTo(effectiveCaptionSize, roundDigits) + " " + unitSym;
             var effectiveCaptionSpaceBefore = (typeof dialogUi.captionRow.spaceBeforeOverride === "number") ? dialogUi.captionRow.spaceBeforeOverride : effectiveCaptionSize * bodySpaceBeforeRatio;
@@ -1662,7 +1826,7 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.captionRow.spaceAfterText.text = formatLeadingValue(effectiveCaptionSpaceAfter, roundDigits);
 
             applyTypescaleSettings(targetDocument, collectTypescaleSettings(dialogUi), true, unit);
-            syncSpaceColumnsDimming(dialogUi);
+            syncSizeOnlyColumnDimming(dialogUi);
         }
 
         function clearTextOverridesInSelection() {
@@ -1688,28 +1852,32 @@ function getStyleWeightRank(styleName, familyName) {
             updateTypescalePreview(dialogUi);
         }
 
-        function clearFontCacheAndReload(dialogUi) {
-            // ディスクキャッシュとメモリキャッシュをクリア
-            try {
-                var cacheFile = getFontCacheFile();
-                if (cacheFile && cacheFile.exists) cacheFile.remove();
-            } catch (eRemove) { }
-            _fontInfo = null;
-
-            // ファミリー／スタイル一覧を再取得してドロップダウンを差し替え
-            var refreshedFamilies = getFontFamilyNames();
-            var refreshedFontOptions = [L("noFontChange")].concat(refreshedFamilies);
-            var refreshedHeadingFontOptions = [L("refBodyFont")].concat(refreshedFamilies);
-            var previousFontText = getDropdownText(dialogUi.fontDD);
-            var previousHeadingFontText = getDropdownText(dialogUi.headingFontDD);
-            resetDropdownItems(dialogUi.fontDD, refreshedFontOptions);
-            resetDropdownItems(dialogUi.headingFontDD, refreshedHeadingFontOptions);
-            if (previousFontText) selectDropdownByText(dialogUi.fontDD, previousFontText);
-            if (previousHeadingFontText) selectDropdownByText(dialogUi.headingFontDD, previousHeadingFontText);
-
+        // 「フォント、スタイルを含める」: 停止中のフォント・スタイル指定を有効化する
+        // （フォント自体は起動時に読み込み済みなので、ここではモードの切り替えと有効化のみ）
+        function includeFontsAndStyles(dialogUi) {
+            _fontSectionActive = true;
+            // 本文と見出しで共通の指定からアクティブ化する
+            setFontOptionMode(dialogUi, "same");
+            if (dialogUi.sizeOnlyCheckbox) dialogUi.sizeOnlyCheckbox.value = false;
+            if (dialogUi.includeFontsButton) dialogUi.includeFontsButton.enabled = false;
+            // 初回のフォント適用（フォントオブジェクト解決＋段落スタイル反映）は時間がかかるため、
+            // ダイアログ内の進捗バーを表示する（モーダル中は別ウィンドウを出せないため）
+            if (dialogUi.applyProgressBar) {
+                dialogUi.applyProgressBar.value = 40;
+                dialogUi.applyProgressBar.visible = true;
+                try { dialogUi.dialog.update(); } catch (eShowProgress) { }
+            }
+            syncFontSelectionEnabled(dialogUi);
             updateFontStyleDropdowns(dialogUi);
             updateHeadingFontStyleDropdowns(dialogUi);
-            refreshPreviewAfterFontChange(dialogUi);
+            syncPreviewFontStylesFromTextSettings(dialogUi);
+            updateTypescalePreview(dialogUi);
+            if (dialogUi.applyProgressBar) {
+                dialogUi.applyProgressBar.value = 100;
+                try { dialogUi.dialog.update(); } catch (eDoneProgress) { }
+                dialogUi.applyProgressBar.visible = false;
+                try { dialogUi.dialog.update(); } catch (eHideProgress) { }
+            }
         }
 
         function setFontOptionMode(dialogUi, mode) {
@@ -1743,6 +1911,11 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.baseRow.sizeOverride = null;
             dialogUi.baseRow.spaceBeforeOverride = null;
             dialogUi.baseRow.spaceAfterOverride = null;
+            for (var bodyClearIndex = 0; bodyClearIndex < dialogUi.bodyDerivedRows.length; bodyClearIndex++) {
+                dialogUi.bodyDerivedRows[bodyClearIndex].sizeOverride = null;
+                dialogUi.bodyDerivedRows[bodyClearIndex].spaceBeforeOverride = null;
+                dialogUi.bodyDerivedRows[bodyClearIndex].spaceAfterOverride = null;
+            }
             dialogUi.captionRow.sizeOverride = null;
             dialogUi.captionRow.spaceBeforeOverride = null;
             dialogUi.captionRow.spaceAfterOverride = null;
@@ -1843,6 +2016,11 @@ function getStyleWeightRank(styleName, familyName) {
                 updateTypescalePreview(dialogUi);
             });
             bindPreviewCellEdit(dialogUi, dialogUi.captionRow);
+            for (var bodyBindIndex = 0; bodyBindIndex < dialogUi.bodyDerivedRows.length; bodyBindIndex++) {
+                bindPreviewCellEdit(dialogUi, dialogUi.bodyDerivedRows[bodyBindIndex]);
+                dialogUi.bodyDerivedRows[bodyBindIndex].styleDD.onChange = function () { updateTypescalePreview(dialogUi); };
+                dialogUi.bodyDerivedRows[bodyBindIndex].fontStyleDD.onChange = function () { updateTypescalePreview(dialogUi); };
+            }
             for (var levelRadioIndex = 0; levelRadioIndex < dialogUi.levelRadios.length; levelRadioIndex++) {
                 dialogUi.levelRadios[levelRadioIndex].onClick = function () { updateTypescalePreview(dialogUi); };
             }
@@ -1887,7 +2065,7 @@ function getStyleWeightRank(styleName, familyName) {
                     updateFontStyleDropdowns(dialogUi);
                     updateHeadingFontStyleDropdowns(dialogUi);
                 }
-                syncSpaceColumnsDimming(dialogUi);
+                syncSizeOnlyColumnDimming(dialogUi);
                 updateTypescalePreview(dialogUi);
             };
             dialogUi.fontDD.onChange = function () {
@@ -1919,25 +2097,30 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.leadingHeadingInput.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.bodyKerningDD.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.headingKerningDD.onChange = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.clearCacheButton.onClick = function () { clearFontCacheAndReload(dialogUi); };
+            dialogUi.includeFontsButton.onClick = function () { includeFontsAndStyles(dialogUi); };
         }
 
         bindTypescaleDialogEvents(dialogUi);
+        // フォントドロップダウンはファミリー一覧を反映済みの状態で構築されている（先頭でロード済み）
         updateFontStyleDropdowns(dialogUi);
         updateHeadingFontStyleDropdowns(dialogUi);
         syncLevelRadiosWithScaleOption(dialogUi);
-        updateTypescalePreview(dialogUi);
         syncFontSelectionEnabled(dialogUi);
+        // ライブプレビューが書き換える前の段落スタイルを退避し、初回プレビューを反映してから開く
+        originalStyleProps = snapshotParagraphStyleProps(targetDocument);
+        updateTypescalePreview(dialogUi);
 
         var dialogResult = dialogUi.dialog.show();
         clearOverridesIfActive(dialogUi);
 
         if (dialogResult !== 1) {
+            // キャンセル：ライブプレビューで書き換えた段落スタイルを起動時の状態へ戻す
+            restoreParagraphStyleProps(targetDocument, originalStyleProps, _previewModifiedStyles);
             return null;
         }
 
         if (getBaseSize(dialogUi) === null) {
-            alert(L("errInvalidBaseSize"));
+            alert(L("error.invalidBaseSize"));
             return null;
         }
         return collectTypescaleSettings(dialogUi);
@@ -1946,9 +2129,11 @@ function getStyleWeightRank(styleName, familyName) {
     function setParagraphStyleProps(targetDocument, styleName, size, font, leading, spaceAfter, spaceBefore, kerningMethod, isHeading, silent, sizeOnly, originalProps) {
         var style = findParagraphStyle(targetDocument, styleName);
         if (style === null) {
-            if (!silent) alert(formatLabel("errMissingParagraphStyle", styleName));
+            if (!silent) alert(formatLabel("error.missingStyle", styleName));
             return false;
         }
+        // 書き換えるスタイルを記録（キャンセル時にこのスタイルだけ起動時状態へ戻す）
+        _previewModifiedStyles[styleName] = true;
         // サイズのみモード: サイズだけを更新し、その他はダイアログ起動時の値に戻す
         if (sizeOnly) {
             style.pointSize = size;
@@ -2017,35 +2202,59 @@ function getStyleWeightRank(styleName, familyName) {
         if (kerningMethod) {
             try { style.kerningMethod = kerningMethod; } catch (ke) { }
         }
-        try {
-            if (isHeading) {
-                // 見出しは左揃え / Headings are left aligned
-                style.justification = Justification.LEFT_ALIGN;
-            } else {
-                // 本文・キャプションは均等配置（最終行左） / Body and captions are left-justified
-                style.justification = Justification.LEFT_JUSTIFIED;
-            }
-        } catch (e) { }
+        // 字揃えは既定では変更しない（元の字揃えを保持）。ENABLE_JUSTIFICATION を true にすると強制適用する
+        if (ENABLE_JUSTIFICATION) {
+            try {
+                if (isHeading) {
+                    // 見出しは左揃え / Headings are left aligned
+                    style.justification = Justification.LEFT_ALIGN;
+                } else {
+                    // 本文・キャプションは均等配置（最終行左） / Body and captions are left-justified
+                    style.justification = Justification.LEFT_JUSTIFIED;
+                }
+            } catch (e) { }
+        }
         return true;
     }
 
-    // 「サイズのみ」復元用に、ダイアログ起動時点の段落スタイルのプロパティを記録する
+    // 「サイズのみ」復元・キャンセル復元用に、ダイアログ起動時点の段落スタイルのプロパティを記録する
     function snapshotParagraphStyleProps(targetDocument) {
         var snapshot = {};
         var styles = targetDocument.allParagraphStyles;
         for (var snapshotIndex = 0; snapshotIndex < styles.length; snapshotIndex++) {
-            var s = styles[snapshotIndex];
-            var entry = {};
-            try { entry.leading = s.leading; } catch (eL) { }
-            try { entry.spaceBefore = s.spaceBefore; } catch (eSB) { }
-            try { entry.spaceAfter = s.spaceAfter; } catch (eSA) { }
-            try { entry.justification = s.justification; } catch (eJ) { }
-            try { entry.appliedFont = s.appliedFont; } catch (eF) { }
-            try { entry.fontStyle = s.fontStyle; } catch (eFS) { }
-            try { entry.kerningMethod = s.kerningMethod; } catch (eK) { }
-            snapshot[s.name] = entry;
+            var paragraphStyle = styles[snapshotIndex];
+            var styleSnapshot = {};
+            try { styleSnapshot.pointSize = paragraphStyle.pointSize; } catch (ePS) { }
+            try { styleSnapshot.leading = paragraphStyle.leading; } catch (eL) { }
+            try { styleSnapshot.spaceBefore = paragraphStyle.spaceBefore; } catch (eSB) { }
+            try { styleSnapshot.spaceAfter = paragraphStyle.spaceAfter; } catch (eSA) { }
+            try { styleSnapshot.justification = paragraphStyle.justification; } catch (eJ) { }
+            try { styleSnapshot.appliedFont = paragraphStyle.appliedFont; } catch (eF) { }
+            try { styleSnapshot.fontStyle = paragraphStyle.fontStyle; } catch (eFS) { }
+            try { styleSnapshot.kerningMethod = paragraphStyle.kerningMethod; } catch (eK) { }
+            snapshot[paragraphStyle.name] = styleSnapshot;
         }
         return snapshot;
+    }
+
+    // キャンセル時：プレビューで書き換えたスタイルだけを起動時の状態へ戻す
+    function restoreParagraphStyleProps(targetDocument, originalStyleProps, modifiedStyleNames) {
+        if (!originalStyleProps || !modifiedStyleNames) return;
+        for (var styleName in modifiedStyleNames) {
+            if (!modifiedStyleNames.hasOwnProperty(styleName)) continue;
+            var snap = originalStyleProps[styleName];
+            if (!snap) continue;
+            var style = findParagraphStyle(targetDocument, styleName);
+            if (style === null) continue;
+            if (typeof snap.pointSize !== "undefined") { try { style.pointSize = snap.pointSize; } catch (eRPS) { } }
+            if (snap.appliedFont) { try { style.appliedFont = snap.appliedFont; } catch (eRF) { } }
+            if (snap.fontStyle) { try { style.fontStyle = snap.fontStyle; } catch (eRFS) { } }
+            if (typeof snap.leading !== "undefined") { try { style.leading = snap.leading; } catch (eRL) { } }
+            if (typeof snap.spaceBefore !== "undefined") { try { style.spaceBefore = snap.spaceBefore; } catch (eRSB) { } }
+            if (typeof snap.spaceAfter !== "undefined") { try { style.spaceAfter = snap.spaceAfter; } catch (eRSA) { } }
+            if (typeof snap.kerningMethod !== "undefined") { try { style.kerningMethod = snap.kerningMethod; } catch (eRK) { } }
+            if (typeof snap.justification !== "undefined") { try { style.justification = snap.justification; } catch (eRJ) { } }
+        }
     }
 
     function findParagraphStyle(targetDocument, styleName) {
