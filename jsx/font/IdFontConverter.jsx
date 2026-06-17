@@ -4,19 +4,22 @@
 
 フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて変更するスクリプト（InDesign 版）。
 
-- 対象は「選択オブジェクト / ドキュメント全体 / アクティブスプレッド」から選択
+- 対象は「選択範囲 / ストーリー / ドキュメント全体 / アクティブスプレッド」から選択
 - 変換設定は 3 カラム（左=文字セット／中央=N・NT／右=UD・P）。各項目は「現状維持 / なし / あり」で切り替え
 - 文字セットは Std / Pro / Pr5 / Pr6（N は別軸でトグル）
 - 新ゴ ⇄ 新ゴNT を NT 設定で切り替え
 - プリセット Max（収録最多の N なし＋UD＋P）/ MaxN（収録最多の N あり込み＋UD＋P）
 - G-OTF 学参書体（常改 / 学参 / K書体）を A-OTF に統合（チェックボックス）
 - A1明朝など特殊シリーズは太さ等価で対応（A-OTF A1明朝 Std B ＝ A P-OTF A1明朝 StdN R）
+- AXIS（Type Project）は文字セット体系が異なるため専用処理（幅 Basic/Cond/Comp と Joyo は保持し、N と Std⇄Pro のみ切り替え）
 - CID フォント・実行前確認は先頭のスイッチ（UI 非表示）で制御
-- 段落スタイル・文字スタイル、ロック / 非表示オブジェクトも対象に含められる
+- 段落スタイル・文字スタイル・合成フォントの各エントリ、ロック / 非表示オブジェクトも対象に含められる
+- 表セル（Cell）の選択にも対応
 - 実行前に変更内容（旧 → 新）を和文フォント名でプレビュー確認、ページ上の位置順（上→下）に表示、未インストールフォントは事前に警告
 - 同名ウエイトが見つからない場合は近いウエイトへ置換
 - 適用は textStyleRange（同一書式の連続範囲）単位でまとめて処理（高速）。全体を 1 アンドゥにまとめる
 - 変換対象ファミリーはフォントデータベースから生成（FONT_FAMILIES）
+- フォントのインデックス化はダイアログ確定後まで遅延し、初回表示を高速化
 
 ### 参考
 
@@ -31,6 +34,8 @@ https://note.com/dtp_tranist/n/n261c771b4b41
 - v1.0.0 : 初版（Illustrator）
 - v1.0.1 : 確認ダイアログを和文フォント名で表示・カンバス上から順（上→下）に並べ替え・→ の位置をそろえる（変更前列を固定幅）・タイトルのバージョン表記を削除・左右マージンを調整
 - v1.0.1 (InDesign 移植) : 対象を選択 / ドキュメント / アクティブスプレッドに対応、フォント解決を app.fonts の PostScript 名インデックス化、適用を textStyleRange 単位 + 単一アンドゥに変更
+- v1.1.0 : FontConverter.jsx を統合。対象範囲に「アクティブスプレッド」を追加（選択範囲 / ストーリー / ドキュメント / アクティブスプレッドの 4 モード）
+- v1.1.1 : 初回ダイアログ表示を高速化（フォントインデックス化を確定後まで遅延）、ロック解除中のエラー時も確実に復元（try/finally）、概要・ツールチップを更新
 
 */
 
@@ -40,7 +45,7 @@ https://note.com/dtp_tranist/n/n261c771b4b41
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.1.1";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -196,6 +201,7 @@ var LABELS = {
         targetSelection: { ja: "選択範囲", en: "Selection" },
         targetStory: { ja: "ストーリー", en: "Story" },
         targetDocument: { ja: "ドキュメント", en: "Document" },
+        targetSpread: { ja: "アクティブスプレッド", en: "Active spread" },
         keep: { ja: "現状維持", en: "Keep current" },
         nOff: { ja: "Nなし", en: "Without N" },
         nOn: { ja: "Nあり", en: "With N" },
@@ -258,6 +264,10 @@ var LABELS = {
             ja: "対象となるテキストが見つかりませんでした。",
             en: "No target text was found."
         },
+        noLayoutWindow: {
+            ja: "レイアウトウィンドウがアクティブではありません。ドキュメントのページを表示してから実行してください。",
+            en: "No layout window is active. Switch to a document layout view and try again."
+        },
         noChange: {
             ja: "変更対象のフォントが見つかりませんでした。",
             en: "No fonts to change were found."
@@ -267,8 +277,8 @@ var LABELS = {
     },
     tooltip: {
         target: {
-            ja: "フォント種別を変更する範囲を選びます。選択範囲、選択が属するストーリー全体、ドキュメント全体から選択できます。",
-            en: "Choose the scope for changing font variants: the selection, the whole story containing the selection, or the entire document."
+            ja: "フォント種別を変更する範囲を選びます。選択範囲、選択が属するストーリー全体、ドキュメント全体、アクティブスプレッド内から選択できます。",
+            en: "Choose the scope for changing font variants: the selection, the whole story containing the selection, the entire document, or the active spread."
         },
         charset: {
             ja: "文字セットを Std / Pro / Pr5 / Pr6 から選びます。N の有無は別の「N設定」で切り替えます。",
@@ -283,8 +293,8 @@ var LABELS = {
             en: "Toggle the UD variant only for families that support it. Unsupported families are ignored."
         },
         pSetting: {
-            ja: "AP版書体",
-            en: "A P-OTF (proportional) version"
+            ja: "AP版書体へ切り替えます。対応しないファミリーでは無視されます。",
+            en: "Switch to the A P-OTF (proportional) version. Unsupported families are ignored."
         },
         includeLocked: {
             ja: "ロック中のオブジェクトも一時的に解除して変更し、処理後に元のロック状態へ戻します。",
@@ -389,10 +399,12 @@ function setupGroup(group, orientation, spacing) {
     // フォントインデックス / Font index by PostScript name
     // -----------------------------------------
 
-    /* PostScript 名 → Font オブジェクト。installed はインストール済みのみ、all は表示名解決用（未インストール含む） */
+    /* PostScript 名 → Font オブジェクト。installed はインストール済みのみ、all は表示名解決用（未インストール含む）
+       実体の構築はダイアログ確定後（実処理の直前）まで遅延する。フォント数が多い環境での初回表示を速くするため。
+       Maps are populated lazily after the dialog is confirmed (right before processing), so the first dialog opens fast. */
     var installedFontByPs = {};
     var allFontByPs = {};
-    (function indexFonts() {
+    function indexFonts() {
         var fonts = app.fonts;
 
         // まとめて取得する（1 書体ずつのプロパティ参照は DOM 往復が多く非常に遅い）
@@ -428,7 +440,7 @@ function setupGroup(group, orientation, spacing) {
             try { inst = (font.status === FontStatus.INSTALLED); } catch (e2) { inst = true; }
             if (inst && !installedFontByPs.hasOwnProperty(ps)) installedFontByPs[ps] = font;
         }
-    })();
+    }
 
     // -----------------------------------------
     // ダイアログ / Dialog
@@ -444,6 +456,7 @@ function setupGroup(group, orientation, spacing) {
     var rbTargetSelection = targetPanel.add("radiobutton", undefined, L("radio.targetSelection"));
     var rbTargetStory = targetPanel.add("radiobutton", undefined, L("radio.targetStory"));
     var rbTargetDocument = targetPanel.add("radiobutton", undefined, L("radio.targetDocument"));
+    var rbTargetSpread = targetPanel.add("radiobutton", undefined, L("radio.targetSpread"));
     rbTargetSelection.value = true;
 
     /* 変換設定パネル（文字セット/N/UD/P と Max/MaxN をまとめる）/ Conversion panel (variant columns + presets) */
@@ -585,6 +598,7 @@ function setupGroup(group, orientation, spacing) {
     var targetMode = "selection";
     if (rbTargetStory.value) targetMode = "story";
     if (rbTargetDocument.value) targetMode = "document";
+    if (rbTargetSpread.value) targetMode = "spread";
 
     var charsetMode = "keep"; // keep / Pro / Pr5 / Pr6 / Std
     if (rbCharsetPro.value) charsetMode = "Pro";
@@ -609,6 +623,17 @@ function setupGroup(group, orientation, spacing) {
         alert(L("alert.noSelection"));
         return;
     }
+
+    /* スプレッドモードはレイアウトウィンドウが必要 / Spread mode needs an active layout window */
+    var isLayoutWindow = false;
+    try { isLayoutWindow = (app.activeWindow.constructor.name === "LayoutWindow"); } catch (e) { isLayoutWindow = false; }
+    if (targetMode === "spread" && !isLayoutWindow) {
+        alert(L("alert.noLayoutWindow"));
+        return;
+    }
+
+    // フォントインデックスをここで構築（ダイアログ確定・入力検証を通過してから）/ Build the font index now (after the dialog is confirmed and validated)
+    indexFonts();
 
     // -----------------------------------------
     // 対象テキストの収集 / Collect target text
@@ -729,8 +754,32 @@ function setupGroup(group, orientation, spacing) {
             collectStoriesFromSelection(app.selection);
             return;
         }
+        if (mode === "spread") {
+            // アクティブスプレッド上のテキストフレームを対象にする / Text frames on the active spread
+            var spreadFrames = collectActiveSpreadTextFrames();
+            for (var s = 0; s < spreadFrames.length; s++) {
+                var frame = spreadFrames[s];
+                if (!includeLocked && isFrameLocked(frame)) continue;
+                if (!includeHidden && isFrameHidden(frame)) continue;
+                addStoryTarget(frame.parentStory);
+            }
+            return;
+        }
         // selection
         collectFromSelection(app.selection);
+    }
+
+    /* アクティブスプレッド上のテキストフレームを集める（グループ内も含む）/ Collect text frames on the active spread (incl. groups) */
+    function collectActiveSpreadTextFrames() {
+        var result = [];
+        try {
+            var spread = app.activeWindow.activeSpread;
+            var items = spread.allPageItems;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].constructor.name === "TextFrame") result.push(items[i]);
+            }
+        } catch (e) { }
+        return result;
     }
 
     /* 選択アイテム（グループ内も再帰）から部分選択を尊重して集める / Collect targets, honoring partial selection */
@@ -1441,16 +1490,19 @@ function setupGroup(group, orientation, spacing) {
         var savedLocked = unlockFramesFor(target);
 
         var changed = false;
-        var storyChars = target.story.characters;
-        for (var j = 0; j < jobs.length; j++) {
-            try {
-                storyChars.itemByRange(jobs[j].start, jobs[j].end).appliedFont = jobs[j].font;
-                changed = true;
-            } catch (e3) { }
+        // 途中でエラーが出てもロックを確実に戻すため try/finally で囲む / Wrap in try/finally so locks are always restored
+        try {
+            var storyChars = target.story.characters;
+            for (var j = 0; j < jobs.length; j++) {
+                try {
+                    storyChars.itemByRange(jobs[j].start, jobs[j].end).appliedFont = jobs[j].font;
+                    changed = true;
+                } catch (e3) { }
+            }
+        } finally {
+            // ロック状態を復元 / Restore lock states
+            restoreLocks(savedLocked);
         }
-
-        // ロック状態を復元 / Restore lock states
-        restoreLocks(savedLocked);
 
         // テキストオブジェクト（ストーリー）単位でカウント / Count per story
         return changed ? 1 : 0;
