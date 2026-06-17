@@ -127,6 +127,10 @@
     - base-regex（basestyle）: `~a` → inline-graphic
     - ul-li（共通3つ＋固有1つを直接設定）: `[\u\l]` → lang-US / `..[。」』？！…]?$` → no-break / `~a` → inline-graphic / `^.+?(?=：)` → li-label
 
+    ### 紹介記事
+
+    https://note.com/dtp_tranist/n/nfe87ec253780
+
     ### 変更履歴
 
     v1.3.0
