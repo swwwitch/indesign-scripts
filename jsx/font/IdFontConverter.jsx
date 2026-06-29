@@ -35,7 +35,7 @@ https://note.com/dtp_tranist/n/n261c771b4b41
 - v1.0.1 : 確認ダイアログを和文フォント名で表示・カンバス上から順（上→下）に並べ替え・→ の位置をそろえる（変更前列を固定幅）・タイトルのバージョン表記を削除・左右マージンを調整
 - v1.0.1 (InDesign 移植) : 対象を選択 / ドキュメント / アクティブスプレッドに対応、フォント解決を app.fonts の PostScript 名インデックス化、適用を textStyleRange 単位 + 単一アンドゥに変更
 - v1.1.0 : FontConverter.jsx を統合。対象範囲に「アクティブスプレッド」を追加（選択範囲 / ストーリー / ドキュメント / アクティブスプレッドの 4 モード）
-- v1.1.1 : 初回ダイアログ表示を高速化（フォントインデックス化を確定後まで遅延）、ロック解除中のエラー時も確実に復元（try/finally）、概要・ツールチップを更新
+- v1.1.1 : 初回ダイアログ表示を高速化（フォントインデックス化を確定後まで遅延）、ロック解除中のエラー時も確実に復元（try/finally）、Max/MaxN プリセット時に AXIS を ProN へ寄せる対応、概要・ツールチップを更新
 
 */
 
@@ -537,6 +537,15 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
+    /* Max/MaxN プリセットが押されたか / Whether a Max/MaxN preset is active
+       AXIS は Std と ProN しか無いため、プリセット時は設定に関わらず ProN へ寄せる。
+       押下後に文字セット/N を手動変更したら解除する。/ AXIS only has Std & ProN, so a preset forces ProN; cleared if charset/N changes manually. */
+    var maxPresetActive = false;
+    var presetResetRadios = [rbCharsetKeep, rbCharsetStd, rbCharsetPro, rbCharsetPr5, rbCharsetPr6, rbNKeep, rbNOff, rbNOn];
+    for (var presetResetIndex = 0; presetResetIndex < presetResetRadios.length; presetResetIndex++) {
+        presetResetRadios[presetResetIndex].onClick = function () { maxPresetActive = false; };
+    }
+
     /* プリセット（Max=収録最多のNなし＋UD＋P、MaxN=収録最多のNあり込み＋UD＋P）/ Presets (Max / MaxN) */
     var presetRow = conversionPanel.add("group");
     setupGroup(presetRow, "row");
@@ -549,6 +558,7 @@ function setupGroup(group, orientation, spacing) {
         rbUDOn.value = true;
         rbPOn.value = true;
         rbNTOn.value = true;
+        maxPresetActive = true;
     };
     var presetMaxNButton = presetRow.add("button", undefined, "MaxN");
     presetMaxNButton.helpTip = L("tooltip.presetMaxN");
@@ -557,6 +567,7 @@ function setupGroup(group, orientation, spacing) {
         rbUDOn.value = true;
         rbPOn.value = true;
         rbNTOn.value = true;
+        maxPresetActive = true;
     };
 
     /* オプションパネル / Options panel */
@@ -610,6 +621,7 @@ function setupGroup(group, orientation, spacing) {
     var udMode = radioMode(rbUDOn, rbUDOff);
     var pMode = radioMode(rbPOn, rbPOff);
     var ntMode = radioMode(rbNTOn, rbNTOff);
+    var maxPreset = maxPresetActive; // Max/MaxN プリセット中か（AXIS を ProN へ寄せる）/ whether a Max/MaxN preset is active (forces AXIS to ProN)
 
     var integrateGakusan = cbIntegrateGakusan.value;
     var includeStyles = cbIncludeStyles.value;
@@ -1121,6 +1133,12 @@ function setupGroup(group, orientation, spacing) {
     /* AXIS の変換後フォント名の先頭（ウエイト除く）を組み立て / Build the converted AXIS name head (without weight)
        幅と Joyo は保持し、N と Std⇄Pro のみ反映。AXIS に無い Pr5/Pr6 は現状維持。 */
     function buildAxisNameHead(axis) {
+        // Max/MaxN プリセット時は、設定に関わらず ProN（AXIS の収録最多）へ寄せる。AXIS は Std と ProN しか無いため。
+        // Under a Max/MaxN preset, force ProN (the richest AXIS charset) regardless of settings; AXIS only has Std & ProN.
+        if (maxPreset) {
+            return AXIS_FAMILY.baseName + axis.width + "ProN" + "-";
+        }
+
         // Joyo は別体系なので維持（文字セット・N の切り替え対象外）/ Joyo is a separate scheme; keep as-is
         if (axis.charset === "Joyo") {
             return AXIS_FAMILY.baseName + axis.width + "Joyo" + "-";

@@ -449,6 +449,10 @@
                     bodyKeepStyle.keepAllLinesTogether = false;
                     bodyKeepStyle.keepWithNext = 0;
                     bodyKeepStyle.keepWithPrevious = false;
+                    // 同じスタイルが連続する段落間のスペースを 0 に（対応バージョンのみ）/
+                    // Space between paragraphs using the same style = 0 (only on supporting versions)
+                    setOptionalProperty(bodyKeepStyle,
+                        ["spaceBetweenParagraphsUsingSameStyle", "spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
                 }
             }
         }
@@ -478,7 +482,7 @@
                     //   プロパティ名はバージョン差があるため候補から存在するものを設定）/
                     // Space between paragraphs using the same style = 0 (only on supporting versions)
                     setOptionalProperty(bulletListStyle,
-                        ["spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
+                        ["spaceBetweenParagraphsUsingSameStyle", "spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
                 }
             }
             if (shouldApplyAttributesToParagraphStyle(doc, "ol-li")) {
