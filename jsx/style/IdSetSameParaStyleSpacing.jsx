@@ -52,7 +52,7 @@ var currentLanguage = getCurrentLang();
 /* ラベル定義 / Labels */
 var LABELS = {
     dialog: {
-        title: { ja: "段落スタイルの段落間隔を上書き", en: "Override Paragraph Style Spacing" }
+        title: { ja: "同一設定段落の間隔設定", en: "Set space between paragraphs with the same style" }
     },
     panel: {
         style:   { ja: "段落スタイル", en: "Paragraph Style" },
