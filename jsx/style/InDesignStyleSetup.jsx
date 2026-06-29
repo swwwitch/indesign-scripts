@@ -133,6 +133,11 @@
 
     ### 変更履歴
 
+    v1.3.1
+    - 処理中にプログレスバー（4 段階: 作成→属性→GREP→並び替え）を表示
+    - ul-li の「同じスタイルが連続する段落間のスペース」（sameParaStyleSpacing）を 0 に設定
+    - UI 文言（プログレスバー・アラート・アンドゥ名）を日英ローカライズ（LABELS / L）
+
     v1.3.0
     - ul-li の GREP 継承切れを修正（ul-li に共通3つ＋li-label を直接設定）
     - OVERWRITE_EXISTING_STYLES を「置き換え」化（既定 false。ON で全属性再適用＋GREP は消して付け直し）
@@ -159,7 +164,7 @@
     // バージョン / Version
     // =========================================
 
-    var SCRIPT_VERSION = "v1.3.0";
+    var SCRIPT_VERSION = "v1.3.1";
 
     // =========================================
     // 動作スイッチ / Behavior switches
@@ -179,12 +184,74 @@
     var OVERWRITE_EXISTING_STYLES = false;
 
     // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* UI 言語（ja / en）。ja 以外は en にフォールバック / UI language; fall back to en when not Japanese */
+    var L = ($.locale && String($.locale).indexOf("ja") === 0) ? "ja" : "en";
+
+    var LABELS = {
+        progressTitle:   { ja: "スタイル一括登録", en: "Register Styles" },
+        progressStyles:  { ja: "スタイルとグループを作成中…", en: "Creating styles and groups…" },
+        progressAttrs:   { ja: "属性を適用中…", en: "Applying attributes…" },
+        progressGrep:    { ja: "正規表現スタイルを設定中…", en: "Setting GREP styles…" },
+        progressReorder: { ja: "並び替え中…", en: "Reordering…" },
+        noDocument:      { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." },
+        undoStep:        { ja: "スタイル一括登録", en: "Register Styles" }
+    };
+
+    // =========================================
+    // プログレスバー / Progress bar
+    // =========================================
+
+    /* ダイアログを閉じた後の処理中に表示する非モーダルのプログレスパレットを作る。
+       step(message) で 1 段階進めつつメッセージを更新し、close() で閉じる。
+       UI を作れない環境（バックグラウンド実行等）では何もしないダミーを返す /
+       Build a non-modal progress palette shown while processing runs after the dialog closes.
+       step(message) advances one tick and updates the message; close() closes it.
+       Returns a no-op stub where UI cannot be created (e.g. background execution). */
+    function createProgressWindow(totalSteps) {
+        var progressWindow = null;
+        try {
+            progressWindow = new Window("palette", LABELS.progressTitle[L] + "  " + SCRIPT_VERSION, undefined, { closeButton: false });
+        } catch (e) {
+            progressWindow = null;
+        }
+        if (!progressWindow) {
+            return { step: function () {}, close: function () {} };
+        }
+        progressWindow.alignChildren = "fill";
+        progressWindow.margins = 16;
+        progressWindow.spacing = 10;
+
+        var progressMessage = progressWindow.add("statictext", undefined, "");
+        progressMessage.preferredSize.width = 320;
+
+        var progressBar = progressWindow.add("progressbar", undefined, 0, totalSteps);
+        progressBar.preferredSize.width = 320;
+        progressBar.preferredSize.height = 12;
+
+        progressWindow.show();
+
+        return {
+            step: function (message) {
+                progressBar.value += 1;
+                progressMessage.text = message;
+                progressWindow.update();
+            },
+            close: function () {
+                progressWindow.close();
+            }
+        };
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
     function main() {
         if (app.documents.length === 0) {
-            alert("ドキュメントを開いてから実行してください。");
+            alert(LABELS.noDocument[L]);
             return;
         }
         var doc = app.activeDocument;
@@ -449,10 +516,6 @@
                     bodyKeepStyle.keepAllLinesTogether = false;
                     bodyKeepStyle.keepWithNext = 0;
                     bodyKeepStyle.keepWithPrevious = false;
-                    // 同じスタイルが連続する段落間のスペースを 0 に（対応バージョンのみ）/
-                    // Space between paragraphs using the same style = 0 (only on supporting versions)
-                    setOptionalProperty(bodyKeepStyle,
-                        ["spaceBetweenParagraphsUsingSameStyle", "spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
                 }
             }
         }
@@ -482,7 +545,7 @@
                     //   プロパティ名はバージョン差があるため候補から存在するものを設定）/
                     // Space between paragraphs using the same style = 0 (only on supporting versions)
                     setOptionalProperty(bulletListStyle,
-                        ["spaceBetweenParagraphsUsingSameStyle", "spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
+                        ["sameParaStyleSpacing", "spaceBetweenParagraphsUsingSameStyle", "spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
                 }
             }
             if (shouldApplyAttributesToParagraphStyle(doc, "ol-li")) {
@@ -867,6 +930,13 @@
         // メイン処理 / Main execution
         // =========================================
 
+        // 処理中はプログレスバーを表示（作成→属性→GREP→並び替えの 4 段階）/
+        // Show a progress bar while processing (4 phases: create → attributes → GREP → reorder)
+        var progress = createProgressWindow(4);
+        try {
+
+        progress.step(LABELS.progressStyles[L]);
+
         for (var paragraphGroupIndex = 0; paragraphGroupIndex < paragraphStyleGroupNames.length; paragraphGroupIndex++) {
             ensureParagraphStyleGroup(doc, paragraphStyleGroupNames[paragraphGroupIndex]);
         }
@@ -899,18 +969,27 @@
             }
         }
 
+        progress.step(LABELS.progressAttrs[L]);
         applyAllStyleAttributes(doc);
+
+        progress.step(LABELS.progressGrep[L]);
         applyNestedGrepStyleSettings(doc);
 
         // パネル上の並び順を配列順に揃える（既存スタイルも含む） /
         // Reorder styles in the panel (including existing ones)
+        progress.step(LABELS.progressReorder[L]);
         reorderParagraphStyles(doc);
         reorderCharacterStyles(doc);
+
+        } finally {
+            // 例外時もプログレスパレットを確実に閉じる / Always close the palette, even on error
+            progress.close();
+        }
     }
 
     // 全処理を 1 つのアンドゥ単位にまとめて実行 /
     // Run everything as a single undo step
     app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined,
-        UndoModes.ENTIRE_SCRIPT, "スタイル一括登録");
+        UndoModes.ENTIRE_SCRIPT, LABELS.undoStep[L]);
 
 })();
