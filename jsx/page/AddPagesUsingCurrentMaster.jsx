@@ -41,7 +41,7 @@
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.2.0";
+var SCRIPT_VERSION = "v1.2.1";
 
 (function () {
 
@@ -65,12 +65,21 @@ var LABELS = {
     field: {
         pageCount: { ja: "挿入するページ数", en: "Number of pages to insert" }
     },
+    tooltip: {
+        insertAfter: { ja: "指定ページの次に挿入", en: "Insert after the specified page" }
+    },
+    undo: {
+        insertPages: { ja: "ページを挿入", en: "Insert Pages" }
+    },
+    page: {
+        current: { ja: "現在のページ", en: "Current page" }
+    },
     master: {
-        current: { ja: "現在のマスター", en: "Master" }
+        current: { ja: "親（マスター）", en: "Master" }
     },
     alert: {
         invalidNumber: {
-            ja: "1 以上の数値を入力してください。",
+            ja: "1以上の数値を入力してください。",
             en: "Please enter a number greater than 0."
         },
         noDocument: {
@@ -104,6 +113,18 @@ function labelText(key) {
 // =========================================
 // ダイアログ / Dialog
 // =========================================
+/* ラベル群の幅を最大値に揃える / Match all label widths to the widest one */
+function alignLabelWidths(labelList) {
+    var maxWidth = 0;
+    for (var i = 0; i < labelList.length; i++) {
+        var labelWidth = labelList[i].preferredSize.width;
+        if (labelWidth > maxWidth) maxWidth = labelWidth;
+    }
+    for (var j = 0; j < labelList.length; j++) {
+        labelList[j].preferredSize.width = maxWidth;
+    }
+}
+
 /* ページ数を尋ねるダイアログを表示し、結果を返す（キャンセル時は null）/ Show the page-count dialog and return the result (null if cancelled) */
 function showPageCountDialog(defaultPageCount) {
     var pageInsertDialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
@@ -115,23 +136,41 @@ function showPageCountDialog(defaultPageCount) {
     var currentPage = app.activeWindow.activePage;
     var currentAppliedMaster = currentPage.appliedMaster;
 
+    var labelStatics = [];
+
+    /* 現在のページ表示グループ / Display the current page */
+    var currentPageGroup = pageInsertDialog.add("group");
+    currentPageGroup.orientation = "row";
+    currentPageGroup.alignChildren = ["left", "center"];
+
+    var currentPageLabel = currentPageGroup.add("statictext", undefined, labelText("page.current"));
+    labelStatics.push(currentPageLabel);
+    currentPageGroup.add("statictext", undefined, currentPage.name);
+
     /* マスター名表示グループ / Display current master name */
     var masterNameGroup = pageInsertDialog.add("group");
     masterNameGroup.orientation = "row";
     masterNameGroup.alignChildren = ["left", "center"];
 
+    var masterLabel = masterNameGroup.add("statictext", undefined, labelText("master.current"));
+    labelStatics.push(masterLabel);
     var masterName = currentAppliedMaster ? currentAppliedMaster.name : "-";
-    masterNameGroup.add("statictext", undefined, labelText("master.current") + masterName);
+    masterNameGroup.add("statictext", undefined, masterName);
 
     /* 入力フィールドグループ / Group for label and input field */
     var pageCountInputGroup = pageInsertDialog.add("group");
     pageCountInputGroup.orientation = "row";
     pageCountInputGroup.alignChildren = ["left", "center"];
 
-    pageCountInputGroup.add("statictext", undefined, L("field.pageCount"));
+    var pageCountLabel = pageCountInputGroup.add("statictext", undefined, labelText("field.pageCount"));
+    labelStatics.push(pageCountLabel);
     var pageCountInput = pageCountInputGroup.add("edittext", undefined, defaultPageCount.toString());
     pageCountInput.characters = 5;
     pageCountInput.active = true;
+    pageCountInput.helpTip = L("tooltip.insertAfter");
+    pageCountLabel.helpTip = L("tooltip.insertAfter");
+
+    alignLabelWidths(labelStatics);
 
     /* ボタングループ / Buttons group */
     var dialogButtonGroup = pageInsertDialog.add("group");
@@ -183,15 +222,18 @@ function insertPages() {
     var pageCount = dialogResult.pageCount;
     var selectedMaster = dialogResult.selectedMaster;
 
-    var doc = app.activeDocument;
-    var currentPage = app.activeWindow.activePage;
+    /* 一括 undo になるよう doScript でラップ / Wrap in doScript so the whole insertion is a single undo step */
+    app.doScript(function () {
+        var doc = app.activeDocument;
+        var currentPage = app.activeWindow.activePage;
 
-    /* ドキュメント基準で追加し、スプレッドへ正しく流し込む / Add at document level so pages reflow into proper spreads */
-    for (var i = 0; i < pageCount; i++) {
-        var newPage = doc.pages.add(LocationOptions.AFTER, currentPage);
-        if (selectedMaster) newPage.appliedMaster = selectedMaster;
-        currentPage = newPage;
-    }
+        /* ドキュメント基準で追加し、スプレッドへ正しく流し込む / Add at document level so pages reflow into proper spreads */
+        for (var i = 0; i < pageCount; i++) {
+            var newPage = doc.pages.add(LocationOptions.AFTER, currentPage);
+            if (selectedMaster) newPage.appliedMaster = selectedMaster;
+            currentPage = newPage;
+        }
+    }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L("undo.insertPages"));
 }
 
 // =========================================
