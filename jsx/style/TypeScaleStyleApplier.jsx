@@ -60,12 +60,19 @@ var DEFAULT_BODY_SPACE_AFTER_PERCENT = 15; // 本文の段落後のアキ(%)
 
 // 本文サイズに対するリスト／テーブルの文字サイズ比率(%) / List & table size as % of body size
 var DEFAULT_LIST_SIZE_PERCENT = 100; // リスト（ul-li / ol-li / List Paragraph）の文字サイズ(本文比, %)
-var DEFAULT_TABLE_SIZE_PERCENT = 95; // テーブル（td / th）の文字サイズ(本文比, %)
+var DEFAULT_TABLE_SIZE_PERCENT = 94; // テーブル（td / th）の文字サイズ(本文比, %)
 
 // 段落前後のアキを段落スタイルへ適用するかどうかの ON/OFF スイッチ
 // false の場合、段落スタイルの spaceBefore / spaceAfter は変更されない
 var ENABLE_SPACE_BEFORE = true; // 段落前のアキ機能の ON/OFF
 var ENABLE_SPACE_AFTER = true;  // 段落後のアキ機能の ON/OFF
+
+// 「同じスタイルの段落間隔（sameParaStyleSpacing）」を段落スタイルへ適用するかどうかの ON/OFF スイッチ
+// スタイル名ごとにルールを切り替える（resolveSameStyleSpacing 参照）：
+//   ul-li        → 0（箇条書きの項目どうしは詰める）
+//   p / ol-li    → 段落前のアキ（spaceBefore）と同じ値
+//   それ以外     → 変更しない
+var ENABLE_SAME_STYLE_SPACING = true;
 
 // 字揃え（justification）を段落スタイルへ強制適用するかどうかの ON/OFF スイッチ
 // false の場合、字揃え（見出し=左揃え／本文=左均等）は変更せず、元の字揃えを保持する
@@ -108,6 +115,10 @@ var LABELS = {
         buildingCache: {
             ja: "キャッシュを作成しています。（初回は時間がかかります）",
             en: "Building cache (first run may take longer)"
+        },
+        preparingDialog: {
+            ja: "ダイアログを準備しています…",
+            en: "Preparing dialog..."
         }
     },
     panel: {
@@ -239,9 +250,23 @@ function createProgressPalette(message) {
     progressBar.preferredSize.height = 6; // バーを細く
     progressBar.value = 20;
 
+    // 後からメッセージ・進捗を更新できるよう参照を保持 / Keep references so the message/value can be updated later
+    palette.messageText = messageText;
+    palette.progressBar = progressBar;
+
     palette.show();
     try { palette.update(); } catch (e) { }
     return palette;
+}
+
+/* 進捗パレットのメッセージと進捗値を更新 / Update the progress palette message and value */
+function updateProgressPalette(palette, message, value) {
+    if (!palette) return;
+    try {
+        if (message && palette.messageText) palette.messageText.text = message;
+        if (typeof value === "number" && palette.progressBar) palette.progressBar.value = value;
+        palette.update();
+    } catch (e) { }
 }
 
 function closeProgressPalette(palette) {
@@ -852,10 +877,11 @@ function getStyleWeightRank(styleName, familyName) {
 
         // フォント一覧は UI（パレット／ダイアログ Window）を組み立てる前に読み込む。
         // ダイアログ Window 生成後やモーダル表示中に重いフォント列挙を行うと InDesign が落ちるため、
-        // 「パレット表示 → 読み込み → パレットを閉じる → その後にダイアログ構築」の順を厳守する。
+        // 「パレット表示 → 読み込み → … → ダイアログ表示直前にパレットを閉じる」の順を厳守する。
+        // パレットはフォント読み込み後も閉じず、ダイアログ構築の間も表示し続けて空白時間をなくす。
         var loadingPalette = createProgressPalette(L("progress.loadingFonts"));
         var fontFamilies = getFontFamilyNames();
-        closeProgressPalette(loadingPalette);
+        updateProgressPalette(loadingPalette, L("progress.preparingDialog"), 60);
         var fontOptions = [L("option.noFontChange")].concat(fontFamilies);
         var roundOptions = [
             { label: L("rounding.integer"), digits: 0 },
@@ -1214,7 +1240,15 @@ function getStyleWeightRank(styleName, familyName) {
                         }
                     }
                 }
-                if (dropdownList.items.length > 0) dropdownList.selection = 0;
+                // 候補が見つからない場合、ルート／組み込みスタイル（[...]）への誤適用（error 516）を避けるため
+                // 先頭の通常スタイルを選ぶ。通常スタイルが無ければ未選択のままにする。
+                for (var fallbackIndex = 0; fallbackIndex < dropdownList.items.length; fallbackIndex++) {
+                    if (dropdownList.items[fallbackIndex].text.charAt(0) !== "[") {
+                        dropdownList.selection = fallbackIndex;
+                        return false;
+                    }
+                }
+                dropdownList.selection = null;
                 return false;
             }
 
@@ -2111,6 +2145,8 @@ function getStyleWeightRank(styleName, familyName) {
         originalStyleProps = snapshotParagraphStyleProps(targetDocument);
         updateTypescalePreview(dialogUi);
 
+        // モーダルダイアログを表示する直前にパレットを閉じる（モーダル表示中は表示しない）
+        closeProgressPalette(loadingPalette);
         var dialogResult = dialogUi.dialog.show();
         clearOverridesIfActive(dialogUi);
 
@@ -2127,12 +2163,24 @@ function getStyleWeightRank(styleName, familyName) {
         return collectTypescaleSettings(dialogUi);
     }
 
+    // スタイル名に応じた「同じスタイルの段落間隔」を返す（適用対象外は null） / Resolve same-style spacing by style name (null = leave unchanged)
+    function resolveSameStyleSpacing(styleName, spaceBeforePt) {
+        if (styleName === "ul-li") return 0;
+        if (styleName === "ol-li" || styleName === "p") {
+            return (typeof spaceBeforePt === "number" && spaceBeforePt >= 0) ? spaceBeforePt : null;
+        }
+        return null;
+    }
+
     function setParagraphStyleProps(targetDocument, styleName, size, font, leading, spaceAfter, spaceBefore, kerningMethod, isHeading, silent, sizeOnly, originalProps) {
         var style = findParagraphStyle(targetDocument, styleName);
         if (style === null) {
             if (!silent) alert(formatLabel("error.missingStyle", styleName));
             return false;
         }
+        // ルート／組み込みスタイル（[基本段落] / [Basic Paragraph] / [段落スタイルなし] など）は
+        // pointSize 等の設定で error 516「ルートスタイルに対する無効な要求」になるためスキップ
+        if (isRootParagraphStyle(style)) return false;
         // 書き換えるスタイルを記録（キャンセル時にこのスタイルだけ起動時状態へ戻す）
         _previewModifiedStyles[styleName] = true;
         // サイズのみモード: サイズだけを更新し、その他はダイアログ起動時の値に戻す
@@ -2159,6 +2207,9 @@ function getStyleWeightRank(styleName, familyName) {
                 }
                 if (typeof originalProps.justification !== "undefined") {
                     try { style.justification = originalProps.justification; } catch (eRJ) { }
+                }
+                if (typeof originalProps.sameParaStyleSpacing !== "undefined") {
+                    try { style.sameParaStyleSpacing = originalProps.sameParaStyleSpacing; } catch (eRSSS) { }
                 }
             }
             return true;
@@ -2199,6 +2250,13 @@ function getStyleWeightRank(styleName, familyName) {
         if (ENABLE_SPACE_AFTER && typeof spaceAfter === "number" && spaceAfter >= 0) {
             style.spaceAfter = spaceAfter;
         }
+        // 同じスタイルの段落間隔（sameParaStyleSpacing）をスタイル名ごとのルールで設定
+        if (ENABLE_SAME_STYLE_SPACING) {
+            var sameStyleSpacing = resolveSameStyleSpacing(styleName, spaceBefore);
+            if (sameStyleSpacing !== null) {
+                try { style.sameParaStyleSpacing = sameStyleSpacing; } catch (eSSS) { }
+            }
+        }
         // フォントによっては設定不可のため、安全に無視
         if (kerningMethod) {
             try { style.kerningMethod = kerningMethod; } catch (ke) { }
@@ -2233,6 +2291,7 @@ function getStyleWeightRank(styleName, familyName) {
             try { styleSnapshot.appliedFont = paragraphStyle.appliedFont; } catch (eF) { }
             try { styleSnapshot.fontStyle = paragraphStyle.fontStyle; } catch (eFS) { }
             try { styleSnapshot.kerningMethod = paragraphStyle.kerningMethod; } catch (eK) { }
+            try { styleSnapshot.sameParaStyleSpacing = paragraphStyle.sameParaStyleSpacing; } catch (eSSS) { }
             snapshot[paragraphStyle.name] = styleSnapshot;
         }
         return snapshot;
@@ -2255,6 +2314,7 @@ function getStyleWeightRank(styleName, familyName) {
             if (typeof snap.spaceAfter !== "undefined") { try { style.spaceAfter = snap.spaceAfter; } catch (eRSA) { } }
             if (typeof snap.kerningMethod !== "undefined") { try { style.kerningMethod = snap.kerningMethod; } catch (eRK) { } }
             if (typeof snap.justification !== "undefined") { try { style.justification = snap.justification; } catch (eRJ) { } }
+            if (typeof snap.sameParaStyleSpacing !== "undefined") { try { style.sameParaStyleSpacing = snap.sameParaStyleSpacing; } catch (eRSSS) { } }
         }
     }
 
@@ -2266,6 +2326,15 @@ function getStyleWeightRank(styleName, familyName) {
             }
         }
         return null;
+    }
+
+    // ルート／組み込みスタイルかどうか（名前が "[" で始まる：[基本段落] / [Basic Paragraph] / [段落スタイルなし] など）
+    function isRootParagraphStyle(style) {
+        try {
+            return !!(style && style.name && style.name.charAt(0) === "[");
+        } catch (e) {
+            return false;
+        }
     }
 
 })();
