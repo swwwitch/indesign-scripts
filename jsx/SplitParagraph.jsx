@@ -7,12 +7,14 @@
 - 元段落のベースライン位置を基準に Y 位置を補正します。
 - 元フレームの左右座標を維持し、幅を保持します。
 - テキストフレーム設定（textFramePreferences）を引き継ぎます。
-- オーバーセットテキストがある場合は確認ダイアログを表示します。
-- 必要に応じてフレーム高さを自動調整してオーバーセットを解消します。
+- オーバーセットテキストがある場合は確認ダイアログを表示し、「拡張して解消」または「そのまま実行」を選べます。
+- 「拡張して解消」を選ぶと、フレーム高さを自動調整してオーバーセットを解消してから分割します。
+- 一連の処理は1回の取り消し（編集 > 取り消し）でまとめて元に戻せます。
 
 仕様上の注意：
 
 - 空段落（空行）は出力対象から除外されます。
+- 「そのまま実行」を選んだ場合、あふれて隠れているテキストは出力されません（失われます）。
 - 想定用途：見出しや段落を個別オブジェクトとして配置・アニメーション・レイアウト調整するための前処理。
 
 ### Overview
@@ -21,12 +23,14 @@
 - Corrects the Y position based on the original paragraph baseline.
 - Keeps the original left/right coordinates so the width is preserved.
 - Inherits the text frame preferences (textFramePreferences).
-- Shows a confirmation dialog when overset text exists.
-- Optionally grows the frame height to resolve overset text.
+- Shows a confirmation dialog when overset text exists, offering "Expand to resolve" or "Run anyway".
+- When "Expand to resolve" is chosen, grows the frame height to clear the overset before splitting.
+- The whole operation can be reverted in a single undo (Edit > Undo).
 
 Notes:
 
 - Empty paragraphs (blank lines) are excluded from the output.
+- When "Run anyway" is chosen, hidden overset text is not output (it is lost).
 - Intended as a pre-process for placing, animating, or laying out headings and paragraphs as separate objects.
 
 */
@@ -37,7 +41,7 @@ Notes:
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 (function () {
 
@@ -69,8 +73,18 @@ var SCRIPT_VERSION = "v1.0.0";
         radio: {
             expandFrame: { ja: "フレームを拡張して解消する", en: "Expand frame to resolve" },
             ignoreOverset: {
-                ja: "そのまま実行する（オーバーセットは消失します）",
+                ja: "そのまま実行する（あふれたテキストは失われます）",
                 en: "Run anyway (overset text will be lost)"
+            }
+        },
+        tooltip: {
+            expandFrame: {
+                ja: "各段落を分割する前にフレームの高さを広げ、隠れているテキストをすべて表示してから処理します。",
+                en: "Grows the frame height to reveal all hidden text before splitting each paragraph."
+            },
+            ignoreOverset: {
+                ja: "現在表示されている段落だけを分割します。あふれて隠れているテキストは出力されません。",
+                en: "Splits only the currently visible paragraphs. Hidden overset text will not be output."
             }
         },
         button: {
@@ -86,6 +100,9 @@ var SCRIPT_VERSION = "v1.0.0";
                 ja: "オーバーセットテキストを解消できなかったため中断しました。",
                 en: "Could not resolve overset text. Process cancelled."
             }
+        },
+        undo: {
+            splitParagraphs: { ja: "段落ごとにフレーム分割", en: "Split Paragraphs Into Frames" }
         }
     };
 
@@ -119,20 +136,25 @@ var SCRIPT_VERSION = "v1.0.0";
     }
 
     // =========================================
-    // オーバーセット処理 / Overset handling
+    // 元フレーム情報 / Source frame info
     // =========================================
-    /* オーバーセットがあれば処理方法を確認し、必要なら拡張して解消 / Confirm overset handling, expand to resolve if requested */
-    if (sourceFrame.overflows) {
-        var overflowChoice = askOverflowHandling();
-        if (overflowChoice === "cancel") {
-            return;
-        }
-        if (overflowChoice === "expand") {
-            resolveOverflowByExpandingFrame(sourceFrame);
-            if (sourceFrame.overflows) {
-                alert(L("error.overflowFail"));
-                return;
-            }
+    var parentContainer = sourceFrame.parent;
+
+    /* 元フレームの座標 [上, 左, 下, 右] / Original frame bounds [top, left, bottom, right] */
+    var sourceBounds = sourceFrame.geometricBounds;
+    var sourceLeft = sourceBounds[1];  /* 元フレームの左端 / Original left edge */
+    var sourceRight = sourceBounds[3]; /* 元フレームの右端 / Original right edge */
+
+    // =========================================
+    // 補助関数 / Helpers
+    // =========================================
+    /* オーバーセットが解消するまでフレーム高さを少しずつ広げる / Grow frame height step by step until overset clears */
+    function growFrameUntilFits(targetFrame, maxIterations) {
+        var iterations = 0;
+        while (targetFrame.overflows && iterations < maxIterations) {
+            var bounds = targetFrame.geometricBounds;
+            targetFrame.geometricBounds = [bounds[0], bounds[1], bounds[2] + FRAME_GROW_STEP_PT, bounds[3]];
+            iterations++;
         }
     }
 
@@ -141,7 +163,7 @@ var SCRIPT_VERSION = "v1.0.0";
         var overflowDialog = new Window("dialog", L("dialog.overflowTitle") + " " + SCRIPT_VERSION);
         overflowDialog.orientation = "column";
         overflowDialog.alignChildren = ["fill", "top"];
-        overflowDialog.margins = [15, 15, 15, 10];
+        overflowDialog.margins = [15, 15, 15, 15];
 
         overflowDialog.add("statictext", undefined, L("message.overflowPrompt"));
 
@@ -153,6 +175,8 @@ var SCRIPT_VERSION = "v1.0.0";
 
         var expandFrameRadio = overflowOptionPanel.add("radiobutton", undefined, L("radio.expandFrame"));
         var ignoreOversetRadio = overflowOptionPanel.add("radiobutton", undefined, L("radio.ignoreOverset"));
+        expandFrameRadio.helpTip = L("tooltip.expandFrame");
+        ignoreOversetRadio.helpTip = L("tooltip.ignoreOverset");
         expandFrameRadio.value = true;
 
         /* ボタン行（Cancel → OK） / Button row (Cancel → OK) */
@@ -167,55 +191,25 @@ var SCRIPT_VERSION = "v1.0.0";
         return expandFrameRadio.value ? "expand" : "ignore";
     }
 
-    /* フレーム高さを少しずつ広げてオーバーセットを解消 / Grow frame height step by step to clear overset */
-    function resolveOverflowByExpandingFrame(targetFrame) {
-        var growIterations = 0;
-
-        while (targetFrame.overflows && growIterations < MAX_GROW_ITERATIONS) {
-            var currentBounds = targetFrame.geometricBounds;
-            targetFrame.geometricBounds = [currentBounds[0], currentBounds[1], currentBounds[2] + FRAME_GROW_STEP_PT, currentBounds[3]];
-            growIterations++;
-        }
-    }
-
-    // =========================================
-    // 段落分割 / Split paragraphs
-    // =========================================
-    var parentContainer = sourceFrame.parent;
-    var paragraphList = sourceFrame.paragraphs.everyItem().getElements();
-
-    /* 元フレームの座標 [上, 左, 下, 右] / Original frame bounds [top, left, bottom, right] */
-    var sourceBounds = sourceFrame.geometricBounds;
-    var sourceLeft = sourceBounds[1];  /* 元フレームの左端 / Original left edge */
-    var sourceRight = sourceBounds[3]; /* 元フレームの右端 / Original right edge */
-
-    for (var i = 0; i < paragraphList.length; i++) {
-        var paragraph = paragraphList[i];
-
-        /* 空行はスキップ（仕様） / Skip blank lines (by design) */
-        if (paragraph.contents.replace(/\s/g, '') === "") {
-            continue;
-        }
-
-        /* 念のため、行を持たない段落はスキップ / Skip paragraphs that have no lines */
-        if (paragraph.lines.length === 0) {
-            continue;
+    /* 1段落を独立したフレームに分割して配置 / Split one paragraph into its own positioned frame */
+    function createFrameForParagraph(paragraph) {
+        /* 空行・行なしの段落はスキップ（仕様） / Skip blank or line-less paragraphs (by design) */
+        if (paragraph.contents.replace(/\s/g, '') === "" || paragraph.lines.length === 0) {
+            return;
         }
 
         /* 元テキストの正確な Y 座標（ベースライン） / Exact original Y (baseline) */
         var sourceBaselineY = paragraph.lines[0].baseline;
 
-        /* 新しいテキストフレームを作成し、設定を引き継ぐ / Create a new frame and inherit preferences */
+        /* 新しいフレームを作成し、設定とサイズ・位置を引き継ぐ / Create a new frame inheriting preferences, size, and position */
         var newFrame = parentContainer.textFrames.add();
         newFrame.textFramePreferences.properties = sourceFrame.textFramePreferences.properties;
-
-        /* 一旦、元フレームと全く同じサイズ・位置にする / Match the original size and position first */
         newFrame.geometricBounds = sourceBounds;
 
         /* 段落テキストを複製 / Duplicate the paragraph text */
         paragraph.duplicate(LocationOptions.AT_BEGINNING, newFrame.insertionPoints.item(0));
 
-        /* 余分な空段落や改行を削除 / Remove the extra trailing paragraph and return */
+        /* 余分な空段落や改行を削除 / Remove the extra trailing paragraph and return character */
         if (newFrame.paragraphs.length > 1) {
             newFrame.paragraphs.item(-1).remove();
         }
@@ -226,34 +220,68 @@ var SCRIPT_VERSION = "v1.0.0";
         /* いったんコンテンツに合わせる（高さと幅が縮む） / Fit to content (height and width shrink) */
         newFrame.fit(FitOptions.FRAME_TO_CONTENT);
 
-        if (newFrame.lines.length > 0) {
-            /* 縮んだ後の Y 座標とのズレを計算 / Compute the offset against the shrunk Y */
-            var fittedBaselineY = newFrame.lines[0].baseline;
-            var dy = sourceBaselineY - fittedBaselineY;
-
-            var fittedBounds = newFrame.geometricBounds;
-
-            /* Y はズレを補正し、X は元フレーム幅へ戻す / Correct Y by the offset, restore X to the original width */
-            newFrame.geometricBounds = [
-                fittedBounds[0] + dy,
-                sourceLeft,
-                fittedBounds[2] + dy,
-                sourceRight
-            ];
-
-            /* 幅復元で再改行され、高さ不足になるケースを救済 / Rescue height shortage caused by reflow after width restore */
-            var reflowIterations = 0;
-            while (newFrame.overflows && reflowIterations < MAX_REFLOW_ITERATIONS) {
-                var currentBounds = newFrame.geometricBounds;
-                newFrame.geometricBounds = [currentBounds[0], currentBounds[1], currentBounds[2] + FRAME_GROW_STEP_PT, currentBounds[3]];
-                reflowIterations++;
-            }
-        } else {
+        /* 行が消えたフレームは破棄 / Discard the frame if it ends up with no lines */
+        if (newFrame.lines.length === 0) {
             newFrame.remove();
+            return;
+        }
+
+        /* Y はズレを補正し、X は元フレーム幅へ戻す / Correct Y by the offset, restore X to the original width */
+        var dy = sourceBaselineY - newFrame.lines[0].baseline;
+        var fittedBounds = newFrame.geometricBounds;
+        newFrame.geometricBounds = [fittedBounds[0] + dy, sourceLeft, fittedBounds[2] + dy, sourceRight];
+
+        /* 幅復元で再改行され、高さ不足になるケースを救済 / Rescue height shortage caused by reflow after width restore */
+        growFrameUntilFits(newFrame, MAX_REFLOW_ITERATIONS);
+    }
+
+    /* 全段落をフレーム分割（doScript から1つの取り消しとして実行） / Split all paragraphs (run via doScript as a single undo) */
+    function splitParagraphsIntoFrames() {
+        /* 「拡張」選択時はオーバーセットを解消してから座標を再取得 / On "expand", clear overset then re-read bounds */
+        if (overflowChoice === "expand") {
+            growFrameUntilFits(sourceFrame, MAX_GROW_ITERATIONS);
+            if (sourceFrame.overflows) {
+                return "overflowFail";
+            }
+            sourceBounds = sourceFrame.geometricBounds;
+            sourceLeft = sourceBounds[1];
+            sourceRight = sourceBounds[3];
+        }
+
+        /* 各段落を独立フレームへ / Each paragraph into its own frame */
+        var paragraphList = sourceFrame.paragraphs.everyItem().getElements();
+        for (var i = 0; i < paragraphList.length; i++) {
+            createFrameForParagraph(paragraphList[i]);
+        }
+
+        /* 元のテキストフレームを削除 / Remove the original text frame */
+        sourceFrame.remove();
+        return "ok";
+    }
+
+    // =========================================
+    // 実行 / Run
+    // =========================================
+    /* オーバーセットがあれば先に処理方法を確認（ダイアログは取り消し対象外） / Ask handling first if overset (dialog stays outside undo) */
+    var overflowChoice = "none";
+    if (sourceFrame.overflows) {
+        overflowChoice = askOverflowHandling();
+        if (overflowChoice === "cancel") {
+            return;
         }
     }
 
-    /* 元のテキストフレームを削除 / Remove the original text frame */
-    sourceFrame.remove();
+    /* 変更を1つの取り消しステップとして実行 / Run all changes as a single undo step */
+    var resultStatus = app.doScript(
+        splitParagraphsIntoFrames,
+        ScriptLanguage.JAVASCRIPT,
+        undefined,
+        UndoModes.ENTIRE_SCRIPT,
+        L("undo.splitParagraphs")
+    );
+
+    if (resultStatus === "overflowFail") {
+        alert(L("error.overflowFail"));
+    }
 
 })();
