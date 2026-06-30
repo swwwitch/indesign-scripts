@@ -1,469 +1,500 @@
 #target indesign
 
 /*
-    スクリプト名：AppendParagraphNumbering.jsx
 
-    概要 (日本語):
-    同じテキストが同じ段落スタイルで繰り返すとき、末尾にナンバリングを追加します。
-    親見出しの階層を考慮し、親単位で同一テキストを正確に判別します。
-    UIで段落スタイル選択、ストーリー/ドキュメント範囲選択、全角/半角括弧切り替えが可能（日本語UIのみ）。
-    既存のナンバリング削除機能も搭載。
+### 概要
 
-    Description (English):
-    When the same text repeats with the same paragraph style, this script appends numbering at the end.
-    Considers heading hierarchy to accurately judge repetitions per parent.
-    Supports paragraph style selection, story/document scope, full-width/half-width brackets (Japanese UI only).
-    Includes numbering removal.
+- 同じテキストが同じ段落スタイルで繰り返すとき、末尾にナンバリングを追加します
+- 親見出しの階層を考慮し、親単位で同一テキストを正確に判別します
+- 段落スタイル選択、ストーリー／ドキュメント範囲、全角／半角括弧の切り替えに対応（全角／半角は日本語UIのみ）
+- 既存ナンバリングの削除にも対応
 
-    限定条件:
-    - InDesignで動作
-    - 対象は開いているアクティブドキュメント
+### 限定条件
 
-    作成日：2025-06-29
-    更新履歴:
-    -v1.0.0 (2025-06-29): 初版
-    -v1.0.7 (2025-07-01): p.img, p.tableスタイルの段落を無視するよう修正
-    -v1.0.8 (2025-07-02): 段落スタイル選択パネル追加
-    -v1.0.9 (2025-07-03): 削除ボタン追加
-    -v1.1.0 (2025-07-04): 階層判定ロジック改良、UIラベル整理
+- InDesignで動作
+- 対象は開いているアクティブドキュメント
+
+*/
+
+/*
+
+### Overview
+
+- When the same text repeats with the same paragraph style, appends numbering at the end
+- Considers heading hierarchy to accurately judge repetitions per parent
+- Supports paragraph style selection, story/document scope, and full-width/half-width brackets (full/half is Japanese UI only)
+- Includes numbering removal
+
+### Limitations
+
+- Runs in InDesign
+- Targets the active (open) document
+
 */
 
 
-// --- コードの最適化提案 ---
-// ・headingLevelMap を外部設定化または共通ファイル化
-// ・progressWin や listBox 初期化処理を関数化
-// ・comboMap 処理を別関数に分離しテスト可能にする
-// ・ラベルや UI 構造を多言語対応ファイルとして分離
+// =========================================
+// バージョン / Version
+// =========================================
+var SCRIPT_VERSION = "v1.1.1";
 
-// --- ラベル定義 (UIに出る順に並べる) ---
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
+/*
+    更新履歴 / Changelog:
+    - v1.0.0 (2025-06-29): 初版
+    - v1.0.7 (2025-07-01): p.img, p.table スタイルの段落を無視
+    - v1.0.8 (2025-07-02): 段落スタイル選択パネル追加
+    - v1.0.9 (2025-07-03): 削除ボタン追加
+    - v1.1.0 (2025-07-04): 階層判定ロジック改良、UIラベル整理
+    - v1.1.1 (2026-06-30): 対象ラジオが無視されるバグ修正、削除をundoにまとめる、
+                           instanceof を constructor.name に変更、IIFE化・ローカライズ整理
+*/
 
-var lang = getCurrentLang();
-var LABELS = {
-    confirmTitle: { ja: "末尾にナンバリング追加", en: "Append Numbering at End" },
-    target: { ja: "対象", en: "Target" },
-    story: { ja: "ストーリー", en: "Story" },
-    document: { ja: "ドキュメント", en: "Document" },
-    ok: { ja: "OK", en: "OK" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    deleteBtn: { ja: "削除", en: "Delete" }
-};
 
-// --- 段落見出しレベル設定 ---
-var headingLevelMap = {
-    "Heading 1": 1, "h1": 1,
-    "Heading 2": 2, "h2": 2,
-    "Heading 3": 3, "h3": 3,
-    "Heading 4": 4, "h4": 4,
-    "Heading 5": 5, "h5": 5,
-    "Heading 6": 6, "h6": 6
-};
+(function () {
 
-function main() {
-    var doc = app.activeDocument;
-    var stories = doc.stories;
-    var comboMap = {};
+    // =========================================
+    // ユーザー設定 / User settings
+    // =========================================
 
-    // --- プログレスバー表示 ---
-    var progressWin = new Window("palette", "解析中");
-    progressWin.orientation = "column";
-    progressWin.alignChildren = ["fill", "top"];
-    progressWin.margins = [20, 20, 20, 20];
-    var progressBar = progressWin.add("progressbar", undefined, 0, stories.length);
-    progressBar.preferredSize = [330, 7];
-    progressWin.show();
-
-    for (var i = 0; i < stories.length; i++) {
-        var paragraphs = stories[i].paragraphs;
-        // 親段落スタイル情報を保持
-        var currentParentKey = "";
-        var currentParentStyleName = "";
-        var lastHeadingLevel = 0;
-        var parentCounter = 0; // 親出現カウンタ
-        // --- 親階層スタックで親情報を管理 ---
-        var parentStack = [];
-        for (var j = 0; j < paragraphs.length; j++) {
-            var para = paragraphs[j];
-            // マスターページ上の段落はスキップ
-            if (para.parentTextFrames && para.parentTextFrames.length > 0) {
-                var tf = para.parentTextFrames[0];
-                if (tf.parent instanceof MasterSpread) continue;
-            }
-            var content = para.contents.replace(/[\r\n]+$/, "");
-            // 末尾のナンバリングを除去
-            var cleaned = content.replace(/[（\(][0-9０-９]+[）\)]$/, "");
-            // 空行や1文字以下、空白のみはスキップ
-            if (!cleaned.match(/^(.+)$/)) continue;
-            if (cleaned.length <= 1) continue;
-            if (cleaned.match(/^\s+$/)) continue;
-
-            var styleName = para.appliedParagraphStyle.name;
-            // イメージ・テーブル用スタイルはスキップ
-            if (styleName == "p.img" || styleName == "p.table") continue;
-            if (cleaned === "") continue;
-
-            var level = headingLevelMap ? (headingLevelMap[styleName] || 99) : 99;
-            // スタックから現在のレベル以上のものをすべて削除
-            while (parentStack.length > 0 && parentStack[parentStack.length - 1].level >= level) {
-                parentStack.pop();
-            }
-            // 新しい親情報をスタックに追加
-            if (level <= 6) {
-                parentStack.push({
-                    key: cleaned,
-                    style: styleName,
-                    level: level,
-                    counter: (parentStack.length > 0 ? parentStack[parentStack.length - 1].counter : 0) + 1
-                });
-            }
-            // 親情報を取得
-            var parentKey = parentStack.length > 0 ? parentStack[parentStack.length - 1].key : "";
-            var parentStyleName = parentStack.length > 0 ? parentStack[parentStack.length - 1].style : "";
-            var parentLevelCounter = parentStack.length > 0 ? parentStack[parentStack.length - 1].counter : 0;
-            var key = styleName + "___" + cleaned + "___" + parentStyleName + "___" + parentKey + "___" + parentLevelCounter;
-
-            if (!comboMap[key]) {
-                comboMap[key] = {
-                    style: styleName,
-                    text: cleaned,
-                    count: 1,
-                    parent: parentKey,
-                    parentStyle: parentStyleName,
-                    parentCounter: parentLevelCounter
-                };
-            } else {
-                comboMap[key].count++;
-            }
-        }
-        progressBar.value = i + 1;
-        progressWin.update();
-    }
-
-    progressWin.close();
-
-    // --- 1回しか出現しないものは除外 ---
-    for (var key in comboMap) {
-        if (comboMap[key].count === 1) {
-            delete comboMap[key];
-        }
-    }
-
-    // --- comboMap生成後、targets抽出前に key 一覧を alert で表示 ---
-
-    // --- 対象リスト生成 ---
-
-    var targets = [];
-    for (var key in comboMap) {
-        var entry = comboMap[key];
-        if (entry.count >= 2 && entry.parent !== "") {
-            targets.push(entry);
-        }
-    }
-
-    targets.sort(function(a, b) {
-        if (b.count !== a.count) {
-            return b.count - a.count;
-        }
-        return a.style.toLowerCase() < b.style.toLowerCase() ? -1 : 1;
-    });
-
-    if (targets.length === 0) {
-        alert("ナンバリング対象が見つかりませんでした。");
-        return;
-    }
-
-    // --- UIダイアログ生成 ---
-    var dialog = new Window("dialog", LABELS.confirmTitle[lang]);
-    dialog.orientation = "column";
-    dialog.alignChildren = ["fill", "top"];
-
-    var fullWidthBtn, halfWidthBtn;
-
-    var mainGroup = dialog.add("group");
-    mainGroup.orientation = "row";
-    mainGroup.alignChildren = ["fill", "top"];
-
-    // 左カラム（スタイル・対象・全角半角）
-    var leftGroup = mainGroup.add("group");
-    leftGroup.orientation = "column";
-    leftGroup.alignChildren = ["fill", "top"];
-
-    // 段落スタイルパネル
-    var stylePanel = leftGroup.add("panel", undefined, "段落スタイル");
-    stylePanel.orientation = "column";
-    stylePanel.alignChildren = ["left", "top"];
-    stylePanel.margins = [15, 20, 15, 10];
-
-    // 対象パネル
-    var targetGroup = leftGroup.add("panel", undefined, LABELS.target[lang]);
-    targetGroup.orientation = "row";
-    targetGroup.alignChildren = ["left", "top"];
-    var storyRadio = targetGroup.add("radiobutton", undefined, LABELS.story[lang]);
-    var documentRadio = targetGroup.add("radiobutton", undefined, LABELS.document[lang]);
-    targetGroup.margins = [15, 20, 15, 10];
-    storyRadio.value = true;
-
-    // 全角/半角選択（日本語UIのみ）
-    if (lang === "ja") {
-        var radioGroup = leftGroup.add("group");
-        radioGroup.orientation = "row";
-        radioGroup.alignment = "center";
-        fullWidthBtn = radioGroup.add("radiobutton", undefined, "全角");
-        halfWidthBtn = radioGroup.add("radiobutton", undefined, "半角");
-        fullWidthBtn.value = true;
-    }
-
-    // 右カラム（リストボックス）
-    var rightGroup = mainGroup.add("group");
-    rightGroup.orientation = "column";
-    rightGroup.alignChildren = ["fill", "top"];
-    var listBox = rightGroup.add("listbox", undefined, "", {
-        multiselect: true
-    });
-    listBox.preferredSize = [400, 400];
-
-    for (var i = 0; i < targets.length; i++) {
-        var baseText = targets[i].text;
-        var displayText = baseText.length > 28 ? baseText.substring(0, 25) + "…" : baseText;
-        var label = targets[i].style + ": " + displayText + "（" + targets[i].count + "）";
-        var item = listBox.add("item", label);
-        item.helpTip = targets[i].text;
-    }
-
-    // 対象の段落スタイルを抽出し、チェックボックスを追加
-    var styleSet = {};
-    for (var i = 0; i < targets.length; i++) {
-        styleSet[targets[i].style] = true;
-    }
-    var sortedStyles = [];
-    for (var styleName in styleSet) {
-        sortedStyles.push(styleName);
-    }
-    sortedStyles.sort();
-    var styleCheckboxes = {};
-    for (var i = 0; i < sortedStyles.length; i++) {
-        var styleName = sortedStyles[i];
-        var cb = stylePanel.add("checkbox", undefined, styleName);
-        cb.value = true;
-        styleCheckboxes[styleName] = cb;
-    }
-    stylePanel.layout.layout(true);
-
-    // チェックボックス連動でリスト有効/無効
-    function updateListBoxEnabled() {
-        for (var i = 0; i < listBox.items.length; i++) {
-            var item = listBox.items[i];
-            var styleName = targets[i].style;
-            if (styleCheckboxes[styleName].value) {
-                item.enabled = true;
-            } else {
-                item.enabled = false;
-                item.selected = false;
-            }
-        }
-    }
-    for (var style in styleCheckboxes) {
-        styleCheckboxes[style].onClick = updateListBoxEnabled;
-    }
-    if (listBox.items.length > 0) {
-        listBox.items[0].selected = true;
-    }
-
-    // 選択された項目のキーを取得
-    function getSelectedKeys() {
-        var keys = {};
-        for (var i = 0; i < listBox.items.length; i++) {
-            if (listBox.items[i].selected) {
-                var styleName = targets[i].style;
-                var cleaned = targets[i].text;
-                var parentStyleName = targets[i].parentStyle || "";
-                var parentKey = targets[i].parent || "";
-                var parentCounter = targets[i].parentCounter || 0;
-                var key = styleName + "___" + cleaned + "___" + parentStyleName + "___" + parentKey + "___" + parentCounter;
-                keys[key] = 1;
-            }
-        }
-        return keys;
-    }
-
-    // 対象ストーリー取得
-    function getProcessStories() {
-        var processStories = [];
-        if (storyRadio.value && app.selection.length > 0) {
-            var sel = app.selection[0];
-            var parentStory = null;
-            if (sel.hasOwnProperty("parentStory")) {
-                parentStory = sel.parentStory;
-            } else if (sel.parent && sel.parent.hasOwnProperty("parentStory")) {
-                parentStory = sel.parent.parentStory;
-            }
-            if (parentStory) {
-                processStories = [parentStory];
-            } else {
-                alert("選択したオブジェクトはストーリーとして認識できません。ドキュメント全体を対象にします。");
-                processStories = stories;
-            }
-        } else {
-            processStories = stories;
-        }
-        return processStories;
-    }
-
-    // 既存のナンバリングを削除
-    function removeExistingNumbering(para) {
-        var regex = /[（\(][0-9０-９]+[）\)]$/;
-        var content = para.contents.replace(/[\r\n]+$/, "");
-        if (regex.test(content)) {
-            var match = content.match(regex);
-            if (match) {
-                var lengthToRemove = match[0].length;
-                var endIndex = para.characters.length - 1;
-                if (para.characters[endIndex].contents == "\r" || para.characters[endIndex].contents == "\n") {
-                    endIndex--;
-                }
-                var startIndex = endIndex - lengthToRemove + 1;
-                para.characters.itemByRange(startIndex, endIndex).remove();
-            }
-        }
-    }
-
-    var processStories = getProcessStories();
-
-    // --- ボタン ---
-    var buttonGroup = dialog.add("group");
-    buttonGroup.alignment = "fill";
-    buttonGroup.alignChildren = ["fill", "center"];
-    var leftButtons = buttonGroup.add("group");
-    leftButtons.alignment = "left";
-    var cancelBtn = leftButtons.add("button", undefined, LABELS.cancel[lang]);
-    var rightButtons = buttonGroup.add("group");
-    rightButtons.alignment = ["right", "center"];
-    var deleteBtn = rightButtons.add("button", undefined, LABELS.deleteBtn[lang]);
-
-    deleteBtn.onClick = function() {
-        var selectedKeys = getSelectedKeys();
-        var delCounts = {};
-        for (var key in selectedKeys) {
-            delCounts[key] = true;
-        }
-        for (var i = 0; i < processStories.length; i++) {
-            var paragraphs = processStories[i].paragraphs;
-            // --- 親階層スタックで親情報を管理 ---
-            var parentStack = [];
-            for (var j = 0; j < paragraphs.length; j++) {
-                var para = paragraphs[j];
-                if (para.parentTextFrames && para.parentTextFrames.length > 0) {
-                    var tf = para.parentTextFrames[0];
-                    if (tf.parent instanceof MasterSpread) continue;
-                }
-                var content = para.contents.replace(/[\r\n]+$/, "");
-                var styleName = para.appliedParagraphStyle.name;
-                if (styleName == "p.img" || styleName == "p.table") continue;
-                var level = headingLevelMap ? (headingLevelMap[styleName] || 99) : 99;
-                var regex = /[（\(][0-9０-９]+[）\)]$/;
-                var cleaned = content.replace(regex, "");
-                // スタックから現在のレベル以上のものをすべて削除
-                while (parentStack.length > 0 && parentStack[parentStack.length - 1].level >= level) {
-                    parentStack.pop();
-                }
-                // 新しい親情報をスタックに追加
-                if (level <= 6) {
-                    parentStack.push({
-                        key: cleaned,
-                        style: styleName,
-                        level: level,
-                        counter: (parentStack.length > 0 ? parentStack[parentStack.length - 1].counter : 0) + 1
-                    });
-                }
-                var parentKey = parentStack.length > 0 ? parentStack[parentStack.length - 1].key : "";
-                var parentStyleName = parentStack.length > 0 ? parentStack[parentStack.length - 1].style : "";
-                var parentLevelCounter = parentStack.length > 0 ? parentStack[parentStack.length - 1].counter : 0;
-                var key = styleName + "___" + cleaned + "___" + parentStyleName + "___" + parentKey + "___" + parentLevelCounter;
-                if (!(key in delCounts)) continue;
-                removeExistingNumbering(para);
-            }
-        }
-        alert("選択したテキストから番号を削除しました。");
+    /* 段落見出しレベル設定 / Heading level map */
+    var headingLevelMap = {
+        "Heading 1": 1, "h1": 1,
+        "Heading 2": 2, "h2": 2,
+        "Heading 3": 3, "h3": 3,
+        "Heading 4": 4, "h4": 4,
+        "Heading 5": 5, "h5": 5,
+        "Heading 6": 6, "h6": 6
     };
 
-    var okBtn = rightButtons.add("button", undefined, LABELS.ok[lang]);
+    /* ナンバリング対象から除外する段落スタイル / Paragraph styles to ignore */
+    var ignoreStyleNames = ["p.img", "p.table"];
 
-    var result = dialog.show();
-    if (result != 1) return;
+    /* 末尾ナンバリングの正規表現 / Trailing numbering pattern */
+    var numberingRegex = /[（\(][0-9０-９]+[）\)]$/;
 
-    var leftParen = "（";
-    var rightParen = "）";
-    if (lang === "ja" && halfWidthBtn && halfWidthBtn.value) {
-        leftParen = "(";
-        rightParen = ")";
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* 現在の言語を判定 / Detect current language */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var selectedKeys = getSelectedKeys();
+    var currentLanguage = getCurrentLang();
 
-    // --- ナンバリング付与 ---
-    function applyNumbering() {
-        var localCounts = {};
-        for (var key in selectedKeys) {
-            localCounts[key] = 1;
-        }
-        for (var i = 0; i < processStories.length; i++) {
-            var paragraphs = processStories[i].paragraphs;
-            // --- 親階層スタックで親情報を管理 ---
-            var parentStack = [];
-            for (var j = 0; j < paragraphs.length; j++) {
-                var para = paragraphs[j];
-                // マスターページ上の段落はスキップ
-                if (para.parentTextFrames && para.parentTextFrames.length > 0) {
-                    var tf = para.parentTextFrames[0];
-                    if (tf.parent instanceof MasterSpread) continue;
-                }
-                var content = para.contents.replace(/[\r\n]+$/, "");
-                var styleName = para.appliedParagraphStyle.name;
-                if (styleName == "p.img" || styleName == "p.table") continue;
-                var level = headingLevelMap ? (headingLevelMap[styleName] || 99) : 99;
-                var regex = /[（\(][0-9０-９]+[）\)]$/;
-                var cleaned = content.replace(regex, "");
-                // スタックから現在のレベル以上のものをすべて削除
-                while (parentStack.length > 0 && parentStack[parentStack.length - 1].level >= level) {
-                    parentStack.pop();
-                }
-                // 新しい親情報をスタックに追加
-                if (level <= 6) {
-                    parentStack.push({
-                        key: cleaned,
-                        style: styleName,
-                        level: level,
-                        counter: (parentStack.length > 0 ? parentStack[parentStack.length - 1].counter : 0) + 1
-                    });
-                }
-                var parentKey = parentStack.length > 0 ? parentStack[parentStack.length - 1].key : "";
-                var parentStyleName = parentStack.length > 0 ? parentStack[parentStack.length - 1].style : "";
-                var parentLevelCounter = parentStack.length > 0 ? parentStack[parentStack.length - 1].counter : 0;
-                var key = styleName + "___" + cleaned + "___" + parentStyleName + "___" + parentKey + "___" + parentLevelCounter;
-                if (!(key in localCounts)) continue;
-                if (regex.test(content)) {
-                    var match = content.match(regex);
-                    if (match) {
-                        var lengthToRemove = match[0].length;
-                        var endIndex = para.characters.length - 1;
-                        if (para.characters[endIndex].contents == "\r" || para.characters[endIndex].contents == "\n") {
-                            endIndex--;
-                        }
-                        var startIndex = endIndex - lengthToRemove + 1;
-                        para.characters.itemByRange(startIndex, endIndex).remove();
-                    }
-                }
-                var insertPos = para.characters.length;
-                if (insertPos > 0 && (para.characters[insertPos - 1].contents == "\r" || para.characters[insertPos - 1].contents == "\n")) {
-                    insertPos--;
-                }
-                para.insertionPoints[insertPos].contents = leftParen + String(localCounts[key]) + rightParen;
-                localCounts[key]++;
+    var LABELS = {
+        dialog: {
+            title: { ja: "末尾にナンバリング追加", en: "Append Numbering at End" }
+        },
+        panel: {
+            paragraphStyle: { ja: "段落スタイル", en: "Paragraph Style" },
+            target: { ja: "対象", en: "Target" }
+        },
+        radio: {
+            story: { ja: "ストーリー", en: "Story" },
+            document: { ja: "ドキュメント", en: "Document" },
+            fullWidth: { ja: "全角", en: "Full-width" },
+            halfWidth: { ja: "半角", en: "Half-width" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            deleteItem: { ja: "削除", en: "Delete" }
+        },
+        progress: {
+            title: { ja: "解析中", en: "Analyzing" }
+        },
+        alert: {
+            noTargets: {
+                ja: "ナンバリング対象が見つかりませんでした。",
+                en: "No numbering targets were found."
+            },
+            notStory: {
+                ja: "選択したオブジェクトはストーリーとして認識できません。ドキュメント全体を対象にします。",
+                en: "The selected object is not recognized as a story. The entire document will be processed."
+            },
+            removed: {
+                ja: "選択したテキストから番号を削除しました。",
+                en: "Removed numbering from the selected text."
             }
         }
-    }
-    app.doScript(applyNumbering, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "Append Paragraph Numbering");
-}
+    };
 
-main();
+    /* ドット区切りのキーで LABELS を引く / Look up a label by dotted key */
+    function L(path) {
+        var parts = path.split(".");
+        var node = LABELS;
+        for (var i = 0; i < parts.length; i++) {
+            if (node == null) return path;
+            node = node[parts[i]];
+        }
+        if (node == null) return path;
+        return (node[currentLanguage] != null) ? node[currentLanguage] : node.en;
+    }
+
+
+    // =========================================
+    // ヘルパー / Helpers
+    // =========================================
+
+    /* 除外スタイルかどうか / Whether the style is in the ignore list */
+    function isIgnoredStyle(styleName) {
+        for (var i = 0; i < ignoreStyleNames.length; i++) {
+            if (ignoreStyleNames[i] === styleName) return true;
+        }
+        return false;
+    }
+
+    /* マスターページ上の段落か / Whether the paragraph sits on a master spread */
+    function isOnMasterSpread(paragraph) {
+        if (paragraph.parentTextFrames && paragraph.parentTextFrames.length > 0) {
+            var textFrame = paragraph.parentTextFrames[0];
+            if (textFrame.parent.constructor.name === "MasterSpread") return true;
+        }
+        return false;
+    }
+
+    /* 末尾の改行を除いた本文を取得 / Get contents without trailing line breaks */
+    function trimTrailingBreaks(text) {
+        return text.replace(/[\r\n]+$/, "");
+    }
+
+    /* 段落から識別キーを生成（見出しスタックを更新しながら）/ Build an identity key, updating the heading stack */
+    function buildKeyForParagraph(paragraph, headingStack) {
+        var content = trimTrailingBreaks(paragraph.contents);
+        var styleName = paragraph.appliedParagraphStyle.name;
+        var cleanedText = content.replace(numberingRegex, "");
+        var headingLevel = headingLevelMap[styleName] || 99;
+
+        /* 現在のレベル以上の親をスタックから除去 / Pop parents at the same or deeper level */
+        while (headingStack.length > 0 && headingStack[headingStack.length - 1].level >= headingLevel) {
+            headingStack.pop();
+        }
+        /* 見出しなら親としてスタックに積む / Push headings onto the heading stack */
+        if (headingLevel <= 6) {
+            headingStack.push({
+                key: cleanedText,
+                style: styleName,
+                level: headingLevel,
+                counter: (headingStack.length > 0 ? headingStack[headingStack.length - 1].counter : 0) + 1
+            });
+        }
+        var parentKey = headingStack.length > 0 ? headingStack[headingStack.length - 1].key : "";
+        var parentStyleName = headingStack.length > 0 ? headingStack[headingStack.length - 1].style : "";
+        var parentLevelCounter = headingStack.length > 0 ? headingStack[headingStack.length - 1].counter : 0;
+
+        return {
+            key: styleName + "___" + cleanedText + "___" + parentStyleName + "___" + parentKey + "___" + parentLevelCounter,
+            style: styleName,
+            cleanedText: cleanedText,
+            content: content,
+            parentKey: parentKey,
+            parentStyle: parentStyleName,
+            parentCounter: parentLevelCounter
+        };
+    }
+
+    /* 既存のナンバリングを段落末尾から削除 / Remove existing numbering at the paragraph end */
+    function removeExistingNumbering(paragraph) {
+        var content = trimTrailingBreaks(paragraph.contents);
+        var match = content.match(numberingRegex);
+        if (!match) return;
+        var lengthToRemove = match[0].length;
+        var endIndex = paragraph.characters.length - 1;
+        if (paragraph.characters[endIndex].contents == "\r" || paragraph.characters[endIndex].contents == "\n") {
+            endIndex--;
+        }
+        var startIndex = endIndex - lengthToRemove + 1;
+        paragraph.characters.itemByRange(startIndex, endIndex).remove();
+    }
+
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+    function main() {
+        var activeDoc = app.activeDocument;
+        var allStories = activeDoc.stories;
+        var occurrenceMap = {};
+
+        /* 解析中プログレスバー / Progress bar while analyzing */
+        var progressWindow = new Window("palette", L("progress.title"));
+        progressWindow.orientation = "column";
+        progressWindow.alignChildren = ["fill", "top"];
+        progressWindow.margins = [20, 20, 20, 20];
+        var progressBar = progressWindow.add("progressbar", undefined, 0, allStories.length);
+        progressBar.preferredSize = [330, 7];
+        progressWindow.show();
+
+        /* 全ストーリーを走査して同一テキストの出現を集計 / Scan all stories and count repeated text */
+        for (var i = 0; i < allStories.length; i++) {
+            var paragraphs = allStories[i].paragraphs;
+            var headingStack = [];
+            for (var j = 0; j < paragraphs.length; j++) {
+                var paragraph = paragraphs[j];
+                if (isOnMasterSpread(paragraph)) continue;
+
+                var content = trimTrailingBreaks(paragraph.contents);
+                var cleanedText = content.replace(numberingRegex, "");
+                /* 空行・1文字以下・空白のみはスキップ / Skip empty, single-char, or whitespace-only */
+                if (cleanedText.length <= 1) continue;
+                if (cleanedText.match(/^\s+$/)) continue;
+
+                var styleName = paragraph.appliedParagraphStyle.name;
+                if (isIgnoredStyle(styleName)) continue;
+
+                var paragraphInfo = buildKeyForParagraph(paragraph, headingStack);
+                if (!occurrenceMap[paragraphInfo.key]) {
+                    occurrenceMap[paragraphInfo.key] = {
+                        style: paragraphInfo.style,
+                        text: paragraphInfo.cleanedText,
+                        count: 1,
+                        parent: paragraphInfo.parentKey,
+                        parentStyle: paragraphInfo.parentStyle,
+                        parentCounter: paragraphInfo.parentCounter
+                    };
+                } else {
+                    occurrenceMap[paragraphInfo.key].count++;
+                }
+            }
+            progressBar.value = i + 1;
+            progressWindow.update();
+        }
+        progressWindow.close();
+
+        /* 親があり2回以上出現するものだけ対象に / Keep entries that have a parent and repeat */
+        var numberingTargets = [];
+        for (var mapKey in occurrenceMap) {
+            var mapEntry = occurrenceMap[mapKey];
+            if (mapEntry.count >= 2 && mapEntry.parent !== "") {
+                numberingTargets.push(mapEntry);
+            }
+        }
+
+        /* 出現回数の多い順、同数ならスタイル名順 / Sort by count desc, then style name */
+        numberingTargets.sort(function (a, b) {
+            if (b.count !== a.count) {
+                return b.count - a.count;
+            }
+            return a.style.toLowerCase() < b.style.toLowerCase() ? -1 : 1;
+        });
+
+        if (numberingTargets.length === 0) {
+            alert(L("alert.noTargets"));
+            return;
+        }
+
+        // -----------------------------------------
+        // UIダイアログ / Dialog
+        // -----------------------------------------
+        var dialogWindow = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+        dialogWindow.orientation = "column";
+        dialogWindow.alignChildren = ["fill", "top"];
+
+        var fullWidthBtn, halfWidthBtn;
+
+        var contentGroup = dialogWindow.add("group");
+        contentGroup.orientation = "row";
+        contentGroup.alignChildren = ["fill", "top"];
+
+        /* 左カラム：スタイル・対象・全角半角 / Left column: styles, target, brackets */
+        var optionColumn = contentGroup.add("group");
+        optionColumn.orientation = "column";
+        optionColumn.alignChildren = ["fill", "top"];
+
+        var stylePanel = optionColumn.add("panel", undefined, L("panel.paragraphStyle"));
+        stylePanel.orientation = "column";
+        stylePanel.alignChildren = ["left", "top"];
+        stylePanel.margins = [15, 20, 15, 10];
+
+        var targetPanel = optionColumn.add("panel", undefined, L("panel.target"));
+        targetPanel.orientation = "row";
+        targetPanel.alignChildren = ["left", "top"];
+        var storyRadio = targetPanel.add("radiobutton", undefined, L("radio.story"));
+        var documentRadio = targetPanel.add("radiobutton", undefined, L("radio.document"));
+        targetPanel.margins = [15, 20, 15, 10];
+        storyRadio.value = true;
+
+        /* 全角／半角選択（日本語UIのみ）/ Full/half-width selection (Japanese UI only) */
+        if (currentLanguage === "ja") {
+            var bracketRadioGroup = optionColumn.add("group");
+            bracketRadioGroup.orientation = "row";
+            bracketRadioGroup.alignment = "center";
+            fullWidthBtn = bracketRadioGroup.add("radiobutton", undefined, L("radio.fullWidth"));
+            halfWidthBtn = bracketRadioGroup.add("radiobutton", undefined, L("radio.halfWidth"));
+            fullWidthBtn.value = true;
+        }
+
+        /* 右カラム：対象リスト / Right column: target list */
+        var listColumn = contentGroup.add("group");
+        listColumn.orientation = "column";
+        listColumn.alignChildren = ["fill", "top"];
+        var targetListBox = listColumn.add("listbox", undefined, "", { multiselect: true });
+        targetListBox.preferredSize = [400, 400];
+
+        for (var i = 0; i < numberingTargets.length; i++) {
+            var baseText = numberingTargets[i].text;
+            var displayText = baseText.length > 28 ? baseText.substring(0, 25) + "…" : baseText;
+            var countText = (currentLanguage === "ja") ? "（" + numberingTargets[i].count + "）" : " (" + numberingTargets[i].count + ")";
+            var listItem = targetListBox.add("item", numberingTargets[i].style + ": " + displayText + countText);
+            listItem.helpTip = numberingTargets[i].text;
+        }
+
+        /* 対象スタイルのチェックボックスを生成 / Build checkboxes for the involved styles */
+        var styleNameSet = {};
+        for (var i = 0; i < numberingTargets.length; i++) {
+            styleNameSet[numberingTargets[i].style] = true;
+        }
+        var sortedStyleNames = [];
+        for (var styleNameKey in styleNameSet) {
+            sortedStyleNames.push(styleNameKey);
+        }
+        sortedStyleNames.sort();
+        var styleCheckboxes = {};
+        for (var i = 0; i < sortedStyleNames.length; i++) {
+            var checkboxStyleName = sortedStyleNames[i];
+            var styleCheckbox = stylePanel.add("checkbox", undefined, checkboxStyleName);
+            styleCheckbox.value = true;
+            styleCheckboxes[checkboxStyleName] = styleCheckbox;
+        }
+        stylePanel.layout.layout(true);
+
+        /* チェックボックス連動でリスト項目の有効/無効を切り替え / Toggle list items per checkbox */
+        function updateListBoxEnabled() {
+            for (var i = 0; i < targetListBox.items.length; i++) {
+                var listItem = targetListBox.items[i];
+                var styleName = numberingTargets[i].style;
+                if (styleCheckboxes[styleName].value) {
+                    listItem.enabled = true;
+                } else {
+                    listItem.enabled = false;
+                    listItem.selected = false;
+                }
+            }
+        }
+        for (var checkboxStyle in styleCheckboxes) {
+            styleCheckboxes[checkboxStyle].onClick = updateListBoxEnabled;
+        }
+        if (targetListBox.items.length > 0) {
+            targetListBox.items[0].selected = true;
+        }
+
+        /* 選択中の項目からキー集合を取得 / Collect keys of the selected items */
+        function getSelectedKeys() {
+            var selectedKeyMap = {};
+            for (var i = 0; i < targetListBox.items.length; i++) {
+                if (targetListBox.items[i].selected) {
+                    var target = numberingTargets[i];
+                    var selectedKey = target.style + "___" + target.text + "___" + (target.parentStyle || "") + "___" + (target.parent || "") + "___" + (target.parentCounter || 0);
+                    selectedKeyMap[selectedKey] = 1;
+                }
+            }
+            return selectedKeyMap;
+        }
+
+        /* 処理対象のストーリーを取得（ダイアログの選択を都度反映）/ Resolve target stories per current selection */
+        function getTargetStories() {
+            if (storyRadio.value && app.selection.length > 0) {
+                var selectionItem = app.selection[0];
+                var parentStory = null;
+                if (selectionItem.hasOwnProperty("parentStory")) {
+                    parentStory = selectionItem.parentStory;
+                } else if (selectionItem.parent && selectionItem.parent.hasOwnProperty("parentStory")) {
+                    parentStory = selectionItem.parent.parentStory;
+                }
+                if (parentStory) {
+                    return [parentStory];
+                }
+                alert(L("alert.notStory"));
+                return allStories;
+            }
+            return allStories;
+        }
+
+        // -----------------------------------------
+        // ボタン / Buttons
+        // -----------------------------------------
+        var buttonGroup = dialogWindow.add("group");
+        buttonGroup.alignment = "fill";
+        buttonGroup.alignChildren = ["fill", "center"];
+        var leftButtonGroup = buttonGroup.add("group");
+        leftButtonGroup.alignment = "left";
+        var cancelBtn = leftButtonGroup.add("button", undefined, L("button.cancel"));
+        var rightButtonGroup = buttonGroup.add("group");
+        rightButtonGroup.alignment = ["right", "center"];
+        var deleteBtn = rightButtonGroup.add("button", undefined, L("button.deleteItem"));
+
+        /* 選択テキストから既存ナンバリングを削除（undoは1ステップ）/ Remove numbering from selected text (single undo) */
+        deleteBtn.onClick = function () {
+            var targetStories = getTargetStories();
+            var selectedKeyMap = getSelectedKeys();
+            function removeNumberingTask() {
+                for (var i = 0; i < targetStories.length; i++) {
+                    var paragraphs = targetStories[i].paragraphs;
+                    var headingStack = [];
+                    for (var j = 0; j < paragraphs.length; j++) {
+                        var paragraph = paragraphs[j];
+                        if (isOnMasterSpread(paragraph)) continue;
+                        var styleName = paragraph.appliedParagraphStyle.name;
+                        if (isIgnoredStyle(styleName)) continue;
+                        var paragraphInfo = buildKeyForParagraph(paragraph, headingStack);
+                        if (!(paragraphInfo.key in selectedKeyMap)) continue;
+                        removeExistingNumbering(paragraph);
+                    }
+                }
+            }
+            app.doScript(removeNumberingTask, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "Remove Paragraph Numbering");
+            alert(L("alert.removed"));
+        };
+
+        var okBtn = rightButtonGroup.add("button", undefined, "OK");
+
+        var dialogResult = dialogWindow.show();
+        if (dialogResult != 1) return;
+
+        /* 括弧の全角／半角 / Full or half-width brackets */
+        var leftParen = "（";
+        var rightParen = "）";
+        if (currentLanguage === "ja" && halfWidthBtn && halfWidthBtn.value) {
+            leftParen = "(";
+            rightParen = ")";
+        }
+
+        var targetStories = getTargetStories();
+        var selectedKeyMap = getSelectedKeys();
+
+        /* 選択テキストの末尾に連番を付与 / Append sequential numbering to selected text */
+        function applyNumberingTask() {
+            var counterByKey = {};
+            for (var seedKey in selectedKeyMap) {
+                counterByKey[seedKey] = 1;
+            }
+            for (var i = 0; i < targetStories.length; i++) {
+                var paragraphs = targetStories[i].paragraphs;
+                var headingStack = [];
+                for (var j = 0; j < paragraphs.length; j++) {
+                    var paragraph = paragraphs[j];
+                    if (isOnMasterSpread(paragraph)) continue;
+                    var styleName = paragraph.appliedParagraphStyle.name;
+                    if (isIgnoredStyle(styleName)) continue;
+
+                    var paragraphInfo = buildKeyForParagraph(paragraph, headingStack);
+                    if (!(paragraphInfo.key in counterByKey)) continue;
+
+                    removeExistingNumbering(paragraph);
+
+                    var insertIndex = paragraph.characters.length;
+                    if (insertIndex > 0 && (paragraph.characters[insertIndex - 1].contents == "\r" || paragraph.characters[insertIndex - 1].contents == "\n")) {
+                        insertIndex--;
+                    }
+                    paragraph.insertionPoints[insertIndex].contents = leftParen + String(counterByKey[paragraphInfo.key]) + rightParen;
+                    counterByKey[paragraphInfo.key]++;
+                }
+            }
+        }
+        app.doScript(applyNumberingTask, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "Append Paragraph Numbering");
+    }
+
+    main();
+
+})();
