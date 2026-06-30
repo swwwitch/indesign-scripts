@@ -1,65 +1,112 @@
 #target indesign
 
 /*
-AddPagesUsingCurrentMaster.jsx
 
-ページ挿入スクリプト（Adobe InDesign用）
-Page Insertion Script for Adobe InDesign
+### 概要
 
--------------------------------
-選択ダイアログを表示し、指定したページ数だけ現在のページの後に挿入します。
-Displays a dialog and inserts the specified number of pages after the current page.
+- ダイアログで挿入するページ数を指定し、現在のページの直後にページを追加します。
+- 追加したページには現在のページのマスターを適用します。
 
-処理の流れ / Process flow:
-1. ダイアログでページ数を入力（初期値 2） / Input the number of pages (default 2)
-2. 現在のページの直後に指定数のページを追加 / Insert pages after current page
-3. 現在のマスターを各ページに適用 / Apply current master to inserted pages
-4. ユーザーがキャンセルした場合は処理を中止 / Cancel if user closes dialog
+### 処理の流れ
 
-限定条件 / Requirements:
-- InDesignドキュメントがアクティブであること / An active InDesign document is required
+1. ダイアログでページ数を入力（初期値 2）
+2. 現在のページの直後に指定数のページを追加
+3. 現在のマスターを各ページに適用
+4. ユーザーがキャンセルした場合は処理を中止
 
-更新日：2025-06-26
-Last updated: 2025-06-26
+### 制限事項
+
+- アクティブな InDesign ドキュメントが必要です。
+
+---
+
+### Overview
+
+- Prompts for the number of pages to insert and adds them right after the current page.
+- Applies the current page's master to the inserted pages.
+
+### Process flow
+
+1. Input the number of pages in the dialog (default 2)
+2. Insert the specified number of pages after the current page
+3. Apply the current master to each inserted page
+4. Cancel the operation if the user closes the dialog
+
+### Requirements
+
+- An active InDesign document is required.
+
 */
+
+// =========================================
+// バージョン / Version
+// =========================================
+var SCRIPT_VERSION = "v1.2.0";
 
 (function () {
 
-// -------------------------------
-// 日英ラベル定義　Define label
-// -------------------------------
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
+// =========================================
+// ユーザー設定 / User settings
+// =========================================
+var DEFAULT_PAGE_COUNT = 2; /* ダイアログの初期ページ数 / Default page count in the dialog */
 
-var lang = getCurrentLang();
+// =========================================
+// ローカライズ / Localization
+// =========================================
+function getCurrentLang() {
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var currentLanguage = getCurrentLang();
+
 var LABELS = {
-    dialogTitle: {
-        ja: "ページを挿入",
-        en: "Insert Pages"
+    dialog: {
+        title: { ja: "ページを挿入", en: "Insert Pages" }
     },
-    pageCountLabel: {
-        ja: "挿入するページ数",
-        en: "Number of pages to insert"
+    field: {
+        pageCount: { ja: "挿入するページ数", en: "Number of pages to insert" }
     },
-    masterPrefix: {
-        ja: "現在のマスター：",
-        en: "Master:"
+    master: {
+        current: { ja: "現在のマスター", en: "Master" }
     },
-    invalidNumber: {
-        ja: "1 以上の数値を入力してください。",
-        en: "Please enter a number greater than 0."
-    },
-    noDocument: {
-        ja: "ドキュメントが開いていません。",
-        en: "No document is open."
+    alert: {
+        invalidNumber: {
+            ja: "1 以上の数値を入力してください。",
+            en: "Please enter a number greater than 0."
+        },
+        noDocument: {
+            ja: "ドキュメントが開いていません。",
+            en: "No document is open."
+        }
     }
 };
 
-// ScriptUI ダイアログでページ数を尋ねる関数
-// Prompt user for number of pages to insert; returns null if cancelled
+/* ドット区切りキーでラベルを取得 / Look up a label by dot-separated key */
+function getLabel(key) {
+    var node = LABELS;
+    var parts = key.split(".");
+    for (var idx = 0; idx < parts.length; idx++) {
+        node = node[parts[idx]];
+        if (!node) return key;
+    }
+    return node[currentLanguage] || node.en || key;
+}
+
+/* ラベル取得のショートハンド / Shorthand for getLabel */
+function L(key) {
+    return getLabel(key);
+}
+
+/* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+function labelText(key) {
+    return getLabel(key) + (currentLanguage === "ja" ? "：" : ": ");
+}
+
+// =========================================
+// ダイアログ / Dialog
+// =========================================
+/* ページ数を尋ねるダイアログを表示し、結果を返す（キャンセル時は null）/ Show the page-count dialog and return the result (null if cancelled) */
 function showPageCountDialog(defaultPageCount) {
-    var pageInsertDialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    var pageInsertDialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
     pageInsertDialog.orientation = "column";
     pageInsertDialog.alignChildren = ["left", "top"];
     pageInsertDialog.spacing = 10;
@@ -68,36 +115,36 @@ function showPageCountDialog(defaultPageCount) {
     var currentPage = app.activeWindow.activePage;
     var currentAppliedMaster = currentPage.appliedMaster;
 
-    // マスター名表示グループ / Display current master name
+    /* マスター名表示グループ / Display current master name */
     var masterNameGroup = pageInsertDialog.add("group");
     masterNameGroup.orientation = "row";
     masterNameGroup.alignChildren = ["left", "center"];
 
     var masterName = currentAppliedMaster ? currentAppliedMaster.name : "-";
-    masterNameGroup.add("statictext", undefined, LABELS.masterPrefix[lang] + " " + masterName);
+    masterNameGroup.add("statictext", undefined, labelText("master.current") + masterName);
 
-    // 入力フィールドグループ / Group for label and input field
+    /* 入力フィールドグループ / Group for label and input field */
     var pageCountInputGroup = pageInsertDialog.add("group");
     pageCountInputGroup.orientation = "row";
     pageCountInputGroup.alignChildren = ["left", "center"];
 
-    pageCountInputGroup.add("statictext", undefined, LABELS.pageCountLabel[lang]);
+    pageCountInputGroup.add("statictext", undefined, L("field.pageCount"));
     var pageCountInput = pageCountInputGroup.add("edittext", undefined, defaultPageCount.toString());
     pageCountInput.characters = 5;
     pageCountInput.active = true;
 
-    // ボタングループ / Buttons group
+    /* ボタングループ / Buttons group */
     var dialogButtonGroup = pageInsertDialog.add("group");
     dialogButtonGroup.orientation = "row";
     dialogButtonGroup.alignment = "center";
-    var cancelButton = dialogButtonGroup.add("button", undefined, "Cancel", {name: "cancel"});
-    var okButton = dialogButtonGroup.add("button", undefined, "OK", {name: "ok"});
+    var cancelButton = dialogButtonGroup.add("button", undefined, "Cancel", { name: "cancel" });
+    var okButton = dialogButtonGroup.add("button", undefined, "OK", { name: "ok" });
     dialogButtonGroup.margins = [0, 10, 0, 0];
 
     var dialogResult = null;
 
-    // OKボタン処理 / OK button handler
-    okButton.onClick = function() {
+    /* OKボタン処理 / OK button handler */
+    okButton.onClick = function () {
         var enteredPageCount = parseInt(pageCountInput.text, 10);
         if (!isNaN(enteredPageCount) && enteredPageCount > 0) {
             dialogResult = {
@@ -106,12 +153,12 @@ function showPageCountDialog(defaultPageCount) {
             };
             pageInsertDialog.close();
         } else {
-            alert(LABELS.invalidNumber[lang]);
+            alert(L("alert.invalidNumber"));
         }
     };
 
-    // キャンセルボタン処理 / Cancel button handler
-    cancelButton.onClick = function() {
+    /* キャンセルボタン処理 / Cancel button handler */
+    cancelButton.onClick = function () {
         pageInsertDialog.close();
     };
 
@@ -119,27 +166,37 @@ function showPageCountDialog(defaultPageCount) {
     return dialogResult;
 }
 
-// ページ挿入処理
-// Insert specified number of pages after current page, applying current master
+// =========================================
+// ページ挿入 / Page insertion
+// =========================================
+/* ダイアログ入力に基づき、現在ページの直後へページを追加してマスターを適用 / Add pages after the current page and apply the master, based on dialog input */
 function insertPages() {
-    var dialogResult = showPageCountDialog(2);
-    if (!dialogResult) return; // ユーザーがキャンセルした場合は終了 / Exit if cancelled
+    /* ドキュメントが開いていなければ中止 / Abort if no document is open */
+    if (app.documents.length === 0) {
+        alert(L("alert.noDocument"));
+        return;
+    }
+
+    var dialogResult = showPageCountDialog(DEFAULT_PAGE_COUNT);
+    if (!dialogResult) return; /* ユーザーがキャンセルした場合は終了 / Exit if cancelled */
 
     var pageCount = dialogResult.pageCount;
     var selectedMaster = dialogResult.selectedMaster;
 
+    var doc = app.activeDocument;
     var currentPage = app.activeWindow.activePage;
-    var spread = currentPage.parent;
 
-    // 指定数だけページを追加し、マスターを適用 / Add pages and apply master
+    /* ドキュメント基準で追加し、スプレッドへ正しく流し込む / Add at document level so pages reflow into proper spreads */
     for (var i = 0; i < pageCount; i++) {
-        var newPage = spread.pages.add(LocationOptions.AFTER, currentPage);
+        var newPage = doc.pages.add(LocationOptions.AFTER, currentPage);
         if (selectedMaster) newPage.appliedMaster = selectedMaster;
         currentPage = newPage;
     }
 }
 
-// スクリプト実行 / Run the script
+// =========================================
+// 実行 / Run
+// =========================================
 insertPages();
 
 })();
