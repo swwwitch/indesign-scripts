@@ -5,8 +5,10 @@
 ### 概要
 
 カーソル位置から、その段落の末尾までをまとめて削除するスクリプトです。
+段落末尾の記号のすぐ手前にカーソルがある場合は、その記号 1 文字だけを削除します。
 
 - カーソル位置から現在の段落末尾まで削除します。セル内ではセル境界を越えません。
+- 【優先】カーソルの直後が「。！？,.、，．」のいずれか（`TRAILING_MARKS`）で、それが段落末尾の場合は、末尾までの削除は行わず、その記号 1 文字だけを削除して終了します。
 - 削除範囲の末尾が「。」の場合は残します（`KEEP_TRAILING_MARU` で切替）。
 - カーソルの直前が「。」の場合は、その「。」も削除対象に含めます。
 - 末尾の改行（段落区切り）は「最後の文字」とみなさず、手前を末尾として扱います。
@@ -22,8 +24,10 @@ https://note.com/dtp_tranist/n/nf0b1e27e1f81
 ### Overview
 
 Deletes from the cursor to the end of the current paragraph in a single action.
+When the cursor sits right before a mark at the paragraph end, deletes just that one mark instead.
 
 - Deletes from the cursor to the end of the current paragraph. Inside a table cell, it never crosses the cell boundary.
+- [Priority] If the character right after the cursor is one of `。！？,.、，．` (`TRAILING_MARKS`) and it is the paragraph's last character, deletes just that single mark and stops (does not delete to the paragraph end).
 - Keeps a trailing `。` when present (toggle with `KEEP_TRAILING_MARU`).
 - Also removes a `。` placed immediately before the cursor.
 - Treats a trailing line break (paragraph separator) as not the last character, using the character before it as the end.
@@ -33,14 +37,14 @@ Deletes from the cursor to the end of the current paragraph in a single action.
 **Usage**: Run with the cursor placed inside a text frame.
 
 作成日 / Created: 2024-08-15
-更新日 / Updated: 2026-06-27
+更新日 / Updated: 2026-07-05
 
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.2.1";
 
 (function () {
     // =========================================
@@ -56,6 +60,10 @@ var SCRIPT_VERSION = "v1.1.0";
     //   true  … cut（クリップボードに入る／既存のコピー内容は上書き）/ cut (goes to clipboard)
     //   false … remove（クリップボードを汚さない）               / remove (keeps clipboard intact)
     var COPY_TO_CLIPBOARD = true;
+
+    /* 段落末尾で、カーソルの直後にあるとき 1 文字だけ削除する記号 /
+       Marks that get deleted alone when they sit right after the cursor at the paragraph end */
+    var TRAILING_MARKS = ["。", "！", "？", ",", ".", "、", "，", "．"];
 
     // =========================================
     // ローカライズ / Localization
@@ -143,6 +151,23 @@ var SCRIPT_VERSION = "v1.1.0";
            Use the container's first index as the base to get container-relative offsets */
         var baseIndex = textContainer.insertionPoints[0].index;
 
+        /* カーソルの直後が TRAILING_MARKS の記号で、それが段落末尾（＝段落の最後の表示文字）なら、
+           その 1 文字だけを削除して終了する。末尾までは削除せず、KEEP_TRAILING_MARU より優先。
+           If the char right after the cursor is one of TRAILING_MARKS and it is the paragraph's
+           last visible char, delete just that char and stop. Takes priority over KEEP_TRAILING_MARU. */
+        var cursorOffset = selection.insertionPoints[0].index - baseIndex;
+        var paragraphEndOffset = lastVisibleCharOffset(selection.paragraphs[0], baseIndex);
+        if (cursorOffset === paragraphEndOffset && isTrailingMark(characters.item(cursorOffset).contents)) {
+            var trailingMark = characters.item(cursorOffset);
+            if (COPY_TO_CLIPBOARD) {
+                app.select(trailingMark); /* cut は対象選択が必要 / cut needs a selection */
+                app.cut();
+            } else {
+                trailingMark.remove();
+            }
+            return;
+        }
+
         /* カーソル位置（相対）。直前が「。」ならその「。」も削除対象に含める /
            Cursor offset; also include a "。" immediately before the cursor */
         var startOffset = selection.insertionPoints[0].index - baseIndex;
@@ -206,6 +231,16 @@ var SCRIPT_VERSION = "v1.1.0";
     /* 改行文字（段落区切り）か / Whether the character content is a line break */
     function isLineBreak(content) {
         return content === "\r" || content === "\n";
+    }
+
+    /* TRAILING_MARKS に含まれる記号か / Whether the content is one of TRAILING_MARKS */
+    function isTrailingMark(content) {
+        for (var i = 0; i < TRAILING_MARKS.length; i++) {
+            if (TRAILING_MARKS[i] === content) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /* 末尾改行を除いた「最後の表示文字」の、コンテナ内相対位置を返す（空なら -1）/
