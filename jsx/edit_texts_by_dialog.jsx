@@ -1,230 +1,305 @@
-#target inDesign;
+#target indesign
 
 /*
-スクリプトの概要：
-このスクリプトは、InDesign で選択中のテキストまたはカーソル位置に対し、ユーザーがダイアログで入力した複数行テキストを挿入・置換します。
-また、「@# 挿入」ボタンを追加し、入力欄の末尾に視覚的な強制改行マーカーを追記できます。
+ * edit_texts_by_dialog.jsx
+ *
+ * 複数行入力ダイアログでテキストを編集し、選択範囲の置換・カーソル位置への挿入・新規テキストフレーム作成を行います。
+ * 詳細は README を参照してください。
+ */
 
-主な仕様：
-- テキスト選択中はその範囲を置換、カーソル位置のみなら挿入、TextFrame選択時は末尾に挿入
-- 入力欄では Enter により段落（\r）を挿入可能
-- @# を入力すると視覚的な強制改行（\n）として扱い、確定時に \n に復元
-- ［改行削除］ボタンにより \n / \r / \\n / \\r / @# を一括削除
-- ボタン（改行削除 / @# 挿入 / OK / キャンセル）は同一行に横並び
-- 「@# 挿入」ボタンは入力欄の末尾に @# を追記
-- 処理は Undo 対応で実行され、一括で戻すことが可能
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "edit_texts_by_dialog";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v0.1.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-05-28";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-06-26";                   /* 更新日 / last updated */
 
-※ テキストが選択されていない／テキストフレームが未選択でも、入力内容を新規テキストフレームとして挿入可能
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/edit_texts_by_dialog.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/edit_texts_by_dialog.md
 
-処理の流れ：
-1. ロケールをもとに UI ラベルを定義
-2. 選択テキストを初期値としてダイアログに表示（\n → @#）
-3. 入力を正規化（\r 統一、\n 復元）し、テキスト挿入または置換
-4. 「@# 挿入」ボタンで入力欄末尾に強制改行マーカーを追加
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
-対象オブジェクト：
-- TextFrame
-- Text（挿入ポイントまたは選択範囲）
+// =========================================
+// ユーザー設定 / User settings
+// =========================================
 
-更新履歴：
-- 作成日：2025-05-27
-- 更新日：2025-05-28（UI整理、改行変換調整、ボタン整列、ラベル分離）
-- 0.1.0：初版リリース
-- 0.1.1：改行削除ボタンの挙動修正、ラベル定義のスコープ外宣言
-- 0.1.2：テキストが選択されていない／テキストフレームが未選択でも、入力内容を新規テキストフレームとして挿入可能
-- 0.1.3：「@# 挿入」ボタンを追加（入力欄末尾に追記）
-*/
+/* 強制改行（\n）を入力欄で表す可視マーカー / Visible marker that stands for a forced line break (\n) in the input field */
+var SOFT_BREAK_MARKER = "@#";
 
-// ラベル定義（日本語／英語）をスコープ外で宣言し、クロージャで再利用可能にする
+/* 新規テキストフレームの幅の目安（1 文字あたりの推定幅と上下限）/ Width estimate for a new text frame (per-character width and its bounds) */
+var NEW_FRAME_WIDTH_PER_CHAR = 12;
+var NEW_FRAME_WIDTH_MIN      = 100;
+var NEW_FRAME_WIDTH_MAX      = 800;
+var NEW_FRAME_HEIGHT         = 20;
+
+// =========================================
+// レイアウト設定 / Layout settings
+// =========================================
+
+/* 入力欄のサイズ [幅, 高さ]（px）/ Size of the input field [width, height] (px) */
+var INPUT_BOX_SIZE = [350, 160];
+
+/* ボタン列を左右に分けるスペーサーの幅（px）/ Width of the spacer that splits the button row (px) */
+var BUTTON_ROW_SPACER_WIDTH = 30;
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+// =========================================
+// ラベル定義 / Labels
+// =========================================
+
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+
+var currentLang = getCurrentLang();
+
 var LABELS = {
-    errorNoTextFrame: {
-        ja: "テキストフレームを選択してください。", // 使用箇所: 選択が不正な場合のエラーダイアログ
-        en: "Please select a text frame."
+    dialog: {
+        title: { ja: "テキスト編集", en: "Edit Text" },
+        note:  { ja: "@#で強制改行（\\n）、fn + returnで確定", en: "@# = forced line break (\\n), fn + return to confirm" }
     },
-    errorOccurred: {
-        ja: "エラーが発生しました：\n", // 使用箇所: 例外発生時のエラーダイアログ
-        en: "An error occurred:\n"
+    button: {
+        ok:              { ja: "OK", en: "OK" },
+        cancel:          { ja: "キャンセル", en: "Cancel" },
+        clearLineBreaks: { ja: "改行全削除", en: "Clear All" },
+        insertSoftBreak: { ja: "@# 挿入", en: "Insert @#" }
     },
-    dialogTitle: {
-        ja: "テキスト編集", // 使用箇所: ダイアログタイトル
-        en: "Edit Text"
+    alert: {
+        noTextFrame:   { ja: "テキストフレームを選択してください。", en: "Please select a text frame." },
+        errorOccurred: { ja: "エラーが発生しました：\n", en: "An error occurred:\n" }
     },
-    buttonOK: {
-        ja: "OK", // 使用箇所: ダイアログOKボタン
-        en: "OK"
-    },
-    buttonCancel: {
-        ja: "キャンセル", // 使用箇所: ダイアログキャンセルボタン
-        en: "Cancel"
-    },
-    buttonClearAll: {
-        ja: "改行全削除", // 使用箇所: 改行削除ボタン
-        en: "Clear All"
-    },
-    labelNote: {
-        ja: "@#で強制改行（\\n）、fn + returnで確定", // 使用箇所: ダイアログの説明ラベル
-        en: "@# = forced line break (\\n), fn + return to confirm"
-    },
-    buttonInsertSoftBreak: {
-        ja: "@# 挿入", // 使用箇所: @# 挿入ボタン
-        en: "Insert @#"
+    undo: {
+        editText: { ja: "テキスト編集", en: "Edit Text" }
     }
 };
 
-function main() {
-    // ロケールを取得し、日本語か英語かを判定
-    var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+/**
+ * ラベルを現在の言語で取得する
+ * @param {object} labelEntry ja / en を持つラベルオブジェクト
+ * @returns {string} 現在の言語のラベル文字列
+ */
+function localize(labelEntry) {
+    return labelEntry[currentLang];
+}
 
-    // ダイアログを表示：初期テキスト付き、改行削除・@# 挿入・OK・キャンセルは同一行に横並び
-    function showMultilineDialog(initialText) {
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
+// =========================================
+// ダイアログ / Dialog
+// =========================================
 
+/**
+ * 複数行テキストの編集ダイアログを表示する
+ * @param {string} initialText 入力欄の初期値
+ * @returns {string|null} 入力されたテキスト。キャンセル時は null
+ */
+function showMultilineTextDialog(initialText) {
+    var textEditDialog = new Window("dialog", localize(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+    setupWindow(textEditDialog, 8);
 
-        var inputBox = dialog.add("edittext", undefined, initialText || "", {
-            multiline: true
-        });
-        inputBox.preferredSize = [350, 160];
+    var inputBox = textEditDialog.add("edittext", undefined, initialText || "", { multiline: true });
+    inputBox.preferredSize = INPUT_BOX_SIZE;
 
+    var noteRow = textEditDialog.add("group");
+    setupRow(noteRow, "center", 0);
+    noteRow.add("statictext", undefined, localize(LABELS.dialog.note));
 
-        var labelGroup = dialog.add("group");
-        labelGroup.orientation = "column";
-        labelGroup.alignChildren = ["center", "top"];
-        labelGroup.margins = [0, 0, 0, 10]; // 下に余白を追加
+    /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
+    var dialogButtonRow = textEditDialog.add("group");
+    setupRow(dialogButtonRow, "fill", 8);
 
-        labelGroup.add("statictext", undefined, LABELS.labelNote[lang]);
+    var clearLineBreaksButton = dialogButtonRow.add("button", undefined, localize(LABELS.button.clearLineBreaks));
+    clearLineBreaksButton.alignment = "left";
 
-        // ボタングループ（改行削除、@# 挿入、OK/キャンセル）を右下に配置
-        var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = "fill";
+    var insertSoftBreakButton = dialogButtonRow.add("button", undefined, localize(LABELS.button.insertSoftBreak));
+    insertSoftBreakButton.alignment = "left";
 
-        var clearBtn = buttonGroup.add("button", undefined, LABELS.buttonClearAll[lang]);
+    /* 左右のボタンを分けるスペーサー / Spacer that separates the left and right button clusters */
+    dialogButtonRow.add("statictext", undefined, "").preferredSize.width = BUTTON_ROW_SPACER_WIDTH;
 
-        // 「@# 挿入」ボタンを追加
-        var insertSoftBreakBtn = buttonGroup.add("button", undefined, LABELS.buttonInsertSoftBreak[lang]);
+    dialogButtonRow.add("button", undefined, localize(LABELS.button.cancel), { name: "cancel" });
+    dialogButtonRow.add("button", undefined, localize(LABELS.button.ok), { name: "ok" });
 
-        // スペーサーを追加してボタン間に余白を確保（幅を30に変更）
-        buttonGroup.add("statictext", undefined, "").preferredSize.width = 30;
+    clearLineBreaksButton.onClick = function () {
+        inputBox.text = inputBox.text
+            .replace(/\\[nr]/g, "")   /* 文字列としての \n / \r を削除 / Remove literal \n and \r */
+            .replace(/[\n\r]/g, "")   /* 実際の改行を削除 / Remove actual line breaks */
+            .replace(/@#/g, "");      /* 可視マーカーを削除 / Remove the visible marker */
+        inputBox.active = true;
+        inputBox.selection = [inputBox.text.length, inputBox.text.length];
+    };
 
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.buttonCancel[lang], {
-            name: "cancel"
-        });
-        var okBtn = buttonGroup.add("button", undefined, LABELS.buttonOK[lang], {
-            name: "ok"
-        });
+    insertSoftBreakButton.onClick = function () {
+        inputBox.text += SOFT_BREAK_MARKER;
+        inputBox.selection = [inputBox.text.length, inputBox.text.length];
+        inputBox.active = true;
+    };
 
-        clearBtn.onClick = function() {
-            inputBox.text = inputBox.text
-                .replace(/\\[nr]/g, "") // remove \n and \r literals
-                .replace(/[\n\r]/g, "") // remove actual line breaks
-                .replace(/@#/g, ""); // remove visual marker
-            inputBox.active = true;
-            inputBox.selection = [inputBox.text.length, inputBox.text.length];
-        };
+    inputBox.active = true;
+    if (!initialText) inputBox.selection = [0, 0];
 
-        // 「@# 挿入」ボタンのクリック時の挙動（末尾に @# を追記）
-        insertSoftBreakBtn.onClick = function() {
-            inputBox.text += "@#";
-            inputBox.selection = [inputBox.text.length, inputBox.text.length];
-            inputBox.active = true;
-        };
+    return (textEditDialog.show() === 1) ? inputBox.text : null;
+}
 
-        inputBox.active = true; // 入力欄にフォーカス
-        // 入力なしのときは先頭に、初期値があれば選択状態を維持
-        if (!initialText) {
-            inputBox.selection = [0, 0]; // 入力なしのときは先頭に
-        }
-        if (dialog.show() === 1) {
-            return inputBox.text;
-        } else {
-            return null;
-        }
-    }
+// =========================================
+// テキスト挿入 / Text insertion
+// =========================================
 
-    // 選択テキストがあれば初期値に設定（\n を @# に変換）
-    var initialText = "";
-    if (app.selection && app.selection.length === 1 && app.selection[0].hasOwnProperty("contents")) {
-        initialText = app.selection[0].contents.replace(/\n/g, "@#");
-    }
+/**
+ * 入力文字列を InDesign の改行コードへ正規化する
+ * @param {string} rawText ダイアログで入力された文字列
+ * @returns {string} 段落は \r、強制改行は \n に揃えた文字列
+ */
+function normalizeLineBreaks(rawText) {
+    return rawText
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "\r")
+        .replace(/\r\n/g, "\r")
+        .replace(/\n/g, "\r")
+        .replace(/\r{2,}/g, "\r")
+        .replace(/@#/g, "\n");
+}
 
-    var userInput = showMultilineDialog(initialText);
-
-    var validSelection = app.selection && app.selection.length === 1 &&
+/**
+ * 選択がテキスト編集の対象になり得るか判定する
+ * @returns {boolean} テキスト／テキストフレームが 1 つ選択されていれば true
+ */
+function hasEditableTextSelection() {
+    return !!(app.selection && app.selection.length === 1 &&
         (app.selection[0] instanceof TextFrame ||
             app.selection[0].hasOwnProperty("contents") ||
-            app.selection[0].hasOwnProperty("insertionPoints"));
+            app.selection[0].hasOwnProperty("insertionPoints")));
+}
 
-    if (userInput) {
-        userInput = userInput
-            .replace(/\\n/g, "\n")
-            .replace(/\\r/g, "\r")
-            .replace(/\r\n/g, "\r")
-            .replace(/\n/g, "\r")
-            .replace(/\r{2,}/g, "\r")
-            .replace(/@#/g, "\n");
-
-        app.doScript(function() {
-            if (validSelection) {
-                replaceTextInSelection(userInput);
-            } else {
-                // 選択がない場合は新規テキストフレームを作成（入力長に応じてサイズ可変）
-                var doc = app.activeDocument;
-                var textLength = userInput.length;
-                var width = Math.min(Math.max(textLength * 12, 100), 800); // 最小100、最大800
-                var height = 20;
-
-                // 現在のページの表示範囲の中心座標を取得
-                var bounds = app.activeWindow.activePage.bounds; // [y1, x1, y2, x2]
-                var centerY = (bounds[0] + bounds[2]) / 2;
-                var centerX = (bounds[1] + bounds[3]) / 2;
-
-                var left = centerX - width / 2;
-                var top = centerY - height / 2;
-
-                var tf = doc.textFrames.add();
-                tf.geometricBounds = [top, left, top + height, left + width / 2];
-                tf.contents = userInput;
-            }
-        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.FAST_ENTIRE_SCRIPT);
-    }
-
-    // 挿入ポイントか選択テキストを処理対象とする
-    function replaceTextInSelection(inputText) {
-        try {
-            // 選択状態を確認（1つのみ選択されているか）
-            if (!app.selection || app.selection.length !== 1) {
-                alert(LABELS.errorNoTextFrame[lang]);
-                return;
-            }
-
-            var selectedObj = app.selection[0];
-
-            // 選択が Text オブジェクトで、内容があれば置換
-            if (selectedObj.hasOwnProperty("contents") && selectedObj.contents !== "") {
-                selectedObj.contents = inputText;
-                return;
-            }
-
-            // TextFrame が選択されている場合（最後尾の挿入ポイントに挿入）
-            if (selectedObj instanceof TextFrame && selectedObj.parentStory) {
-                selectedObj.parentStory.insertionPoints[-1].contents = inputText;
-                return;
-            }
-
-            // 挿入ポイントのみが選択されている場合
-            if (selectedObj.hasOwnProperty("insertionPoints")) {
-                selectedObj.insertionPoints[0].contents = inputText;
-                return;
-            }
-
-            alert(LABELS.errorNoTextFrame[lang]);
-        } catch (e) {
-            alert(LABELS.errorOccurred[lang] + e);
+/**
+ * 選択範囲・挿入ポイント・テキストフレームのいずれかにテキストを流し込む
+ * @param {string} textToApply 適用するテキスト
+ * @returns {void}
+ */
+function replaceTextInSelection(textToApply) {
+    try {
+        if (!app.selection || app.selection.length !== 1) {
+            alert(localize(LABELS.alert.noTextFrame));
+            return;
         }
+
+        var selectedObject = app.selection[0];
+
+        /* 選択テキストがあれば置換 / Replace when text is selected */
+        if (selectedObject.hasOwnProperty("contents") && selectedObject.contents !== "") {
+            selectedObject.contents = textToApply;
+            return;
+        }
+
+        /* テキストフレーム選択時はストーリー末尾へ挿入 / Append to the story when a text frame is selected */
+        if (selectedObject instanceof TextFrame && selectedObject.parentStory) {
+            selectedObject.parentStory.insertionPoints[-1].contents = textToApply;
+            return;
+        }
+
+        /* 挿入ポイントのみのときはその位置へ挿入 / Insert at the caret when only an insertion point is active */
+        if (selectedObject.hasOwnProperty("insertionPoints")) {
+            selectedObject.insertionPoints[0].contents = textToApply;
+            return;
+        }
+
+        alert(localize(LABELS.alert.noTextFrame));
+    } catch (e) {
+        alert(localize(LABELS.alert.errorOccurred) + e);
     }
 }
 
-// スクリプトのエントリポイント
+/**
+ * アクティブページの中央に新規テキストフレームを作成する
+ * @param {string} textToApply 流し込むテキスト
+ * @returns {void}
+ */
+function createTextFrameAtPageCenter(textToApply) {
+    var activeDoc  = app.activeDocument;
+    var frameWidth = Math.min(Math.max(textToApply.length * NEW_FRAME_WIDTH_PER_CHAR, NEW_FRAME_WIDTH_MIN), NEW_FRAME_WIDTH_MAX);
+
+    /* bounds は [上, 左, 下, 右] / bounds is [top, left, bottom, right] */
+    var pageBounds = app.activeWindow.activePage.bounds;
+    var centerY = (pageBounds[0] + pageBounds[2]) / 2;
+    var centerX = (pageBounds[1] + pageBounds[3]) / 2;
+
+    var frameLeft = centerX - frameWidth / 2;
+    var frameTop  = centerY - NEW_FRAME_HEIGHT / 2;
+
+    var newTextFrame = activeDoc.textFrames.add();
+    newTextFrame.geometricBounds = [frameTop, frameLeft, frameTop + NEW_FRAME_HEIGHT, frameLeft + frameWidth];
+    newTextFrame.contents = textToApply;
+}
+
+// =========================================
+// メイン処理 / Main
+// =========================================
+
+/**
+ * ダイアログでテキストを編集し、選択状態に応じて反映する
+ * @returns {void}
+ */
+function main() {
+    /* 選択テキストを初期値にする（\n は可視マーカーへ）/ Seed the field with the selected text (\n shown as the marker) */
+    var initialText = "";
+    if (app.selection && app.selection.length === 1 && app.selection[0].hasOwnProperty("contents")) {
+        initialText = app.selection[0].contents.replace(/\n/g, SOFT_BREAK_MARKER);
+    }
+
+    var userInput = showMultilineTextDialog(initialText);
+    if (!userInput) return;
+
+    var hasSelection = hasEditableTextSelection();
+    var normalizedText = normalizeLineBreaks(userInput);
+
+    app.doScript(function () {
+        if (hasSelection) {
+            replaceTextInSelection(normalizedText);
+        } else {
+            createTextFrameAtPageCenter(normalizedText);
+        }
+    }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.FAST_ENTIRE_SCRIPT, localize(LABELS.undo.editText));
+}
+
 main();

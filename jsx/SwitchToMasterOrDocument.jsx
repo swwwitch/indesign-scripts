@@ -46,6 +46,9 @@ var LABELS = {
         noReturnPage:  { ja: "戻るページ情報がありません。", en: "No return page information found." },
         noAppliedMaster: { ja: "このページには親ページが適用されていません。", en: "No parent page is applied to this page." },
         errorOccurred: { ja: "エラーが発生しました: ", en: "An error occurred: " }
+    },
+    undo: {
+        switchPage: { ja: "親ページ／ドキュメントページの切り替え", en: "Switch Parent / Document Page" }
     }
 };
 
@@ -127,4 +130,5 @@ function main() {
     }
 }
 
-main();
+/* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, localize(LABELS.undo.switchPage));
