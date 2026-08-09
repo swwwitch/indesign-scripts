@@ -1,92 +1,147 @@
-#target "InDesign"
-/*
-概要：
-ドキュメント内すべてのストーリーを走査し、文字の水平比率・垂直比率が
-100% でない範囲を 100% に戻します（変倍のリセット）。表（テーブル）セル
-内の文字も、入れ子の表を含めて再帰的に対象とします。処理全体を1つの
-取り消し（Undo）にまとめ、最後に変更した文字範囲の件数を表示します。
+#target indesign
 
-Overview:
-Scans every story in the active document and resets any text whose
-horizontal or vertical scale is not 100% back to 100% (clears scaling).
-Text inside table cells is also covered, recursing into nested tables.
-The whole run is a single undo step, and the number of changed text
-ranges is shown when finished.
-*/
+/*
+ * ResetHorizontalVerticalScale.jsx
+ *
+ * ドキュメント内すべてのストーリー（表セル・入れ子の表を含む）を走査し、文字の水平・垂直比率を 100% に戻します。
+ * 詳細は README を参照してください。
+ */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ResetHorizontalVerticalScale"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-07-19";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-19";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/ResetHorizontalVerticalScale.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/ResetHorizontalVerticalScale.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
-    /* ドキュメントの有無を確認 / Ensure a document is open */
-    if (app.documents.length === 0) {
-        alert("ドキュメントを開いてください。");
-        return;
+
+// =========================================
+// ユーザー設定 / User settings
+// =========================================
+
+/* 変倍なしとみなす比率（%）/ The scale value treated as "no scaling" (%) */
+var NORMAL_SCALE_PERCENT = 100;
+
+// =========================================
+// ラベル定義 / Labels
+// =========================================
+
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+
+var currentLang = getCurrentLang();
+
+var LABELS = {
+    alert: {
+        noDocument:   { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+        doneTitle:    { ja: "完了しました。", en: "Done." },
+        changedCount: { ja: "\n変更した文字範囲: ", en: "\nText ranges changed: " }
+    },
+    undo: {
+        resetScale: { ja: "文字の水平・垂直比率を100%にする", en: "Reset Horizontal / Vertical Scale" }
     }
+};
 
-    var targetDocument = app.activeDocument;
+/**
+ * ラベルを現在の言語で取得する
+ * @param {object} labelEntry ja / en を持つラベルオブジェクト
+ * @returns {string} 現在の言語のラベル文字列
+ */
+function localize(labelEntry) {
+    return labelEntry[currentLang];
+}
 
-    /**
-     * 文字範囲の配列を走査し、水平・垂直比率が 100% でないものを 100% に戻す。
-     * Reset every style range in the given array whose scale is not 100%.
-     * @param {TextStyleRange[]} styleRanges 対象の文字スタイル範囲の配列 / style ranges to process
-     * @returns {number} リセットした文字範囲の件数 / number of ranges that were reset
-     */
-    function resetScaleInRanges(styleRanges) {
-        var resetCount = 0;
+// =========================================
+// 前提チェック / Preconditions
+// =========================================
+if (app.documents.length === 0) {
+    alert(localize(LABELS.alert.noDocument));
+    return;
+}
 
-        for (var k = 0; k < styleRanges.length; k++) {
-            var styleRange = styleRanges[k];
+var targetDocument = app.activeDocument;
 
-            if (
-                styleRange.horizontalScale !== 100 ||
-                styleRange.verticalScale !== 100
-            ) {
-                styleRange.horizontalScale = 100;
-                styleRange.verticalScale = 100;
-                resetCount++;
-            }
+// =========================================
+// 変倍のリセット / Scale reset
+// =========================================
+
+/**
+ * 文字スタイル範囲のうち、比率が 100% でないものを 100% に戻す
+ * @param {Array<TextStyleRange>} styleRanges 対象の文字スタイル範囲の配列
+ * @returns {number} リセットした文字範囲の件数
+ */
+function resetScaleInRanges(styleRanges) {
+    var resetCount = 0;
+
+    for (var i = 0; i < styleRanges.length; i++) {
+        var styleRange = styleRanges[i];
+        if (styleRange.horizontalScale !== NORMAL_SCALE_PERCENT ||
+            styleRange.verticalScale !== NORMAL_SCALE_PERCENT) {
+            styleRange.horizontalScale = NORMAL_SCALE_PERCENT;
+            styleRange.verticalScale = NORMAL_SCALE_PERCENT;
+            resetCount++;
         }
-
-        return resetCount;
     }
 
-    /**
-     * テキストコンテナ（ストーリーまたはセル内テキスト）の文字比率を戻し、
-     * 内包する表のセルへ再帰する（入れ子の表にも対応）。
-     * Reset a text container's scale, then recurse into its table cells.
-     * @param {Story|Text} textContainer textStyleRanges と tables を持つオブジェクト / a story or cell text
-     * @returns {number} リセットした文字範囲の件数 / number of ranges that were reset
-     */
-    function resetScaleInContainer(textContainer) {
-        var resetCount = resetScaleInRanges(
-            textContainer.textStyleRanges.everyItem().getElements()
-        );
+    return resetCount;
+}
 
-        var tables = textContainer.tables.everyItem().getElements();
-        for (var tableIndex = 0; tableIndex < tables.length; tableIndex++) {
-            var cells = tables[tableIndex].cells.everyItem().getElements();
-            for (var cellIndex = 0; cellIndex < cells.length; cellIndex++) {
-                /* セル内テキストを同じ処理で再帰 / Recurse into the cell's text */
-                resetCount += resetScaleInContainer(cells[cellIndex].texts[0]);
-            }
+/**
+ * テキストコンテナの比率を戻し、内包する表のセルへ再帰する
+ * @param {Story|Text} textContainer textStyleRanges と tables を持つオブジェクト
+ * @returns {number} リセットした文字範囲の件数
+ */
+function resetScaleInContainer(textContainer) {
+    var resetCount = resetScaleInRanges(textContainer.textStyleRanges.everyItem().getElements());
+
+    var tables = textContainer.tables.everyItem().getElements();
+    for (var i = 0; i < tables.length; i++) {
+        var cells = tables[i].cells.everyItem().getElements();
+        for (var j = 0; j < cells.length; j++) {
+            /* セル内テキストを同じ処理で再帰（入れ子の表にも対応）/ Recurse into the cell's text, covering nested tables */
+            resetCount += resetScaleInContainer(cells[j].texts[0]);
         }
-
-        return resetCount;
     }
 
-    app.doScript(
-        /* 全ストーリー（表セル含む）の文字比率を100%に戻す / Reset every story's scale, including table cells */
-        function resetTextScaleToHundred() {
-            var stories = targetDocument.stories.everyItem().getElements();
-            var resetRangeCount = 0;
+    return resetCount;
+}
 
-            for (var i = 0; i < stories.length; i++) {
-                resetRangeCount += resetScaleInContainer(stories[i]);
-            }
+// =========================================
+// メイン処理 / Main
+// =========================================
 
-            alert("完了しました。\n変更した文字範囲: " + resetRangeCount);
-        },
-        ScriptLanguage.JAVASCRIPT,
-        undefined,
-        UndoModes.ENTIRE_SCRIPT,
-        "文字の水平・垂直比率を100%にする"
-    );
+/**
+ * 全ストーリー（表セルを含む）の文字比率を 100% に戻す
+ * @returns {void}
+ */
+function main() {
+    var stories = targetDocument.stories.everyItem().getElements();
+    var resetRangeCount = 0;
+
+    for (var i = 0; i < stories.length; i++) {
+        resetRangeCount += resetScaleInContainer(stories[i]);
+    }
+
+    alert(localize(LABELS.alert.doneTitle) + localize(LABELS.alert.changedCount) + resetRangeCount);
+}
+
+/* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, localize(LABELS.undo.resetScale));
+
 })();

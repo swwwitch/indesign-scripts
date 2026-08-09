@@ -1,112 +1,191 @@
 #target indesign
 
+/*
+ * LayoutGridBuilder.jsx
+ *
+ * アクティブページに版面・タイトルエリア・フレーム・列行グリッド・区切り線などを、プレビューを見ながら一括作成します。
+ * 詳細は README を参照してください。
+ */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "LayoutGridBuilder";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v0.2.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-13";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-15";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/LayoutGridBuilder.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/LayoutGridBuilder.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 3カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
     (function () {
-        //
-        // 簡易レイアウト
-        // アクティブページに罫線・フレーム・タイトルエリア・塗り・区切り線などの
-        // レイアウト要素をダイアログで設定し、一括作成するスクリプト。
-        //
-        // バージョン: v0.2.0
-        // 作成日: 2026-03-12
-        // 更新日: 2026-03-15
-        // 日英ローカライズ対応
-        // 外側エリアと実コンテンツ領域を分離し、タイトルエリアとカラムエリア（＋アキ）を実コンテンツ領域から差し引くよう調整
-        // ローカライズの直書き箇所（自動調整・仮グリッド・表示/残す・表示パネル名）をLABELSへ集約
-        // ページのマージンUIを2カラム構成へ変更し、左右連動チェックを削除
-        // Autoボタン幅を統一し、列幅の文字数ラベルをLABELSへ集約
-        // 単位パネル名を具体化し、単位ラジオボタンを縦並びと詳細表記へ変更
-        // 見開き対応のため、自動調整系で使うページ境界をスプレッド座標へ統一
-        // 区切り線「点線」を「破線」に改称し、破線・点線をitemByName("破線 (3 & 2)"/"点線 (1 & 1)")で取得するよう変更
 
-        var SCRIPT_VERSION = "0.2.0";
+        // =========================================
+        // ラベル定義 / Labels
+        // =========================================
 
-        // 言語判定
+        /**
+         * UI 言語を判定する
+         * @returns {string} "ja" または "en"
+         */
         function getCurrentLang() {
-            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+            return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
         var lang = getCurrentLang();
 
-        // ラベル定義
         var LABELS = {
-            dialogTitle: { ja: "簡易レイアウト", en: "Quick Layout" },
-            alertOpenDoc: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running this script." },
-            panelPage: { ja: "ページ", en: "Page" },
-            panelDisplay: { ja: "単位（定規、線、テキスト、組版）", en: "Units (Ruler, Stroke, Text, Typesetting)" },
-            panelText: { ja: "基本テキスト", en: "Base Text" },
-            panelOuter: { ja: "版面", en: "Content Area" },
-            panelTitle: { ja: "タイトルエリア", en: "Title Area" },
-            panelMargin: { ja: "マージン", en: "Margins" },
-            panelFrame: { ja: "フレーム", en: "Frame" },
-            panelGrid: { ja: "実コンテンツ領域", en: "Content Region" },
-            panelOffset: { ja: "オフセット", en: "Offset" },
-            panelFill: { ja: "塗り", en: "Fill" },
-            panelRowCol: { ja: "列・行", en: "Columns / Rows" },
-            panelDivider: { ja: "区切り線", en: "Dividers" },
-            preview: { ja: "プレビュー", en: "Preview" },
-            autoAdjust: { ja: "自動調整", en: "Auto" },
-            tempGrid: { ja: "仮グリッド", en: "Temp grid" },
-            show: { ja: "表示", en: "Show" },
-            keep: { ja: "残す", en: "Keep" },
-            charUnit: { ja: "文字", en: "chars" },
-            ok: { ja: "OK", en: "OK" },
-            cancel: { ja: "キャンセル", en: "Cancel" },
-
-            outerLine: { ja: "罫線", en: "Border" },
-            cornerRadius: { ja: "角丸:", en: "Corner:" },
-            extension: { ja: "伸縮:", en: "Extension:" },
-            capStyle: { ja: "線端:", en: "Cap:" },
-            capNone: { ja: "なし", en: "None" },
-            capRound: { ja: "丸型", en: "Round" },
-            capProject: { ja: "突出", en: "Projecting" },
-
-            titleFill: { ja: "塗り", en: "Fill" },
-            titleStroke: { ja: "罫線", en: "Border" },
-            titleLength: { ja: "長さ:", en: "Length:" },
-            position: { ja: "位置:", en: "Position:" },
-            posTop: { ja: "上", en: "Top" },
-            posBottom: { ja: "下", en: "Bottom" },
-            posLeft: { ja: "左", en: "Left" },
-            posRight: { ja: "右", en: "Right" },
-
-            sideTop: { ja: "天", en: "Top" },
-            sideBottom: { ja: "地", en: "Bottom" },
-            sideLeft: { ja: "左", en: "Left" },
-            sideRight: { ja: "右", en: "Right" },
-            link: { ja: "連動", en: "Link" },
-            relative: { ja: "相対:", en: "Relative:" },
-
-            frameEnable: { ja: "フレームを描画", en: "Draw frame" },
-            frameBleed: { ja: "裁ち落とし", en: "Use bleed" },
-
-            colCount: { ja: "列数:", en: "Cols:" },
-            rowCount: { ja: "行数:", en: "Rows:" },
-            gap: { ja: "間隔:", en: "Gap:" },
-            gapLink: { ja: "間隔を連動", en: "Link gaps" },
-
-            dividerEnable: { ja: "区切り線を描画", en: "Draw dividers" },
-            lineSolid: { ja: "実線", en: "Solid" },
-            lineDashed: { ja: "破線", en: "Dashed" },
-            lineDotted: { ja: "ドット点線", en: "Dotted" },
-            lineWeight: { ja: "線幅:", en: "Weight:" },
-            enabled: { ja: "有効", en: "Enable" },
-            baseFontSize: { ja: "サイズ:", en: "Size:" },
-            leading: { ja: "行送り:", en: "Leading:" },
-            panelColumnArea: { ja: "フッターの「コラム」エリア", en: "Footer Column Area" },
-            columnFill: { ja: "塗り", en: "Fill" },
-            columnStroke: { ja: "罫線", en: "Border" },
-            columnHeight: { ja: "高さ:", en: "Height:" },
-            columnMargin: { ja: "アキ:", en: "Spacing:" },
-            textFrame: { ja: "テキストフレーム", en: "Text Frame" },
-            threadText: { ja: "スレッドテキスト", en: "Thread Text" },
-            sampleTextNone: { ja: "なし", en: "None" },
-            sampleTextSample: { ja: "サンプル", en: "Sample" },
-            sampleTextSquareCircle: { ja: "ダミー文字", en: "Dummy" }
+            dialog: {
+                title: { ja: "簡易レイアウト", en: "Quick Layout" }
+            },
+            panel: {
+                page:       { ja: "ページ", en: "Page" },
+                display:    { ja: "単位（定規、線、テキスト、組版）", en: "Units (Ruler, Stroke, Text, Typesetting)" },
+                text:       { ja: "基本テキスト", en: "Base Text" },
+                outer:      { ja: "版面", en: "Content Area" },
+                title:      { ja: "タイトルエリア", en: "Title Area" },
+                margin:     { ja: "マージン", en: "Margins" },
+                frame:      { ja: "フレーム", en: "Frame" },
+                grid:       { ja: "実コンテンツ領域", en: "Content Region" },
+                offset:     { ja: "オフセット", en: "Offset" },
+                fill:       { ja: "塗り", en: "Fill" },
+                rowCol:     { ja: "列・行", en: "Columns / Rows" },
+                divider:    { ja: "区切り線", en: "Dividers" },
+                columnArea: { ja: "フッターの「コラム」エリア", en: "Footer Column Area" }
+            },
+            field: {
+                cornerRadius: { ja: "角丸:", en: "Corner:" },
+                extension:    { ja: "伸縮:", en: "Extension:" },
+                capStyle:     { ja: "線端:", en: "Cap:" },
+                titleLength:  { ja: "長さ:", en: "Length:" },
+                position:     { ja: "位置:", en: "Position:" },
+                relative:     { ja: "相対:", en: "Relative:" },
+                colCount:     { ja: "列数:", en: "Cols:" },
+                rowCount:     { ja: "行数:", en: "Rows:" },
+                gap:          { ja: "間隔:", en: "Gap:" },
+                lineWeight:   { ja: "線幅:", en: "Weight:" },
+                baseFontSize: { ja: "サイズ:", en: "Size:" },
+                leading:      { ja: "行送り:", en: "Leading:" },
+                columnHeight: { ja: "高さ:", en: "Height:" },
+                columnMargin: { ja: "アキ:", en: "Spacing:" }
+            },
+            checkbox: {
+                outerLine:     { ja: "罫線", en: "Border" },
+                titleFill:     { ja: "塗り", en: "Fill" },
+                titleStroke:   { ja: "罫線", en: "Border" },
+                columnFill:    { ja: "塗り", en: "Fill" },
+                columnStroke:  { ja: "罫線", en: "Border" },
+                frameEnable:   { ja: "フレームを描画", en: "Draw frame" },
+                frameBleed:    { ja: "裁ち落とし", en: "Use bleed" },
+                dividerEnable: { ja: "区切り線を描画", en: "Draw dividers" },
+                gapLink:       { ja: "間隔を連動", en: "Link gaps" },
+                link:          { ja: "連動", en: "Link" },
+                preview:       { ja: "プレビュー", en: "Preview" },
+                tempGrid:      { ja: "仮グリッド", en: "Temp grid" },
+                show:          { ja: "表示", en: "Show" },
+                keep:          { ja: "残す", en: "Keep" },
+                enabled:       { ja: "有効", en: "Enable" },
+                textFrame:     { ja: "テキストフレーム", en: "Text Frame" },
+                threadText:    { ja: "スレッドテキスト", en: "Thread Text" }
+            },
+            radio: {
+                capNone:                { ja: "なし", en: "None" },
+                capRound:               { ja: "丸型", en: "Round" },
+                capProject:             { ja: "突出", en: "Projecting" },
+                posTop:                 { ja: "上", en: "Top" },
+                posBottom:              { ja: "下", en: "Bottom" },
+                posLeft:                { ja: "左", en: "Left" },
+                posRight:               { ja: "右", en: "Right" },
+                lineSolid:              { ja: "実線", en: "Solid" },
+                lineDashed:             { ja: "破線", en: "Dashed" },
+                lineDotted:             { ja: "ドット点線", en: "Dotted" },
+                sampleTextNone:         { ja: "なし", en: "None" },
+                sampleTextSample:       { ja: "サンプル", en: "Sample" },
+                sampleTextSquareCircle: { ja: "ダミー文字", en: "Dummy" }
+            },
+            side: {
+                top:    { ja: "天", en: "Top" },
+                bottom: { ja: "地", en: "Bottom" },
+                left:   { ja: "左", en: "Left" },
+                right:  { ja: "右", en: "Right" }
+            },
+            unit: {
+                chars: { ja: "文字", en: "chars" }
+            },
+            button: {
+                ok:         { ja: "OK", en: "OK" },
+                cancel:     { ja: "キャンセル", en: "Cancel" },
+                autoAdjust: { ja: "自動調整", en: "Auto" }
+            },
+            alert: {
+                openDoc: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running this script." }
+            }
         };
 
+        /**
+         * ドキュメントを確認し、設定ダイアログを表示してレイアウトを作成する
+         * @returns {void}
+         */
         function main() {
             // ドキュメントが開かれているか確認
             if (app.documents.length === 0) {
-                alert(LABELS.alertOpenDoc[lang]);
+                alert(LABELS.alert.openDoc[lang]);
                 return;
             }
             // ドキュメントの定規単位を取得
@@ -114,6 +193,11 @@
             var rulerUnit = doc.viewPreferences.horizontalMeasurementUnits;
 
             // 単位名の取得
+            /**
+             * 単位の列挙値から表示用の単位名を返す
+             * @param {MeasurementUnits} unit 対象の単位
+             * @returns {string} 単位名
+             */
             function getUnitName(unit) {
                 switch (unit) {
                     case MeasurementUnits.MILLIMETERS: return "mm";
@@ -130,10 +214,36 @@
                 }
             }
 
-            function withUnit(labelKey, unit) {
-                return LABELS[labelKey][lang] + " (" + unit + ")";
+            /**
+             * ドット区切りキーでラベルを取得する
+             * @param {string} labelKey 例: "panel.margin"
+             * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+             */
+            function getLabel(labelKey) {
+                var node = LABELS;
+                var keyParts = labelKey.split(".");
+                for (var i = 0; i < keyParts.length; i++) {
+                    node = node[keyParts[i]];
+                    if (!node) return labelKey;
+                }
+                return node[lang] || node.en || labelKey;
             }
 
+            /**
+             * ラベルの末尾に単位を括弧付きで添える
+             * @param {string} labelKey 例: "panel.margin"
+             * @param {string} unit 表示する単位名
+             * @returns {string} 単位付きのラベル文字列
+             */
+            function withUnit(labelKey, unit) {
+                return getLabel(labelKey) + " (" + unit + ")";
+            }
+
+            /**
+             * スプレッド座標系でのページ境界を取得する
+             * @param {Page} targetPage 対象ページ
+             * @returns {Array<number>} [上, 左, 下, 右]
+             */
             function getPageBoundsOnSpread(targetPage) {
                 var tl = targetPage.resolve(AnchorPoint.TOP_LEFT_ANCHOR, CoordinateSpaces.SPREAD_COORDINATES)[0];
                 var br = targetPage.resolve(AnchorPoint.BOTTOM_RIGHT_ANCHOR, CoordinateSpaces.SPREAD_COORDINATES)[0];
@@ -141,6 +251,11 @@
                 return [tl[1] / ptPerUnit, tl[0] / ptPerUnit, br[1] / ptPerUnit, br[0] / ptPerUnit];
             }
 
+            /**
+             * ページの裁ち落とし量を取得する
+             * @param {Page} targetPage 対象ページ
+             * @returns {object} 各辺の裁ち落とし量
+             */
             function getPageBleedOffsets(targetPage) {
                 var dp = doc.documentPreferences;
                 var top = dp.documentBleedTopOffset || 0;
@@ -176,6 +291,11 @@
             var unitName = getUnitName(rulerUnit);
 
             // 単位からポイントへの変換係数
+            /**
+             * 現在の単位の数値をポイントへ換算する
+             * @param {MeasurementUnits} unit 換算元の単位
+             * @returns {number} 1 単位あたりのポイント数
+             */
             function unitToPt(unit) {
                 switch (unit) {
                     case MeasurementUnits.MILLIMETERS: return 2.834645669;
@@ -202,13 +322,23 @@
             var defMarginLeft = isLeftPage ? mp.right : mp.left;
             var defMarginRight = isLeftPage ? mp.left : mp.right;
 
+            /**
+             * 設定ダイアログを組み立てる
+             * @returns {object} ダイアログとコントロールをまとめたオブジェクト
+             */
             function buildDialogUI() {
                 // ダイアログの作成
-                var dlg = new Window("dialog", LABELS.dialogTitle[lang] + " v" + SCRIPT_VERSION);
+                var dlg = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
                 dlg.orientation = "column";
                 dlg.alignChildren = "fill";
 
                 // ↑↓キーで値を増減する機能を追加
+                /**
+                 * 入力欄に上下キーでの増減操作を追加する
+                 * @param {EditText} editField 対象の入力欄
+                 * @param {number} minValue 許容する最小値
+                 * @returns {void}
+                 */
                 function addArrowKeySupport(editField, minValue) {
                     editField.addEventListener("keydown", function (e) {
                         if (e.keyName === "Up" || e.keyName === "Down") {
@@ -254,13 +384,13 @@
                 rightCol.alignChildren = "fill";
 
                 // 外側エリア panel（中央カラム）
-                var pnl1 = centerCol.add("panel", undefined, LABELS.panelOuter[lang]);
+                var pnl1 = centerCol.add("panel", undefined, LABELS.panel.outer[lang]);
                 pnl1.orientation = "column";
                 pnl1.alignChildren = "left";
-                pnl1.margins = [15, 20, 15, 10];
+                pnl1.margins = PANEL_MARGINS;
 
                 var outerLineGroup = pnl1.add("group");
-                var outerLineCheck = outerLineGroup.add("checkbox", undefined, LABELS.outerLine[lang]);
+                var outerLineCheck = outerLineGroup.add("checkbox", undefined, LABELS.checkbox.outerLine[lang]);
                 outerLineCheck.value = false;
                 var strokeWeightInput = outerLineGroup.add("edittext", undefined, "0.3");
                 strokeWeightInput.characters = 5;
@@ -268,14 +398,14 @@
                 var strokeUnitLabel = outerLineGroup.add("statictext", undefined, "pt");
 
                 var row2b = pnl1.add("group");
-                row2b.add("statictext", undefined, LABELS.cornerRadius[lang], { justify: "right" });
+                row2b.add("statictext", undefined, LABELS.field.cornerRadius[lang], { justify: "right" });
                 var cornerInput = row2b.add("edittext", undefined, "0");
                 cornerInput.characters = 4;
                 addArrowKeySupport(cornerInput);
                 row2b.add("statictext", undefined, unitName);
 
                 var row2 = pnl1.add("group");
-                row2.add("statictext", undefined, LABELS.extension[lang], { justify: "right" });
+                row2.add("statictext", undefined, LABELS.field.extension[lang], { justify: "right" });
                 var extensionInput = row2.add("edittext", undefined, "0");
                 extensionInput.characters = 4;
                 addArrowKeySupport(extensionInput);
@@ -283,114 +413,114 @@
 
                 // 線端のラジオボタン
                 var capGroup = pnl1.add("group");
-                capGroup.add("statictext", undefined, LABELS.capStyle[lang], { justify: "right" });
-                var rbCapNone = capGroup.add("radiobutton", undefined, LABELS.capNone[lang]);
-                var rbCapRound = capGroup.add("radiobutton", undefined, LABELS.capRound[lang]);
-                var rbCapProject = capGroup.add("radiobutton", undefined, LABELS.capProject[lang]);
+                capGroup.add("statictext", undefined, LABELS.field.capStyle[lang], { justify: "right" });
+                var rbCapNone = capGroup.add("radiobutton", undefined, LABELS.radio.capNone[lang]);
+                var rbCapRound = capGroup.add("radiobutton", undefined, LABELS.radio.capRound[lang]);
+                var rbCapProject = capGroup.add("radiobutton", undefined, LABELS.radio.capProject[lang]);
                 rbCapNone.value = true;
 
                 // タイトルエリア panel（中央カラム）
-                var pnl2 = centerCol.add("panel", undefined, LABELS.panelTitle[lang]);
+                var pnl2 = centerCol.add("panel", undefined, LABELS.panel.title[lang]);
                 pnl2.orientation = "column";
                 pnl2.alignChildren = "left";
-                pnl2.margins = [15, 20, 15, 10];
+                pnl2.margins = PANEL_MARGINS;
 
                 var chkGroup = pnl2.add("group");
-                var titleFillCheck = chkGroup.add("checkbox", undefined, LABELS.titleFill[lang]);
-                var titleStrokeCheck = chkGroup.add("checkbox", undefined, LABELS.titleStroke[lang]);
+                var titleFillCheck = chkGroup.add("checkbox", undefined, LABELS.checkbox.titleFill[lang]);
+                var titleStrokeCheck = chkGroup.add("checkbox", undefined, LABELS.checkbox.titleStroke[lang]);
 
                 // 長さのデフォルト: 外側エリア高さの1/5
                 var pageBoundsOnSpread = getPageBoundsOnSpread(page);
                 var defTitleLength = Math.round(((pageBoundsOnSpread[2] - pageBoundsOnSpread[0]) - defMarginTop - defMarginBottom) / 5 * 100) / 100;
 
                 var row3 = pnl2.add("group");
-                row3.add("statictext", undefined, LABELS.titleLength[lang], { justify: "right" });
+                row3.add("statictext", undefined, LABELS.field.titleLength[lang], { justify: "right" });
                 var titleLengthInput = row3.add("edittext", undefined, String(defTitleLength));
                 titleLengthInput.characters = 4;
                 addArrowKeySupport(titleLengthInput);
                 row3.add("statictext", undefined, unitName);
-                var titleLengthAutoBtn = row3.add("button", undefined, LABELS.autoAdjust[lang]);
+                var titleLengthAutoBtn = row3.add("button", undefined, LABELS.button.autoAdjust[lang]);
                 titleLengthAutoBtn.preferredSize = [70, 22];
 
                 // 位置のラジオボタン
                 var radioGroup = pnl2.add("group");
-                radioGroup.add("statictext", undefined, LABELS.position[lang], { justify: "right" });
-                var rbTop = radioGroup.add("radiobutton", undefined, LABELS.posTop[lang]);
-                var rbBottom = radioGroup.add("radiobutton", undefined, LABELS.posBottom[lang]);
-                var rbLeft = radioGroup.add("radiobutton", undefined, LABELS.posLeft[lang]);
-                var rbRight = radioGroup.add("radiobutton", undefined, LABELS.posRight[lang]);
+                radioGroup.add("statictext", undefined, LABELS.field.position[lang], { justify: "right" });
+                var rbTop = radioGroup.add("radiobutton", undefined, LABELS.radio.posTop[lang]);
+                var rbBottom = radioGroup.add("radiobutton", undefined, LABELS.radio.posBottom[lang]);
+                var rbLeft = radioGroup.add("radiobutton", undefined, LABELS.radio.posLeft[lang]);
+                var rbRight = radioGroup.add("radiobutton", undefined, LABELS.radio.posRight[lang]);
                 rbTop.value = true; // デフォルトは「上」
 
                 var row4 = pnl2.add("group");
-                row4.add("statictext", undefined, LABELS.extension[lang], { justify: "right" });
+                row4.add("statictext", undefined, LABELS.field.extension[lang], { justify: "right" });
                 var titleExtensionInput = row4.add("edittext", undefined, "0");
                 titleExtensionInput.characters = 4;
                 addArrowKeySupport(titleExtensionInput);
                 row4.add("statictext", undefined, unitName);
 
                 // フッターの「コラム」エリア panel（中央カラム）
-                var pnlColumn = centerCol.add("panel", undefined, LABELS.panelColumnArea[lang]);
+                var pnlColumn = centerCol.add("panel", undefined, LABELS.panel.columnArea[lang]);
                 pnlColumn.orientation = "column";
                 pnlColumn.alignChildren = "left";
-                pnlColumn.margins = [15, 20, 15, 10];
+                pnlColumn.margins = PANEL_MARGINS;
 
                 var colAreaChkGroup = pnlColumn.add("group");
-                var columnFillCheck = colAreaChkGroup.add("checkbox", undefined, LABELS.columnFill[lang]);
-                var columnStrokeCheck = colAreaChkGroup.add("checkbox", undefined, LABELS.columnStroke[lang]);
+                var columnFillCheck = colAreaChkGroup.add("checkbox", undefined, LABELS.checkbox.columnFill[lang]);
+                var columnStrokeCheck = colAreaChkGroup.add("checkbox", undefined, LABELS.checkbox.columnStroke[lang]);
                 var columnWeightInput = colAreaChkGroup.add("edittext", undefined, "0.3");
                 columnWeightInput.characters = 5;
                 addArrowKeySupport(columnWeightInput);
                 var columnWeightUnitLabel = colAreaChkGroup.add("statictext", undefined, "pt");
 
                 var rowColHeight = pnlColumn.add("group");
-                rowColHeight.add("statictext", undefined, LABELS.columnHeight[lang], { justify: "right" });
+                rowColHeight.add("statictext", undefined, LABELS.field.columnHeight[lang], { justify: "right" });
                 var columnHeightInput = rowColHeight.add("edittext", undefined, "30");
                 columnHeightInput.characters = 4;
                 addArrowKeySupport(columnHeightInput);
                 rowColHeight.add("statictext", undefined, unitName);
-                var columnHeightAutoBtn = rowColHeight.add("button", undefined, LABELS.autoAdjust[lang]);
+                var columnHeightAutoBtn = rowColHeight.add("button", undefined, LABELS.button.autoAdjust[lang]);
                 columnHeightAutoBtn.preferredSize = [70, 22];
 
                 var rowColMargin = pnlColumn.add("group");
-                rowColMargin.add("statictext", undefined, LABELS.columnMargin[lang], { justify: "right" });
+                rowColMargin.add("statictext", undefined, LABELS.field.columnMargin[lang], { justify: "right" });
                 var columnMarginInput = rowColMargin.add("edittext", undefined, "0");
                 columnMarginInput.characters = 4;
                 addArrowKeySupport(columnMarginInput, 0);
                 rowColMargin.add("statictext", undefined, unitName);
 
                 var rowColCorner = pnlColumn.add("group");
-                rowColCorner.add("statictext", undefined, LABELS.cornerRadius[lang], { justify: "right" });
+                rowColCorner.add("statictext", undefined, LABELS.field.cornerRadius[lang], { justify: "right" });
                 var columnCornerInput = rowColCorner.add("edittext", undefined, "0");
                 columnCornerInput.characters = 4;
                 addArrowKeySupport(columnCornerInput);
                 rowColCorner.add("statictext", undefined, unitName);
 
                 // ページ panel（左カラム）
-                var pnlPage = leftCol.add("panel", undefined, LABELS.panelPage[lang]);
+                var pnlPage = leftCol.add("panel", undefined, LABELS.panel.page[lang]);
                 pnlPage.orientation = "column";
                 pnlPage.alignChildren = "fill";
-                pnlPage.margins = [15, 20, 15, 10];
+                pnlPage.margins = PANEL_MARGINS;
 
                 // 単位 panel（ページ内）
-                var pnlUnit = pnlPage.add("panel", undefined, LABELS.panelDisplay[lang]);
+                var pnlUnit = pnlPage.add("panel", undefined, LABELS.panel.display[lang]);
                 pnlUnit.orientation = "column";
                 pnlUnit.alignChildren = "left";
-                pnlUnit.margins = [15, 20, 15, 10];
+                pnlUnit.margins = PANEL_MARGINS;
                 var rbUnitMmPt = pnlUnit.add("radiobutton", undefined, "mm/pt/pt/pt");
                 var rbUnitMmMmPt = pnlUnit.add("radiobutton", undefined, "mm/mm/pt/pt");
                 var rbUnitMmQ = pnlUnit.add("radiobutton", undefined, "mm/mm/Q/H");
                 rbUnitMmPt.value = true;
 
                 // 基本テキスト panel（ページ内）
-                var pnlText = pnlPage.add("panel", undefined, LABELS.panelText[lang]);
+                var pnlText = pnlPage.add("panel", undefined, LABELS.panel.text[lang]);
                 pnlText.orientation = "column";
                 pnlText.alignChildren = "left";
-                pnlText.margins = [15, 20, 15, 10];
+                pnlText.margins = PANEL_MARGINS;
 
                 var fontGroup = pnlText.add("group");
                 fontGroup.orientation = "row";
                 fontGroup.alignChildren = ["left", "center"];
-                fontGroup.add("statictext", undefined, LABELS.baseFontSize[lang]);
+                fontGroup.add("statictext", undefined, LABELS.field.baseFontSize[lang]);
                 var baseFontSizeInput = fontGroup.add("edittext", undefined, "9.5");
                 baseFontSizeInput.characters = 5;
                 addArrowKeySupport(baseFontSizeInput);
@@ -399,7 +529,7 @@
                 var leadingGroup = pnlText.add("group");
                 leadingGroup.orientation = "row";
                 leadingGroup.alignChildren = ["left", "center"];
-                leadingGroup.add("statictext", undefined, LABELS.leading[lang]);
+                leadingGroup.add("statictext", undefined, LABELS.field.leading[lang]);
                 var leadingInput = leadingGroup.add("edittext", undefined, "16");
                 leadingInput.characters = 5;
                 addArrowKeySupport(leadingInput);
@@ -407,17 +537,17 @@
 
                 var gridGroup = pnlText.add("group");
                 gridGroup.orientation = "row";
-                gridGroup.add("statictext", undefined, LABELS.tempGrid[lang]);
-                var showLayoutGridCheck = gridGroup.add("checkbox", undefined, LABELS.show[lang]);
+                gridGroup.add("statictext", undefined, LABELS.checkbox.tempGrid[lang]);
+                var showLayoutGridCheck = gridGroup.add("checkbox", undefined, LABELS.checkbox.show[lang]);
                 showLayoutGridCheck.value = true;
-                var keepGridCheck = gridGroup.add("checkbox", undefined, LABELS.keep[lang]);
+                var keepGridCheck = gridGroup.add("checkbox", undefined, LABELS.checkbox.keep[lang]);
                 keepGridCheck.value = true;
 
                 // マージン panel（ページ内）
-                var pnlMargin = pnlPage.add("panel", undefined, withUnit("panelMargin", unitName));
+                var pnlMargin = pnlPage.add("panel", undefined, withUnit("panel.margin", unitName));
                 pnlMargin.orientation = "column";
                 pnlMargin.alignChildren = "center";
-                pnlMargin.margins = [15, 20, 15, 10];
+                pnlMargin.margins = PANEL_MARGINS;
 
                 var marginGroup = pnlMargin.add("group");
                 marginGroup.orientation = "row";
@@ -430,13 +560,13 @@
                 marginColLeft.alignChildren = ["left", "center"];
 
                 var rowMT = marginColLeft.add("group");
-                rowMT.add("statictext", undefined, LABELS.sideTop[lang], { justify: "right" });
+                rowMT.add("statictext", undefined, LABELS.side.top[lang], { justify: "right" });
                 var marginTopInput = rowMT.add("edittext", undefined, String(defMarginTop));
                 marginTopInput.characters = 4;
                 addArrowKeySupport(marginTopInput);
 
                 var rowMB = marginColLeft.add("group");
-                rowMB.add("statictext", undefined, LABELS.sideBottom[lang], { justify: "right" });
+                rowMB.add("statictext", undefined, LABELS.side.bottom[lang], { justify: "right" });
                 var marginBottomInput = rowMB.add("edittext", undefined, String(defMarginBottom));
                 marginBottomInput.characters = 4;
                 addArrowKeySupport(marginBottomInput);
@@ -446,35 +576,35 @@
                 marginColRight.alignChildren = ["left", "center"];
 
                 var rowML = marginColRight.add("group");
-                rowML.add("statictext", undefined, LABELS.sideLeft[lang], { justify: "right" });
+                rowML.add("statictext", undefined, LABELS.side.left[lang], { justify: "right" });
                 var marginLeftInput = rowML.add("edittext", undefined, String(defMarginLeft));
                 marginLeftInput.characters = 4;
                 addArrowKeySupport(marginLeftInput);
 
                 var rowMR = marginColRight.add("group");
-                rowMR.add("statictext", undefined, LABELS.sideRight[lang], { justify: "right" });
+                rowMR.add("statictext", undefined, LABELS.side.right[lang], { justify: "right" });
                 var marginRightInput = rowMR.add("edittext", undefined, String(defMarginRight));
                 marginRightInput.characters = 4;
                 addArrowKeySupport(marginRightInput);
 
                 var relativeGroup = pnlMargin.add("group");
                 relativeGroup.margins = [0, 10, 0, 0];
-                relativeGroup.add("statictext", undefined, LABELS.relative[lang], { justify: "right" });
+                relativeGroup.add("statictext", undefined, LABELS.field.relative[lang], { justify: "right" });
                 var relativeInput = relativeGroup.add("edittext", undefined, "0");
                 relativeInput.characters = 4;
                 addArrowKeySupport(relativeInput);
                 relativeGroup.add("statictext", undefined, unitName);
 
                 // フレーム panel（ページ内）
-                var pnl3 = pnlPage.add("panel", undefined, withUnit("panelFrame", unitName));
+                var pnl3 = pnlPage.add("panel", undefined, withUnit("panel.frame", unitName));
                 pnl3.orientation = "column";
                 pnl3.alignChildren = "left";
-                pnl3.margins = [15, 20, 15, 10];
+                pnl3.margins = PANEL_MARGINS;
 
                 var frameChkGroup = pnl3.add("group");
-                var frameEnableCheck = frameChkGroup.add("checkbox", undefined, LABELS.frameEnable[lang]);
+                var frameEnableCheck = frameChkGroup.add("checkbox", undefined, LABELS.checkbox.frameEnable[lang]);
                 frameEnableCheck.value = false;
-                var frameBleedCheck = frameChkGroup.add("checkbox", undefined, LABELS.frameBleed[lang]);
+                var frameBleedCheck = frameChkGroup.add("checkbox", undefined, LABELS.checkbox.frameBleed[lang]);
 
                 // 幅（3列レイアウト: 左=左、中央=天地+連動、右=右）
                 var frameMarginGroup = pnl3.add("group");
@@ -484,7 +614,7 @@
                 // 1列目：左
                 var fColLeft = frameMarginGroup.add("group");
                 fColLeft.alignment = "center";
-                fColLeft.add("statictext", undefined, LABELS.sideLeft[lang], { justify: "right" });
+                fColLeft.add("statictext", undefined, LABELS.side.left[lang], { justify: "right" });
                 var frameLeftInput = fColLeft.add("edittext", undefined, "0");
                 frameLeftInput.characters = 4;
                 addArrowKeySupport(frameLeftInput);
@@ -494,14 +624,14 @@
                 fColCenter.orientation = "column";
                 fColCenter.alignChildren = "center";
                 var rowFT = fColCenter.add("group");
-                rowFT.add("statictext", undefined, LABELS.sideTop[lang], { justify: "right" });
+                rowFT.add("statictext", undefined, LABELS.side.top[lang], { justify: "right" });
                 var frameTopInput = rowFT.add("edittext", undefined, "0");
                 frameTopInput.characters = 4;
                 addArrowKeySupport(frameTopInput);
-                var frameLinkCheck = fColCenter.add("checkbox", undefined, LABELS.link[lang]);
+                var frameLinkCheck = fColCenter.add("checkbox", undefined, LABELS.checkbox.link[lang]);
                 frameLinkCheck.value = true;
                 var rowFB = fColCenter.add("group");
-                rowFB.add("statictext", undefined, LABELS.sideBottom[lang], { justify: "right" });
+                rowFB.add("statictext", undefined, LABELS.side.bottom[lang], { justify: "right" });
                 var frameBottomInput = rowFB.add("edittext", undefined, "0");
                 frameBottomInput.characters = 4;
                 addArrowKeySupport(frameBottomInput);
@@ -509,22 +639,22 @@
                 // 3列目：右
                 var fColRight = frameMarginGroup.add("group");
                 fColRight.alignment = "center";
-                fColRight.add("statictext", undefined, LABELS.sideRight[lang], { justify: "right" });
+                fColRight.add("statictext", undefined, LABELS.side.right[lang], { justify: "right" });
                 var frameRightInput = fColRight.add("edittext", undefined, "0");
                 frameRightInput.characters = 4;
                 addArrowKeySupport(frameRightInput);
 
                 // グリッド panel（右カラム）
-                var pnl4 = rightCol.add("panel", undefined, LABELS.panelGrid[lang]);
+                var pnl4 = rightCol.add("panel", undefined, LABELS.panel.grid[lang]);
                 pnl4.orientation = "column";
                 pnl4.alignChildren = "fill";
-                pnl4.margins = [15, 20, 15, 10];
+                pnl4.margins = PANEL_MARGINS;
 
                 // オフセット sub-panel
-                var pnlOffset = pnl4.add("panel", undefined, withUnit("panelOffset", unitName));
+                var pnlOffset = pnl4.add("panel", undefined, withUnit("panel.offset", unitName));
                 pnlOffset.orientation = "column";
                 pnlOffset.alignChildren = "center";
-                pnlOffset.margins = [15, 20, 15, 10];
+                pnlOffset.margins = PANEL_MARGINS;
 
                 var innerMarginGroup = pnlOffset.add("group");
                 innerMarginGroup.orientation = "row";
@@ -533,7 +663,7 @@
                 // 1列目：左
                 var iColLeft = innerMarginGroup.add("group");
                 iColLeft.alignment = "center";
-                iColLeft.add("statictext", undefined, LABELS.sideLeft[lang], { justify: "right" });
+                iColLeft.add("statictext", undefined, LABELS.side.left[lang], { justify: "right" });
                 var innerLeftInput = iColLeft.add("edittext", undefined, "10");
                 innerLeftInput.characters = 6;
                 addArrowKeySupport(innerLeftInput);
@@ -543,14 +673,14 @@
                 iColCenter.orientation = "column";
                 iColCenter.alignChildren = "center";
                 var rowIT = iColCenter.add("group");
-                rowIT.add("statictext", undefined, LABELS.sideTop[lang], { justify: "right" });
+                rowIT.add("statictext", undefined, LABELS.side.top[lang], { justify: "right" });
                 var innerTopInput = rowIT.add("edittext", undefined, "10");
                 innerTopInput.characters = 6;
                 addArrowKeySupport(innerTopInput);
-                var innerLinkCheck = iColCenter.add("checkbox", undefined, LABELS.link[lang]);
+                var innerLinkCheck = iColCenter.add("checkbox", undefined, LABELS.checkbox.link[lang]);
                 innerLinkCheck.value = true;
                 var rowIB = iColCenter.add("group");
-                rowIB.add("statictext", undefined, LABELS.sideBottom[lang], { justify: "right" });
+                rowIB.add("statictext", undefined, LABELS.side.bottom[lang], { justify: "right" });
                 var innerBottomInput = rowIB.add("edittext", undefined, "10");
                 innerBottomInput.characters = 6;
                 addArrowKeySupport(innerBottomInput);
@@ -558,80 +688,80 @@
                 // 3列目：右
                 var iColRight = innerMarginGroup.add("group");
                 iColRight.alignment = "center";
-                iColRight.add("statictext", undefined, LABELS.sideRight[lang], { justify: "right" });
+                iColRight.add("statictext", undefined, LABELS.side.right[lang], { justify: "right" });
                 var innerRightInput = iColRight.add("edittext", undefined, "10");
                 innerRightInput.characters = 6;
                 addArrowKeySupport(innerRightInput);
 
-                var offsetAutoBtn = pnlOffset.add("button", undefined, LABELS.autoAdjust[lang]);
+                var offsetAutoBtn = pnlOffset.add("button", undefined, LABELS.button.autoAdjust[lang]);
                 offsetAutoBtn.preferredSize = [70, 22];
 
                 // 列・行 sub-panel（グリッドpanel内）
-                var pnlRowCol = pnl4.add("panel", undefined, LABELS.panelRowCol[lang]);
+                var pnlRowCol = pnl4.add("panel", undefined, LABELS.panel.rowCol[lang]);
                 pnlRowCol.orientation = "column";
                 pnlRowCol.alignChildren = "left";
-                pnlRowCol.margins = [15, 20, 15, 10];
+                pnlRowCol.margins = PANEL_MARGINS;
 
                 var rowColCount = pnlRowCol.add("group");
-                rowColCount.add("statictext", undefined, LABELS.colCount[lang], { justify: "right" });
+                rowColCount.add("statictext", undefined, LABELS.field.colCount[lang], { justify: "right" });
                 var colCountInput = rowColCount.add("edittext", undefined, "2");
                 colCountInput.characters = 5;
                 addArrowKeySupport(colCountInput, 1);
                 var colCharInput = rowColCount.add("edittext", undefined, "0");
                 colCharInput.characters = 4;
                 addArrowKeySupport(colCharInput, 1);
-                var colCharUnit = rowColCount.add("statictext", undefined, LABELS.charUnit[lang]);
+                var colCharUnit = rowColCount.add("statictext", undefined, LABELS.unit.chars[lang]);
 
                 var rowColGap = pnlRowCol.add("group");
-                rowColGap.add("statictext", undefined, LABELS.gap[lang], { justify: "right" });
+                rowColGap.add("statictext", undefined, LABELS.field.gap[lang], { justify: "right" });
                 var colGapInput = rowColGap.add("edittext", undefined, "10");
                 colGapInput.characters = 5;
                 addArrowKeySupport(colGapInput, 0);
                 rowColGap.add("statictext", undefined, unitName);
-                var colGapAutoBtn = rowColGap.add("button", undefined, LABELS.autoAdjust[lang]);
+                var colGapAutoBtn = rowColGap.add("button", undefined, LABELS.button.autoAdjust[lang]);
                 colGapAutoBtn.preferredSize = [70, 22];
 
                 var rowRowCount = pnlRowCol.add("group");
-                rowRowCount.add("statictext", undefined, LABELS.rowCount[lang], { justify: "right" });
+                rowRowCount.add("statictext", undefined, LABELS.field.rowCount[lang], { justify: "right" });
                 var rowCountInput = rowRowCount.add("edittext", undefined, "1");
                 rowCountInput.characters = 5;
                 addArrowKeySupport(rowCountInput, 1);
 
                 var rowRowGap = pnlRowCol.add("group");
-                rowRowGap.add("statictext", undefined, LABELS.gap[lang], { justify: "right" });
+                rowRowGap.add("statictext", undefined, LABELS.field.gap[lang], { justify: "right" });
                 var rowGapInput = rowRowGap.add("edittext", undefined, "0");
                 rowGapInput.characters = 5;
                 addArrowKeySupport(rowGapInput, 0);
                 rowRowGap.add("statictext", undefined, unitName);
-                var gapLinkCheck = rowRowGap.add("checkbox", undefined, LABELS.link[lang]);
+                var gapLinkCheck = rowRowGap.add("checkbox", undefined, LABELS.checkbox.link[lang]);
                 gapLinkCheck.value = true;
 
                 // 塗り sub-panel
-                var pnlFill = pnl4.add("panel", undefined, LABELS.panelFill[lang]);
+                var pnlFill = pnl4.add("panel", undefined, LABELS.panel.fill[lang]);
                 pnlFill.orientation = "column";
                 pnlFill.alignChildren = "left";
-                pnlFill.margins = [15, 20, 15, 10];
+                pnlFill.margins = PANEL_MARGINS;
                 var fillGroup = pnlFill.add("group");
                 fillGroup.alignment = "left";
-                var rbFillColor = fillGroup.add("radiobutton", undefined, LABELS.panelFill[lang]);
-                var rbFillTextFrame = fillGroup.add("radiobutton", undefined, LABELS.textFrame[lang]);
+                var rbFillColor = fillGroup.add("radiobutton", undefined, LABELS.panel.fill[lang]);
+                var rbFillTextFrame = fillGroup.add("radiobutton", undefined, LABELS.checkbox.textFrame[lang]);
                 rbFillColor.value = true;
-                var threadCheck = pnlFill.add("checkbox", undefined, LABELS.threadText[lang]);
+                var threadCheck = pnlFill.add("checkbox", undefined, LABELS.checkbox.threadText[lang]);
                 var sampleTextGroup = pnlFill.add("group");
                 sampleTextGroup.alignment = "left";
-                var rbSampleNone = sampleTextGroup.add("radiobutton", undefined, LABELS.sampleTextNone[lang]);
-                var rbSampleText = sampleTextGroup.add("radiobutton", undefined, LABELS.sampleTextSample[lang]);
-                var rbSampleSquareCircle = sampleTextGroup.add("radiobutton", undefined, LABELS.sampleTextSquareCircle[lang]);
+                var rbSampleNone = sampleTextGroup.add("radiobutton", undefined, LABELS.radio.sampleTextNone[lang]);
+                var rbSampleText = sampleTextGroup.add("radiobutton", undefined, LABELS.radio.sampleTextSample[lang]);
+                var rbSampleSquareCircle = sampleTextGroup.add("radiobutton", undefined, LABELS.radio.sampleTextSquareCircle[lang]);
                 rbSampleNone.value = true;
 
                 // 区切り線 sub-panel（グリッドpanel内）
-                var pnlDivider = pnl4.add("panel", undefined, LABELS.panelDivider[lang]);
+                var pnlDivider = pnl4.add("panel", undefined, LABELS.panel.divider[lang]);
                 pnlDivider.orientation = "column";
                 pnlDivider.alignChildren = "left";
-                pnlDivider.margins = [15, 20, 15, 10];
+                pnlDivider.margins = PANEL_MARGINS;
 
                 var divHeaderGroup = pnlDivider.add("group");
-                var innerStrokeCheck = divHeaderGroup.add("checkbox", undefined, LABELS.dividerEnable[lang]);
+                var innerStrokeCheck = divHeaderGroup.add("checkbox", undefined, LABELS.checkbox.dividerEnable[lang]);
                 innerStrokeCheck.value = true;
                 var divWeightInput = divHeaderGroup.add("edittext", undefined, "0.3");
                 divWeightInput.characters = 5;
@@ -639,26 +769,26 @@
                 var divWeightUnitLabel = divHeaderGroup.add("statictext", undefined, "pt");
 
                 var lineTypeGroup = pnlDivider.add("group");
-                var rbLineSolid = lineTypeGroup.add("radiobutton", undefined, LABELS.lineSolid[lang]);
-                var rbLineDashed = lineTypeGroup.add("radiobutton", undefined, LABELS.lineDashed[lang]);
-                var rbLineDotted = lineTypeGroup.add("radiobutton", undefined, LABELS.lineDotted[lang]);
+                var rbLineSolid = lineTypeGroup.add("radiobutton", undefined, LABELS.radio.lineSolid[lang]);
+                var rbLineDashed = lineTypeGroup.add("radiobutton", undefined, LABELS.radio.lineDashed[lang]);
+                var rbLineDotted = lineTypeGroup.add("radiobutton", undefined, LABELS.radio.lineDotted[lang]);
                 rbLineSolid.value = true;
 
                 // ボタンエリア（左:プレビュー、中央:スペーサー、右:ボタン）
                 var btnGroup = dlg.add("group");
                 btnGroup.alignment = "fill";
                 btnGroup.alignChildren = ["left", "center"];
-                var previewCheck = btnGroup.add("checkbox", undefined, LABELS.preview[lang]);
+                var previewCheck = btnGroup.add("checkbox", undefined, LABELS.checkbox.preview[lang]);
                 previewCheck.value = true;
-                var allAutoBtn = btnGroup.add("button", undefined, LABELS.autoAdjust[lang]);
+                var allAutoBtn = btnGroup.add("button", undefined, LABELS.button.autoAdjust[lang]);
                 allAutoBtn.preferredSize = [70, 22];
                 var btnSpacer = btnGroup.add("group");
                 btnSpacer.alignment = ["fill", "center"];
                 btnSpacer.preferredSize.width = -1;
                 var btnRight = btnGroup.add("group");
                 btnRight.alignment = ["right", "center"];
-                btnRight.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
-                btnRight.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+                btnRight.add("button", undefined, LABELS.button.cancel[lang], { name: "cancel" });
+                btnRight.add("button", undefined, LABELS.button.ok[lang], { name: "ok" });
 
                 return {
                     dlg: dlg,
@@ -742,6 +872,10 @@
             var previewItems = [];
             var PREVIEW_LAYER_NAME = "__QuickLayoutPreview__";
             var previewLayer = null;
+            /**
+             * プレビュー用レイヤーを取得する（なければ作成）
+             * @returns {Layer} プレビュー用レイヤー
+             */
             function getOrCreatePreviewLayer() {
                 if (previewLayer && previewLayer.isValid) return previewLayer;
 
@@ -759,6 +893,10 @@
                 return previewLayer;
             }
 
+            /**
+             * プレビューレイヤー上のオブジェクトをすべて削除する
+             * @returns {void}
+             */
             function clearPreviewLayer() {
                 var lyr = previewLayer;
                 if (!lyr || !lyr.isValid) return;
@@ -771,6 +909,10 @@
                 }
             }
 
+            /**
+             * プレビューレイヤー自体を削除する
+             * @returns {void}
+             */
             function destroyPreviewLayer() {
                 var lyr = previewLayer;
                 if (!lyr || !lyr.isValid) {
@@ -796,6 +938,11 @@
             }
 
             // 選択されている線端を取得
+            /**
+             * 選択中の線端の種類を取得する
+             * @param {object} ui UI オブジェクト
+             * @returns {EndCap} 線端の種類
+             */
             function getSelectedCap(ui) {
                 if (ui.rbCapRound.value) return "round";
                 if (ui.rbCapProject.value) return "project";
@@ -803,6 +950,11 @@
             }
 
             // 選択されている位置を取得
+            /**
+             * 選択中のタイトルエリアの位置を取得する
+             * @param {object} ui UI オブジェクト
+             * @returns {string} 位置を表す識別子
+             */
             function getSelectedPosition(ui) {
                 if (ui.rbTop.value) return "top";
                 if (ui.rbBottom.value) return "bottom";
@@ -812,6 +964,11 @@
             }
 
             // 選択されている罫線の種類を取得
+            /**
+             * 選択中の区切り線の種類を取得する
+             * @param {object} ui UI オブジェクト
+             * @returns {string} 線種を表す識別子
+             */
             function getSelectedLineType(ui) {
                 if (ui.rbLineDashed.value) return "dashed";
                 if (ui.rbLineDotted.value) return "dotted";
@@ -819,6 +976,11 @@
             }
 
             // すべてのUI値をまとめて取得するヘルパー
+            /**
+             * ダイアログの入力値をまとめて取得する
+             * @param {object} ui UI オブジェクト
+             * @returns {object} 描画に使う設定値
+             */
             function getCurrentUIValues(ui) {
                 var values = {};
 
@@ -909,11 +1071,19 @@
             }
 
             // プレビューの作成・削除
+            /**
+             * プレビュー表示を消す
+             * @returns {void}
+             */
             function removePreview() {
                 clearPreviewLayer();
                 previewItems = [];
             }
 
+            /**
+             * 現在の入力値でプレビューを描き直す
+             * @returns {void}
+             */
             function updatePreview() {
                 removePreview();
                 if (!ui.previewCheck.value) return;
@@ -925,6 +1095,12 @@
 
 
 
+            /**
+             * フレームの各辺の入力値を連動させる
+             * @param {object} ui UI オブジェクト
+             * @param {EditText} source 変更元の入力欄
+             * @returns {void}
+             */
             function syncFrameWidths(ui, source) {
                 if (ui.frameLinkCheck.value) {
                     ui.frameTopInput.text = source.text;
@@ -934,6 +1110,12 @@
                 }
             }
 
+            /**
+             * オフセットの各辺の入力値を連動させる
+             * @param {object} ui UI オブジェクト
+             * @param {EditText} source 変更元の入力欄
+             * @returns {void}
+             */
             function syncInnerMargins(ui, source) {
                 if (ui.innerLinkCheck.value) {
                     ui.innerTopInput.text = source.text;
@@ -943,6 +1125,11 @@
                 }
             }
 
+            /**
+             * 塗りコントロールの有効／無効を切り替える
+             * @param {object} ui UI オブジェクト
+             * @returns {void}
+             */
             function updateFillEnabled(ui) {
                 var isTextFrame = ui.rbFillTextFrame.value;
                 ui.threadCheck.enabled = isTextFrame;
@@ -957,6 +1144,11 @@
                 }
             }
 
+            /**
+             * 文字サイズと領域幅から 1 行の文字数を計算して表示する
+             * @param {object} ui UI オブジェクト
+             * @returns {void}
+             */
             function updateCharCount(ui) {
                 try {
                     var bounds = getPageBoundsOnSpread(page);
@@ -1030,6 +1222,11 @@
                 } catch (e) { }
             }
 
+            /**
+             * フレーム関連コントロールの有効／無効を切り替える
+             * @param {object} ui UI オブジェクト
+             * @returns {void}
+             */
             function updateFrameEnabled(ui) {
                 var on = ui.frameEnableCheck.value;
                 ui.frameBleedCheck.enabled = on;
@@ -1040,6 +1237,11 @@
                 ui.frameLinkCheck.enabled = on;
             }
 
+            /**
+             * タイトルエリア関連コントロールの有効／無効を切り替える
+             * @param {object} ui UI オブジェクト
+             * @returns {void}
+             */
             function updateTitleEnabled(ui) {
                 var on = ui.titleFillCheck.value || ui.titleStrokeCheck.value;
                 ui.titleLengthInput.enabled = on;
@@ -1051,6 +1253,11 @@
                 ui.titleExtensionInput.enabled = on;
             }
 
+            /**
+             * 版面関連コントロールの有効／無効を切り替える
+             * @param {object} ui UI オブジェクト
+             * @returns {void}
+             */
             function updateOuterEnabled(ui) {
                 var on = ui.outerLineCheck.value;
                 ui.strokeWeightInput.enabled = on;
@@ -1064,6 +1271,11 @@
             }
 
             // 区切り線のディム表示（両方の間隔が0のとき無効化）
+            /**
+             * 区切り線関連コントロールの有効／無効を切り替える
+             * @param {object} ui UI オブジェクト
+             * @returns {void}
+             */
             function updateDividerEnabled(ui) {
                 var colGap = parseFloat(ui.colGapInput.text) || 0;
                 var rowGap = parseFloat(ui.rowGapInput.text) || 0;
@@ -1076,6 +1288,11 @@
             }
 
             // 間隔のディム表示（対応する数が1のとき無効化）
+            /**
+             * 間隔の入力欄の有効／無効を切り替える
+             * @param {object} ui UI オブジェクト
+             * @returns {void}
+             */
             function updateGapEnabled(ui) {
                 var colCount = parseInt(ui.colCountInput.text) || 1;
                 var rowCount = parseInt(ui.rowCountInput.text) || 1;
@@ -1091,6 +1308,12 @@
             var currentStrokeUnitIsMm = false;
             var PT_TO_MM = 0.3528;
 
+            /**
+             * 文字サイズの単位を pt と Q で切り替える
+             * @param {object} ui UI オブジェクト
+             * @param {boolean} toQ Q に切り替えるなら true
+             * @returns {void}
+             */
             function switchFontUnit(ui, toQ) {
                 if (toQ === currentFontUnitIsQ) return;
                 var factor = toQ ? PT_TO_Q : (1 / PT_TO_Q);
@@ -1108,6 +1331,12 @@
                 currentFontUnitIsQ = toQ;
             }
 
+            /**
+             * 線幅の単位を pt と mm で切り替える
+             * @param {object} ui UI オブジェクト
+             * @param {boolean} toMm mm に切り替えるなら true
+             * @returns {void}
+             */
             function switchStrokeUnit(ui, toMm) {
                 if (toMm === currentStrokeUnitIsMm) return;
                 var factor = toMm ? PT_TO_MM : (1 / PT_TO_MM);
@@ -1126,6 +1355,10 @@
             }
 
             var prevRelativeValue = 0;
+            /**
+             * ダイアログのコントロールにイベントを結び付ける
+             * @returns {void}
+             */
             function bindDialogEvents() {
                 ui.rbUnitMmPt.onClick = function () { switchFontUnit(ui, false); switchStrokeUnit(ui, false); updateCharCount(ui); if (ui.previewCheck.value) updatePreview(); };
                 ui.rbUnitMmMmPt.onClick = function () { switchFontUnit(ui, false); switchStrokeUnit(ui, true); updateCharCount(ui); if (ui.previewCheck.value) updatePreview(); };
@@ -1434,6 +1667,10 @@
                 ui.divWeightInput.onChanging = ui.divWeightInput.onChange = function () { if (ui.previewCheck.value) updatePreview(); };
             }
 
+            /**
+             * ダイアログの初期状態を整える
+             * @returns {void}
+             */
             function initializeDialogState() {
                 updateFrameEnabled(ui);
                 updateTitleEnabled(ui);
@@ -1489,7 +1726,7 @@
                         gridValues.gridOnly = true;
                         createLines(gridValues);
                     }
-                }, ScriptLanguage.JAVASCRIPT, [], UndoModes.ENTIRE_SCRIPT, LABELS.dialogTitle[lang]);
+                }, ScriptLanguage.JAVASCRIPT, [], UndoModes.ENTIRE_SCRIPT, LABELS.dialog.title[lang]);
             } else {
                 destroyPreviewLayer();
             }
@@ -1498,6 +1735,13 @@
         main();
 
         // カラーを取得または作成するヘルパー関数
+        /**
+         * 名前付きのカラーを取得する（なければ作成）
+         * @param {Document} doc 対象ドキュメント
+         * @param {string} name カラー名
+         * @param {Array<number>} cmykValues CMYK 値
+         * @returns {Color} カラー
+         */
         function getOrCreateColor(doc, name, cmykValues) {
             try {
                 var c = doc.colors.item(name);
@@ -1514,6 +1758,11 @@
         }
 
         // 罫線を作成する関数（作成したオブジェクトの配列を返す）
+        /**
+         * 設定値に従ってレイアウト要素を描画する
+         * @param {object} opts 描画に使う設定値
+         * @returns {void}
+         */
         function createLines(opts) {
             var outerLine = opts.outerLine, marginTop = opts.marginTop, marginBottom = opts.marginBottom;
             var marginLeft = opts.marginLeft, marginRight = opts.marginRight;
@@ -1817,6 +2066,12 @@
                     var colAreaLeft = mLeft;
                     var colAreaRight = mRight;
 
+                    /**
+                     * 矩形に角丸を適用する
+                     * @param {Rectangle} rect 対象の矩形
+                     * @param {number} radius 角丸の半径
+                     * @returns {void}
+                     */
                     function applyCornerRadius(rect, radius) {
                         if (radius > 0) {
                             rect.topLeftCornerOption = CornerOptions.ROUNDED_CORNER;

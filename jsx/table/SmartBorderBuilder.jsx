@@ -864,6 +864,11 @@ function getLabel(labelKey) {
         saveLastSettings(captureCurrentSettings(ui));
     }
 
+    /**
+     * ダイアログの現在の設定を保存用のオブジェクトにまとめる
+     * @param {object} ui UI オブジェクト
+     * @returns {object} 保存する設定
+     */
     function captureCurrentSettings(ui) {
         return {
             mode: getMode(ui),
@@ -874,6 +879,12 @@ function getLabel(labelKey) {
         };
     }
 
+    /**
+     * 前回保存した設定をダイアログへ復元する
+     * @param {object} ui UI オブジェクト
+     * @param {object} settings 復元する設定
+     * @returns {void}
+     */
     function restoreLastSettingsToUI(ui, state) {
         var last = loadLastSettings();
         if (!last) return;
@@ -901,6 +912,12 @@ function getLabel(labelKey) {
         }
     }
 
+    /**
+     * モード識別子に対応するラジオボタンを選択状態にする
+     * @param {object} ui UI オブジェクト
+     * @param {string} modeValue モードを表す識別子
+     * @returns {void}
+     */
     function setModeRadioByValue(ui, mode) {
         var radio = null;
         if (mode === "all") radio = ui.rbAll;
@@ -923,6 +940,12 @@ function getLabel(labelKey) {
         radio.value = true;
     }
 
+    /**
+     * カラーのドロップダウンをスウォッチ名で選択する
+     * @param {DropDownList} dropdown カラーのドロップダウン
+     * @param {string} swatchName 選択したいスウォッチ名
+     * @returns {void}
+     */
     function selectColorDropdownByName(dropdown, swatchName) {
         var i;
         if (!dropdown || !dropdown.items) return;
