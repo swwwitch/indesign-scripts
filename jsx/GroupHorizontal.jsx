@@ -1,74 +1,152 @@
 #target indesign
 
-function main() {
-    if (app.selection.length === 0) {
-        alert("アイテムを選択してください。");
-        return;
+/*
+ * GroupHorizontal.jsx
+ *
+ * 選択したオブジェクトを縦位置の近さで「行」に分け、行ごとにグループ化します。
+ * 詳細は README を参照してください。
+ */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "GroupHorizontal";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-17";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/GroupHorizontal.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/GroupHorizontal.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// =========================================
+// ユーザー設定 / User settings
+// =========================================
+
+/* 同じ行とみなす垂直方向のズレの許容値（現在のルーラー単位）/ Vertical tolerance that still counts as the same row (current ruler units) */
+var ROW_TOLERANCE = 5;
+
+// =========================================
+// ラベル定義 / Labels
+// =========================================
+
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+
+var currentLang = getCurrentLang();
+
+var LABELS = {
+    alert: {
+        noSelection: { ja: "アイテムを選択してください。", en: "Please select one or more items." },
+        resultSuffix: { ja: " 個のグループを作成しました。", en: " group(s) created." }
+    },
+    undo: {
+        groupRows: { ja: "横並びのアイテムをグループ化", en: "Group horizontally aligned items" }
     }
+};
 
-    var doc = app.activeDocument;
-    var sel = app.selection;
-    var items = [];
+/**
+ * ラベルを現在の言語で取得する
+ * @param {object} labelEntry ja / en を持つラベルオブジェクト
+ * @returns {string} 現在の言語のラベル文字列
+ */
+function localize(labelEntry) {
+    return labelEntry[currentLang];
+}
 
-    // 選択されたアイテムの情報を取得
-    for (var i = 0; i < sel.length; i++) {
-        var obj = sel[i];
-        // geometricBoundsは [y1, x1, y2, x2] (上、左、下、右)
-        var bounds = obj.geometricBounds;
-        // Y座標の中心を基準にする（上端にしたい場合は bounds[0] にしてください）
-        var centerY = (bounds[0] + bounds[2]) / 2;
-        
-        items.push({
-            obj: obj,
-            y: centerY
+// =========================================
+// 行の判定 / Row detection
+// =========================================
+
+/**
+ * 選択オブジェクトを垂直方向の中心座標つきの配列に変換する
+ * @param {Array} selectedItems 選択オブジェクトの配列
+ * @returns {Array<{pageItem: PageItem, centerY: number}>} 中心 Y 座標を添えた配列
+ */
+function collectItemsWithCenterY(selectedItems) {
+    var itemsWithCenterY = [];
+    for (var i = 0; i < selectedItems.length; i++) {
+        var pageItem = selectedItems[i];
+        /* geometricBounds は [上, 左, 下, 右] / geometricBounds is [top, left, bottom, right] */
+        var bounds = pageItem.geometricBounds;
+        itemsWithCenterY.push({
+            pageItem: pageItem,
+            centerY: (bounds[0] + bounds[2]) / 2
         });
     }
+    return itemsWithCenterY;
+}
 
-    // Y座標で昇順にソート（上から下へ）
-    items.sort(function(a, b) {
-        return a.y - b.y;
+/**
+ * 中心 Y 座標の近さでオブジェクトを行単位にまとめる
+ * @param {Array<{pageItem: PageItem, centerY: number}>} itemsWithCenterY 中心 Y 座標を添えた配列
+ * @param {number} tolerance 同じ行とみなす許容値
+ * @returns {Array<Array<{pageItem: PageItem, centerY: number}>>} 行ごとの配列
+ */
+function buildRows(itemsWithCenterY, tolerance) {
+    itemsWithCenterY.sort(function(a, b) {
+        return a.centerY - b.centerY;
     });
 
     var rows = [];
     var currentRow = [];
-    // どの程度のY座標のズレまでを「同じ横並び」とみなすかの許容値（単位は現在のルーラー単位）
-    var tolerance = 5; 
-
-    // 横に並んでいるものをグループ分けする
-    for (var i = 0; i < items.length; i++) {
+    for (var i = 0; i < itemsWithCenterY.length; i++) {
         if (currentRow.length === 0) {
-            currentRow.push(items[i]);
+            currentRow.push(itemsWithCenterY[i]);
+        } else if (Math.abs(itemsWithCenterY[i].centerY - currentRow[0].centerY) <= tolerance) {
+            currentRow.push(itemsWithCenterY[i]);
         } else {
-            // 現在の行の最初のアイテムとY座標を比較
-            if (Math.abs(items[i].y - currentRow[0].y) <= tolerance) {
-                currentRow.push(items[i]);
-            } else {
-                rows.push(currentRow);
-                currentRow = [items[i]];
-            }
+            rows.push(currentRow);
+            currentRow = [itemsWithCenterY[i]];
         }
     }
-    if (currentRow.length > 0) {
-        rows.push(currentRow);
-    }
-
-    // 各行ごとにグループ化を実行
-    var groupCount = 0;
-    for (var j = 0; j < rows.length; j++) {
-        var row = rows[j];
-        // グループ化には2つ以上のアイテムが必要
-        if (row.length > 1) {
-            var itemsToGroup = [];
-            for (var k = 0; k < row.length; k++) {
-                itemsToGroup.push(row[k].obj);
-            }
-            doc.groups.add(itemsToGroup);
-            groupCount++;
-        }
-    }
-
-    alert(groupCount + " 個のグループを作成しました。");
+    if (currentRow.length > 0) rows.push(currentRow);
+    return rows;
 }
 
-// 処理をまとめて取り消せるようにする
-app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "横並びのアイテムをグループ化");
+// =========================================
+// メイン処理 / Main
+// =========================================
+
+/**
+ * 選択オブジェクトを行ごとにグループ化する
+ * @returns {void}
+ */
+function main() {
+    if (app.selection.length === 0) {
+        alert(localize(LABELS.alert.noSelection));
+        return;
+    }
+
+    var activeDoc = app.activeDocument;
+    var rows = buildRows(collectItemsWithCenterY(app.selection), ROW_TOLERANCE);
+
+    var createdGroupCount = 0;
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        /* グループ化には 2 つ以上のオブジェクトが必要 / Grouping requires at least two items */
+        if (row.length < 2) continue;
+
+        var itemsToGroup = [];
+        for (var j = 0; j < row.length; j++) {
+            itemsToGroup.push(row[j].pageItem);
+        }
+        activeDoc.groups.add(itemsToGroup);
+        createdGroupCount++;
+    }
+
+    alert(createdGroupCount + localize(LABELS.alert.resultSuffix));
+}
+
+/* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, localize(LABELS.undo.groupRows));
