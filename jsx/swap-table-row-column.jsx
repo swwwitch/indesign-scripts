@@ -1,408 +1,472 @@
 #target indesign
 
-// Table Transpose (modified for robustness)
-// Original: Table Transpose v1.0 by Iain Anderson
-// Modified: selection handling & error-proofing
+/*
+ * swap-table-row-column.jsx
+ *
+ * 選択した表の行と列を入れ替えます。ヘッダー行の扱いとセル結合の処理方法をダイアログで選べます。
+ * 詳細は README を参照してください。
+ */
 
-//$.level = 0;
-//debugger;
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "swap-table-row-column";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-11-25";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2025-11-25";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/swap-table-row-column.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/swap-table-row-column.md
+
+// Original idea
+// Table Transpose v1.0 by Iain Anderson
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
-    var SCRIPT_VERSION = "v1.0";
-    // --- ローカライズヘルパー：日本語 / 英語を自動切り替え ---
-    function getLocaleLabels() {
-        var isJa = false;
-        try {
-            // InDesign の UI ロケールが日本語かどうか
-            if (app.locale === Locale.JAPANESE) {
-                isJa = true;
-            }
-        } catch (e1) {}
-        try {
-            // $.locale も補助的にチェック
-            if (!isJa && String($.locale).indexOf("ja") === 0) {
-                isJa = true;
-            }
-        } catch (e2) {}
 
-        if (isJa) {
-            return {
-                dlgTitle: "行と列を入れ替え",
-                msgNoDocument: "ドキュメントが開いていません。",
-                msgNoSelection: "表、または表を含むテキストフレームを選択してから実行してください。",
-                msgNoTable: "選択範囲から表を特定できませんでした。\n表、セル、または表内のテキストを選択して再度お試しください。",
-                msgHasMergeStop: "セル結合があるため、処理を中止しました。\nセル結合の扱いを変更して再度お試しください。",
-                labelHeaderCheckbox: "ヘッダー行を対象にする",
-                panelMergeTitle: "セル結合",
-                rbMergeNone: "しない（終了）",
-                rbUnmergeAndTranspose: "転置前にセル結合を解除",
-                btnOk: "OK",
-                btnCancel: "キャンセル"
-            };
-        } else {
-            return {
-                dlgTitle: "Transpose Rows and Columns",
-                msgNoDocument: "No document is open.",
-                msgNoSelection: "Please select a table or a text frame containing a table, then run this script.",
-                msgNoTable: "Could not find a table from the selection.\nPlease select a table, cell, or text inside a table and try again.",
-                msgHasMergeStop: "The table contains merged cells. The operation has been cancelled.\nChange how merged cells are handled and try again.",
-                labelHeaderCheckbox: "Include header rows",
-                panelMergeTitle: "Merged cells",
-                rbMergeNone: "Do nothing (cancel)",
-                rbUnmergeAndTranspose: "Unmerge before transposing",
-                btnOk: "OK",
-                btnCancel: "Cancel"
-            };
-        }
-    }
+// =========================================
+// ユーザー設定 / User settings
+// =========================================
 
-    var L = getLocaleLabels();
+/* セル結合の扱い / How merged cells are handled */
+var MERGE_MODE_STOP    = "stop";     /* 結合があれば中止 / Cancel when merged cells exist */
+var MERGE_MODE_UNMERGE = "unmerge";  /* 転置前に結合を解除 / Unmerge before transposing */
 
-    if (app.documents.length === 0) {
-        alert(L.msgNoDocument);
-        return;
-    }
+/* 空セルに入れる代替文字（段落を1つ確保するため）/ Placeholder put in empty cells so each has one paragraph */
+var EMPTY_CELL_PLACEHOLDER = " ";
 
-    if (app.selection.length === 0) {
-        alert(L.msgNoSelection);
-        return;
-    }
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
 
-    var sel = app.selection[0];
-    var myTable = resolveTableFromSelection(sel);
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
 
-    if (!myTable) {
-        alert(L.msgNoTable);
-        return;
-    }
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
 
-    var hasMergeForDialog = hasMergedCells(myTable);
-    var hasHeaderForDialog = (myTable.headerRowCount > 0);
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
-    var includeHeader = true;
-    var mergeMode = 3; // 1: しない（終了）, 3: 解除してから転置
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
-    // --- 条件によってダイアログボックスをスキップ ---
-    // ヘッダー行がなく、かつセル結合もない場合は、
-    // 選択肢の余地がないためダイアログを表示せずに既定値で処理を続行
-    if (!(hasHeaderForDialog === false && hasMergeForDialog === false)) {
-        // --- ダイアログボックス：ヘッダー行の扱いを指定 ---
-        // Dialog: choose whether to treat header rows specially
-        var dlg = new Window("dialog", L.dlgTitle + "  " + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = "left";
+// =========================================
+// ラベル定義 / Labels
+// =========================================
 
-        var cbHeader = dlg.add("checkbox", undefined, L.labelHeaderCheckbox);
-        cbHeader.value = true; // デフォルト：ヘッダー行も対象にする（現状の挙動）
-        if (!hasHeaderForDialog) {
-            cbHeader.enabled = false;
-            cbHeader.value = false;
-        }
-
-        // --- セル結合の扱いパネル ---
-        var pnlMerge = dlg.add("panel", undefined, L.panelMergeTitle);
-        pnlMerge.orientation = "column";
-        pnlMerge.alignChildren = "left";
-        pnlMerge.margins = [15, 20, 15, 10];
-
-        var rbMergeNone = pnlMerge.add("radiobutton", undefined, L.rbMergeNone);
-        var rbUnmergeAndTranspose = pnlMerge.add("radiobutton", undefined, L.rbUnmergeAndTranspose);
-        rbUnmergeAndTranspose.value = true; // デフォルト：現在の挙動（解除してから転置）
-        if (!hasMergeForDialog) {
-            rbMergeNone.enabled = false;
-            rbUnmergeAndTranspose.enabled = false;
-        }
-
-        var btnGroup = dlg.add("group");
-        btnGroup.alignment = "right";
-        var cancelBtn = btnGroup.add("button", undefined, L.btnCancel, { name: "cancel" });
-        var okBtn = btnGroup.add("button", undefined, L.btnOk, { name: "ok" });
-
-        if (dlg.show() !== 1) {
-            // キャンセルされたときは何もせず終了
-            return;
-        }
-
-        includeHeader = cbHeader.value;
-        if (rbMergeNone.value) {
-            mergeMode = 1;
-        } else if (rbUnmergeAndTranspose.value) {
-            mergeMode = 3;
-        } else {
-            mergeMode = 3;
-        }
-    } else {
-        // ヘッダーもセル結合もないので、
-        // includeHeader = false（意味的には無関係だが明示）として、
-        // mergeMode は既定値(3)のままダイアログなしで続行
-        includeHeader = false;
-        mergeMode = 3;
-    }
-
-
-    // --- 選択から Table を取得するヘルパー ---
-    function resolveTableFromSelection(obj) {
-        if (!obj) return null;
-
-        // 直接 Table を選択している
-        if (obj.constructor.name === "Table") {
-            return obj;
-        }
-
-        // Cell を選択している
-        if (obj.constructor.name === "Cell") {
-            return obj.parent; // parent は Table
-        }
-
-        // テキスト内にカーソル・範囲選択がある
-        try {
-            if (obj.tables && obj.tables.length > 0) {
-                return obj.tables[0];
-            }
-        } catch (e) {}
-
-        // テキストフレームや他のオブジェクトの parent に Table がぶら下がっているケース
-        try {
-            if (obj.parent && obj.parent.tables && obj.parent.tables.length > 0) {
-                return obj.parent.tables[0];
-            }
-        } catch (e2) {}
-
-        return null;
-    }
-
-    // --- セル結合が存在するかどうかのチェック ---
-    function hasMergedCells(tbl) {
-        try {
-            var cells = tbl.cells;
-            for (var i = 0; i < cells.length; i++) {
-                if (cells[i].rowSpan > 1 || cells[i].columnSpan > 1) {
-                    return true;
-                }
-            }
-        } catch (e) {}
-        return false;
-    }
-
-    // --- セル結合の領域情報を収集（最大矩形として扱う前提） ---
-    function collectMergedRegions(tbl) {
-        var regions = [];
-        try {
-            var rows = tbl.rows.length;
-            var cols = tbl.columns.length;
-            for (var r = 0; r < rows; r++) {
-                for (var c = 0; c < cols; c++) {
-                    var cell = tbl.rows[r].cells[c];
-                    var rs = cell.rowSpan;
-                    var cs = cell.columnSpan;
-                    if (rs > 1 || cs > 1) {
-                        // すでに登録済みの領域に含まれていないかチェック
-                        var covered = false;
-                        for (var i = 0; i < regions.length && !covered; i++) {
-                            var reg = regions[i];
-                            if (
-                                r >= reg.row && r < reg.row + reg.rowSpan &&
-                                c >= reg.col && c < reg.col + reg.colSpan
-                            ) {
-                                covered = true;
-                            }
-                        }
-                        if (!covered) {
-                            regions.push({
-                                row: r,
-                                col: c,
-                                rowSpan: rs,
-                                colSpan: cs
-                            });
-                        }
-                    }
-                }
-            }
-        } catch (e) {}
-        return regions;
-    }
-
-
-    // 元のヘッダー行数・フッター行数を記憶
-    // Remember original header/footer row counts
-    // includeHeader が false のときはヘッダー行を保持せず、ボディ行として扱う
-    var originalHeaderRowCount = includeHeader ? myTable.headerRowCount : 0;
-    var originalFooterRowCount = myTable.footerRowCount;
-
-    // --- ここからオリジナルロジックをベースに転置処理 ---
-
-    // セル結合の扱いを mergeMode に応じて制御
-    var hasMerge = false;
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
+function getCurrentLang() {
+    var isJapanese = false;
     try {
-        hasMerge = hasMergedCells(myTable);
-    } catch (e3) {}
+        if (app.locale === Locale.JAPANESE) isJapanese = true;
+    } catch (e) {}
+    try {
+        if (!isJapanese && String($.locale).indexOf("ja") === 0) isJapanese = true;
+    } catch (e) {}
+    return isJapanese ? "ja" : "en";
+}
 
-    if (mergeMode === 1) {
-        // しない（終了）: セル結合があれば処理を中止
-        if (hasMerge) {
-            alert(L.msgHasMergeStop);
-            return;
+var currentLang = getCurrentLang();
+
+var LABELS = {
+    dialog: {
+        title: { ja: "行と列を入れ替え", en: "Transpose Rows and Columns" }
+    },
+    panel: {
+        mergedCells: { ja: "セル結合", en: "Merged cells" }
+    },
+    checkbox: {
+        includeHeader: { ja: "ヘッダー行を対象にする", en: "Include header rows" }
+    },
+    radio: {
+        mergeStop:    { ja: "しない（終了）", en: "Do nothing (cancel)" },
+        mergeUnmerge: { ja: "転置前にセル結合を解除", en: "Unmerge before transposing" }
+    },
+    button: {
+        ok:     { ja: "OK", en: "OK" },
+        cancel: { ja: "キャンセル", en: "Cancel" }
+    },
+    alert: {
+        noDocument:  { ja: "ドキュメントが開いていません。", en: "No document is open." },
+        noSelection: {
+            ja: "表、または表を含むテキストフレームを選択してから実行してください。",
+            en: "Please select a table or a text frame containing a table, then run this script."
+        },
+        noTable: {
+            ja: "選択範囲から表を特定できませんでした。\n表、セル、または表内のテキストを選択して再度お試しください。",
+            en: "Could not find a table from the selection.\nPlease select a table, cell, or text inside a table and try again."
+        },
+        mergeStopped: {
+            ja: "セル結合があるため、処理を中止しました。\nセル結合の扱いを変更して再度お試しください。",
+            en: "The table contains merged cells. The operation has been cancelled.\nChange how merged cells are handled and try again."
         }
-        // セル結合がなければ、そのまま転置処理を続行
-    } else if (mergeMode === 3) {
-        // 転置前にセル結合を解除してから転置
-        if (hasMerge) {
-            try {
-                myTable.unmerge();
-            } catch (e5) {
-                // unmerge できなくても、とりあえず続行（単純な表なら問題ない）
-            }
+    },
+    undo: {
+        transposeTable: { ja: "行と列を入れ替え", en: "Transpose Rows and Columns" }
+    }
+};
+
+/**
+ * ドット区切りキーでラベルを取得する
+ * @param {string} labelKey 例: "dialog.title"
+ * @returns {string} 現在の言語のラベル文字列
+ */
+function getLabel(labelKey) {
+    var node = LABELS;
+    var keyParts = labelKey.split(".");
+    for (var i = 0; i < keyParts.length; i++) {
+        node = node[keyParts[i]];
+        if (!node) return labelKey;
+    }
+    return node[currentLang] || node.en || labelKey;
+}
+
+// =========================================
+// 表の取得 / Table lookup
+// =========================================
+
+/**
+ * 選択オブジェクトから対象の表を特定する
+ * @param {object} selectionItem 選択オブジェクト
+ * @returns {Table|null} 対象の表。特定できない場合は null
+ */
+function resolveTableFromSelection(selectionItem) {
+    if (!selectionItem) return null;
+
+    if (selectionItem.constructor.name === "Table") return selectionItem;
+
+    /* セル選択時の parent は Table / The parent of a selected cell is the table */
+    if (selectionItem.constructor.name === "Cell") return selectionItem.parent;
+
+    try {
+        if (selectionItem.tables && selectionItem.tables.length > 0) return selectionItem.tables[0];
+    } catch (e) {}
+
+    try {
+        if (selectionItem.parent && selectionItem.parent.tables && selectionItem.parent.tables.length > 0) {
+            return selectionItem.parent.tables[0];
         }
+    } catch (e) {}
+
+    return null;
+}
+
+/**
+ * 表にセル結合があるかを判定する
+ * @param {Table} targetTable 対象の表
+ * @returns {boolean} 結合セルがあれば true
+ */
+function hasMergedCells(targetTable) {
+    try {
+        var tableCells = targetTable.cells;
+        for (var i = 0; i < tableCells.length; i++) {
+            if (tableCells[i].rowSpan > 1 || tableCells[i].columnSpan > 1) return true;
+        }
+    } catch (e) {}
+    return false;
+}
+
+/**
+ * セルの最初の段落を取得する
+ * @param {Cell} targetCell 対象のセル
+ * @returns {Paragraph|null} 最初の段落。取得できない場合は null
+ */
+function getFirstParagraph(targetCell) {
+    try {
+        if (targetCell.paragraphs.length > 0) return targetCell.paragraphs.item(0);
+        if (targetCell.texts && targetCell.texts.length > 0 && targetCell.texts[0].paragraphs.length > 0) {
+            return targetCell.texts[0].paragraphs.item(0);
+        }
+    } catch (e) {}
+    return null;
+}
+
+// =========================================
+// ダイアログ / Dialog
+// =========================================
+
+/**
+ * ヘッダー行とセル結合の扱いを尋ねるダイアログを表示する
+ * @param {boolean} tableHasHeader ヘッダー行があるか
+ * @param {boolean} tableHasMerge セル結合があるか
+ * @returns {{includeHeader: boolean, mergeMode: string}|null} 設定内容。キャンセル時は null
+ */
+function showTransposeDialog(tableHasHeader, tableHasMerge) {
+    var transposeDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+    setupWindow(transposeDialog);
+    transposeDialog.alignChildren = ["left", "top"];
+
+    var includeHeaderCheckbox = transposeDialog.add("checkbox", undefined, getLabel("checkbox.includeHeader"));
+    includeHeaderCheckbox.value = true;
+    if (!tableHasHeader) {
+        includeHeaderCheckbox.enabled = false;
+        includeHeaderCheckbox.value = false;
     }
 
-    var myRows = myTable.rows.length;      // 全行数（ヘッダー/フッター含む）
-    var myColumns = myTable.columnCount;   // 列数
-    var myOriginalSize = 0;
-    var myExtraMode = 0; // 0: 変更なし, 1: 列を増やした, 2: 行を増やした
+    /* セル結合の扱いパネル / Panel for merged-cell handling */
+    var mergedCellsPanel = transposeDialog.add("panel", undefined, getLabel("panel.mergedCells"));
+    setupPanel(mergedCellsPanel, 6);
+    mergedCellsPanel.alignChildren = ["left", "top"];
 
-    // 行数 > 列数 → 列を追加して正方形に
-    if (myRows > myColumns) {
-        for (var extraCols = myColumns; extraCols < myRows; extraCols++) {
-            myTable.columns.add(LocationOptions.atEnd);
-        }
-        myOriginalSize = myColumns; // 元の列数
-        myExtraMode = 1;
-    }
-    // 行数 < 列数 → 行を追加して正方形に
-    else if (myRows < myColumns) {
-        for (var extraRows = myRows; extraRows < myColumns; extraRows++) {
-            myTable.rows.add(LocationOptions.atEnd);
-        }
-        myOriginalSize = myRows; // 元の行数
-        myExtraMode = 2;
+    var mergeStopRadio    = mergedCellsPanel.add("radiobutton", undefined, getLabel("radio.mergeStop"));
+    var mergeUnmergeRadio = mergedCellsPanel.add("radiobutton", undefined, getLabel("radio.mergeUnmerge"));
+    mergeUnmergeRadio.value = true;
+    if (!tableHasMerge) {
+        mergeStopRadio.enabled = false;
+        mergeUnmergeRadio.enabled = false;
     }
 
-    // サイズ再取得（全行数で再取得）
-    myRows = myTable.rows.length;
-    myColumns = myTable.columnCount;
+    /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
+    var dialogButtonRow = transposeDialog.add("group");
+    setupRow(dialogButtonRow, "right", 8);
+    dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-    // --- 空セルにスペースを入れてパラグラフを最低1つは作る ---
-    var cellCount = myRows * myColumns;
-    for (var i = 0; i < cellCount; i++) {
-        var c = myTable.cells.item(i);
+    if (transposeDialog.show() !== 1) return null;
+
+    return {
+        includeHeader: includeHeaderCheckbox.value,
+        mergeMode: mergeStopRadio.value ? MERGE_MODE_STOP : MERGE_MODE_UNMERGE
+    };
+}
+
+// =========================================
+// 転置処理 / Transpose
+// =========================================
+
+/**
+ * 2 つのセルの内容と書式を入れ替える
+ * @param {Cell} cellA 入れ替え元のセル
+ * @param {Cell} cellB 入れ替え先のセル
+ * @returns {void}
+ */
+function swapCells(cellA, cellB) {
+    /* テキスト内容 / Cell contents */
+    var contentsBuffer = cellA.contents;
+    cellA.contents = cellB.contents;
+    cellB.contents = contentsBuffer;
+
+    var paragraphA = getFirstParagraph(cellA);
+    var paragraphB = getFirstParagraph(cellB);
+
+    if (paragraphA && paragraphB) {
+        /* 文字サイズ / Point size */
         try {
-            if (c.contents === "") {
-                c.contents = " ";
-            }
-        } catch (e4) {}
-    }
-
-    // セルの最初の段落を取得（ない場合は null）
-    function getFirstParagraph(cell) {
-        try {
-            if (cell.paragraphs.length > 0) {
-                return cell.paragraphs.item(0);
-            }
-            if (cell.texts && cell.texts.length > 0 && cell.texts[0].paragraphs.length > 0) {
-                return cell.texts[0].paragraphs.item(0);
-            }
+            var pointSizeBuffer = paragraphA.pointSize;
+            paragraphA.pointSize = paragraphB.pointSize;
+            paragraphB.pointSize = pointSizeBuffer;
         } catch (e) {}
-        return null;
+
+        /* フォントとフォントスタイル / Font and font style */
+        try {
+            var fontBuffer      = paragraphA.appliedFont;
+            var fontStyleBuffer = paragraphA.fontStyle;
+            paragraphA.appliedFont = paragraphB.appliedFont;
+            paragraphA.fontStyle   = paragraphB.fontStyle;
+            paragraphB.appliedFont = fontBuffer;
+            paragraphB.fontStyle   = fontStyleBuffer;
+        } catch (e) {}
+
+        /* 文字色 / Text fill color */
+        try {
+            var textFillBuffer = paragraphA.fillColor;
+            paragraphA.fillColor = paragraphB.fillColor;
+            paragraphB.fillColor = textFillBuffer;
+        } catch (e) {}
     }
 
-    // --- 転置：上三角と下三角を入れ替える ---
-    for (var row = 0; row < myRows; row++) {
-        for (var col = row + 1; col < myColumns; col++) {
+    /* セルの塗り色 / Cell fill color */
+    try {
+        var cellFillBuffer = cellA.fillColor;
+        cellA.fillColor = cellB.fillColor;
+        cellB.fillColor = cellFillBuffer;
+    } catch (e) {}
 
-            var indexA = col + (row * myColumns);
-            var indexB = row + (col * myColumns);
+    /* セルのティント / Cell fill tint */
+    try {
+        var fillTintBuffer = cellA.fillTint;
+        cellA.fillTint = cellB.fillTint;
+        cellB.fillTint = fillTintBuffer;
+    } catch (e) {}
+}
 
-            var cellA = myTable.cells.item(indexA);
-            var cellB = myTable.cells.item(indexB);
+/**
+ * 表の行と列を入れ替える
+ * @param {Table} targetTable 対象の表
+ * @param {boolean} includeHeader ヘッダー行も転置対象にするか
+ * @param {string} mergeMode MERGE_MODE_STOP または MERGE_MODE_UNMERGE
+ * @returns {string} "ok" または "mergeStopped"
+ */
+function transposeTable(targetTable, includeHeader, mergeMode) {
+    /* 元のヘッダー／フッター行数を控える / Remember the original header and footer row counts */
+    var originalHeaderRowCount = includeHeader ? targetTable.headerRowCount : 0;
+    var originalFooterRowCount = targetTable.footerRowCount;
 
-            // --- テキスト内容 ---
-            var tmpContents = cellA.contents;
-            cellA.contents = cellB.contents;
-            cellB.contents = tmpContents;
-
-            var paraA = getFirstParagraph(cellA);
-            var paraB = getFirstParagraph(cellB);
-
-            // --- 段落の pointSize ---
-            if (paraA && paraB) {
-                try {
-                    var tmpSize = paraA.pointSize;
-                    paraA.pointSize = paraB.pointSize;
-                    paraB.pointSize = tmpSize;
-                } catch (e5) {}
-            }
-
-            // --- フォントとスタイル ---
-            if (paraA && paraB) {
-                try {
-                    var tmpFont = paraA.appliedFont;
-                    var tmpStyle = paraA.fontStyle;
-
-                    paraA.appliedFont = paraB.appliedFont;
-                    paraA.fontStyle = paraB.fontStyle;
-
-                    paraB.appliedFont = tmpFont;
-                    paraB.fontStyle = tmpStyle;
-                } catch (e6) {}
-            }
-
-            // --- テキストの塗り色 ---
-            if (paraA && paraB) {
-                try {
-                    var tmpFill = paraA.fillColor;
-                    paraA.fillColor = paraB.fillColor;
-                    paraB.fillColor = tmpFill;
-                } catch (e7) {}
-            }
-
-            // --- セルの塗り色 ---
-            try {
-                var tmpCellFill = cellA.fillColor;
-                cellA.fillColor = cellB.fillColor;
-                cellB.fillColor = tmpCellFill;
-            } catch (e8) {}
-
-            // --- セルのティント ---
-            try {
-                var tmpTint = cellA.fillTint;
-                cellA.fillTint = cellB.fillTint;
-                cellB.fillTint = tmpTint;
-            } catch (e9) {}
+    if (hasMergedCells(targetTable)) {
+        if (mergeMode === MERGE_MODE_STOP) return "mergeStopped";
+        try {
+            targetTable.unmerge();
+        } catch (e) {
+            /* 解除できなくても単純な表なら続行できる / Simple tables can continue even if unmerge fails */
         }
     }
 
-    // --- 余分に増やした行・列を元に戻す（安全版） ---
-    if (myExtraMode === 1) {
-        // 行が多かった → 列を増やした → 転置後 行数を「元の列数」に合わせる
-        while (myTable.rows.length > myOriginalSize) {
+    var rowCount    = targetTable.rows.length;
+    var columnCount = targetTable.columnCount;
+    var originalSize = 0;
+    var paddedAxis   = "none"; /* "columns" / "rows" / "none" */
+
+    /* 転置しやすいよう、いったん正方形に揃える / Pad the table to a square so it can be transposed in place */
+    if (rowCount > columnCount) {
+        for (var addedColumn = columnCount; addedColumn < rowCount; addedColumn++) {
+            targetTable.columns.add(LocationOptions.atEnd);
+        }
+        originalSize = columnCount;
+        paddedAxis   = "columns";
+    } else if (rowCount < columnCount) {
+        for (var addedRow = rowCount; addedRow < columnCount; addedRow++) {
+            targetTable.rows.add(LocationOptions.atEnd);
+        }
+        originalSize = rowCount;
+        paddedAxis   = "rows";
+    }
+
+    rowCount    = targetTable.rows.length;
+    columnCount = targetTable.columnCount;
+
+    /* 空セルに段落を1つ確保する / Ensure every cell has at least one paragraph */
+    var totalCellCount = rowCount * columnCount;
+    for (var i = 0; i < totalCellCount; i++) {
+        try {
+            var currentCell = targetTable.cells.item(i);
+            if (currentCell.contents === "") currentCell.contents = EMPTY_CELL_PLACEHOLDER;
+        } catch (e) {}
+    }
+
+    /* 上三角と下三角を入れ替える / Swap the upper and lower triangles */
+    for (var row = 0; row < rowCount; row++) {
+        for (var col = row + 1; col < columnCount; col++) {
+            var upperIndex = col + (row * columnCount);
+            var lowerIndex = row + (col * columnCount);
+            swapCells(targetTable.cells.item(upperIndex), targetTable.cells.item(lowerIndex));
+        }
+    }
+
+    /* 正方形にするため増やした行・列を戻す / Remove the rows or columns added for padding */
+    if (paddedAxis === "columns") {
+        while (targetTable.rows.length > originalSize) {
             try {
-                myTable.rows.lastItem().remove();
-            } catch (er1) {
+                targetTable.rows.lastItem().remove();
+            } catch (e) {
                 break;
             }
         }
-    } else if (myExtraMode === 2) {
-        // 列が多かった → 行を増やした → 転置後 列数を「元の行数」に合わせる
-        while (myTable.columnCount > myOriginalSize) {
+    } else if (paddedAxis === "rows") {
+        while (targetTable.columnCount > originalSize) {
             try {
-                myTable.columns.lastItem().remove();
-            } catch (er2) {
+                targetTable.columns.lastItem().remove();
+            } catch (e) {
                 break;
             }
         }
     }
 
-    // --- ヘッダー／フッター行を元の設定に近い形で復元 ---
-    // Restore header/footer rows based on original settings
+    /* ヘッダー／フッター行を元の設定に近い形で復元 / Restore header and footer rows as closely as possible */
     try {
-        var totalRows = myTable.rows.length;
-        var newHeaderCount = Math.min(originalHeaderRowCount, totalRows);
-        var newFooterCount = Math.min(
-            originalFooterRowCount,
-            Math.max(0, totalRows - newHeaderCount)
-        );
-        myTable.headerRowCount = newHeaderCount;
-        myTable.footerRowCount = newFooterCount;
-    } catch (eRestore) {}
+        var totalRowCount  = targetTable.rows.length;
+        var newHeaderCount = Math.min(originalHeaderRowCount, totalRowCount);
+        var newFooterCount = Math.min(originalFooterRowCount, Math.max(0, totalRowCount - newHeaderCount));
+        targetTable.headerRowCount = newHeaderCount;
+        targetTable.footerRowCount = newFooterCount;
+    } catch (e) {}
+
+    return "ok";
+}
+
+// =========================================
+// メイン処理 / Main
+// =========================================
+
+if (app.documents.length === 0) {
+    alert(getLabel("alert.noDocument"));
+    return;
+}
+
+if (app.selection.length === 0) {
+    alert(getLabel("alert.noSelection"));
+    return;
+}
+
+var targetTable = resolveTableFromSelection(app.selection[0]);
+if (!targetTable) {
+    alert(getLabel("alert.noTable"));
+    return;
+}
+
+var tableHasMerge  = hasMergedCells(targetTable);
+var tableHasHeader = (targetTable.headerRowCount > 0);
+
+var includeHeader = false;
+var mergeMode     = MERGE_MODE_UNMERGE;
+
+/* 選択の余地がない場合はダイアログを省略 / Skip the dialog when there is nothing to choose */
+if (tableHasHeader || tableHasMerge) {
+    var dialogResult = showTransposeDialog(tableHasHeader, tableHasMerge);
+    if (dialogResult === null) return;
+    includeHeader = dialogResult.includeHeader;
+    mergeMode     = dialogResult.mergeMode;
+}
+
+/* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+var transposeStatus = app.doScript(function () {
+    return transposeTable(targetTable, includeHeader, mergeMode);
+}, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.transposeTable"));
+
+if (transposeStatus === "mergeStopped") {
+    alert(getLabel("alert.mergeStopped"));
+}
 
 })();
