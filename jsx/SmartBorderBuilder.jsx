@@ -1,107 +1,200 @@
-#target "InDesign"
+#target indesign
 
 /*
- * スクリプトの概要：
- * 選択中の表セルに対して、罫線の描画・消去を切り替えながら適用できるスクリプトです。
- * 「すべて」「境界線のみ」「内部のみ」「水平線のみ」「垂直線のみ」「見出し行」「見出し列」「左右の境界線を消去」「すべて消去」に対応しています。
+ * SmartBorderBuilder.jsx
  *
- * 左カラムではモードと描画オプションを設定し、右カラムでは線幅とカラーを設定します。
- * 線幅はドキュメントの線幅単位の環境設定に合わせて入力でき、UI表示・入力値・適用時の単位指定を一致させています。
- * 線幅は内部で単位付きの値として適用し、ミリメートル環境では 0.1 を 0.1mm、ポイント環境では 0.1 を 0.1pt としてそのまま反映します。
- * プリセットのラジオボタンから「なし」「0.1」「0.2」「0.25」「0.35」「0.5」を素早く選択でき、ポイント単位のときは初期値に 0.25pt を使用します。
- * 線幅入力欄では ↑↓ で 0.1 単位、shift + ↑↓ で 1 単位の増減が可能です。
- *
- * カラーはドキュメントのスウォッチから選択でき、選択したスウォッチは罫線色として反映されます。
- * カラー内に濃淡（Tint）の数値入力とスライダーを備え、デフォルト値 100 を基準に 0〜100 の範囲で罫線の濃淡を調整できます。なし・紙色を選択した場合は濃淡UIを自動的にディム表示します。
- * 表の一部を選択した場合でも、選択範囲の矩形（bounds）からセルを再構築して処理するため、内部罫線・水平線・垂直線・すべて消去が安定して適用されます。結合セルがある場合も、各座標を実際に覆っているセルを探索して再構築します。
- * スウォッチ名はUI表示用に整形され、日本語UIでは Black→黒、Paper→紙色、None→なし と表示されます。
- * Registration / レジストレーションはカラー候補に表示しません。
- *
- * 見出し行は、選択範囲の1行目に上下の罫線を描画し、最終行に下の罫線を描画します。
- * 見出し列は、選択範囲の1列目に左右の罫線を描画し、最終列に右の罫線を描画します。
- * 左右の境界線を消去では、左右に隣接する選択セル間の線を無視し、選択ブロックの左端・右端にある線だけを消去します。
- * 結合セルはセル範囲として扱い、境界判定や重複除外に反映します。
- *
- * ダイアログ表示中は常にプレビューが有効で、「描画前に消去」を OFF にすると既存の罫線を残したまま上書きできます。
- * ボタンエリアには［標準モード］／［プレビュー］のトグルボタンを備え、現在の画面モードに応じてラベルが切り替わります。クリックで標準表示とプレビュー表示を相互に切り替えられます。
- * ダイアログ終了後は、実行前の選択状態を復元します。
- *
- * 主な機能：
- * - 選択中の表セルに対する罫線の描画／消去
- * - 外枠・内部・水平・垂直・見出し行・見出し列・左右の境界線を消去・すべて消去の各モード切り替え
- * - モード切り替え用ショートカットキー対応（A/E/I/H/V/U/L/R/C）
- * - 「描画前に消去」の ON/OFF 切り替え（Mキーで切り替え）
- * - ドキュメントの線幅単位の環境設定に追従した線幅表示・入力・適用
- * - 線幅プリセットのラジオボタン選択
- * - 線幅入力欄でのキー操作による値変更
- * - スウォッチによる罫線カラー指定
- * - 濃淡（Tint）をデフォルト値 100 から数値入力とスライダーで調整（なし／紙色時はディム表示、Shiftで10%刻み）
- * - スウォッチプレビュー表示
- * - 常時プレビューによる確認
- * - ［標準モード］／［プレビュー］トグルボタンによる画面モード切り替え（現在状態に応じてラベルが変化）
- * - 表の部分選択でも矩形再構築により安定した罫線適用（内部／水平／垂直／すべて消去）
- * - 実行前の選択状態を復元
- * - 結合セルを考慮した境界判定と、部分選択時の矩形セル再構築
- * - 日本語／英語UI対応
+ * 選択した表セルに対して、モード・線幅・カラー・濃淡を指定しながら罫線をプレビュー付きで描画・消去します。
+ * 詳細は README を参照してください。
  */
 
-var SCRIPT_VERSION = "v1.6.5";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartBorderBuilder";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6.5";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-13";                   /* 更新日 / last updated */
 
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/SmartBorderBuilder.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/SmartBorderBuilder.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// =========================================
+// ユーザー設定 / User settings
+// =========================================
+
+/* 線幅プリセットの候補（現在の線幅単位で解釈）/ Border-weight presets, read in the current weight unit */
+var WEIGHT_PRESET_VALUES = ["0.1", "0.2", "0.25", "0.35", "0.5"];
+
+/* 濃淡（Tint）の初期値と範囲 / Initial value and range of the tint control */
+var TINT_DEFAULT = 100;
+var TINT_MIN     = 0;
+var TINT_MAX     = 100;
+
+// =========================================
+// レイアウト設定 / Layout settings
+// =========================================
+
+/* 線幅入力欄・濃淡入力欄の文字数と最小幅（px）/ Character width and minimum width of the weight and tint fields (px) */
+var WEIGHT_INPUT_CHARACTERS = 6;
+var WEIGHT_INPUT_MIN_WIDTH  = 60;
+var TINT_INPUT_CHARACTERS   = 4;
+var TINT_INPUT_MIN_WIDTH    = 45;
+
+/* ボタン列の左右を分けるスペーサーの最小幅（px）/ Minimum width of the spacer between the button clusters (px) */
+var BUTTON_ROW_SPACER_MIN_WIDTH = 40;
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
-var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+// =========================================
+// ラベル定義 / Labels
+// =========================================
+
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+
+var currentLang = getCurrentLang();
+
 var LABELS = {
-    dialogTitle: { ja: "罫線の設定", en: "Border Settings" },
-    modePanel: { ja: "モード", en: "Mode" },
-    stylePanel: { ja: "スタイル", en: "Style" },
-    clearFirst: { ja: "描画前に消去", en: "Clear Existing Borders First" },
-    all: { ja: "すべて", en: "All" },
-    outer: { ja: "境界線のみ", en: "Outer Borders Only" },
-    inner: { ja: "内部のみ", en: "Inner Borders Only" },
-    horizontal: { ja: "水平線のみ", en: "Horizontal Borders Only" },
-    vertical: { ja: "垂直線のみ", en: "Vertical Borders Only" },
-    headerRow: { ja: "見出し行", en: "Header Row" },
-    headerColumn: { ja: "見出し列", en: "Header Column" },
-    clearLeftRight: { ja: "左右の境界線を消去", en: "Clear Left/Right Borders" },
-    allOff: { ja: "すべて消去", en: "Clear All Borders" },
-    lineWidthPanel: { ja: "線幅", en: "Border Weight" },
-    colorPanel: { ja: "カラー", en: "Border Color" },
-    tintLabel: { ja: "濃淡：", en: "Tint:" },
-    tintSliderTip: { ja: "0〜100", en: "0–100" },
-    swatchBlack: { ja: "黒", en: "Black" },
-    swatchPaper: { ja: "紙色", en: "Paper" },
-    swatchNone: { ja: "なし", en: "None" },
-    standardMode: { ja: "標準モード", en: "Standard Mode" },
-    previewMode: { ja: "プレビュー", en: "Preview" },
-    ok: { ja: "OK", en: "OK" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    alertSelect: { ja: "表のセルを選択してください。", en: "Please select table cells." },
-    alertWeight: { ja: "線幅には0以上の数値を入力してください。", en: "Enter a value of 0 or greater for weight." },
-    alertTint: { ja: "濃淡には0〜100の数値を入力してください。", en: "Enter a value between 0 and 100 for tint." },
-    undoPreview: { ja: "罫線プレビュー", en: "Border Preview" },
-    undoApply: { ja: "罫線の設定", en: "Apply Border Settings" },
-    tipAll: { ja: "ショートカット: A / Option+クリックで消去ON/OFF", en: "Shortcut: A / Option-click toggles Clear Existing Borders First" },
-    tipOuter: { ja: "ショートカット: E / Option+クリックで消去ON/OFF", en: "Shortcut: E / Option-click toggles Clear Existing Borders First" },
-    tipInner: { ja: "ショートカット: I / Option+クリックで消去ON/OFF", en: "Shortcut: I / Option-click toggles Clear Existing Borders First" },
-    tipHorizontal: { ja: "ショートカット: H / Option+クリックで消去ON/OFF", en: "Shortcut: H / Option-click toggles Clear Existing Borders First" },
-    tipVertical: { ja: "ショートカット: V / Option+クリックで消去ON/OFF", en: "Shortcut: V / Option-click toggles Clear Existing Borders First" },
-    tipHeaderRow: { ja: "ショートカット: U / Option+クリックで消去ON/OFF", en: "Shortcut: U / Option-click toggles Clear Existing Borders First" },
-    tipHeaderColumn: { ja: "ショートカット: L / Option+クリックで消去ON/OFF", en: "Shortcut: L / Option-click toggles Clear Existing Borders First" },
-    tipClearLeftRight: { ja: "ショートカット: R / Option+クリックで消去ON/OFF", en: "Shortcut: R / Option-click toggles Clear Existing Borders First" },
-    tipAllOff: { ja: "ショートカット: C / Option+クリックで消去ON/OFF", en: "Shortcut: C / Option-click toggles Clear Existing Borders First" }
+    dialog: {
+        title: { ja: "罫線の設定", en: "Border Settings" }
+    },
+    panel: {
+        mode:      { ja: "モード", en: "Mode" },
+        style:     { ja: "スタイル", en: "Style" },
+        lineWidth: { ja: "線幅", en: "Border Weight" },
+        color:     { ja: "カラー", en: "Border Color" }
+    },
+    radio: {
+        all:            { ja: "すべて", en: "All" },
+        outer:          { ja: "境界線のみ", en: "Outer Borders Only" },
+        inner:          { ja: "内部のみ", en: "Inner Borders Only" },
+        horizontal:     { ja: "水平線のみ", en: "Horizontal Borders Only" },
+        vertical:       { ja: "垂直線のみ", en: "Vertical Borders Only" },
+        headerRow:      { ja: "見出し行", en: "Header Row" },
+        headerColumn:   { ja: "見出し列", en: "Header Column" },
+        clearLeftRight: { ja: "左右の境界線を消去", en: "Clear Left/Right Borders" },
+        allOff:         { ja: "すべて消去", en: "Clear All Borders" },
+        weightNone:     { ja: "なし", en: "None" }
+    },
+    checkbox: {
+        clearFirst: { ja: "描画前に消去", en: "Clear Existing Borders First" }
+    },
+    field: {
+        tint: { ja: "濃淡：", en: "Tint:" }
+    },
+    swatch: {
+        black: { ja: "黒", en: "Black" },
+        paper: { ja: "紙色", en: "Paper" },
+        none:  { ja: "なし", en: "None" }
+    },
+    button: {
+        ok:           { ja: "OK", en: "OK" },
+        cancel:       { ja: "キャンセル", en: "Cancel" },
+        standardMode: { ja: "標準モード", en: "Standard Mode" },
+        previewMode:  { ja: "プレビュー", en: "Preview" }
+    },
+    tooltip: {
+        tintSlider:     { ja: "0〜100", en: "0–100" },
+        all:            { ja: "ショートカット: A / Option+クリックで消去ON/OFF", en: "Shortcut: A / Option-click toggles Clear Existing Borders First" },
+        outer:          { ja: "ショートカット: E / Option+クリックで消去ON/OFF", en: "Shortcut: E / Option-click toggles Clear Existing Borders First" },
+        inner:          { ja: "ショートカット: I / Option+クリックで消去ON/OFF", en: "Shortcut: I / Option-click toggles Clear Existing Borders First" },
+        horizontal:     { ja: "ショートカット: H / Option+クリックで消去ON/OFF", en: "Shortcut: H / Option-click toggles Clear Existing Borders First" },
+        vertical:       { ja: "ショートカット: V / Option+クリックで消去ON/OFF", en: "Shortcut: V / Option-click toggles Clear Existing Borders First" },
+        headerRow:      { ja: "ショートカット: U / Option+クリックで消去ON/OFF", en: "Shortcut: U / Option-click toggles Clear Existing Borders First" },
+        headerColumn:   { ja: "ショートカット: L / Option+クリックで消去ON/OFF", en: "Shortcut: L / Option-click toggles Clear Existing Borders First" },
+        clearLeftRight: { ja: "ショートカット: R / Option+クリックで消去ON/OFF", en: "Shortcut: R / Option-click toggles Clear Existing Borders First" },
+        allOff:         { ja: "ショートカット: C / Option+クリックで消去ON/OFF", en: "Shortcut: C / Option-click toggles Clear Existing Borders First" }
+    },
+    alert: {
+        select: { ja: "表のセルを選択してください。", en: "Please select table cells." },
+        weight: { ja: "線幅には0以上の数値を入力してください。", en: "Enter a value of 0 or greater for weight." },
+        tint:   { ja: "濃淡には0〜100の数値を入力してください。", en: "Enter a value between 0 and 100 for tint." }
+    },
+    undo: {
+        preview: { ja: "罫線プレビュー", en: "Border Preview" },
+        apply:   { ja: "罫線の設定", en: "Apply Border Settings" }
+    }
 };
 
-function L(key) {
-    return LABELS[key] ? LABELS[key][lang] : key;
+/**
+ * ドット区切りキーでラベルを取得する
+ * @param {string} labelKey 例: "dialog.title"
+ * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+ */
+function getLabel(labelKey) {
+    var node = LABELS;
+    var keyParts = labelKey.split(".");
+    for (var i = 0; i < keyParts.length; i++) {
+        node = node[keyParts[i]];
+        if (!node) return labelKey;
+    }
+    return node[currentLang] || node.en || labelKey;
 }
 
 (function () {
     var cells = getSelectedCellsFromApp();
     if (cells.length === 0) {
-        alert(L('alertSelect'));
+        alert(getLabel('alert.select'));
         return;
     }
 
@@ -131,73 +224,66 @@ function L(key) {
     // =========================================
     // UI構築 / Build UI
     // =========================================
+    /**
+     * 罫線設定ダイアログを組み立てる
+     * @returns {object} ダイアログとコントロールをまとめたオブジェクト
+     */
     function buildDialog() {
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = "fill";
+        var dlg = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+        setupWindow(dlg, 10);
 
         var settingsColumns = dlg.add("group");
-        settingsColumns.orientation = "row";
+        setupRow(settingsColumns, "fill", COLUMN_SPACING);
         settingsColumns.alignChildren = ["fill", "top"];
-        settingsColumns.alignment = ["fill", "top"];
-        settingsColumns.spacing = 10;
 
         var leftColumn = settingsColumns.add("group");
         leftColumn.orientation = "column";
         leftColumn.alignChildren = ["fill", "top"];
         leftColumn.alignment = ["fill", "top"];
-        leftColumn.spacing = 10;
+        leftColumn.spacing = PANEL_SPACING;
 
-        var panelMode = leftColumn.add("panel", undefined, L('modePanel'));
-        panelMode.orientation = "column";
+        var panelMode = leftColumn.add("panel", undefined, getLabel('panel.mode'));
+        setupPanel(panelMode, 6);
         panelMode.alignChildren = "left";
-        panelMode.alignment = ["fill", "top"];
-        panelMode.margins = [15, 20, 15, 10];
 
-        var rbAll = panelMode.add("radiobutton", undefined, L('all'));
-        rbAll.helpTip = L('tipAll');
-        var rbOuter = panelMode.add("radiobutton", undefined, L('outer'));
-        rbOuter.helpTip = L('tipOuter');
-        var rbInnerOnly = panelMode.add("radiobutton", undefined, L('inner'));
-        rbInnerOnly.helpTip = L('tipInner');
-        var rbHorzOnly = panelMode.add("radiobutton", undefined, L('horizontal'));
-        rbHorzOnly.helpTip = L('tipHorizontal');
-        var rbVertOnly = panelMode.add("radiobutton", undefined, L('vertical'));
-        rbVertOnly.helpTip = L('tipVertical');
-        var rbHeaderRow = panelMode.add("radiobutton", undefined, L('headerRow'));
-        rbHeaderRow.helpTip = L('tipHeaderRow');
-        var rbHeaderColumn = panelMode.add("radiobutton", undefined, L('headerColumn'));
-        rbHeaderColumn.helpTip = L('tipHeaderColumn');
+        var rbAll = panelMode.add("radiobutton", undefined, getLabel('radio.all'));
+        rbAll.helpTip = getLabel('tooltip.all');
+        var rbOuter = panelMode.add("radiobutton", undefined, getLabel('radio.outer'));
+        rbOuter.helpTip = getLabel('tooltip.outer');
+        var rbInnerOnly = panelMode.add("radiobutton", undefined, getLabel('radio.inner'));
+        rbInnerOnly.helpTip = getLabel('tooltip.inner');
+        var rbHorzOnly = panelMode.add("radiobutton", undefined, getLabel('radio.horizontal'));
+        rbHorzOnly.helpTip = getLabel('tooltip.horizontal');
+        var rbVertOnly = panelMode.add("radiobutton", undefined, getLabel('radio.vertical'));
+        rbVertOnly.helpTip = getLabel('tooltip.vertical');
+        var rbHeaderRow = panelMode.add("radiobutton", undefined, getLabel('radio.headerRow'));
+        rbHeaderRow.helpTip = getLabel('tooltip.headerRow');
+        var rbHeaderColumn = panelMode.add("radiobutton", undefined, getLabel('radio.headerColumn'));
+        rbHeaderColumn.helpTip = getLabel('tooltip.headerColumn');
         rbHeaderRow.enabled = state.headerModesEnabled;
         rbHeaderColumn.enabled = state.headerModesEnabled;
-        var rbClearLeftRight = panelMode.add("radiobutton", undefined, L('clearLeftRight'));
-        rbClearLeftRight.helpTip = L('tipClearLeftRight');
-        var rbAllOff = panelMode.add("radiobutton", undefined, L('allOff'));
-        rbAllOff.helpTip = L('tipAllOff');
+        var rbClearLeftRight = panelMode.add("radiobutton", undefined, getLabel('radio.clearLeftRight'));
+        rbClearLeftRight.helpTip = getLabel('tooltip.clearLeftRight');
+        var rbAllOff = panelMode.add("radiobutton", undefined, getLabel('radio.allOff'));
+        rbAllOff.helpTip = getLabel('tooltip.allOff');
 
-        // Replace panel with group and add visible label
+        /* 枠線なしのグループで描画オプションを並べる / Drawing options sit in a borderless group */
         var panelDrawingOptions = leftColumn.add("group");
         panelDrawingOptions.orientation = "column";
         panelDrawingOptions.alignChildren = "left";
         panelDrawingOptions.alignment = ["fill", "top"];
-        panelDrawingOptions.margins = [15, 10, 15, 10];
+        panelDrawingOptions.margins = [PANEL_MARGINS[0], 10, PANEL_MARGINS[2], 10];
 
 
-        var cbClearFirst = panelDrawingOptions.add("checkbox", undefined, L('clearFirst'));
+        var cbClearFirst = panelDrawingOptions.add("checkbox", undefined, getLabel('checkbox.clearFirst'));
         cbClearFirst.value = true;
 
 
-        var panelStyle = settingsColumns.add("panel", undefined, L('stylePanel'));
-        panelStyle.orientation = "column";
-        panelStyle.alignChildren = ["fill", "top"];
-        panelStyle.alignment = ["fill", "top"];
-        panelStyle.margins = [15, 20, 15, 10];
+        var panelStyle = settingsColumns.add("panel", undefined, getLabel('panel.style'));
+        setupPanel(panelStyle, 8);
 
-        var panelWeight = panelStyle.add("panel", undefined, L('lineWidthPanel'));
-        panelWeight.orientation = "column";
-        panelWeight.alignChildren = ["fill", "top"];
-        panelWeight.alignment = ["fill", "top"];
-        panelWeight.margins = [15, 20, 15, 10];
+        var panelWeight = panelStyle.add("panel", undefined, getLabel('panel.lineWidth'));
+        setupPanel(panelWeight, 6);
 
         var weightGroup = panelWeight.add("group");
         weightGroup.orientation = "column";
@@ -206,14 +292,12 @@ function L(key) {
         weightGroup.spacing = 8;
 
         var weightRow = weightGroup.add("group");
-        weightRow.orientation = "row";
+        setupRow(weightRow, "left", 8);
         weightRow.alignChildren = ["left", "center"];
-        weightRow.alignment = ["left", "center"];
-        weightRow.spacing = 8;
 
         var weightInput = weightRow.add("edittext", undefined, getDefaultLineWidthText());
-        weightInput.characters = 6;
-        weightInput.minimumSize.width = 60;
+        weightInput.characters = WEIGHT_INPUT_CHARACTERS;
+        weightInput.minimumSize.width = WEIGHT_INPUT_MIN_WIDTH;
 
         weightRow.add("statictext", undefined, getCurrentLineWidthUnitLabel());
 
@@ -221,7 +305,7 @@ function L(key) {
         weightPresetContainer.orientation = "column";
         weightPresetContainer.alignChildren = ["left", "center"];
         weightPresetContainer.alignment = ["fill", "top"];
-        weightPresetContainer.margins = [15, 10, 15, 10];
+        weightPresetContainer.margins = [PANEL_MARGINS[0], 10, PANEL_MARGINS[2], 10];
 
         var weightPresetGroup = weightPresetContainer.add("group");
         weightPresetGroup.orientation = "column";
@@ -229,12 +313,12 @@ function L(key) {
         weightPresetGroup.alignment = ["left", "top"];
         weightPresetGroup.spacing = 4;
 
-        var rbWeightNone = weightPresetGroup.add("radiobutton", undefined, lang === "ja" ? "なし" : "None");
-        var rbWeight01 = weightPresetGroup.add("radiobutton", undefined, "0.1");
-        var rbWeight02 = weightPresetGroup.add("radiobutton", undefined, "0.2");
-        var rbWeight025 = weightPresetGroup.add("radiobutton", undefined, "0.25");
-        var rbWeight035 = weightPresetGroup.add("radiobutton", undefined, "0.35");
-        var rbWeight05 = weightPresetGroup.add("radiobutton", undefined, "0.5");
+        var rbWeightNone = weightPresetGroup.add("radiobutton", undefined, getLabel('radio.weightNone'));
+        var rbWeight01 = weightPresetGroup.add("radiobutton", undefined, WEIGHT_PRESET_VALUES[0]);
+        var rbWeight02 = weightPresetGroup.add("radiobutton", undefined, WEIGHT_PRESET_VALUES[1]);
+        var rbWeight025 = weightPresetGroup.add("radiobutton", undefined, WEIGHT_PRESET_VALUES[2]);
+        var rbWeight035 = weightPresetGroup.add("radiobutton", undefined, WEIGHT_PRESET_VALUES[3]);
+        var rbWeight05 = weightPresetGroup.add("radiobutton", undefined, WEIGHT_PRESET_VALUES[4]);
 
         syncWeightPresetFromTextValue({
             rbWeightNone: rbWeightNone,
@@ -245,11 +329,9 @@ function L(key) {
             rbWeight05: rbWeight05
         }, getDefaultLineWidthText());
 
-        var panelColor = panelStyle.add("panel", undefined, L('colorPanel'));
-        panelColor.orientation = "column";
+        var panelColor = panelStyle.add("panel", undefined, getLabel('panel.color'));
+        setupPanel(panelColor, 6);
         panelColor.alignChildren = ["left", "top"];
-        panelColor.alignment = ["fill", "top"];
-        panelColor.margins = [15, 20, 15, 10];
 
         var swatchEntries = getSwatchEntries();
         var colorPicker = createSwatchDropdownWithPreview(panelColor, swatchEntries, getDefaultColorIndex(swatchEntries));
@@ -262,21 +344,18 @@ function L(key) {
         panelTint.alignment = ["fill", "top"];
 
         var tintRow = panelTint.add("group");
-        tintRow.orientation = "row";
+        setupRow(tintRow, "fill", 8);
         tintRow.alignChildren = ["left", "center"];
-        tintRow.alignment = ["fill", "center"];
-        tintRow.spacing = 8;
 
-        tintRow.add("statictext", undefined, L('tintLabel'));
+        tintRow.add("statictext", undefined, getLabel('field.tint'));
 
-        // Tint default is 100 / 濃淡のデフォルト値は100
-        var tintInput = tintRow.add("edittext", undefined, "100");
-        tintInput.characters = 4;
-        tintInput.minimumSize.width = 45;
+        /* 濃淡の初期値は TINT_DEFAULT / The tint starts at TINT_DEFAULT */
+        var tintInput = tintRow.add("edittext", undefined, String(TINT_DEFAULT));
+        tintInput.characters = TINT_INPUT_CHARACTERS;
+        tintInput.minimumSize.width = TINT_INPUT_MIN_WIDTH;
 
-        // Tint default is 100 / 濃淡のデフォルト値は100
-        var tintSlider = panelTint.add("slider", undefined, 100, 0, 100);
-        tintSlider.helpTip = L('tintSliderTip');
+        var tintSlider = panelTint.add("slider", undefined, TINT_DEFAULT, TINT_MIN, TINT_MAX);
+        tintSlider.helpTip = getLabel('tooltip.tintSlider');
 
         rbAll.value = true;
         if (!state.headerModesEnabled) {
@@ -286,13 +365,12 @@ function L(key) {
         }
         updateTintControlsEnabledState(colorDropdown, tintInput, tintSlider);
 
-        // カラープレビューの初期表示
+        /* カラープレビューの初期表示 / Paint the initial colour preview */
         updateSwatchPreview(colorPreviewBox, colorDropdown, dlg);
 
         var btnArea = dlg.add("group");
-        btnArea.orientation = "row";
+        setupRow(btnArea, "fill", 8);
         btnArea.alignChildren = ["fill", "fill"];
-        btnArea.alignment = ["fill", "bottom"];
         btnArea.margins = [0, 8, 0, 0];
 
         var btnLeftGroup = btnArea.add("group");
@@ -310,21 +388,20 @@ function L(key) {
 
         var spacer = btnCenterGroup.add("group");
         spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 40;
+        spacer.minimumSize.width = BUTTON_ROW_SPACER_MIN_WIDTH;
 
         var btnRightGroup = btnArea.add("group");
         btnRightGroup.orientation = "column";
         btnRightGroup.alignChildren = ["right", "center"];
         btnRightGroup.alignment = ["right", "fill"];
 
+        /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
         var buttonRow = btnRightGroup.add("group");
-        buttonRow.orientation = "row";
+        setupRow(buttonRow, "right", 8);
         buttonRow.alignChildren = ["right", "center"];
-        buttonRow.alignment = ["right", "center"];
-        buttonRow.spacing = 8;
 
-        var btnCancel = buttonRow.add("button", undefined, L('cancel'), { name: "cancel" });
-        var btnOk = buttonRow.add("button", undefined, L('ok'), { name: "ok" });
+        var btnCancel = buttonRow.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+        var btnOk = buttonRow.add("button", undefined, getLabel('button.ok'), { name: "ok" });
 
         dlg.layout.layout(true);
         dlg.layout.resize();
@@ -363,6 +440,12 @@ function L(key) {
     // =========================================
     // イベント / Events
     // =========================================
+    /**
+     * ダイアログのコントロールにイベントを結び付ける
+     * @param {object} ui buildDialog が返した UI オブジェクト
+     * @param {object} state 選択セルやプレビュー状態を保持するオブジェクト
+     * @returns {void}
+     */
     function bindDialogEvents(ui, state) {
         var di;
 
@@ -459,10 +542,23 @@ function L(key) {
         };
     }
 
+    /**
+     * モードのラジオボタンが押されたときにプレビューを更新する
+     * @param {object} ui UI オブジェクト
+     * @param {object} state 状態オブジェクト
+     * @returns {void}
+     */
     function onRadioClick(ui, state) {
         doPreview(ui, state);
     }
 
+    /**
+     * 線幅プリセットの値を入力欄へ反映してプレビューを更新する
+     * @param {object} ui UI オブジェクト
+     * @param {string} value プリセットの線幅文字列
+     * @param {object} state 状態オブジェクト
+     * @returns {void}
+     */
     function applyWeightPreset(ui, value, state) {
         if (!ui || !ui.weightInput) return;
 
@@ -471,11 +567,23 @@ function L(key) {
         doPreview(ui, state);
     }
 
+    /**
+     * 線幅入力欄の値に合わせてプリセットの選択状態を揃える
+     * @param {object} ui UI オブジェクト
+     * @returns {void}
+     */
     function syncWeightPresetFromInput(ui) {
         if (!ui) return;
         syncWeightPresetFromTextValue(ui, getSelectedWeightText(ui));
     }
 
+    /**
+     * 入力欄に上下キーでの増減操作を追加する
+     * @param {EditText} editText 対象の入力欄
+     * @param {boolean} allowNegative 負の値を許可するか
+     * @param {function} onAfterChange 値の変更後に呼ぶ処理
+     * @returns {void}
+     */
     function changeValueByArrowKey(editText, allowNegative, onAfterChange) {
         editText.addEventListener("keydown", function (event) {
             if (applyArrowStepToEditText(editText, allowNegative, event, onAfterChange)) {
@@ -484,6 +592,14 @@ function L(key) {
         });
     }
 
+    /**
+     * 押されたキーに応じて入力欄の数値を増減する
+     * @param {EditText} editText 対象の入力欄
+     * @param {boolean} allowNegative 負の値を許可するか
+     * @param {object} event キーイベント
+     * @param {function} onAfterChange 値の変更後に呼ぶ処理
+     * @returns {void}
+     */
     function applyArrowStepToEditText(editText, allowNegative, event, onAfterChange) {
         var value = Number(editText.text);
         var keyboard = ScriptUI.environment.keyboardState;
@@ -516,6 +632,11 @@ function L(key) {
         return true;
     }
 
+    /**
+     * 環境差のあるキー名を Up / Down に正規化する
+     * @param {string} keyName イベントから得たキー名
+     * @returns {string} "Up"、"Down"、または空文字
+     */
     function normalizeArrowKeyName(keyName) {
         keyName = String(keyName);
         if (keyName === "Up" || keyName === "Down") return keyName;
@@ -526,6 +647,13 @@ function L(key) {
         return keyName;
     }
 
+    /**
+     * 描画オプションを切り替えるキー操作を登録する
+     * @param {Window} dialog 対象のダイアログ
+     * @param {object} ui UI オブジェクト
+     * @param {object} state 状態オブジェクト
+     * @returns {void}
+     */
     function addDrawingOptionKeyHandler(dialog, ui, state) {
         dialog.addEventListener("keydown", function (event) {
             if (event.keyName == "M") {
@@ -536,6 +664,13 @@ function L(key) {
         });
     }
 
+    /**
+     * モード切り替えのショートカットキーを登録する
+     * @param {Window} dialog 対象のダイアログ
+     * @param {object} ui UI オブジェクト
+     * @param {object} state 状態オブジェクト
+     * @returns {void}
+     */
     function addModeShortcutKeyHandler(dialog, ui, state) {
         dialog.addEventListener("keydown", function (event) {
             var keyName = String(event.keyName);
@@ -573,6 +708,12 @@ function L(key) {
     // =========================================
     // プレビューと確定 / Preview & Apply
     // =========================================
+    /**
+     * 現在の設定で罫線のプレビューを描画する
+     * @param {object} ui UI オブジェクト
+     * @param {object} state 状態オブジェクト
+     * @returns {void}
+     */
     function doPreview(ui, state) {
         var weight;
         var swatch;
@@ -601,7 +742,7 @@ function L(key) {
         try {
             app.doScript(function () {
                 applyBorders(state.cells, getMode(ui), weight, ui.cbClearFirst.value, swatch, tint);
-            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoPreview'));
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel('undo.preview'));
             state.previewed = true;
             app.activeDocument.recompose();
         } catch (e) {
@@ -609,6 +750,11 @@ function L(key) {
         }
     }
 
+    /**
+     * プレビューとして適用した罫線を取り消す
+     * @param {object} state 状態オブジェクト
+     * @returns {void}
+     */
     function clearPreview(state) {
         if (!state.previewed) return;
         try {
@@ -618,6 +764,12 @@ function L(key) {
         app.activeDocument.recompose();
     }
 
+    /**
+     * ダイアログの設定を確定して罫線を適用する
+     * @param {object} ui UI オブジェクト
+     * @param {object} state 状態オブジェクト
+     * @returns {void}
+     */
     function applyFinalFromDialog(ui, state) {
         var mode = getMode(ui);
         var weight = parseLineWeight(getSelectedWeightText(ui));
@@ -626,13 +778,13 @@ function L(key) {
 
         if (!isValidLineWeight(weight)) {
             clearPreview(state);
-            alert(L('alertWeight'));
+            alert(getLabel('alert.weight'));
             return;
         }
 
         if (!isValidTint(tint)) {
             clearPreview(state);
-            alert(L('alertTint'));
+            alert(getLabel('alert.tint'));
             return;
         }
 
@@ -644,12 +796,17 @@ function L(key) {
 
         app.doScript(function () {
             applyBorders(state.cells, mode, weight, ui.cbClearFirst.value, swatch, tint);
-        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L('undoApply'));
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel('undo.apply'));
     }
 
     // =========================================
     // UI値の取得 / Read UI values
     // =========================================
+    /**
+     * 選択中のモードを取得する
+     * @param {object} ui UI オブジェクト
+     * @returns {string} モードを表す識別子
+     */
     function getMode(ui) {
         if (ui.rbAll.value) return "all";
         if (ui.rbOuter.value) return "outer";
@@ -664,6 +821,11 @@ function L(key) {
         return "";
     }
 
+    /**
+     * 入力欄またはプリセットから線幅の文字列を取得する
+     * @param {object} ui UI オブジェクト
+     * @returns {string} 線幅を表す文字列
+     */
     function getSelectedWeightText(ui) {
         var text = "";
 
@@ -675,6 +837,10 @@ function L(key) {
         return getDefaultLineWidthText();
     }
 
+    /**
+     * カラー候補として表示するスウォッチ一覧を作る
+     * @returns {Array<object>} スウォッチ名と表示名の配列
+     */
     function getSwatchEntries() {
         var entries = [];
         var i;
@@ -692,23 +858,38 @@ function L(key) {
             }
         } catch (e) { }
         if (entries.length === 0) {
-            entries.push({ displayName: L('swatchBlack'), actualName: 'Black' });
+            entries.push({ displayName: getLabel('swatch.black'), actualName: 'Black' });
         }
         return entries;
     }
 
+    /**
+     * スウォッチ名を UI 表示用の名前に変換する
+     * @param {string} name スウォッチ名
+     * @returns {string} 表示用の名前
+     */
     function getDisplaySwatchName(name) {
-        if (isNoneSwatchName(name)) return L('swatchNone');
-        if (isBlackSwatchName(name)) return L('swatchBlack');
-        if (isPaperSwatchName(name)) return L('swatchPaper');
+        if (isNoneSwatchName(name)) return getLabel('swatch.none');
+        if (isBlackSwatchName(name)) return getLabel('swatch.black');
+        if (isPaperSwatchName(name)) return getLabel('swatch.paper');
         return String(name);
     }
 
 
+    /**
+     * レジストレーションのスウォッチ名かどうかを判定する
+     * @param {string} name スウォッチ名
+     * @returns {boolean} レジストレーションなら true
+     */
     function isRegistrationSwatchName(name) {
         return name === "Registration" || name === "[Registration]" || name === "レジストレーション" || name === "[レジストレーション]";
     }
 
+    /**
+     * 既定で選択するカラーの位置を求める
+     * @param {Array<object>} swatchEntries スウォッチ一覧
+     * @returns {number} 既定で選ぶ位置
+     */
     function getDefaultColorIndex(swatchEntries) {
         var i;
         for (i = 0; i < swatchEntries.length; i++) {
@@ -717,21 +898,41 @@ function L(key) {
         return 0;
     }
 
+    /**
+     * 選択中のカラー名を取得する
+     * @param {object} ui UI オブジェクト
+     * @returns {string} スウォッチ名
+     */
     function getSelectedColorName(ui) {
         return getSelectedSwatchNameFromDropdown(ui ? ui.colorDropdown : null);
     }
 
+    /**
+     * ドロップダウンで選択中のスウォッチ名を取得する
+     * @param {DropDownList} dropdown 対象のドロップダウン
+     * @returns {string} スウォッチ名
+     */
     function getSelectedSwatchNameFromDropdown(dropdown) {
         if (!dropdown || !dropdown.selection) return "";
         if (dropdown.selection._swatchName != null) return String(dropdown.selection._swatchName);
         return String(dropdown.selection.text);
     }
 
+    /**
+     * 入力欄から濃淡の値を取得する
+     * @param {object} ui UI オブジェクト
+     * @returns {number} 濃淡の値
+     */
     function getSelectedTint(ui) {
         if (!ui || !ui.tintInput) return 100;
         return clampTintValue(parseFloat(String(ui.tintInput.text).replace(/^\s+|\s+$/g, "")));
     }
 
+    /**
+     * 濃淡の値を有効範囲に収める
+     * @param {number} value 濃淡の値
+     * @returns {number} 範囲内に収めた値
+     */
     function clampTintValue(value) {
         if (isNaN(value)) return NaN;
         if (value < 0) return 0;
@@ -739,10 +940,20 @@ function L(key) {
         return value;
     }
 
+    /**
+     * 濃淡の値が有効範囲内かどうかを判定する
+     * @param {number} value 濃淡の値
+     * @returns {boolean} 有効なら true
+     */
     function isValidTint(value) {
         return !isNaN(value) && value >= 0 && value <= 100;
     }
 
+    /**
+     * 濃淡入力欄の値を有効範囲に収めて書き戻す
+     * @param {EditText} editText 濃淡の入力欄
+     * @returns {number} 収めたあとの値
+     */
     function clampTintInput(editText) {
         var value;
         if (!editText) return;
@@ -751,6 +962,11 @@ function L(key) {
         editText.text = String(Math.round(value));
     }
 
+    /**
+     * 入力欄の値をスライダーへ反映する
+     * @param {object} ui UI オブジェクト
+     * @returns {void}
+     */
     function syncTintSliderFromInput(ui) {
         var tint;
         if (!ui || !ui.tintInput || !ui.tintSlider) return;
@@ -760,15 +976,32 @@ function L(key) {
         ui.tintSlider.value = tint;
     }
 
+    /**
+     * スライダーの値を入力欄へ反映する
+     * @param {object} ui UI オブジェクト
+     * @returns {void}
+     */
     function syncTintInputFromSlider(ui) {
         if (!ui || !ui.tintInput || !ui.tintSlider) return;
         ui.tintInput.text = String(Math.round(ui.tintSlider.value));
     }
 
+    /**
+     * そのスウォッチで濃淡を調整できるかどうかを判定する
+     * @param {string} swatchName スウォッチ名
+     * @returns {boolean} 調整できるなら true
+     */
     function shouldEnableTintControlsBySwatchName(swatchName) {
         return !(isNoneSwatchName(swatchName) || isPaperSwatchName(swatchName));
     }
 
+    /**
+     * 選択中のスウォッチに応じて濃淡コントロールの有効／無効を切り替える
+     * @param {DropDownList} dropdown カラーのドロップダウン
+     * @param {EditText} tintInput 濃淡の入力欄
+     * @param {Slider} tintSlider 濃淡のスライダー
+     * @returns {void}
+     */
     function updateTintControlsEnabledState(dropdown, tintInput, tintSlider) {
         var swatchName = getSelectedSwatchNameFromDropdown(dropdown);
         var enabled = shouldEnableTintControlsBySwatchName(swatchName);
@@ -778,15 +1011,28 @@ function L(key) {
     }
 
     // --- Preview/Standard Mode toggle helpers ---
+    /**
+     * 画面モードに応じたトグルボタンのラベルを返す
+     * @returns {string} ボタンに表示する文字列
+     */
     function getPreviewToggleButtonLabel() {
-        return isPreviewScreenMode() ? L('standardMode') : L('previewMode');
+        return isPreviewScreenMode() ? getLabel('button.standardMode') : getLabel('button.previewMode');
     }
 
+    /**
+     * トグルボタンのラベルを現在の画面モードに合わせて更新する
+     * @param {Button} button 対象のボタン
+     * @returns {void}
+     */
     function updatePreviewToggleButtonLabel(button) {
         if (!button) return;
         button.text = getPreviewToggleButtonLabel();
     }
 
+    /**
+     * 現在プレビュー表示になっているかを判定する
+     * @returns {boolean} プレビュー表示なら true
+     */
     function isPreviewScreenMode() {
         try {
             return app.activeWindow && app.activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE;
@@ -795,6 +1041,10 @@ function L(key) {
         }
     }
 
+    /**
+     * 標準表示とプレビュー表示を切り替える
+     * @returns {void}
+     */
     function togglePreviewScreenMode() {
         try {
             var w = app.activeWindow;
@@ -807,6 +1057,11 @@ function L(key) {
         } catch (e) { }
     }
 
+    /**
+     * 選択中のスウォッチを取得する
+     * @param {object} ui UI オブジェクト
+     * @returns {Swatch|null} スウォッチ。取得できない場合は null
+     */
     function getSelectedSwatch(ui) {
         return getSwatchByName(getSelectedColorName(ui));
     }
@@ -814,6 +1069,13 @@ function L(key) {
     // =========================================
     // スウォッチUIヘルパー / Swatch UI helpers
     // =========================================
+    /**
+     * 色見本つきのスウォッチ選択コントロールを作る
+     * @param {object} parent 追加先のコンテナ
+     * @param {Array<object>} swatchEntries スウォッチ一覧
+     * @param {number} defaultIndex 既定で選ぶ位置
+     * @returns {{previewBox: Group, dropdown: DropDownList}} 生成したコントロール
+     */
     function createSwatchDropdownWithPreview(parent, swatchEntries, defaultIndex) {
         var row = parent.add("group");
         row.orientation = "row";
@@ -830,6 +1092,11 @@ function L(key) {
         };
     }
 
+    /**
+     * スウォッチの色見本を表示する枠を作る
+     * @param {object} parent 追加先のコンテナ
+     * @returns {Group} 色見本用のグループ
+     */
     function createSwatchPreviewBox(parent) {
         var previewBox = parent.add("group");
         previewBox.preferredSize = [18, 18];
@@ -838,6 +1105,13 @@ function L(key) {
         return previewBox;
     }
 
+    /**
+     * スウォッチ選択のドロップダウンを作る
+     * @param {object} parent 追加先のコンテナ
+     * @param {Array<object>} swatchEntries スウォッチ一覧
+     * @param {number} defaultIndex 既定で選ぶ位置
+     * @returns {DropDownList} 生成したドロップダウン
+     */
     function createSwatchDropdown(parent, swatchEntries, defaultIndex) {
         var dropdown;
         var displayNames = [];
@@ -868,6 +1142,13 @@ function L(key) {
         return dropdown;
     }
 
+    /**
+     * 選択中のスウォッチに合わせて色見本を塗り直す
+     * @param {Group} previewBox 色見本のグループ
+     * @param {DropDownList} dropdown カラーのドロップダウン
+     * @param {Window} dlg 対象のダイアログ
+     * @returns {void}
+     */
     function updateSwatchPreview(previewBox, dropdown, dlg) {
         var swatch;
         if (!previewBox || !dropdown || !dropdown.selection) return;
@@ -882,6 +1163,11 @@ function L(key) {
         if (dlg) dlg.update();
     }
 
+    /**
+     * 名前からスウォッチを取得する
+     * @param {string} swatchName スウォッチ名
+     * @returns {Swatch|null} スウォッチ。見つからない場合は null
+     */
     function getSwatchByName(swatchName) {
         try {
             if (!swatchName) return null;
@@ -891,11 +1177,21 @@ function L(key) {
         }
     }
 
+    /**
+     * 色見本の描画に使う RGB 値を取得する
+     * @param {Swatch} swatch 対象のスウォッチ
+     * @returns {Array<number>|null} RGB 値の配列。取得できない場合は null
+     */
     function getSwatchPreviewRGBAFromSwatch(swatch) {
         var rgb = convertSwatchToPreviewRGB(swatch);
         return [rgb[0], rgb[1], rgb[2], 1];
     }
 
+    /**
+     * スウォッチのカラー値を表示用の RGB に変換する
+     * @param {Swatch} swatch 対象のスウォッチ
+     * @returns {Array<number>|null} RGB 値の配列。変換できない場合は null
+     */
     function convertSwatchToPreviewRGB(swatch) {
         var vals;
         var c, m, y, k;
@@ -924,16 +1220,30 @@ function L(key) {
         return [0.5, 0.5, 0.5];
     }
 
+    /**
+     * 白に近いスウォッチかどうかを判定する
+     * @param {Swatch} swatch 対象のスウォッチ
+     * @returns {boolean} 白に近ければ true
+     */
     function isWhiteLikeSwatch(swatch) {
         var name = swatch && swatch.name != null ? String(swatch.name) : "";
         return isNoneSwatchName(name) || isPaperSwatchName(name);
     }
 
+    /**
+     * 黒に近いスウォッチかどうかを判定する
+     * @param {Swatch} swatch 対象のスウォッチ
+     * @returns {boolean} 黒に近ければ true
+     */
     function isBlackLikeSwatch(swatch) {
         var name = swatch && swatch.name != null ? String(swatch.name) : "";
         return isRegistrationSwatchName(name) || isBlackSwatchName(name);
     }
 
+    /**
+     * ドキュメントの線幅単位を取得する
+     * @returns {MeasurementUnits|null} 線幅の単位。取得できない場合は null
+     */
     function getCurrentMeasurementUnit() {
         try {
             return app.activeDocument.viewPreferences.strokeMeasurementUnits;
@@ -942,6 +1252,10 @@ function L(key) {
         }
     }
 
+    /**
+     * 線幅単位の表示ラベルを取得する
+     * @returns {string} 単位のラベル
+     */
     function getCurrentLineWidthUnitLabel() {
         switch (getCurrentMeasurementUnit()) {
             case MeasurementUnits.MILLIMETERS:
@@ -961,10 +1275,18 @@ function L(key) {
         }
     }
 
+    /**
+     * 線幅入力欄の初期値を取得する
+     * @returns {string} 初期値の文字列
+     */
     function getDefaultLineWidthText() {
         return getCurrentMeasurementUnit() === MeasurementUnits.POINTS ? "0.25" : "0.1";
     }
 
+    /**
+     * 線幅に付ける単位のサフィックスを取得する
+     * @returns {string} 単位のサフィックス
+     */
     function getCurrentLineWidthUnitSuffix() {
         switch (getCurrentMeasurementUnit()) {
             case MeasurementUnits.MILLIMETERS:
@@ -984,6 +1306,12 @@ function L(key) {
         }
     }
 
+    /**
+     * 線幅の文字列に一致するプリセットを選択状態にする
+     * @param {object} target プリセットのラジオボタンをまとめたオブジェクト
+     * @param {string} textValue 線幅の文字列
+     * @returns {void}
+     */
     function syncWeightPresetFromTextValue(target, textValue) {
         var value = parseFloat(textValue);
         if (!target || isNaN(value)) return;
@@ -999,6 +1327,11 @@ function L(key) {
     // =========================================
     // 値変換 / Value conversion
     // =========================================
+    /**
+     * 線幅の入力文字列を単位付きの値に変換する
+     * @param {string} text 線幅の入力文字列
+     * @returns {string|number|null} 適用できる線幅。無効な場合は null
+     */
     function parseLineWeight(text) {
         var value = parseFloat(text);
         var suffix;
@@ -1016,12 +1349,22 @@ function L(key) {
 
     // =========================================
     // 線幅バリデーション / Line weight validation
+    /**
+     * 単位付きの線幅から数値部分を取り出す
+     * @param {string|number} weight 線幅
+     * @returns {number} 線幅の数値
+     */
     function extractLineWeightNumber(weight) {
         if (typeof weight === "number") return weight;
         if (typeof weight === "string") return parseFloat(weight);
         return NaN;
     }
 
+    /**
+     * 線幅として有効な値かどうかを判定する
+     * @param {string|number} weight 線幅
+     * @returns {boolean} 有効なら true
+     */
     function isValidLineWeight(weight) {
         var numericWeight = extractLineWeightNumber(weight);
         return !isNaN(numericWeight) && numericWeight >= 0;
@@ -1030,6 +1373,10 @@ function L(key) {
     // =========================================
     // 選択取得 / Selection
     // =========================================
+    /**
+     * 現在の選択から対象の表セルを取得する
+     * @returns {Array<Cell>} 選択されたセルの配列
+     */
     function getSelectedCellsFromApp() {
         var result = [];
         var seen = {};
@@ -1054,6 +1401,11 @@ function L(key) {
         return result;
     }
 
+    /**
+     * 実行前の選択状態を控えておく
+     * @param {Array} selectionItems 現在の選択
+     * @returns {Array} 復元用の選択情報
+     */
     function snapshotSelection(selectionItems) {
         var result = [];
         var i;
@@ -1069,6 +1421,11 @@ function L(key) {
         return result;
     }
 
+    /**
+     * 控えておいた選択状態を復元する
+     * @param {Array} selectionItems 復元用の選択情報
+     * @returns {void}
+     */
     function restoreSelection(selectionItems) {
         var restorable = [];
         var i, item;
@@ -1095,6 +1452,11 @@ function L(key) {
         }
     }
 
+    /**
+     * 重複除外のためのセル識別キーを作る
+     * @param {Cell} cell 対象のセル
+     * @returns {string} 識別キー
+     */
     function getCellKey(cell) {
         var range;
         try {
@@ -1111,6 +1473,11 @@ function L(key) {
         }
     }
 
+    /**
+     * 選択オブジェクトから表セルの配列を取り出す
+     * @param {Array} sel 選択オブジェクトの配列
+     * @returns {Array<Cell>} 表セルの配列
+     */
     function getSelectedCells(sel) {
         var result = [];
         var i;
@@ -1131,6 +1498,16 @@ function L(key) {
     // =========================================
     // 罫線適用 / Apply borders
     // =========================================
+    /**
+     * 指定したモードで罫線を適用する
+     * @param {Array<Cell>} cells 対象のセル
+     * @param {string} mode 適用モード
+     * @param {string|number} weight 線幅
+     * @param {boolean} clearFirst 描画前に既存の罫線を消すか
+     * @param {Swatch} swatch 罫線のカラー
+     * @param {number} tint 濃淡
+     * @returns {void}
+     */
     function applyBorders(cells, mode, weight, clearFirst, swatch, tint) {
         if (cells.length === 0) return;
 
@@ -1182,6 +1559,16 @@ function L(key) {
         }
     }
 
+    /**
+     * 見出し行として上下の罫線を引く
+     * @param {Array<Cell>} cells 対象のセル
+     * @param {object} bounds 選択範囲の境界情報
+     * @param {string|number} weight 線幅
+     * @param {boolean} clearFirst 描画前に既存の罫線を消すか
+     * @param {Swatch} swatch 罫線のカラー
+     * @param {number} tint 濃淡
+     * @returns {void}
+     */
     function applyHeaderRow(cells, bounds, weight, clearFirst, swatch, tint) {
         var i, cell, range;
         var isFirstRow, isLastRow;
@@ -1210,6 +1597,11 @@ function L(key) {
         }
     }
 
+    /**
+     * すべての罫線を消去する
+     * @param {Array<Cell>} cells 対象のセル
+     * @returns {void}
+     */
     function applyAllOff(cells) {
         var bounds, rectCells;
         var i, cell;
@@ -1228,6 +1620,14 @@ function L(key) {
         }
     }
 
+    /**
+     * すべての罫線を引く
+     * @param {Array<Cell>} cells 対象のセル
+     * @param {string|number} weight 線幅
+     * @param {Swatch} swatch 罫線のカラー
+     * @param {number} tint 濃淡
+     * @returns {void}
+     */
     function applyAll(cells, weight, swatch, tint) {
         var bounds, rectCells;
         var i, cell;
@@ -1245,6 +1645,16 @@ function L(key) {
         }
     }
 
+    /**
+     * 選択範囲の外周だけに罫線を引く
+     * @param {Array<Cell>} cells 対象のセル
+     * @param {object} bounds 選択範囲の境界情報
+     * @param {string|number} weight 線幅
+     * @param {boolean} clearFirst 描画前に既存の罫線を消すか
+     * @param {Swatch} swatch 罫線のカラー
+     * @param {number} tint 濃淡
+     * @returns {void}
+     */
     function applyOuter(cells, bounds, weight, clearFirst, swatch, tint) {
         var rectCells;
         var i, c, edgeFlags;
@@ -1266,6 +1676,16 @@ function L(key) {
         }
     }
 
+    /**
+     * 選択範囲の内側だけに罫線を引く
+     * @param {Array<Cell>} cells 対象のセル
+     * @param {object} bounds 選択範囲の境界情報
+     * @param {string|number} weight 線幅
+     * @param {boolean} clearFirst 描画前に既存の罫線を消すか
+     * @param {Swatch} swatch 罫線のカラー
+     * @param {number} tint 濃淡
+     * @returns {void}
+     */
     function applyInnerOnly(cells, bounds, weight, clearFirst, swatch, tint) {
         var rectCells;
         var i, cell;
@@ -1295,6 +1715,16 @@ function L(key) {
         }
     }
 
+    /**
+     * 水平方向の罫線だけを引く
+     * @param {Array<Cell>} cells 対象のセル
+     * @param {object} bounds 選択範囲の境界情報
+     * @param {string|number} weight 線幅
+     * @param {boolean} clearFirst 描画前に既存の罫線を消すか
+     * @param {Swatch} swatch 罫線のカラー
+     * @param {number} tint 濃淡
+     * @returns {void}
+     */
     function applyHorizontal(cells, bounds, weight, clearFirst, swatch, tint) {
         var rectCells;
         var i, cell;
@@ -1328,6 +1758,16 @@ function L(key) {
         }
     }
 
+    /**
+     * 垂直方向の罫線だけを引く
+     * @param {Array<Cell>} cells 対象のセル
+     * @param {object} bounds 選択範囲の境界情報
+     * @param {string|number} weight 線幅
+     * @param {boolean} clearFirst 描画前に既存の罫線を消すか
+     * @param {Swatch} swatch 罫線のカラー
+     * @param {number} tint 濃淡
+     * @returns {void}
+     */
     function applyVertical(cells, bounds, weight, clearFirst, swatch, tint) {
         var rectCells;
         var i, cell;
@@ -1360,6 +1800,11 @@ function L(key) {
             }
         }
     }
+    /**
+     * 選択ブロックの左端と右端の罫線だけを消去する
+     * @param {Array<Cell>} cells 対象のセル
+     * @returns {void}
+     */
     function applyClearLeftRight(cells) {
         var i, cell;
         var hasLeftNeighbor, hasRightNeighbor;
@@ -1385,6 +1830,16 @@ function L(key) {
         }
     }
 
+    /**
+     * 見出し列として左右の罫線を引く
+     * @param {Array<Cell>} cells 対象のセル
+     * @param {object} bounds 選択範囲の境界情報
+     * @param {string|number} weight 線幅
+     * @param {boolean} clearFirst 描画前に既存の罫線を消すか
+     * @param {Swatch} swatch 罫線のカラー
+     * @param {number} tint 濃淡
+     * @returns {void}
+     */
     function applyHeaderColumn(cells, bounds, weight, clearFirst, swatch, tint) {
         var i, cell, range;
         var isFirstCol, isLastCol;
@@ -1413,14 +1868,33 @@ function L(key) {
         }
     }
 
+    /**
+     * 左隣に選択セルがあるかを判定する
+     * @param {Cell} cell 対象のセル
+     * @param {Array<Cell>} cells 選択セルの配列
+     * @returns {boolean} 左隣に選択セルがあれば true
+     */
     function hasAdjacentSelectedCellOnLeft(cell, cells) {
         return hasAdjacentSelectedCell(cell, cells, -1);
     }
 
+    /**
+     * 右隣に選択セルがあるかを判定する
+     * @param {Cell} cell 対象のセル
+     * @param {Array<Cell>} cells 選択セルの配列
+     * @returns {boolean} 右隣に選択セルがあれば true
+     */
     function hasAdjacentSelectedCellOnRight(cell, cells) {
         return hasAdjacentSelectedCell(cell, cells, 1);
     }
 
+    /**
+     * 指定した方向の隣に選択セルがあるかを判定する
+     * @param {Cell} cell 対象のセル
+     * @param {Array<Cell>} cells 選択セルの配列
+     * @param {string} direction 判定する方向
+     * @returns {boolean} 隣に選択セルがあれば true
+     */
     function hasAdjacentSelectedCell(cell, cells, direction) {
         var baseRange = getCellRange(cell);
         var i, other, otherRange;
@@ -1443,10 +1917,21 @@ function L(key) {
         return false;
     }
 
+    /**
+     * 2 つのセル範囲が縦方向に重なるかを判定する
+     * @param {object} a セル範囲
+     * @param {object} b セル範囲
+     * @returns {boolean} 重なっていれば true
+     */
     function rangesOverlapVertically(a, b) {
         return !(a.endRow < b.startRow || b.endRow < a.startRow);
     }
 
+    /**
+     * セルの四辺の罫線を消去する
+     * @param {Array<Cell>} cells 対象のセル
+     * @returns {void}
+     */
     function clearAllEdges(cells) {
         var i;
         for (i = 0; i < cells.length; i++) {
@@ -1454,6 +1939,12 @@ function L(key) {
         }
     }
 
+    /**
+     * セルが選択範囲のどの辺に接しているかを求める
+     * @param {Cell} cell 対象のセル
+     * @param {object} bounds 選択範囲の境界情報
+     * @returns {object} 各辺に接しているかを示すフラグ
+     */
     function getCellEdgeFlags(cell, bounds) {
         var range = getCellRange(cell);
 
@@ -1465,6 +1956,11 @@ function L(key) {
         };
     }
 
+    /**
+     * 選択セル全体の行・列の範囲を求める
+     * @param {Array<Cell>} cells 対象のセル
+     * @returns {object} 行と列の範囲
+     */
     function getBounds(cells) {
         var minRow = 999999;
         var maxRow = -1;
@@ -1489,6 +1985,12 @@ function L(key) {
         };
     }
 
+    /**
+     * 境界情報から矩形範囲のセルを再構築する
+     * @param {Cell} seedCell 基準となるセル
+     * @param {object} bounds 選択範囲の境界情報
+     * @returns {Array<Cell>} 矩形範囲のセル
+     */
     function getRectangularCellsFromBounds(seedCell, bounds) {
         var table = getParentTableFromCell(seedCell);
         var result = [];
@@ -1513,6 +2015,13 @@ function L(key) {
         return result;
     }
 
+    /**
+     * 指定した行・列を覆っているセルを探す
+     * @param {Table} table 対象の表
+     * @param {number} rowIndex 行番号
+     * @param {number} colIndex 列番号
+     * @returns {Cell|null} 該当するセル。見つからない場合は null
+     */
     function getTableCellCoveringCoordinate(table, rowIndex, colIndex) {
         var i, cell, range;
 
@@ -1531,6 +2040,11 @@ function L(key) {
         return null;
     }
 
+    /**
+     * 結合を考慮したセルの占有範囲を求める
+     * @param {Cell} cell 対象のセル
+     * @returns {object} 行と列の占有範囲
+     */
     function getCellRange(cell) {
         var startRow = 0;
         var endRow = 0;
@@ -1565,6 +2079,15 @@ function L(key) {
         };
     }
 
+    /**
+     * セルの各辺に線幅を設定する
+     * @param {Cell} cell 対象のセル
+     * @param {string|number|null} top 上辺の線幅
+     * @param {string|number|null} bottom 下辺の線幅
+     * @param {string|number|null} left 左辺の線幅
+     * @param {string|number|null} right 右辺の線幅
+     * @returns {void}
+     */
     function setCellEdges(cell, top, bottom, left, right) {
         cell.topEdgeStrokeWeight = top;
         cell.bottomEdgeStrokeWeight = bottom;
@@ -1572,6 +2095,15 @@ function L(key) {
         cell.rightEdgeStrokeWeight = right;
     }
 
+    /**
+     * セルの各辺にカラーを設定する
+     * @param {Cell} cell 対象のセル
+     * @param {Swatch|null} top 上辺のカラー
+     * @param {Swatch|null} bottom 下辺のカラー
+     * @param {Swatch|null} left 左辺のカラー
+     * @param {Swatch|null} right 右辺のカラー
+     * @returns {void}
+     */
     function setCellEdgeColors(cell, top, bottom, left, right) {
         if (top != null) cell.topEdgeStrokeColor = top;
         if (bottom != null) cell.bottomEdgeStrokeColor = bottom;
@@ -1579,6 +2111,15 @@ function L(key) {
         if (right != null) cell.rightEdgeStrokeColor = right;
     }
 
+    /**
+     * セルの各辺に濃淡を設定する
+     * @param {Cell} cell 対象のセル
+     * @param {number|null} top 上辺の濃淡
+     * @param {number|null} bottom 下辺の濃淡
+     * @param {number|null} left 左辺の濃淡
+     * @param {number|null} right 右辺の濃淡
+     * @returns {void}
+     */
     function setCellEdgeTints(cell, top, bottom, left, right) {
         if (top != null) cell.topEdgeStrokeTint = top;
         if (bottom != null) cell.bottomEdgeStrokeTint = bottom;
@@ -1586,6 +2127,11 @@ function L(key) {
         if (right != null) cell.rightEdgeStrokeTint = right;
     }
 
+    /**
+     * セルの上辺の罫線を消去する
+     * @param {Cell} cell 対象のセル
+     * @returns {void}
+     */
     function clearCellTopEdge(cell) {
         cell.topEdgeStrokeWeight = 0;
         try {
@@ -1594,6 +2140,11 @@ function L(key) {
         } catch (e) { }
     }
 
+    /**
+     * セルの下辺の罫線を消去する
+     * @param {Cell} cell 対象のセル
+     * @returns {void}
+     */
     function clearCellBottomEdge(cell) {
         cell.bottomEdgeStrokeWeight = 0;
         try {
@@ -1602,6 +2153,11 @@ function L(key) {
         } catch (e) { }
     }
 
+    /**
+     * セルの左辺の罫線を消去する
+     * @param {Cell} cell 対象のセル
+     * @returns {void}
+     */
     function clearCellLeftEdge(cell) {
         cell.leftEdgeStrokeWeight = 0;
         try {
@@ -1610,6 +2166,11 @@ function L(key) {
         } catch (e) { }
     }
 
+    /**
+     * セルの右辺の罫線を消去する
+     * @param {Cell} cell 対象のセル
+     * @returns {void}
+     */
     function clearCellRightEdge(cell) {
         cell.rightEdgeStrokeWeight = 0;
         try {
@@ -1618,14 +2179,29 @@ function L(key) {
         } catch (e) { }
     }
 
+    /**
+     * 「なし」のスウォッチ名かどうかを判定する
+     * @param {string} name スウォッチ名
+     * @returns {boolean} 「なし」なら true
+     */
     function isNoneSwatchName(name) {
         return name === "None" || name === "[None]" || name === "なし" || name === "[なし]";
     }
 
+    /**
+     * 黒のスウォッチ名かどうかを判定する
+     * @param {string} name スウォッチ名
+     * @returns {boolean} 黒なら true
+     */
     function isBlackSwatchName(name) {
         return name === "Black" || name === "[Black]" || name === "ブラック" || name === "黒";
     }
 
+    /**
+     * 紙色のスウォッチ名かどうかを判定する
+     * @param {string} name スウォッチ名
+     * @returns {boolean} 紙色なら true
+     */
     function isPaperSwatchName(name) {
         return name === "Paper" || name === "[Paper]" || name === "紙色" || name === "[紙色]";
     }
@@ -1633,6 +2209,11 @@ function L(key) {
     // =========================================
     // Selection helper: check if selection is full table
     // =========================================
+    /**
+     * 表全体が選択されているかを判定する
+     * @param {Array<Cell>} cells 選択セルの配列
+     * @returns {boolean} 表全体なら true
+     */
     function isFullTableSelection(cells) {
         var table, totalCellCount;
         if (!cells || cells.length === 0) return false;
@@ -1644,6 +2225,11 @@ function L(key) {
         return totalCellCount > 0 && cells.length === totalCellCount;
     }
 
+    /**
+     * セルが属する表を取得する
+     * @param {Cell} cell 対象のセル
+     * @returns {Table|null} 表。取得できない場合は null
+     */
     function getParentTableFromCell(cell) {
         try {
             return cell.parent;
@@ -1652,6 +2238,11 @@ function L(key) {
         }
     }
 
+    /**
+     * 表に含まれるすべてのセルを取得する
+     * @param {Table} table 対象の表
+     * @returns {Array<Cell>} セルの配列
+     */
     function getAllTableCells(table) {
         var result = [];
         var i;
@@ -1663,6 +2254,12 @@ function L(key) {
         return result;
     }
 
+    /**
+     * 上隣に選択セルがあるかを判定する
+     * @param {Cell} cell 対象のセル
+     * @param {Array<Cell>} cells 選択セルの配列
+     * @returns {boolean} 上隣に選択セルがあれば true
+     */
     function hasAdjacentSelectedCellOnTop(cell, cells) {
         var baseRange = getCellRange(cell);
         var i, other, otherRange;
@@ -1676,6 +2273,12 @@ function L(key) {
         return false;
     }
 
+    /**
+     * 下隣に選択セルがあるかを判定する
+     * @param {Cell} cell 対象のセル
+     * @param {Array<Cell>} cells 選択セルの配列
+     * @returns {boolean} 下隣に選択セルがあれば true
+     */
     function hasAdjacentSelectedCellOnBottom(cell, cells) {
         var baseRange = getCellRange(cell);
         var i, other, otherRange;
@@ -1689,6 +2292,12 @@ function L(key) {
         return false;
     }
 
+    /**
+     * 2 つのセル範囲が横方向に重なるかを判定する
+     * @param {object} a セル範囲
+     * @param {object} b セル範囲
+     * @returns {boolean} 重なっていれば true
+     */
     function rangesOverlapHorizontally(a, b) {
         return !(a.endCol < b.startCol || b.endCol < a.startCol);
     }
