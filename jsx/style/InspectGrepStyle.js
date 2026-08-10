@@ -153,6 +153,8 @@ function setupRow(group, alignment, spacing) {
     // =========================================
     // メイン処理 / Main process
     // =========================================
+    // 一覧表示とテキスト書き出しだけでドキュメントを変更しないため、doScript でのラップは不要
+    // / This script only lists and exports; it never edits the document, so no doScript wrapper is needed
 
     if (app.documents.length === 0) {
         alert(getLabel("error.noDocument"));

@@ -208,9 +208,12 @@ var AXIS_FAMILY = {
 // ローカライズ / Localization
 // =========================================
 
-/* 表示言語を判定（日本語環境なら ja）/ Detect UI language (ja for Japanese locale) */
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
 function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var currentLanguage = getCurrentLang();
 

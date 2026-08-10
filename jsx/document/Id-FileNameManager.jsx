@@ -70,6 +70,11 @@ function setupRow(group, alignment, spacing) {
 
     (function () {
 
+        /* ファイルの保存・リネーム・削除はドキュメント編集ではなく InDesign の取り消し対象外のため、
+           doScript でのラップは行わない
+           / Saving, renaming and deleting files are file-system operations outside InDesign's undo,
+             so this script is not wrapped in doScript */
+
         // =========================================
         // バージョン / Version
         // =========================================
