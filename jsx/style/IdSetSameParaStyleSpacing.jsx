@@ -1,29 +1,79 @@
 #target indesign
 
-// =========================================
-// バージョン / Version
-// =========================================
-var SCRIPT_VERSION = "v1.0.0";
-
 /*
+ * IdSetSameParaStyleSpacing.jsx
+ *
+ * 段落スタイルの「同一スタイル間の段落間隔」を、スタイル定義そのものに対して設定します。
+ * 詳細は README を参照してください。
+ */
 
-### 概要
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "IdSetSameParaStyleSpacing";    /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-06-30";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
 
-- 段落スタイルの「同一スタイル間の段落間隔」をスタイル定義ごと上書きします。
-- グループ内の段落スタイルも再帰的に収集し、ドロップダウンから選択できます。
-- 間隔は「無視」「0」「数値指定」から選択でき、数値は環境設定の表示単位に連動します。
-- 数値入力欄は ↑↓ キーで増減できます（Shift＝10 の倍数にスナップ、Option＝0.1 刻み）。
-- ダイアログ起動時、テキスト選択中なら適用中の段落スタイルを初期選択にし、現在値も反映します。
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSetSameParaStyleSpacing.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetSameParaStyleSpacing.md
 
-### Overview
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
-- Overrides a paragraph style's "Spacing (Same Style)" at the style-definition level.
-- Collects paragraph styles recursively, including those inside style groups.
-- Spacing can be set to "Ignore", "0", or a numeric value linked to the document display units.
-- The value field supports arrow-key stepping (Shift = snap to multiples of 10, Option = 0.1 steps).
-- On launch, preselects the paragraph style of the current text selection and reflects its current value.
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
 
-*/
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
 (function () {
 
@@ -31,25 +81,23 @@ var SCRIPT_VERSION = "v1.0.0";
 // ユーザー設定 / User settings
 // =========================================
 
-/* 既定で選択する段落スタイル名 / Default paragraph style to preselect */
+/* 既定で選択する段落スタイル名 / Paragraph style preselected on launch */
 var DEFAULT_STYLE_NAME = "p";
 
-/* パネルの余白と間隔 / Panel margins and spacing */
-var PANEL_MARGINS = [16, 20, 16, 12];
-var PANEL_SPACING = 8;
-var COLUMN_SPACING = 12; /* 2カラムの間隔 / Gap between the two columns */
-
 // =========================================
-// ローカライズ / Localization
+// ラベル定義 / Labels
 // =========================================
 
-/* 現在の言語を判定 / Detect current language */
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
 function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var currentLanguage = getCurrentLang();
 
-/* ラベル定義 / Labels */
+var currentLang = getCurrentLang();
+
 var LABELS = {
     dialog: {
         title: { ja: "同一設定段落の間隔設定", en: "Set space between paragraphs with the same style" }
@@ -69,22 +117,36 @@ var LABELS = {
     alert: {
         noDoc:   { ja: "ドキュメントを開いてください。", en: "Please open a document." },
         noStyle: { ja: "段落スタイルがありません。", en: "No paragraph styles found." }
+    },
+    undo: {
+        setSpacing: { ja: "同一設定段落の間隔を設定", en: "Set Spacing Between Same-Style Paragraphs" }
     }
 };
 
-/* ドット区切りキーからラベルを取得 / Look up a label by dot-separated key */
-function L(key) {
-    var parts = key.split(".");
+/**
+ * ドット区切りキーでラベルを取得する
+ * @param {string} labelKey 例: "dialog.title"
+ * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+ */
+function getLabel(labelKey) {
     var node = LABELS;
-    for (var i = 0; i < parts.length; i++) node = node[parts[i]];
-    return node[currentLanguage];
+    var keyParts = labelKey.split(".");
+    for (var i = 0; i < keyParts.length; i++) {
+        node = node[keyParts[i]];
+        if (!node) return labelKey;
+    }
+    return node[currentLang] || node.en || labelKey;
 }
 
 // =========================================
 // 単位 / Units
 // =========================================
 
-/* MeasurementUnits を単位表記へ / Map MeasurementUnits to a label */
+/**
+ * 単位の列挙値から表示用のラベルを返す
+ * @param {MeasurementUnits} unit 対象の単位
+ * @returns {string} 単位のラベル
+ */
 function unitLabel(unit) {
     if (unit === MeasurementUnits.POINTS) return "pt";
     if (unit === MeasurementUnits.PICAS) return "pica";
@@ -109,10 +171,13 @@ function unitLabel(unit) {
 
 main();
 
-/* ドキュメント確認・単位整合・ダイアログ表示・スタイル上書きを統括 / Orchestrate the whole flow */
+/**
+ * 段落スタイルを集めてダイアログを表示し、間隔を適用する
+ * @returns {void}
+ */
 function main() {
     if (app.documents.length === 0) {
-        alert(L("alert.noDoc"));
+        alert(getLabel("alert.noDoc"));
         return;
     }
 
@@ -128,7 +193,7 @@ function main() {
         var styleEntries = [];
         collectParagraphStyles(app.activeDocument, "", styleEntries);
         if (styleEntries.length === 0) {
-            alert(L("alert.noStyle"));
+            alert(getLabel("alert.noStyle"));
             return;
         }
 
@@ -138,19 +203,28 @@ function main() {
         var settings = showDialog(styleEntries, unitText, selectedStyle);
         if (settings === null || settings.style === null) return;
 
-        /* 選択に依存せず、スタイル定義そのものを上書き / Override the style definition itself */
-        if (settings.ignore) {
-            settings.style.sameParaStyleSpacing = Spacing.SETIGNORE;
-        } else {
-            settings.style.sameParaStyleSpacing = settings.value;
-        }
+        /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+        app.doScript(function () {
+            /* 選択に依存せず、スタイル定義そのものを上書き / Override the style definition itself */
+            if (settings.ignore) {
+                settings.style.sameParaStyleSpacing = Spacing.SETIGNORE;
+            } else {
+                settings.style.sameParaStyleSpacing = settings.value;
+            }
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.setSpacing"));
     } finally {
         app.scriptPreferences.measurementUnit = savedUnit;
     }
 }
 
 /* 段落スタイルを再帰収集（グループはパス付き）/ Collect paragraph styles recursively */
-/* 名前は everyItem() で一括取得し、実体は同コレクションの同インデックス参照で必ず一致させる / Names batched, objects by same index */
+/**
+ * グループを含めて段落スタイルを再帰的に集める
+ * @param {object} container 段落スタイルまたはグループのコンテナ
+ * @param {string} prefix グループ名の接頭辞
+ * @param {Array<object>} list 収集先の配列
+ * @returns {void}
+ */
 function collectParagraphStyles(container, prefix, list) {
     var styles = container.paragraphStyles;
     var styleNames = [].concat(styles.everyItem().name);
@@ -168,16 +242,11 @@ function collectParagraphStyles(container, prefix, list) {
 // UI / Dialog
 // =========================================
 
-/* パネルの共通設定 / Apply shared panel layout */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/* ↑↓キーで値を増減（Shift=10刻み・Option=0.1刻み）/ Increment value with arrow keys */
+/**
+ * 入力欄に上下キーでの増減操作を追加する
+ * @param {EditText} editText 対象の入力欄
+ * @returns {void}
+ */
 function changeValueByArrowKey(editText) {
     editText.addEventListener("keydown", function (event) {
         var value = Number(editText.text);
@@ -231,14 +300,20 @@ function changeValueByArrowKey(editText) {
     });
 }
 
-/* スタイル選択と段落間隔を入力するダイアログ / Dialog to pick a style and its spacing */
+/**
+ * 間隔を指定するダイアログを表示する
+ * @param {Array<object>} styleEntries 段落スタイルの一覧
+ * @param {string} unitText 表示する単位
+ * @param {ParagraphStyle} selectedStyle 初期選択する段落スタイル
+ * @returns {object|null} 設定内容。キャンセル時は null
+ */
 function showDialog(styleEntries, unitText, selectedStyle) {
-    var dialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
-    dialog.alignChildren = "fill";
+    var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+    setupWindow(dialog, 10);
 
     /* --- 段落スタイル / Paragraph style --- */
-    var stylePanel = dialog.add("panel", undefined, L("panel.style"));
-    setupPanel(stylePanel);
+    var stylePanel = dialog.add("panel", undefined, getLabel("panel.style"));
+    setupPanel(stylePanel, 6);
 
     var names = [];
     for (var i = 0; i < styleEntries.length; i++) names.push(styleEntries[i].name);
@@ -251,20 +326,24 @@ function showDialog(styleEntries, unitText, selectedStyle) {
     styleDropdown.selection = defaultIndex;
 
     /* --- 段落間隔 / Spacing --- */
-    var spacingPanel = dialog.add("panel", undefined, L("panel.spacing"));
-    setupPanel(spacingPanel);
+    var spacingPanel = dialog.add("panel", undefined, getLabel("panel.spacing"));
+    setupPanel(spacingPanel, 6);
 
-    var ignoreRadio = spacingPanel.add("radiobutton", undefined, L("radio.ignore"));
-    var zeroRadio = spacingPanel.add("radiobutton", undefined, L("radio.zero"));
+    var ignoreRadio = spacingPanel.add("radiobutton", undefined, getLabel("radio.ignore"));
+    var zeroRadio = spacingPanel.add("radiobutton", undefined, getLabel("radio.zero"));
 
     var valueGroup = spacingPanel.add("group");
-    var valueRadio = valueGroup.add("radiobutton", undefined, L("radio.useValue"));
+    var valueRadio = valueGroup.add("radiobutton", undefined, getLabel("radio.useValue"));
     var valueInput = valueGroup.add("edittext", undefined, "0");
     valueInput.characters = 6;
     changeValueByArrowKey(valueInput);
     valueGroup.add("statictext", undefined, unitText);
 
-    /* 別コンテナのため手動で排他化（"ignore" / "zero" / "value"）/ Manual exclusivity */
+    /**
+     * 間隔の指定方法を切り替える
+     * @param {string} mode "ignore" / "zero" / "value"
+     * @returns {void}
+     */
     function setSpacingMode(mode) {
         ignoreRadio.value = (mode === "ignore");
         zeroRadio.value = (mode === "zero");
@@ -275,7 +354,11 @@ function showDialog(styleEntries, unitText, selectedStyle) {
     zeroRadio.onClick = function () { setSpacingMode("zero"); };
     valueRadio.onClick = function () { setSpacingMode("value"); };
 
-    /* 選択スタイルの現在値を UI に反映 / Reflect the selected style's value */
+    /**
+     * 選択した段落スタイルの現在値を UI に反映する
+     * @param {ParagraphStyle} style 対象の段落スタイル
+     * @returns {void}
+     */
     function refreshSpacingFromStyle(style) {
         var current = style.sameParaStyleSpacing;
         if (isIgnoreValue(current)) {
@@ -296,10 +379,11 @@ function showDialog(styleEntries, unitText, selectedStyle) {
         }
     };
 
-    /* --- ボタン / Buttons（Mac 規約：Cancel → OK）--- */
+    /* ボタン行（Mac 規約に合わせて Cancel → OK。幅いっぱいには広げない）
+       / Button row: Cancel then OK per macOS convention, never stretched to full width */
     var buttonGroup = dialog.add("group");
-    buttonGroup.alignment = "center";
-    var cancelButton = buttonGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
+    setupRow(buttonGroup, "center", 8);
+    var cancelButton = buttonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
     var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
     if (dialog.show() !== 1) return null;
@@ -319,7 +403,10 @@ function showDialog(styleEntries, unitText, selectedStyle) {
 // ヘルパー / Helpers
 // =========================================
 
-/* 選択中の段落から適用中の段落スタイルを取得 / Applied paragraph style of the current selection */
+/**
+ * テキスト選択中の段落スタイルを取得する
+ * @returns {ParagraphStyle|null} 段落スタイル。取得できない場合は null
+ */
 function getSelectedParagraphStyle() {
     var sel = app.selection;
     if (!sel || sel.length === 0) return null;
@@ -332,7 +419,12 @@ function getSelectedParagraphStyle() {
     return null;
 }
 
-/* スタイル名からインデックスを取得 / Find index by name */
+/**
+ * 名前から一覧内の位置を探す
+ * @param {Array<object>} entries 段落スタイルの一覧
+ * @param {string} name 探す名前
+ * @returns {number} 見つかった位置。なければ -1
+ */
 function indexOfName(entries, name) {
     if (!name) return -1;
     for (var i = 0; i < entries.length; i++) {
@@ -341,7 +433,12 @@ function indexOfName(entries, name) {
     return -1;
 }
 
-/* スタイル実体（id 一致）からインデックスを取得 / Find index by style id */
+/**
+ * 段落スタイルから一覧内の位置を探す
+ * @param {Array<object>} entries 段落スタイルの一覧
+ * @param {ParagraphStyle} style 探す段落スタイル
+ * @returns {number} 見つかった位置。なければ -1
+ */
 function indexOfStyle(entries, style) {
     if (!style) return -1;
     for (var i = 0; i < entries.length; i++) {
@@ -350,7 +447,11 @@ function indexOfStyle(entries, style) {
     return -1;
 }
 
-/* 「無視」判定 / Detect ignore state */
+/**
+ * 「無視」を表す値かどうかを判定する
+ * @param {*} value 判定する値
+ * @returns {boolean} 「無視」なら true
+ */
 function isIgnoreValue(value) {
     try { return (value === Spacing.SETIGNORE); } catch (e) { return false; }
 }

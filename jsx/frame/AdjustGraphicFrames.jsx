@@ -1,63 +1,79 @@
 #target indesign
 
 /*
- 
-# アンカー付きオブジェクトのフレーム調整 / Adjust Anchored Object Frames
- 
-## 概要
-ドキュメント・ストーリー・選択範囲のいずれかから、テキストにアンカーされたグラフィックフレーム
-（長方形／楕円／多角形）を集め、「フレームの大きさ（幅・サイズ）」と「フレーム内に配置された画像の
-縮尺率（拡大率）」を調整する。具体的には、縦横比の補正／フレーム幅／フレームサイズ／縮尺率の切り捨てを
-まとめて適用する。
-※調整対象はあくまでフレームと、フレーム内の配置（縮尺率・位置）であり、画像ファイルそのものは変更しない。
-※テキストにアンカーされていない独立配置のフレーム、およびテキストフレームは対象外。
- 
-## 対象（ラジオボタン）
-- ドキュメント: ドキュメント内の、テキストにアンカーされたすべてのグラフィックフレーム
-- ストーリー: 選択中テキストフレーム、または ^~a$（アンカーオブジェクトマーカー）のストーリーにアンカーされたグラフィックフレーム
-  ※「ストーリー」は選択がテキストフレーム／テキスト範囲／挿入点のときのみ選択可能（それ以外はディム表示）
-- 選択範囲: 選択中の、テキストにアンカーされたグラフィックフレーム
-  ※グループは展開。テキストフレーム／テキスト範囲／挿入点を選んだ場合はそのストーリーを対象にする。
-  ※何も選択していないときはディム表示。重複選択でも同一フレームは一度だけ処理する。
-
-## フレーム幅（ラジオ）
-- 変更しない / 親フレームに合わせる / マージンに合わせる
-- 合わせ先より大きい場合のみ（独立チェックボックス、既定オン）
-  ※「親フレームに合わせる」は、テキストフレーム内にアンカーされたフレームにのみ作用する。
-  ※「マージンに合わせる」はフレームをページのマージン（版面）幅に合わせて配置する。
-  ※どちらも、合わせ先より広い→内容を縦横比で収める／狭い→いっぱいに流し込む、で内容を収め直す。
-  ※「合わせ先より大きい場合のみ」は「親フレームに合わせる」「マージンに合わせる」の両方に作用する。
-    オンのときは合わせ先より広いフレームだけを縮小し、オフのときは小さいフレームも合わせ先の幅へ広げる。
-
-## フレームサイズ（チェックボックス）
-- フレームを内容に合わせる: フレームの大きさを、配置された内容のバウンディングボックスに合わせる。
-- インライン画像を文字サイズに合わせる: 真のインライン配置のフレームの高さが同じ段落内の文字サイズに
-  なるよう、フレーム内の画像の縮尺率を調整する（行揃え／カスタム配置のアンカーは対象外）。
-
-## 縮尺率の切り捨て
-- 縮尺率を切り捨てる（オン時）: 画像（Image / PDF / EPS）を1点だけ含むフレームについて、
-  フレーム内の配置の拡大縮小率を指定単位（1% / 5% / 10%）で切り捨てる。
-  任意で 72／96／144 ppi の画像のみ・切り捨て後の再フィットを指定できる。
-
-## 縦横比の補正（UIなし・常時実行）
-- フレーム内に配置された画像の横スケールと縦スケールが食い違う（縦横比が崩れた）場合、
-  横スケールを基準に縦を合わせて同率に正す。
-  他の調整より前に実行するため、後続の比例拡縮・再フィットは正しい比率を保つ。
-
-## 補足
-- 対象はテキストにアンカーされたグラフィックフレーム（長方形／楕円／多角形）のみ。
-  独立配置のフレームとテキストフレームは処理しない。
-- 前後に文字がある真のインライン画像は、文字サイズへの高さ合わせを優先し、
-  縮尺率の切り捨てとフレーム幅の調整は行わない（縦横比の補正は行う）。
-- 全処理はひとつの取り消し単位（Cmd+Z 一回）にまとまる。
- 
-*/
+ * AdjustGraphicFrames.jsx
+ *
+ * テキストにアンカーされたグラフィックフレームを集め、フレーム幅・フレームサイズ・画像の縮尺率をまとめて調整します。
+ * 詳細は README を参照してください。
+ */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "AdjustGraphicFrames";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-06-02";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-02";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.0";
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/AdjustGraphicFrames.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/AdjustGraphicFrames.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
 (function () {
 
@@ -65,28 +81,26 @@ var SCRIPT_VERSION = "v1.0.0";
     // ユーザー設定 / User settings
     // =========================================
 
-    /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [15, 20, 15, 10];
-    var PANEL_SPACING = 8;
-
-    /* 縮尺率の切り捨て単位の選択肢（％）/ Round-down step choices (%) */
+    /* 縮尺率の切り捨て単位の選択肢（％）と既定値 / Round-down step choices (%) and the default */
     var ROUND_PRECISION_OPTIONS = [1, 5, 10];
     var DEFAULT_ROUND_PRECISION = 5;
 
     /* 既定で「切り捨てる」を ON にする / Turn on "Round Down" by default */
     var DEFAULT_ROUND_SCALE = true;
 
-    /* 切り捨て対象を元解像度 72/96/144 ppi の画像に限定する（既定 ON）/ Limit round-down to images whose actual resolution is 72/96/144 ppi (on by default) */
+    /* 切り捨て対象を元解像度 72/96/144 ppi の画像に限定する（既定 ON）
+       / Limit round-down to images whose actual resolution is 72, 96 or 144 ppi (on by default) */
     var DEFAULT_ROUND_ONLY_72_96_144 = true;
     var ROUND_TARGET_PPI = [72, 96, 144];
 
-    /* 縦横比の崩れ（横スケール≠縦スケール）を同率とみなす許容差（％）/ Tolerance (%) for treating horizontal/vertical scales as already uniform */
+    /* 縦横比の崩れ（横スケール≠縦スケール）を同率とみなす許容差（％）
+       / Tolerance (%) for treating horizontal and vertical scales as already uniform */
     var ASPECT_RATIO_TOLERANCE = 0.1;
 
-    /* 既定で「フレームを内容に合わせる」を ON にする / Turn on "Frame to Content" by default */
+    /* 既定で「フレームを内容に合わせる」を ON にする / Turn on "Fit Frame to Content" by default */
     var DEFAULT_FIT_FRAME_TO_CONTENT = true;
 
-    /* 既定で「テキスト内のインライン画像を調整」を ON にする / Turn on "Adjust inline images in text" by default */
+    /* 既定で「インライン画像を文字サイズに合わせる」を ON にする / Turn on inline-image matching by default */
     var DEFAULT_ADJUST_INLINE_IMAGE_IN_TEXT = true;
 
     /* 既定で「合わせ先より大きい場合のみ」を ON にする / Turn on "Only when wider than target" by default */
@@ -95,15 +109,19 @@ var SCRIPT_VERSION = "v1.0.0";
     /* 既定で切り捨て後の「再フィット」を ON にする / Re-fit after rounding down by default */
     var DEFAULT_REFIT_AFTER_ROUND = true;
 
-
     // =========================================
-    // ローカライズ / Localization
+    // ラベル定義 / Labels
     // =========================================
 
-    /* 言語判定 / Detect UI language */
-    var currentLanguage = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    /**
+     * UI 言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var currentLanguage = getCurrentLang();
 
-    /* ラベル定義（カテゴリ分け）/ Label definitions (grouped by category) */
     var LABELS = {
         dialog: {
             title: { ja: "アンカー付きオブジェクトのフレーム調整", en: "Adjust Anchored Object Frames" }
@@ -163,9 +181,12 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     };
 
-    /* ラベル取得（ドット区切りキー、{slash} を言語別スラッシュへ置換）/ Get label (dot-path key, replace {slash} with locale slash).
-       キー不明・言語欠落時はキー文字列をそのまま返す / Falls back to the raw key when missing */
-    function L(key) {
+    /**
+     * ドット区切りキーでラベルを取得する（{slash} は言語別のスラッシュに置換）
+     * @param {string} key 例: "dialog.title"
+     * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+     */
+    function getLabel(key) {
         var pathParts = key.split(".");
         var labelNode = LABELS;
         for (var i = 0; i < pathParts.length; i++) {
@@ -183,9 +204,14 @@ var SCRIPT_VERSION = "v1.0.0";
         return ("" + labelString).replace(/\{slash\}/g, slash);
     }
 
-    /* {count} を件数で差し替えたラベル / Label with {count} replaced by the given count */
+    /**
+     * ラベル内の {count} を件数で置き換える
+     * @param {string} key 置換対象のラベルキー
+     * @param {number} count 埋め込む件数
+     * @returns {string} 置換後の文字列
+     */
     function labelWithCount(key, count) {
-        return L(key).replace(/\{count\}/g, count);
+        return getLabel(key).replace(/\{count\}/g, count);
     }
 
 
@@ -195,11 +221,14 @@ var SCRIPT_VERSION = "v1.0.0";
     // メイン / Main
     // =========================================
 
-    /* 全体の流れを制御（検証 → ダイアログ → 収集 → undo 単位で適用）/ Orchestrate the flow (validate → dialog → collect → apply in one undo step) */
+    /**
+     * 検証・ダイアログ・収集・適用の流れを制御する
+     * @returns {void}
+     */
     function main() {
         /* ドキュメントの有無を確認 / Require an open document */
         if (app.documents.length === 0) {
-            alert(L("alert.noDocument"));
+            alert(getLabel("alert.noDocument"));
             return;
         }
         var targetDocument = app.activeDocument;
@@ -215,7 +244,7 @@ var SCRIPT_VERSION = "v1.0.0";
         var targetFrames = collectFrames(targetDocument, settings.target, selectedTextFrame);
         if (targetFrames === null) return; // 選択不足などで中断 / Aborted (e.g. nothing selected)
         if (targetFrames.length === 0) {
-            alert(L("alert.noFrames"));
+            alert(getLabel("alert.noFrames"));
             return;
         }
 
@@ -226,27 +255,24 @@ var SCRIPT_VERSION = "v1.0.0";
             ScriptLanguage.JAVASCRIPT,
             undefined,
             UndoModes.ENTIRE_SCRIPT,
-            L("dialog.title")
+            getLabel("dialog.title")
         );
 
         /* 完了メッセージ（0 件は専用文言）/ Completion message (dedicated text for zero) */
-        alert(processedCount > 0 ? labelWithCount("alert.done", processedCount) : L("alert.doneNone"));
+        alert(processedCount > 0 ? labelWithCount("alert.done", processedCount) : getLabel("alert.doneNone"));
     }
 
     // =========================================
     // ダイアログ / Dialog
     // =========================================
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* グループの共通設定（orientation は呼び出し側で指定）/ Apply shared group layout (orientation passed in) */
+    /**
+     * グループの共通設定を適用する（orientation は呼び出し側で指定）
+     * @param {Group} group 対象グループ
+     * @param {string} [orientation] 並び方向。省略時は "column"
+     * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+     * @returns {void}
+     */
     function setupGroup(group, orientation, spacing) {
         group.orientation = orientation || "column";
         group.alignChildren = ["fill", "top"];
@@ -254,14 +280,14 @@ var SCRIPT_VERSION = "v1.0.0";
         group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    /* 設定ダイアログを表示し、選択結果を返す / Show the settings dialog and return the result.
-       戻り値 / Returns: settings オブジェクト | null(キャンセル) */
+    /**
+     * 調整内容を指定するダイアログを表示する
+     * @param {boolean} hasTextFrameSelection テキストフレームが選択されているか
+     * @returns {object|null} 設定内容。キャンセル時は null
+     */
     function showOptionsDialog(hasTextFrameSelection) {
-        var dialog = new Window("dialog", L("dialog.title") + "  " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
-        dialog.margins = 15;
-        dialog.spacing = 10;
+        var dialog = new Window("dialog", getLabel("dialog.title") + "  " + SCRIPT_VERSION);
+        setupWindow(dialog, 10);
 
         /* 対象はカラム貫通（全幅）/ Target spans the full width */
         var targetControls = buildTargetPanel(dialog, hasTextFrameSelection);
@@ -274,7 +300,7 @@ var SCRIPT_VERSION = "v1.0.0";
         /* ボタン / Buttons (Mac: Cancel → OK) */
         var dialogButtons = dialog.add("group");
         dialogButtons.alignment = "right";
-        dialogButtons.add("button", undefined, L("button.cancel"), { name: "cancel" });
+        dialogButtons.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
         dialogButtons.add("button", undefined, "OK", { name: "ok" });
 
         if (dialog.show() !== 1) return null;
@@ -282,9 +308,14 @@ var SCRIPT_VERSION = "v1.0.0";
         return collectSettings(targetControls, frameToContentControls, widthControls, scaleControls);
     }
 
-    /* 対象パネル（ドキュメント / ストーリー / 選択範囲）/ Target panel */
+    /**
+     * 対象範囲のパネルを組み立てる
+     * @param {Window} dialog 対象のダイアログ
+     * @param {boolean} hasTextFrameSelection テキストフレームが選択されているか
+     * @returns {object} パネル内のコントロール
+     */
     function buildTargetPanel(parent, hasTextFrameSelection) {
-        var panel = parent.add("panel", undefined, L("panel.target"));
+        var panel = parent.add("panel", undefined, getLabel("panel.target"));
         setupPanel(panel);
 
         /* ラジオを横並び＋左右中央に / Radios in a row, centered horizontally */
@@ -293,12 +324,12 @@ var SCRIPT_VERSION = "v1.0.0";
         radioGroup.alignChildren = ["center", "center"];
         radioGroup.alignment = ["center", "top"];
 
-        var documentRadio = radioGroup.add("radiobutton", undefined, L("target.document"));
-        var storyRadio = radioGroup.add("radiobutton", undefined, L("target.story"));
-        var selectionRadio = radioGroup.add("radiobutton", undefined, L("target.selection"));
-        documentRadio.helpTip = L("tip.targetDocument");
-        storyRadio.helpTip = L("tip.targetStory");
-        selectionRadio.helpTip = L("tip.targetSelection");
+        var documentRadio = radioGroup.add("radiobutton", undefined, getLabel("target.document"));
+        var storyRadio = radioGroup.add("radiobutton", undefined, getLabel("target.story"));
+        var selectionRadio = radioGroup.add("radiobutton", undefined, getLabel("target.selection"));
+        documentRadio.helpTip = getLabel("tip.targetDocument");
+        storyRadio.helpTip = getLabel("tip.targetStory");
+        selectionRadio.helpTip = getLabel("tip.targetSelection");
 
         /* 初期選択は常にドキュメント / Default is always Document */
         documentRadio.value = true;
@@ -311,18 +342,22 @@ var SCRIPT_VERSION = "v1.0.0";
     }
 
 
-    /* フレームの大きさの調整パネル / Frame size adjustment panel */
+    /**
+     * フレームサイズのパネルを組み立てる
+     * @param {Window} dialog 対象のダイアログ
+     * @returns {object} パネル内のコントロール
+     */
     function buildFrameToContentPanel(parent) {
-        var panel = parent.add("panel", undefined, L("panel.frameSize"));
+        var panel = parent.add("panel", undefined, getLabel("panel.frameSize"));
         setupPanel(panel);
 
-        var frameToContentCheckbox = panel.add("checkbox", undefined, L("fit.frameToContent"));
+        var frameToContentCheckbox = panel.add("checkbox", undefined, getLabel("fit.frameToContent"));
         frameToContentCheckbox.value = DEFAULT_FIT_FRAME_TO_CONTENT;
-        frameToContentCheckbox.helpTip = L("tip.fitFrameToContent");
+        frameToContentCheckbox.helpTip = getLabel("tip.fitFrameToContent");
 
-        var adjustInlineImageInTextCheckbox = panel.add("checkbox", undefined, L("fit.adjustInlineImageInText"));
+        var adjustInlineImageInTextCheckbox = panel.add("checkbox", undefined, getLabel("fit.adjustInlineImageInText"));
         adjustInlineImageInTextCheckbox.value = DEFAULT_ADJUST_INLINE_IMAGE_IN_TEXT;
-        adjustInlineImageInTextCheckbox.helpTip = L("tip.adjustInlineImageInText");
+        adjustInlineImageInTextCheckbox.helpTip = getLabel("tip.adjustInlineImageInText");
 
         return {
             frameToContentCheckbox: frameToContentCheckbox,
@@ -330,23 +365,30 @@ var SCRIPT_VERSION = "v1.0.0";
         };
     }
 
-    /* フレーム幅パネル（ラジオ＋合わせ先より大きい場合のみチェック）/ Frame width panel (radios + only-when-wider checkbox) */
+    /**
+     * フレーム幅のパネルを組み立てる
+     * @param {Window} dialog 対象のダイアログ
+     * @returns {object} パネル内のコントロール
+     */
     function buildWidthPanel(parent) {
-        var panel = parent.add("panel", undefined, L("panel.width"));
+        var panel = parent.add("panel", undefined, getLabel("panel.width"));
         setupPanel(panel);
 
-        var keepRadio = panel.add("radiobutton", undefined, L("width.keep"));
-        var fitToParentRadio = panel.add("radiobutton", undefined, L("width.fitToParent"));
-        var fitToMarginRadio = panel.add("radiobutton", undefined, L("width.fitToMargin"));
-        var onlyIfLargerCheckbox = panel.add("checkbox", undefined, L("width.onlyIfLarger"));
+        var keepRadio = panel.add("radiobutton", undefined, getLabel("width.keep"));
+        var fitToParentRadio = panel.add("radiobutton", undefined, getLabel("width.fitToParent"));
+        var fitToMarginRadio = panel.add("radiobutton", undefined, getLabel("width.fitToMargin"));
+        var onlyIfLargerCheckbox = panel.add("checkbox", undefined, getLabel("width.onlyIfLarger"));
         fitToParentRadio.value = true;
         onlyIfLargerCheckbox.value = DEFAULT_WIDTH_ONLY_IF_LARGER;
-        keepRadio.helpTip = L("tip.widthKeep");
-        fitToParentRadio.helpTip = L("tip.fitToParent");
-        fitToMarginRadio.helpTip = L("tip.fitToMargin");
-        onlyIfLargerCheckbox.helpTip = L("tip.onlyIfLarger");
+        keepRadio.helpTip = getLabel("tip.widthKeep");
+        fitToParentRadio.helpTip = getLabel("tip.fitToParent");
+        fitToMarginRadio.helpTip = getLabel("tip.fitToMargin");
+        onlyIfLargerCheckbox.helpTip = getLabel("tip.onlyIfLarger");
 
-        /* 「合わせ先より大きい場合のみ」は親フレーム／マージンのどちらかを選んだときに有効 / Enabled for either parent or margin */
+        /**
+         * 幅の指定に応じて「合わせ先より大きい場合のみ」の有効／無効を切り替える
+         * @returns {void}
+         */
         function syncOnlyIfLargerEnabled() {
             onlyIfLargerCheckbox.enabled = fitToParentRadio.value || fitToMarginRadio.value;
         }
@@ -363,37 +405,44 @@ var SCRIPT_VERSION = "v1.0.0";
         };
     }
 
-    /* 縮尺率パネル（切り捨てチェック＋単位ラジオ＋再フィット）/ Scale panel */
+    /**
+     * 縮尺率のパネルを組み立てる
+     * @param {Window} dialog 対象のダイアログ
+     * @returns {object} パネル内のコントロール
+     */
     function buildScalePanel(parent) {
-        var panel = parent.add("panel", undefined, L("panel.scale"));
+        var panel = parent.add("panel", undefined, getLabel("panel.scale"));
         setupPanel(panel);
 
-        var roundCheckbox = panel.add("checkbox", undefined, L("scale.round"));
+        var roundCheckbox = panel.add("checkbox", undefined, getLabel("scale.round"));
         roundCheckbox.value = DEFAULT_ROUND_SCALE;
-        roundCheckbox.helpTip = L("tip.round");
+        roundCheckbox.helpTip = getLabel("tip.round");
 
         var precisionGroup = panel.add("group");
         /* コロンは日本語は全角、英語は半角 / Colon: full-width JA, half-width EN */
-        var precisionLabel = precisionGroup.add("statictext", undefined, L("scale.precision") + (currentLanguage === "ja" ? "：" : ":"));
-        precisionLabel.helpTip = L("tip.precision");
+        var precisionLabel = precisionGroup.add("statictext", undefined, getLabel("scale.precision") + (currentLanguage === "ja" ? "：" : ":"));
+        precisionLabel.helpTip = getLabel("tip.precision");
 
         var precisionRadios = [];
         for (var i = 0; i < ROUND_PRECISION_OPTIONS.length; i++) {
             var radio = precisionGroup.add("radiobutton", undefined, ROUND_PRECISION_OPTIONS[i] + "%");
             if (ROUND_PRECISION_OPTIONS[i] === DEFAULT_ROUND_PRECISION) radio.value = true;
-            radio.helpTip = L("tip.precision");
+            radio.helpTip = getLabel("tip.precision");
             precisionRadios.push(radio);
         }
 
-        var refitCheckbox = panel.add("checkbox", undefined, L("scale.refit"));
+        var refitCheckbox = panel.add("checkbox", undefined, getLabel("scale.refit"));
         refitCheckbox.value = DEFAULT_REFIT_AFTER_ROUND;
-        refitCheckbox.helpTip = L("tip.refit");
+        refitCheckbox.helpTip = getLabel("tip.refit");
 
-        var only7296144Checkbox = panel.add("checkbox", undefined, L("scale.only7296144"));
+        var only7296144Checkbox = panel.add("checkbox", undefined, getLabel("scale.only7296144"));
         only7296144Checkbox.value = DEFAULT_ROUND_ONLY_72_96_144;
-        only7296144Checkbox.helpTip = L("tip.only7296144");
+        only7296144Checkbox.helpTip = getLabel("tip.only7296144");
 
-        /* 「縮尺率を切り捨てる」OFF 時は単位・再フィット・解像度限定を無効化 / Disable step, re-fit & PPI filter while "Round Scale Down" is off */
+        /**
+         * 切り捨ての ON/OFF に応じて関連項目を切り替える
+         * @returns {void}
+         */
         function syncRoundEnabled() {
             precisionGroup.enabled = roundCheckbox.value;
             refitCheckbox.enabled = roundCheckbox.value;
@@ -410,7 +459,10 @@ var SCRIPT_VERSION = "v1.0.0";
         };
     }
 
-    /* ダイアログの入力値を設定オブジェクトへ変換 / Convert dialog inputs into a settings object */
+    /**
+     * ダイアログの入力内容を設定オブジェクトにまとめる
+     * @returns {object} 適用に使う設定
+     */
     function collectSettings(targetControls, frameToContentControls, widthControls, scaleControls) {
         /* 対象 / Target */
         var target = "document";
@@ -445,7 +497,10 @@ var SCRIPT_VERSION = "v1.0.0";
         };
     }
 
-    /* 選択からテキストフレームを取得（テキスト選択・挿入点にも対応）/ Get a text frame from the selection (supports text and insertion point selections) */
+    /**
+     * 選択からテキストフレームを取り出す
+     * @returns {TextFrame|null} テキストフレーム。取得できない場合は null
+     */
     function getSelectedTextFrame() {
         if (app.selection.length === 0) return null;
         var selectedItem = app.selection[0];
@@ -468,18 +523,24 @@ var SCRIPT_VERSION = "v1.0.0";
     // フレーム収集 / Frame collection
     // =========================================
 
-    /* 対象に応じたフレーム配列を返す（中断時は null）/ Return frames for the target (null if aborted) */
+    /**
+     * 対象範囲に応じて調整するフレームを集める
+     * @param {Document} targetDocument 対象ドキュメント
+     * @param {string} target 対象範囲を表す識別子
+     * @param {TextFrame} selectedTextFrame 選択中のテキストフレーム
+     * @returns {Array<PageItem>|null} 対象フレーム。中断時は null
+     */
     function collectFrames(targetDocument, target, selectedTextFrame) {
         if (target === "story") {
             if (selectedTextFrame === null) {
-                alert(L("alert.noTextFrame"));
+                alert(getLabel("alert.noTextFrame"));
                 return null;
             }
             return collectFramesFromStory(targetDocument, selectedTextFrame.parentStory);
         }
         if (target === "selection") {
             if (app.selection.length === 0) {
-                alert(L("alert.noSelection"));
+                alert(getLabel("alert.noSelection"));
                 return null;
             }
             return collectFramesFromSelection(app.selection);
@@ -487,8 +548,11 @@ var SCRIPT_VERSION = "v1.0.0";
         return collectFramesFromDocument(targetDocument);
     }
 
-    /* 処理対象となるグラフィックフレームか（型・アンカー・マスター・非表示・ロックを判定）
-       Whether an item is an editable graphic frame (checks type, anchored, master, hidden, locked) */
+    /**
+     * 編集できるフレームかどうかを判定する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {boolean} 編集できるなら true
+     */
     function isEditableFrame(item) {
         if (!isFrameItem(item)) return false;
         /* テキストにアンカーされたフレームのみ対象（独立配置は対象外）/ Only frames anchored into text (free-floating frames are excluded) */
@@ -509,13 +573,21 @@ var SCRIPT_VERSION = "v1.0.0";
         return true;
     }
 
-    /* フレームとして扱える page item か（テキストフレームは対象外）/ Whether a page item is treated as a frame (text frames excluded) */
+    /**
+     * グラフィックフレームとして扱える種別かを判定する
+     * @param {PageItem} pageItem 対象のオブジェクト
+     * @returns {boolean} 対象なら true
+     */
     function isFrameItem(item) {
         var typeName = item.constructor.name;
         return typeName === "Rectangle" || typeName === "Oval" || typeName === "Polygon";
     }
 
-    /* page item がアンカーされているストーリーを返す（なければ null）/ Return the story an item is anchored in (or null) */
+    /**
+     * オブジェクトが属するストーリーを取得する
+     * @param {PageItem} pageItem 対象のオブジェクト
+     * @returns {Story|null} ストーリー。取得できない場合は null
+     */
     function getOwningStory(item) {
         try {
             /* storyOffset から親ストーリーを取得 / Read parent story from storyOffset */
@@ -536,7 +608,11 @@ var SCRIPT_VERSION = "v1.0.0";
         return null;
     }
 
-    /* 指定ストーリーにアンカーされたグラフィックフレーム / Graphic frames anchored in the given story */
+    /**
+     * ストーリーにアンカーされたフレームを集める
+     * @param {Story} story 対象のストーリー
+     * @returns {Array<PageItem>} 対象フレーム
+     */
     function collectFramesFromStory(targetDocument, story) {
         var allItems = targetDocument.allPageItems;
         var collectedFrames = [];
@@ -548,7 +624,11 @@ var SCRIPT_VERSION = "v1.0.0";
         return collectedFrames;
     }
 
-    /* ドキュメント内の全フレーム（マスター・非表示・ロックは除外）/ All editable frames in a document */
+    /**
+     * ドキュメント全体からアンカーされたフレームを集める
+     * @param {Document} targetDocument 対象ドキュメント
+     * @returns {Array<PageItem>} 対象フレーム
+     */
     function collectFramesFromDocument(targetDocument) {
         var allItems = targetDocument.allPageItems;
         var collectedFrames = [];
@@ -558,8 +638,10 @@ var SCRIPT_VERSION = "v1.0.0";
         return collectedFrames;
     }
 
-    /* 選択範囲のフレーム（グループは展開。テキストフレーム選択時は同一ストーリー内を対象）/ Frames in the selection (groups expanded; text frames collect their story).
-       テキストフレーム複数選択やフレーム重複選択でも、同一フレームは一度だけ収集する / De-duplicates by id so overlapping selections collect each frame once */
+    /**
+     * 選択からアンカーされたフレームを集める
+     * @returns {Array<PageItem>|null} 対象フレーム。中断時は null
+     */
     function collectFramesFromSelection(selection) {
         var collectedFrames = [];
         var seenIds = {};
@@ -587,8 +669,10 @@ var SCRIPT_VERSION = "v1.0.0";
         return collectedFrames;
     }
 
-    /* テキスト選択（テキスト範囲・挿入点・文字など）の所属ストーリーを返す（なければ null）
-       Return the story of a text selection (text range / insertion point / character), or null */
+    /**
+     * 選択からストーリーを取り出す
+     * @returns {Story|null} ストーリー。取得できない場合は null
+     */
     function getSelectionStory(item) {
         try {
             if (item.parentStory && item.parentStory.isValid) return item.parentStory;
@@ -596,7 +680,12 @@ var SCRIPT_VERSION = "v1.0.0";
         return null;
     }
 
-    /* グループ内の編集可能フレーム / Editable frames inside a group */
+    /**
+     * グループ内のフレームを再帰的に集める
+     * @param {Group} group 対象のグループ
+     * @param {Array<PageItem>} frames 収集先の配列
+     * @returns {void}
+     */
     function collectFramesFromGroup(group) {
         var collectedFrames = [];
         var groupItems = group.allPageItems;
@@ -606,14 +695,24 @@ var SCRIPT_VERSION = "v1.0.0";
         return collectedFrames;
     }
 
-    /* フレーム配列を id 重複を避けて追加する / Append frames, skipping ids already collected */
+    /**
+     * 重複を避けながらフレームの配列を追加する
+     * @param {Array<PageItem>} frames 収集先の配列
+     * @param {Array<PageItem>} newFrames 追加するフレーム
+     * @returns {void}
+     */
     function appendFrames(targetFrames, seenIds, sourceFrames) {
         for (var i = 0; i < sourceFrames.length; i++) {
             appendFrame(targetFrames, seenIds, sourceFrames[i]);
         }
     }
 
-    /* フレームを id 重複を避けて追加する / Append a single frame unless its id was already collected */
+    /**
+     * 重複を避けながらフレームを 1 つ追加する
+     * @param {Array<PageItem>} frames 収集先の配列
+     * @param {PageItem} frame 追加するフレーム
+     * @returns {void}
+     */
     function appendFrame(targetFrames, seenIds, frame) {
         var key = "" + frame.id;
         if (seenIds[key]) return;
@@ -625,7 +724,12 @@ var SCRIPT_VERSION = "v1.0.0";
     // 実行 / Apply
     // =========================================
 
-    /* 全フレームへ設定を適用し、実際に変化したフレーム数を返す / Apply settings to all frames and return the count of frames that actually changed */
+    /**
+     * 収集したフレームへ設定を適用する
+     * @param {Array<PageItem>} frames 対象フレーム
+     * @param {object} settings 適用する設定
+     * @returns {number} 実際に調整した件数
+     */
     function applyToFrames(targetFrames, settings) {
         var processedCount = 0;
         for (var i = 0; i < targetFrames.length; i++) {
@@ -641,8 +745,11 @@ var SCRIPT_VERSION = "v1.0.0";
         return processedCount;
     }
 
-    /* フレームの状態（フレーム枠＋単一画像の縮尺・位置）を表す文字列を返す。処理前後で比較して実際の変化を検出する
-       Return a signature of the frame's state (frame bounds + the single image's scale & position) for before/after change detection */
+    /**
+     * 変更の有無を比べるためのフレームの状態を文字列化する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {string} 状態を表す文字列
+     */
     function frameSignature(frame) {
         var parts = [];
         try {
@@ -665,15 +772,22 @@ var SCRIPT_VERSION = "v1.0.0";
         return parts.join(",");
     }
 
-    /* 微小な浮動小数の揺れを無視するため一定桁で丸める / Round to a fixed precision so sub-unit float jitter is ignored */
+    /**
+     * 比較用に数値を丸める
+     * @param {number} value 対象の数値
+     * @returns {number} 丸めた数値
+     */
     function roundForCompare(value) {
         if (typeof value !== "number" || !isFinite(value)) return "x";
         return Math.round(value * 10000) / 10000;
     }
 
-    /* 1 フレームへ設定を適用（縦横比補正 → 縮尺率切り捨て → フレームを内容に合わせる → 幅）
-       Apply settings to one frame (aspect-fix → round-down → frame-to-content → width).
-       変化の有無は applyToFrames 側で前後比較して判定する / The caller detects whether anything changed via before/after comparison */
+    /**
+     * 1 つのフレームへ設定を適用する
+     * @param {PageItem} frame 対象のフレーム
+     * @param {object} settings 適用する設定
+     * @returns {void}
+     */
     function applyToFrame(frame, settings) {
         /* 縦横比の崩れた画像を縦横同率に正す（設定に依らず常に実行）/ Always correct distorted (non-uniform) image scaling */
         correctImageAspectRatio(frame);
@@ -702,7 +816,12 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     }
 
-    /* フレームを安全にフィット（失敗しても全体を止めない）/ Fit a frame safely (one failure must not abort the run) */
+    /**
+     * フィット処理を例外を握りつぶして実行する
+     * @param {PageItem} frame 対象のフレーム
+     * @param {FitOptions} fitOption フィット方法
+     * @returns {void}
+     */
     function safeFit(frame, fitOption) {
         try {
             frame.fit(fitOption);
@@ -712,7 +831,11 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     }
 
-    /* フレーム内の単一画像を返す（なければ null）/ Return the single image in a frame (or null) */
+    /**
+     * フレーム内の画像が 1 点だけならそれを返す
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {Graphic|null} 画像。該当しない場合は null
+     */
     function getSingleImage(frame) {
         try {
             if (frame.allGraphics && frame.allGraphics.length === 1) {
@@ -724,13 +847,21 @@ var SCRIPT_VERSION = "v1.0.0";
         return null;
     }
 
-    /* 値を指定ステップで切り捨てる / Floor a value down to the given step */
+    /**
+     * 指定した刻み幅で切り捨てる
+     * @param {number} value 対象の数値
+     * @param {number} step 刻み幅
+     * @returns {number} 切り捨てた数値
+     */
     function floorToStep(value, step) {
         return Math.floor(value / step) * step;
     }
 
-    /* 画像の元解像度（actualPpi）が 72/96/144 ppi のいずれかか / Whether the image's actual resolution is one of 72/96/144 ppi.
-       縦横どちらかが一致すれば対象（拡大縮小で端数が出ても切り捨て前の実体で判定）/ Matches if either axis equals a target PPI */
+    /**
+     * 切り捨て対象の解像度かどうかを判定する
+     * @param {Graphic} image 対象の画像
+     * @returns {boolean} 対象なら true
+     */
     function isTargetResolution(graphic) {
         try {
             var actualPpi = graphic.actualPpi; // [horizontal, vertical]
@@ -745,8 +876,12 @@ var SCRIPT_VERSION = "v1.0.0";
         return false;
     }
 
-    /* 画像の拡大縮小率を同一比率に切り捨て、必要なら再フィット / Round an image's scale down to a single ratio, then re-fit if requested.
-       onlyTargetPpi が true のとき、元解像度が 72/96/144 ppi の画像のみを対象とする / When onlyTargetPpi, only 72/96/144 ppi images are processed */
+    /**
+     * 画像の縮尺率を指定単位で切り捨てる
+     * @param {PageItem} frame 対象のフレーム
+     * @param {object} settings 適用する設定
+     * @returns {boolean} 変更したら true
+     */
     function roundImageScale(frame, precision, refit, onlyTargetPpi) {
         var graphic = getSingleImage(frame);
         if (graphic === null) return false;
@@ -768,8 +903,11 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     }
 
-    /* 縦横比の崩れた画像（横スケール≠縦スケール）を縦横同率に正す。横スケールを基準に縦を合わせる。
-       設定に依らず常に実行する / Correct a distorted image (non-uniform scaling) to a uniform ratio, matching vertical to horizontal. Always runs. */
+    /**
+     * 崩れた縦横比を横スケール基準に揃える
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {boolean} 変更したら true
+     */
     function correctImageAspectRatio(frame) {
         var graphic = getSingleImage(frame);
         if (graphic === null) return false;
@@ -787,7 +925,11 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     }
 
-    /* アンカー元のテキストフレームを返す（なければ null）/ Return the anchoring text frame (or null) */
+    /**
+     * アンカー元の親テキストフレームを取得する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {TextFrame|null} 親テキストフレーム。取得できない場合は null
+     */
     function getParentTextFrame(frame) {
         try {
             var anchorCharacter = getAnchorCharacter(frame);
@@ -809,8 +951,12 @@ var SCRIPT_VERSION = "v1.0.0";
         return null;
     }
 
-    /* フレーム幅を親テキストフレームの内寸（インセット控除後）に合わせる / Match a frame's width to its parent text frame's content width (insets removed).
-       onlyIfLarger が true のときは、親の内寸より広いフレームだけを縮める / When onlyIfLarger, only frames wider than the parent are shrunk */
+    /**
+     * フレーム幅を親テキストフレームの内寸に合わせる
+     * @param {PageItem} frame 対象のフレーム
+     * @param {object} settings 適用する設定
+     * @returns {boolean} 変更したら true
+     */
     function fitWidthToParentFrame(frame, onlyIfLarger) {
         try {
             var parentTextFrame = getParentTextFrame(frame);
@@ -838,9 +984,13 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     }
 
-    /* フレームを指定の左右幅に合わせ、内容を収め直す共通処理 / Snap a frame to the given left/right width, then re-fit its content.
-       元の幅が目標より広い→内容を縦横比で収める / 狭い→いっぱいに流し込む。最後にフレームを内容に合わせる
-       Wider than target→fit proportionally / narrower→fill proportionally, then fit frame to content */
+    /**
+     * 指定した幅にフレームを合わせ、内容を収め直す
+     * @param {PageItem} frame 対象のフレーム
+     * @param {number} targetWidth 目標の幅
+     * @param {object} settings 適用する設定
+     * @returns {boolean} 変更したら true
+     */
     function applyWidthFit(frame, left, right, originalWidth) {
         var bounds = frame.geometricBounds; // [y1, x1, y2, x2]
         frame.geometricBounds = [bounds[0], left, bounds[2], right];
@@ -854,7 +1004,11 @@ var SCRIPT_VERSION = "v1.0.0";
         safeFit(frame, FitOptions.frameToContent);
     }
 
-    /* テキストフレームの左右インセット量を返す（取得不可なら 0）/ Return a text frame's left/right insets (0 if unavailable) */
+    /**
+     * テキストフレームの内側余白を取得する
+     * @param {TextFrame} textFrame 対象のテキストフレーム
+     * @returns {object} 各辺の余白
+     */
     function getTextFrameInsets(textFrame) {
         var result = { left: 0, right: 0 };
         try {
@@ -871,9 +1025,12 @@ var SCRIPT_VERSION = "v1.0.0";
         return result;
     }
 
-    /* フレーム幅をページのマージン（版面）幅に合わせ、内容を収め直す / Fit a frame to the page margin width, then re-fit its content.
-       版面より広い場合と狭い場合で収め方を変える（参考ロジック準拠）/ Branch by whether the frame is wider than the live area.
-       onlyIfLarger が true のときは、版面幅より広いフレームだけを縮める / When onlyIfLarger, only frames wider than the live area are shrunk */
+    /**
+     * フレーム幅をページのマージン幅に合わせる
+     * @param {PageItem} frame 対象のフレーム
+     * @param {object} settings 適用する設定
+     * @returns {boolean} 変更したら true
+     */
     function fitWidthToMargin(frame, onlyIfLarger) {
         try {
             var page = frame.parentPage;
@@ -902,9 +1059,11 @@ var SCRIPT_VERSION = "v1.0.0";
     }
 
 
-    /* インライン画像の高さを前後の文字サイズに合わせる / Match an inline graphic's height to the surrounding character size.
-       文字にアンカーされたフレームのみ対象。フレームではなく画像自体を拡大縮小して高さを合わせる。
-       Only anchored inline frames; scales the image itself (not just the frame) so its height equals the font size. */
+    /**
+     * インライン画像の高さを同じ段落の文字サイズに合わせる
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {boolean} 変更したら true
+     */
     function matchInlineHeightToText(frame) {
         try {
             /* アンカー文字を取得（インラインなら frame.parent が Character）/ Get the anchor character (frame.parent is a Character when inline) */
@@ -945,13 +1104,20 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     }
 
-    /* InDesign が受け付けるスケール値か（％）。有限かつ正で、おおよその上限内 / Whether a scale (%) is acceptable to InDesign: finite, positive, within bounds */
+    /**
+     * スケール値として有効かどうかを判定する
+     * @param {number} value スケール値
+     * @returns {boolean} 有効なら true
+     */
     function isValidScale(scale) {
         return typeof scale === "number" && isFinite(scale) && scale > 0 && scale <= 1000000;
     }
 
-    /* インライン画像で前後に文字がある場合の目標文字サイズ（pt）を返す。無ければ 0
-       Return the surrounding text size (pt) for an inline image, or 0 when there is none */
+    /**
+     * インライン画像の前後にある文字サイズを取得する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {number} 文字サイズ（pt）
+     */
     function getInlineSurroundingPointSize(frame) {
         var anchorCharacter = getAnchorCharacter(frame);
         if (anchorCharacter === null) return 0; // インラインでなければ 0 / Not inline
@@ -962,8 +1128,11 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     }
 
-    /* フレームが真のインライン配置のアンカーオブジェクトか（行揃え・カスタム配置は除外）
-       Whether the frame is a true inline-positioned anchored object (above-line / custom positions excluded) */
+    /**
+     * 真のインライン配置かどうかを判定する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {boolean} インライン配置なら true
+     */
     function isInlineAnchored(frame) {
         try {
             var anchoredSettings = frame.anchoredObjectSettings;
@@ -973,7 +1142,11 @@ var SCRIPT_VERSION = "v1.0.0";
         }
     }
 
-    /* フレームがアンカーされている文字を返す（真のインラインでなければ null）/ Return the character a frame is anchored into (null unless truly inline) */
+    /**
+     * アンカーオブジェクトを表す文字を取得する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {Character|null} アンカー文字。取得できない場合は null
+     */
     function getAnchorCharacter(frame) {
         try {
             if (!isInlineAnchored(frame)) return null; // 行揃え・カスタム配置は対象外 / Skip above-line / custom positions
@@ -985,7 +1158,11 @@ var SCRIPT_VERSION = "v1.0.0";
         return null;
     }
 
-    /* 段落内の画像・空白を除いた文字の最大ポイントサイズ / Largest point size among non-anchor, non-space characters */
+    /**
+     * アンカー文字の前後にある本文の文字サイズを求める
+     * @param {Character} anchorCharacter アンカー文字
+     * @returns {number} 文字サイズ（pt）
+     */
     function getSurroundingTextPointSize(paragraph) {
         var chars = paragraph.characters.everyItem().getElements();
         var maxSize = 0;
@@ -1005,8 +1182,11 @@ var SCRIPT_VERSION = "v1.0.0";
         return maxSize;
     }
 
-    /* フレームの高さをポイントで取得（単位に依存しないよう一時的にポイントへ切替）
-       Read a frame's height in points (switches ruler units to points temporarily for unit-safety) */
+    /**
+     * フレームの高さをポイントで取得する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {number} 高さ（pt）
+     */
     function getFrameHeightPoint(frame) {
         var view = app.activeDocument.viewPreferences;
         var oldH = view.horizontalMeasurementUnits;

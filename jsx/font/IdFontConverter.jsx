@@ -1,51 +1,82 @@
-/*
-
-### 概要
-
-フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて変更するスクリプト（InDesign 版）。
-
-- 対象は「選択範囲 / ストーリー / ドキュメント全体 / アクティブスプレッド」から選択
-- 変換設定は 3 カラム（左=文字セット／中央=N・NT／右=UD・P）。各項目は「現状維持 / なし / あり」で切り替え
-- 文字セットは Std / Pro / Pr5 / Pr6（N は別軸でトグル）
-- 新ゴ ⇄ 新ゴNT を NT 設定で切り替え
-- プリセット Max（収録最多の N なし＋UD＋P）/ MaxN（収録最多の N あり込み＋UD＋P）
-- G-OTF 学参書体（常改 / 学参 / K書体）を A-OTF に統合（チェックボックス）
-- A1明朝など特殊シリーズは太さ等価で対応（A-OTF A1明朝 Std B ＝ A P-OTF A1明朝 StdN R）
-- AXIS（Type Project）は文字セット体系が異なるため専用処理（幅 Basic/Cond/Comp と Joyo は保持し、N と Std⇄Pro のみ切り替え）
-- CID フォント・実行前確認は先頭のスイッチ（UI 非表示）で制御
-- 段落スタイル・文字スタイル・合成フォントの各エントリ、ロック / 非表示オブジェクトも対象に含められる
-- 表セル（Cell）の選択にも対応
-- 実行前に変更内容（旧 → 新）を和文フォント名でプレビュー確認、ページ上の位置順（上→下）に表示、未インストールフォントは事前に警告
-- 同名ウエイトが見つからない場合は近いウエイトへ置換
-- 適用は textStyleRange（同一書式の連続範囲）単位でまとめて処理（高速）。全体を 1 アンドゥにまとめる
-- 変換対象ファミリーはフォントデータベースから生成（FONT_FAMILIES）
-- フォントのインデックス化はダイアログ確定後まで遅延し、初回表示を高速化
-
-### 参考
-
-https://sttk3.com/blog/tips/illustrator/unify-character-set.html
-
-### 紹介記事
-
-https://note.com/dtp_tranist/n/n261c771b4b41
-
-### 変更履歴
-
-- v1.0.0 : 初版（Illustrator）
-- v1.0.1 : 確認ダイアログを和文フォント名で表示・カンバス上から順（上→下）に並べ替え・→ の位置をそろえる（変更前列を固定幅）・タイトルのバージョン表記を削除・左右マージンを調整
-- v1.0.1 (InDesign 移植) : 対象を選択 / ドキュメント / アクティブスプレッドに対応、フォント解決を app.fonts の PostScript 名インデックス化、適用を textStyleRange 単位 + 単一アンドゥに変更
-- v1.1.0 : FontConverter.jsx を統合。対象範囲に「アクティブスプレッド」を追加（選択範囲 / ストーリー / ドキュメント / アクティブスプレッドの 4 モード）
-- v1.1.1 : 初回ダイアログ表示を高速化（フォントインデックス化を確定後まで遅延）、ロック解除中のエラー時も確実に復元（try/finally）、Max/MaxN プリセット時に AXIS を ProN へ寄せる対応、概要・ツールチップを更新
-
-*/
-
 #target indesign
 
-// =========================================
-// バージョン / Version
-// =========================================
+/*
+ * IdFontConverter.jsx
+ *
+ * フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて切り替え、選択範囲やドキュメント全体へ適用します。
+ * 詳細は README を参照してください。
+ */
 
-var SCRIPT_VERSION = "v1.1.1";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "IdFontConverter";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-06-17";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFontConverter.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFontConverter.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹介記事 / article URL */
+
+// Original idea
+// https://sttk3.com/blog/tips/illustrator/unify-character-set.html
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
 // =========================================
 // ユーザー設定 / User settings
@@ -332,7 +363,12 @@ var LABELS = {
 };
 
 /* ドット区切りのキーでラベルを取得 / Resolve a label by dot-separated key path */
-function L(labelPath) {
+/**
+ * ドット区切りキーでラベルを取得する（{slash} は / に置換）
+ * @param {string} labelPath 例: "dialog.title"
+ * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+ */
+function getLabel(labelPath) {
     var keys = labelPath.split(".");
     var node = LABELS;
     for (var i = 0; i < keys.length; i++) {
@@ -343,29 +379,26 @@ function L(labelPath) {
     return text.replace(/\{slash\}/g, "/");
 }
 
-/* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-function labelText(labelPath) {
-    return L(labelPath) + (currentLanguage === "ja" ? "：" : ":");
+/**
+ * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
+ * @param {string} labelPath 例: "panel.target"
+ * @returns {string} コロンを付与したラベル文字列
+ */
+function getLabelWithColon(labelPath) {
+    return getLabel(labelPath) + (currentLanguage === "ja" ? "：" : ":");
 }
 
 // =========================================
 // UI 共通 / UI helpers
 // =========================================
 
-/* パネルの余白と間隔 / Panel margins and spacing */
-var PANEL_MARGINS = [16, 20, 16, 12];
-var PANEL_SPACING = 8;
-
-/* パネルの共通設定 / Apply shared panel layout */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
+/**
+ * グループの共通設定を適用する（row/column で整列を切り替え）
+ * @param {Group} group 対象グループ
+ * @param {string} [orientation] 並び方向。省略時は "column"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
 function setupGroup(group, orientation, spacing) {
     var groupOrientation = orientation || "column";
     group.orientation = groupOrientation;
@@ -383,7 +416,7 @@ function setupGroup(group, orientation, spacing) {
 
     /* ドキュメントの有無を確認 / Ensure a document is open */
     if (app.documents.length === 0) {
-        alert(L("alert.noDocument"));
+        alert(getLabel("alert.noDocument"));
         return;
     }
 
@@ -404,6 +437,10 @@ function setupGroup(group, orientation, spacing) {
        Maps are populated lazily after the dialog is confirmed (right before processing), so the first dialog opens fast. */
     var installedFontByPs = {};
     var allFontByPs = {};
+    /**
+     * インストール済みフォントを PostScript 名で索引化する
+     * @returns {object} フォントの索引
+     */
     function indexFonts() {
         var fonts = app.fonts;
 
@@ -446,17 +483,17 @@ function setupGroup(group, orientation, spacing) {
     // ダイアログ / Dialog
     // -----------------------------------------
 
-    var mainDialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
-    mainDialog.orientation = "column";
+    var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+    setupWindow(mainDialog, 10);
     mainDialog.alignChildren = "left";
 
     /* 対象パネル（ラジオは縦並び）/ Target panel (radios in a column) */
     var targetPanel = addPanel(mainDialog, "panel.target");
-    targetPanel.helpTip = L("tooltip.target");
-    var rbTargetSelection = targetPanel.add("radiobutton", undefined, L("radio.targetSelection"));
-    var rbTargetStory = targetPanel.add("radiobutton", undefined, L("radio.targetStory"));
-    var rbTargetDocument = targetPanel.add("radiobutton", undefined, L("radio.targetDocument"));
-    var rbTargetSpread = targetPanel.add("radiobutton", undefined, L("radio.targetSpread"));
+    targetPanel.helpTip = getLabel("tooltip.target");
+    var rbTargetSelection = targetPanel.add("radiobutton", undefined, getLabel("radio.targetSelection"));
+    var rbTargetStory = targetPanel.add("radiobutton", undefined, getLabel("radio.targetStory"));
+    var rbTargetDocument = targetPanel.add("radiobutton", undefined, getLabel("radio.targetDocument"));
+    var rbTargetSpread = targetPanel.add("radiobutton", undefined, getLabel("radio.targetSpread"));
     rbTargetSelection.value = true;
 
     /* 変換設定パネル（文字セット/N/UD/P と Max/MaxN をまとめる）/ Conversion panel (variant columns + presets) */
@@ -469,8 +506,8 @@ function setupGroup(group, orientation, spacing) {
 
     /* 左カラム: 文字セットパネル（Std/Pro/Pr5/Pr6 はローカライズ不要の固有名）/ Left: character set */
     var charsetPanel = addPanel(variantColumns, "panel.charset");
-    charsetPanel.helpTip = L("tooltip.charset");
-    var rbCharsetKeep = charsetPanel.add("radiobutton", undefined, L("radio.keep"));
+    charsetPanel.helpTip = getLabel("tooltip.charset");
+    var rbCharsetKeep = charsetPanel.add("radiobutton", undefined, getLabel("radio.keep"));
     var rbCharsetStd = charsetPanel.add("radiobutton", undefined, "Std");
     var rbCharsetPro = charsetPanel.add("radiobutton", undefined, "Pro");
     var rbCharsetPr5 = charsetPanel.add("radiobutton", undefined, "Pr5");
@@ -482,18 +519,18 @@ function setupGroup(group, orientation, spacing) {
     setupGroup(nNtColumn, "column");
 
     var nVariantPanel = addPanel(nNtColumn, "panel.nSetting");
-    nVariantPanel.helpTip = L("tooltip.nSetting");
-    var rbNKeep = nVariantPanel.add("radiobutton", undefined, L("radio.keep"));
-    var rbNOff = nVariantPanel.add("radiobutton", undefined, L("radio.nOff"));
-    var rbNOn = nVariantPanel.add("radiobutton", undefined, L("radio.nOn"));
+    nVariantPanel.helpTip = getLabel("tooltip.nSetting");
+    var rbNKeep = nVariantPanel.add("radiobutton", undefined, getLabel("radio.keep"));
+    var rbNOff = nVariantPanel.add("radiobutton", undefined, getLabel("radio.nOff"));
+    var rbNOn = nVariantPanel.add("radiobutton", undefined, getLabel("radio.nOn"));
     rbNKeep.value = true;
 
     /* NT 設定パネル（新ゴ ⇄ 新ゴNT）/ NT panel (ShinGo <-> ShinGo NT) */
     var ntPanel = addPanel(nNtColumn, "panel.ntSetting");
-    ntPanel.helpTip = L("tooltip.nt");
-    var rbNTKeep = ntPanel.add("radiobutton", undefined, L("radio.keep"));
-    var rbNTOff = ntPanel.add("radiobutton", undefined, L("radio.ntOff"));
-    var rbNTOn = ntPanel.add("radiobutton", undefined, L("radio.ntOn"));
+    ntPanel.helpTip = getLabel("tooltip.nt");
+    var rbNTKeep = ntPanel.add("radiobutton", undefined, getLabel("radio.keep"));
+    var rbNTOff = ntPanel.add("radiobutton", undefined, getLabel("radio.ntOff"));
+    var rbNTOn = ntPanel.add("radiobutton", undefined, getLabel("radio.ntOn"));
     rbNTKeep.value = true;
 
     /* 右カラム: UD 設定・P 設定 / Right: UD and P */
@@ -501,17 +538,17 @@ function setupGroup(group, orientation, spacing) {
     setupGroup(udProportionalColumn, "column");
 
     var udVariantPanel = addPanel(udProportionalColumn, "panel.udSetting");
-    udVariantPanel.helpTip = L("tooltip.udSetting");
-    var rbUDKeep = udVariantPanel.add("radiobutton", undefined, L("radio.keep"));
-    var rbUDOff = udVariantPanel.add("radiobutton", undefined, L("radio.udOff"));
-    var rbUDOn = udVariantPanel.add("radiobutton", undefined, L("radio.udOn"));
+    udVariantPanel.helpTip = getLabel("tooltip.udSetting");
+    var rbUDKeep = udVariantPanel.add("radiobutton", undefined, getLabel("radio.keep"));
+    var rbUDOff = udVariantPanel.add("radiobutton", undefined, getLabel("radio.udOff"));
+    var rbUDOn = udVariantPanel.add("radiobutton", undefined, getLabel("radio.udOn"));
     rbUDKeep.value = true;
 
     var proportionalPanel = addPanel(udProportionalColumn, "panel.pSetting");
-    proportionalPanel.helpTip = L("tooltip.pSetting");
-    var rbPKeep = proportionalPanel.add("radiobutton", undefined, L("radio.keep"));
-    var rbPOff = proportionalPanel.add("radiobutton", undefined, L("radio.pOff"));
-    var rbPOn = proportionalPanel.add("radiobutton", undefined, L("radio.pOn"));
+    proportionalPanel.helpTip = getLabel("tooltip.pSetting");
+    var rbPKeep = proportionalPanel.add("radiobutton", undefined, getLabel("radio.keep"));
+    var rbPOff = proportionalPanel.add("radiobutton", undefined, getLabel("radio.pOff"));
+    var rbPOn = proportionalPanel.add("radiobutton", undefined, getLabel("radio.pOn"));
     rbPKeep.value = true;
 
     /* 文字セット名 → ラジオボタンの対応 / Map charset name to its radio button */
@@ -522,7 +559,11 @@ function setupGroup(group, orientation, spacing) {
         Std: rbCharsetStd
     };
 
-    /* ランキング順に、最初に選べる文字セット（＋N）を UI へ反映 / Apply the richest available charset (+N) to the UI */
+    /**
+     * 収録の最も多い文字セットへ寄せる設定を組み立てる
+     * @param {boolean} includeN N 付きの書体も対象にするか
+     * @returns {object} 変換設定
+     */
     function applyRichestCharset(rankList) {
         for (var i = 0; i < rankList.length; i++) {
             var token = rankList[i];
@@ -552,7 +593,7 @@ function setupGroup(group, orientation, spacing) {
     presetRow.alignment = ["center", "top"]; // 左右中央 / horizontally centered
     presetRow.margins = [0, 5, 0, 0]; // 上に 5px の余白 / 5px top margin
     var presetMaxButton = presetRow.add("button", undefined, "Max");
-    presetMaxButton.helpTip = L("tooltip.presetMax");
+    presetMaxButton.helpTip = getLabel("tooltip.presetMax");
     presetMaxButton.onClick = function () {
         applyRichestCharset(CHARSET_RANK_NO_N);
         rbUDOn.value = true;
@@ -561,7 +602,7 @@ function setupGroup(group, orientation, spacing) {
         maxPresetActive = true;
     };
     var presetMaxNButton = presetRow.add("button", undefined, "MaxN");
-    presetMaxNButton.helpTip = L("tooltip.presetMaxN");
+    presetMaxNButton.helpTip = getLabel("tooltip.presetMaxN");
     presetMaxNButton.onClick = function () {
         applyRichestCharset(CHARSET_RANK_WITH_N);
         rbUDOn.value = true;
@@ -572,27 +613,27 @@ function setupGroup(group, orientation, spacing) {
 
     /* オプションパネル / Options panel */
     var optionsPanel = addPanel(mainDialog, "panel.options");
-    var cbIntegrateGakusan = optionsPanel.add("checkbox", undefined, L("checkbox.integrateGakusan"));
-    cbIntegrateGakusan.helpTip = L("tooltip.integrateGakusan");
+    var cbIntegrateGakusan = optionsPanel.add("checkbox", undefined, getLabel("checkbox.integrateGakusan"));
+    cbIntegrateGakusan.helpTip = getLabel("tooltip.integrateGakusan");
     cbIntegrateGakusan.value = INTEGRATE_GAKUSAN_TO_STANDARD;
-    var cbIncludeStyles = optionsPanel.add("checkbox", undefined, L("checkbox.includeStyles"));
-    cbIncludeStyles.helpTip = L("tooltip.includeStyles");
+    var cbIncludeStyles = optionsPanel.add("checkbox", undefined, getLabel("checkbox.includeStyles"));
+    cbIncludeStyles.helpTip = getLabel("tooltip.includeStyles");
     cbIncludeStyles.value = true;
-    var cbIncludeComposite = optionsPanel.add("checkbox", undefined, L("checkbox.includeComposite"));
-    cbIncludeComposite.helpTip = L("tooltip.includeComposite");
+    var cbIncludeComposite = optionsPanel.add("checkbox", undefined, getLabel("checkbox.includeComposite"));
+    cbIncludeComposite.helpTip = getLabel("tooltip.includeComposite");
     cbIncludeComposite.value = true;
-    var cbIncludeLocked = optionsPanel.add("checkbox", undefined, L("checkbox.includeLocked"));
-    cbIncludeLocked.helpTip = L("tooltip.includeLocked");
+    var cbIncludeLocked = optionsPanel.add("checkbox", undefined, getLabel("checkbox.includeLocked"));
+    cbIncludeLocked.helpTip = getLabel("tooltip.includeLocked");
     cbIncludeLocked.value = false;
-    var cbIncludeHidden = optionsPanel.add("checkbox", undefined, L("checkbox.includeHidden"));
-    cbIncludeHidden.helpTip = L("tooltip.includeHidden");
+    var cbIncludeHidden = optionsPanel.add("checkbox", undefined, getLabel("checkbox.includeHidden"));
+    cbIncludeHidden.helpTip = getLabel("tooltip.includeHidden");
     cbIncludeHidden.value = false;
 
     /* ボタン（Mac 規約: キャンセル → OK、OK は非ローカライズ）/ Buttons (Mac order: Cancel then OK, OK is not localized) */
     var buttonRow = mainDialog.add("group");
     buttonRow.orientation = "row";
     buttonRow.alignment = "right";
-    var cancelButton = buttonRow.add("button", undefined, L("button.cancel"), { name: "cancel" });
+    var cancelButton = buttonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
     var okButton = buttonRow.add("button", undefined, "OK", { name: "ok" });
 
     cancelButton.onClick = function () { mainDialog.close(0); };
@@ -632,7 +673,7 @@ function setupGroup(group, orientation, spacing) {
 
     /* 選択範囲・ストーリーは選択が必要 / Selection and story modes require a selection */
     if ((targetMode === "selection" || targetMode === "story") && app.selection.length === 0) {
-        alert(L("alert.noSelection"));
+        alert(getLabel("alert.noSelection"));
         return;
     }
 
@@ -640,7 +681,7 @@ function setupGroup(group, orientation, spacing) {
     var isLayoutWindow = false;
     try { isLayoutWindow = (app.activeWindow.constructor.name === "LayoutWindow"); } catch (e) { isLayoutWindow = false; }
     if (targetMode === "spread" && !isLayoutWindow) {
-        alert(L("alert.noLayoutWindow"));
+        alert(getLabel("alert.noLayoutWindow"));
         return;
     }
 
@@ -659,7 +700,7 @@ function setupGroup(group, orientation, spacing) {
     sortTargetsByPosition(targets);
 
     if (targets.length === 0 && !includeStyles && !includeComposite) {
-        alert(L("alert.noTarget"));
+        alert(getLabel("alert.noTarget"));
         return;
     }
 
@@ -689,7 +730,7 @@ function setupGroup(group, orientation, spacing) {
     }
 
     if (directChanges.length === 0 && weightSubChanges.length === 0 && missingChanges.length === 0) {
-        alert(L("alert.noChange"));
+        alert(getLabel("alert.noChange"));
         return;
     }
 
@@ -744,15 +785,19 @@ function setupGroup(group, orientation, spacing) {
         if (includeComposite) {
             applyChangesToCompositeFonts(fontNameMap);
         }
-    }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, L("dialog.title"));
+    }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("dialog.title"));
 
-    alert(L("alert.done") + "\n\n" + labelText("alert.changedCount") + changedCount);
+    alert(getLabel("alert.done") + "\n\n" + getLabelWithColon("alert.changedCount") + changedCount);
 
     // =========================================
     // 対象収集 / Target collection
     // =========================================
 
-    /* 対象モードに応じてターゲット（ストーリー / テキスト範囲）を集める / Gather targets by mode */
+    /**
+     * 指定した対象範囲から処理するテキストを集める
+     * @param {string} scope 対象範囲を表す識別子
+     * @returns {Array<object>} 対象テキストの配列
+     */
     function collectTargets(mode) {
         if (mode === "document") {
             var stories = activeDocument.stories;
@@ -781,7 +826,10 @@ function setupGroup(group, orientation, spacing) {
         collectFromSelection(app.selection);
     }
 
-    /* アクティブスプレッド上のテキストフレームを集める（グループ内も含む）/ Collect text frames on the active spread (incl. groups) */
+    /**
+     * アクティブスプレッド上のテキストフレームを集める
+     * @returns {Array<TextFrame>} テキストフレームの配列
+     */
     function collectActiveSpreadTextFrames() {
         var result = [];
         try {
@@ -794,7 +842,11 @@ function setupGroup(group, orientation, spacing) {
         return result;
     }
 
-    /* 選択アイテム（グループ内も再帰）から部分選択を尊重して集める / Collect targets, honoring partial selection */
+    /**
+     * 選択から対象テキストを集める
+     * @param {Array<object>} targets 収集先の配列
+     * @returns {void}
+     */
     function collectFromSelection(items) {
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
@@ -817,7 +869,10 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* 選択アイテム（グループ内も再帰）から所属ストーリー全体を集める / Collect whole stories from a selection */
+    /**
+     * 選択からストーリーを集める
+     * @returns {Array<Story>} ストーリーの配列
+     */
     function collectStoriesFromSelection(items) {
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
@@ -841,7 +896,11 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* 表セルのテキスト（cell.texts[0]）を安全に取得 / Safely get a cell's text (cell.texts[0]) */
+    /**
+     * 表セルのテキストを取得する
+     * @param {Cell} cell 対象のセル
+     * @returns {Text|null} セル内のテキスト。取得できない場合は null
+     */
     function cellTextOf(cell) {
         try {
             var texts = cell.texts;
@@ -850,7 +909,12 @@ function setupGroup(group, orientation, spacing) {
         return null;
     }
 
-    /* ストーリー単位のターゲットを追加（重複は除外）/ Add a story-level target (deduped) */
+    /**
+     * ストーリーを対象として追加する
+     * @param {Array<object>} targets 収集先の配列
+     * @param {Story} story 追加するストーリー
+     * @returns {void}
+     */
     function addStoryTarget(story) {
         if (!story || !story.isValid) return;
         var storyId;
@@ -867,7 +931,12 @@ function setupGroup(group, orientation, spacing) {
         });
     }
 
-    /* テキスト範囲（部分選択）単位のターゲットを追加 / Add a text-range target (partial selection) */
+    /**
+     * テキスト範囲を対象として追加する
+     * @param {Array<object>} targets 収集先の配列
+     * @param {Text} textObject 追加するテキスト
+     * @returns {void}
+     */
     function addTextTarget(textObject) {
         var story;
         try { story = textObject.parentStory; } catch (e) { return; }
@@ -883,7 +952,11 @@ function setupGroup(group, orientation, spacing) {
         });
     }
 
-    /* ストーリーが対象範囲（ロック/非表示フィルタ）に入るか / Whether a story has at least one in-scope container */
+    /**
+     * そのストーリーが対象範囲に含まれるかを判定する
+     * @param {Story} story 対象のストーリー
+     * @returns {boolean} 含まれていれば true
+     */
     function storyInScope(story) {
         var frames = story.textContainers;
         if (frames.length === 0) return false;
@@ -896,7 +969,11 @@ function setupGroup(group, orientation, spacing) {
         return false;
     }
 
-    /* コレクション/配列を素の配列へ / Normalize a collection or array into a plain array */
+    /**
+     * テキストが属するフレームの配列を取得する
+     * @param {Text} textObject 対象のテキスト
+     * @returns {Array<TextFrame>} フレームの配列
+     */
     function framesArray(frames) {
         var arr = [];
         try {
@@ -905,7 +982,11 @@ function setupGroup(group, orientation, spacing) {
         return arr;
     }
 
-    /* 先頭フレームの位置を並べ替えキーに（InDesign は上が小さい Y）/ Sort key from the first frame (smaller Y = higher) */
+    /**
+     * ページ上の位置から並べ替え用のキーを作る
+     * @param {Array<TextFrame>} frames 対象のフレーム
+     * @returns {Array<number>} 並べ替えキー
+     */
     function sortKeyOfFrames(frames) {
         try {
             if (frames.length > 0) {
@@ -916,7 +997,11 @@ function setupGroup(group, orientation, spacing) {
         return [1e9, 1e9];
     }
 
-    /* ターゲットをページ位置順（上→下、同じ高さは左→右）に並べ替え / Sort targets by page position */
+    /**
+     * 対象をページ上の位置（上から下）で並べ替える
+     * @param {Array<object>} targets 対象の配列
+     * @returns {void}
+     */
     function sortTargetsByPosition(list) {
         list.sort(function (a, b) {
             if (Math.abs(a.sortKey[0] - b.sortKey[0]) > 1.0) return a.sortKey[0] - b.sortKey[0]; // top が小さい方が上
@@ -928,7 +1013,11 @@ function setupGroup(group, orientation, spacing) {
     // ロック・非表示判定 / Lock & hidden checks
     // =========================================
 
-    /* 自身・所属レイヤー・祖先グループのいずれかがロックされているか / Whether the frame is effectively locked */
+    /**
+     * フレームがロックされているかを判定する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {boolean} ロックされていれば true
+     */
     function isFrameLocked(frame) {
         try { if (frame.locked) return true; } catch (e) { }
         try { if (frame.itemLayer.locked) return true; } catch (e2) { }
@@ -944,7 +1033,11 @@ function setupGroup(group, orientation, spacing) {
         return false;
     }
 
-    /* 自身・所属レイヤー・祖先グループのいずれかが非表示か / Whether the frame is effectively hidden */
+    /**
+     * フレームが非表示かどうかを判定する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {boolean} 非表示なら true
+     */
     function isFrameHidden(frame) {
         try { if (!frame.visible) return true; } catch (e) { }
         try { if (!frame.itemLayer.visible) return true; } catch (e2) { }
@@ -964,7 +1057,12 @@ function setupGroup(group, orientation, spacing) {
     // 変更内容のスキャン / Change scanning
     // =========================================
 
-    /* ターゲットの textStyleRange を走査して変換候補に分類 / Scan a target's runs */
+    /**
+     * 対象テキストから変換が必要なフォントを洗い出す
+     * @param {Array<object>} targets 対象の配列
+     * @param {object} desired 変換設定
+     * @returns {Array<object>} 変更候補
+     */
     function scanTargetFonts(target) {
         var ranges = target.ranges;
         for (var i = 0; i < ranges.length; i++) {
@@ -973,7 +1071,11 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* スタイルコレクションのフォントを変換候補に分類 / Classify fonts used by a style collection */
+    /**
+     * 段落・文字スタイルから変換が必要なフォントを洗い出す
+     * @param {object} desired 変換設定
+     * @returns {Array<object>} 変更候補
+     */
     function scanStylesForChanges(styles) {
         for (var k = 0; k < styles.length; k++) {
             var psName = styleFontPsName(styles[k]);
@@ -981,7 +1083,11 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* 合成フォントの各エントリのフォントを変換候補に分類 / Classify fonts used by composite font entries */
+    /**
+     * 合成フォントから変換が必要なフォントを洗い出す
+     * @param {object} desired 変換設定
+     * @returns {Array<object>} 変更候補
+     */
     function scanCompositeFontsForChanges() {
         var compositeFonts = activeDocument.compositeFonts;
         for (var c = 0; c < compositeFonts.length; c++) {
@@ -993,7 +1099,11 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* スタイルに設定されたフォントの PostScript 名（無ければ null）/ PostScript name of a style's applied font */
+    /**
+     * スタイルに設定されたフォントの PostScript 名を取得する
+     * @param {object} style 対象のスタイル
+     * @returns {string} PostScript 名
+     */
     function styleFontPsName(style) {
         try {
             return fontPsNameOf(style.appliedFont);
@@ -1002,7 +1112,11 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* Font オブジェクトまたはフォント名文字列から PostScript 名を取得 / Resolve a PostScript name from a Font or its name string */
+    /**
+     * フォントの PostScript 名を取得する
+     * @param {*} fontValue フォントまたはフォント名
+     * @returns {string} PostScript 名
+     */
     function fontPsNameOf(font) {
         if (!font) return null;
         try {
@@ -1018,7 +1132,12 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* 旧フォント名を direct / weightSub / missing に分類（重複は 1 回だけ）/ Classify an old font name */
+    /**
+     * 現在のフォント名から変換後の名前を決める
+     * @param {string} fontName 現在のフォント名
+     * @param {object} desired 変換設定
+     * @returns {object|null} 変換内容。対象外なら null
+     */
     function classifyFontChange(oldName) {
         if (processedFontNames[oldName]) return;
         processedFontNames[oldName] = true;
@@ -1048,7 +1167,12 @@ function setupGroup(group, orientation, spacing) {
         classifyByDesired(oldName, buildConvertedNameHead(parsed), parsed.weight);
     }
 
-    /* 変換後の先頭（ウエイト除く）＋ウエイトから direct / weightSub / missing へ分類 / Classify by desired name head + weight */
+    /**
+     * 変換設定に従って新しいフォント名を組み立てる
+     * @param {object} parsed 解析済みのフォント名
+     * @param {object} desired 変換設定
+     * @returns {object|null} 変換内容。対象外なら null
+     */
     function classifyByDesired(oldName, nameHead, weight) {
         if (nameHead === null) return; // 変換対象外（CID 非変換など）/ not convertible
 
@@ -1078,8 +1202,12 @@ function setupGroup(group, orientation, spacing) {
     // フォント名の分解・組み立て / Parse & build font names
     // =========================================
 
-    /* 特殊シリーズの対応を解決 / Resolve special series mapping
-       戻り値: 文字列=変換先名 / null=該当するが対応なし・変更不要 / undefined=特殊シリーズではない */
+    /**
+     * A1明朝など特殊シリーズの対応表を引く
+     * @param {object} parsed 解析済みのフォント名
+     * @param {object} desired 変換設定
+     * @returns {object|null} 対応する変換内容。なければ null
+     */
     function resolveSpecialSeries(oldName) {
         for (var seriesIndex = 0; seriesIndex < SPECIAL_SERIES.length; seriesIndex++) {
             var members = SPECIAL_SERIES[seriesIndex].members;
@@ -1104,7 +1232,12 @@ function setupGroup(group, orientation, spacing) {
         return undefined;
     }
 
-    /* 設定から特殊シリーズの目標キー（文字セット[+N]）を算出 / Compute target charset key for special series */
+    /**
+     * シリーズ変換の対応表を引くためのキーを作る
+     * @param {object} parsed 解析済みのフォント名
+     * @param {object} desired 変換設定
+     * @returns {string} 対応表のキー
+     */
     function computeSeriesTargetKey(sourceKey) {
         var sourceHasN = sourceKey.charAt(sourceKey.length - 1) === "N";
         var sourceBaseCharset = sourceHasN ? sourceKey.substring(0, sourceKey.length - 1) : sourceKey;
@@ -1118,7 +1251,11 @@ function setupGroup(group, orientation, spacing) {
         return targetBaseCharset + (targetHasN ? "N" : "");
     }
 
-    /* AXIS の PostScript 名を分解（AXIS でなければ null）/ Decompose an AXIS PostScript name (null if not AXIS) */
+    /**
+     * AXIS フォントの名前を要素へ分解する
+     * @param {string} fontName フォント名
+     * @returns {object|null} 分解結果。対象外なら null
+     */
     function parseAxisName(name) {
         var matched = name.match(AXIS_FAMILY.regex);
         if (!matched) return null;
@@ -1130,8 +1267,12 @@ function setupGroup(group, orientation, spacing) {
         };
     }
 
-    /* AXIS の変換後フォント名の先頭（ウエイト除く）を組み立て / Build the converted AXIS name head (without weight)
-       幅と Joyo は保持し、N と Std⇄Pro のみ反映。AXIS に無い Pr5/Pr6 は現状維持。 */
+    /**
+     * AXIS フォントの新しい名前を組み立てる
+     * @param {object} parsed 分解結果
+     * @param {object} desired 変換設定
+     * @returns {string} 新しいフォント名
+     */
     function buildAxisNameHead(axis) {
         // Max/MaxN プリセット時は、設定に関わらず ProN（AXIS の収録最多）へ寄せる。AXIS は Std と ProN しか無いため。
         // Under a Max/MaxN preset, force ProN (the richest AXIS charset) regardless of settings; AXIS only has Std & ProN.
@@ -1157,7 +1298,11 @@ function setupGroup(group, orientation, spacing) {
         return AXIS_FAMILY.baseName + axis.width + charsetCore + "-";
     }
 
-    /* 旧フォント名を分解（必要なら G-OTF 学参を A-OTF に読み替えて再試行）/ Decompose an old name (retry as A-OTF for G-OTF Gakusan) */
+    /**
+     * フォント名を文字セットや属性へ分解する
+     * @param {string} fontName フォント名
+     * @returns {object|null} 分解結果。対象外なら null
+     */
     function parseFontName(name) {
         var parsed = parseKnownFamily(name);
         if (parsed) return parsed;
@@ -1174,7 +1319,11 @@ function setupGroup(group, orientation, spacing) {
         return null;
     }
 
-    /* 既知ファミリーの正規表現で旧名を P/UD/charset/N/weight に分解 / Decompose against known family regexes */
+    /**
+     * 既知のファミリー一覧に照らしてフォント名を分解する
+     * @param {string} fontName フォント名
+     * @returns {object|null} 分解結果。対象外なら null
+     */
     function parseKnownFamily(name) {
         for (var i = 0; i < FONT_FAMILIES.length; i++) {
             var family = FONT_FAMILIES[i];
@@ -1209,7 +1358,12 @@ function setupGroup(group, orientation, spacing) {
         return null;
     }
 
-    /* 設定に基づき変換後フォント名の先頭（ウエイト除く）を組み立て / Build the converted name head (without weight) */
+    /**
+     * 変換設定に従って新しいフォント名を組み立てる
+     * @param {object} parsed 分解結果
+     * @param {object} desired 変換設定
+     * @returns {string} 新しいフォント名
+     */
     function buildConvertedNameHead(parsed) {
         var family = parsed.family;
         var supportsProportional = family.regex.source.indexOf("(P)") !== -1;
@@ -1270,7 +1424,12 @@ function setupGroup(group, orientation, spacing) {
         return prefix + baseName + charsetCore + "-";
     }
 
-    /* 同名ウエイトが無い場合に近いウエイトを探す / Find the nearest available weight */
+    /**
+     * 同名のウエイトがない場合に近いウエイトを探す
+     * @param {string} familyName フォントファミリー名
+     * @param {string} weightName 求めるウエイト名
+     * @returns {string|null} 近いウエイト名。なければ null
+     */
     function findNearestWeight(nameHead, weight) {
         var weightIndex = indexOfArray(WEIGHT_ORDER, weight);
         if (weightIndex < 0) return null;
@@ -1292,12 +1451,20 @@ function setupGroup(group, orientation, spacing) {
     // フォント存在判定 / Font availability
     // =========================================
 
-    /* 指定名（PostScript 名）のフォントがインストール済みか / Whether a font (by PostScript name) is installed */
+    /**
+     * そのフォントがインストールされているかを判定する
+     * @param {string} fontName フォント名
+     * @returns {boolean} 存在すれば true
+     */
     function fontExists(name) {
         return installedFontByPs.hasOwnProperty(name);
     }
 
-    /* インストール済み Font オブジェクトを取得 / Get an installed Font object by PostScript name */
+    /**
+     * フォント名からフォントオブジェクトを取得する
+     * @param {string} fontName フォント名
+     * @returns {Font|null} フォント。見つからない場合は null
+     */
     function getFontObject(name) {
         return installedFontByPs[name];
     }
@@ -1306,12 +1473,14 @@ function setupGroup(group, orientation, spacing) {
     // 確認ダイアログ / Confirmation dialog
     // =========================================
 
-    /* 変更プレビューを表示し、各項目を ON/OFF させて結果を返す / Show preview with per-item ON/OFF and return the result */
+    /**
+     * 変更内容のプレビューを表示し、項目ごとに ON/OFF させる
+     * @returns {object|null} 確定した変更内容。キャンセル時は null
+     */
     function showConfirmDialog() {
-        var confirmDialog = new Window("dialog", L("confirm.title"));
-        confirmDialog.orientation = "column";
-        confirmDialog.alignChildren = "fill";
-        // 左右マージンを +10 / Add 10 to left & right margins
+        var confirmDialog = new Window("dialog", getLabel("confirm.title"));
+        setupWindow(confirmDialog, 10);
+        /* 一覧が詰まって見えないよう左右だけ少し広げる / Widen only the sides so the list is not cramped */
         confirmDialog.margins.left += 10;
         confirmDialog.margins.right += 10;
 
@@ -1338,28 +1507,28 @@ function setupGroup(group, orientation, spacing) {
         listContent.spacing = 4;
 
         if (directChanges.length > 0) {
-            listContent.add("statictext", undefined, L("confirm.willChange"));
+            listContent.add("statictext", undefined, getLabel("confirm.willChange"));
             addChangeCheckboxes(listContent, directChanges, itemCheckboxes, beforeWidth);
         }
         if (weightSubChanges.length > 0) {
-            listContent.add("statictext", undefined, L("confirm.nearWeight"));
+            listContent.add("statictext", undefined, getLabel("confirm.nearWeight"));
             addChangeCheckboxes(listContent, weightSubChanges, itemCheckboxes, beforeWidth);
         }
         if (missingChanges.length > 0) {
-            listContent.add("statictext", undefined, L("confirm.notInstalled"));
+            listContent.add("statictext", undefined, getLabel("confirm.notInstalled"));
             var missingNames = uniqueArray(extractNewFontNames(missingChanges));
             for (var k = 0; k < missingNames.length; k++) {
                 listContent.add("statictext", undefined, "　" + missingNames[k]);
             }
         }
 
-        confirmDialog.add("statictext", undefined, L("confirm.prompt"));
+        confirmDialog.add("statictext", undefined, getLabel("confirm.prompt"));
 
         var confirmButtonRow = confirmDialog.add("group");
         confirmButtonRow.orientation = "row";
         confirmButtonRow.alignment = "right";
-        var confirmCancelButton = confirmButtonRow.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var confirmRunButton = confirmButtonRow.add("button", undefined, L("button.run"), { name: "ok" });
+        var confirmCancelButton = confirmButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var confirmRunButton = confirmButtonRow.add("button", undefined, getLabel("button.run"), { name: "ok" });
         confirmCancelButton.onClick = function () { confirmDialog.close(0); };
         confirmRunButton.onClick = function () { confirmDialog.close(1); };
 
@@ -1399,7 +1568,14 @@ function setupGroup(group, orientation, spacing) {
         return { ok: true, selected: selected };
     }
 
-    /* 変更項目をチェックボックス（既定 ON）として追加 / Add change items as checkboxes (on by default) */
+    /**
+     * 変更内容 1 件ごとのチェックボックスを追加する
+     * @param {object} parent 追加先のコンテナ
+     * @param {Array<object>} changes 変更内容
+     * @param {Array<object>} itemCheckboxes 収集先の配列
+     * @param {number} beforeWidth 「変更前」列の幅（px）
+     * @returns {void}
+     */
     function addChangeCheckboxes(parent, changes, itemCheckboxes, beforeWidth) {
         for (var i = 0; i < changes.length; i++) {
             var change = changes[i];
@@ -1423,7 +1599,11 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* PostScript 名を和文表示名に変換。未取得時は元の名前 / Convert PostScript name to a Japanese display name (falls back to the PostScript name) */
+    /**
+     * 確認ダイアログ用に和文フォント名へ整形する
+     * @param {string} fontName フォント名
+     * @returns {string} 表示用の名前
+     */
     function toDisplayFontName(psName) {
         var font = allFontByPs.hasOwnProperty(psName) ? allFontByPs[psName] : null;
         if (!font) return psName;
@@ -1436,7 +1616,12 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* 「変更前」列に必要な最大幅（チェックボックスのボックス幅＋余白を加味）/ Max width needed for the "before" column, incl. checkbox box & margin */
+    /**
+     * 「変更前」列の幅をそろえるための最大幅を求める
+     * @param {Window} dialog 対象のダイアログ
+     * @param {Array<Array<object>>} changeGroups 変更内容のグループ
+     * @returns {number} 列の幅（px）
+     */
     function computeBeforeColumnWidth(dialog, changeLists) {
         var graphics = dialog.graphics;
         var maxTextWidth = 0;
@@ -1451,7 +1636,12 @@ function setupGroup(group, orientation, spacing) {
         return maxTextWidth + 30; // チェックボックスのボックス＋すき間 / checkbox box + gap
     }
 
-    /* 選択された（または全件の）変更を変換マップに追加 / Add selected (or all) changes to the name map */
+    /**
+     * チェックされた変更内容だけを集める
+     * @param {Array<object>} itemCheckboxes チェックボックスの配列
+     * @param {object} selected 収集先のマップ
+     * @returns {void}
+     */
     function addSelectedChanges(changes, nameMap, selectedOldNames) {
         for (var i = 0; i < changes.length; i++) {
             var change = changes[i];
@@ -1461,7 +1651,11 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* 変更リストから新フォント名だけを取り出す / Extract new font names from a change list */
+    /**
+     * 変更後のフォント名を重複なく集める
+     * @param {Array<object>} changes 変更内容
+     * @returns {Array<string>} フォント名の配列
+     */
     function extractNewFontNames(changes) {
         var newNames = [];
         for (var i = 0; i < changes.length; i++) {
@@ -1474,7 +1668,12 @@ function setupGroup(group, orientation, spacing) {
     // 適用 / Apply
     // =========================================
 
-    /* ターゲットにフォント変更を適用（ロックは一時解除）/ Apply font changes to a target */
+    /**
+     * 1 つの対象テキストへフォント変更を適用する
+     * @param {object} target 対象テキスト
+     * @param {object} selected 適用する変更内容
+     * @returns {number} 変更した箇所の数
+     */
     function applyChangesToTarget(target, nameMap) {
         var ranges = target.ranges;
 
@@ -1526,7 +1725,12 @@ function setupGroup(group, orientation, spacing) {
         return changed ? 1 : 0;
     }
 
-    /* ターゲットのフレーム・レイヤー・祖先グループのロックを一時解除 / Temporarily unlock a target's containers */
+    /**
+     * 処理のためにフレームのロックを一時解除する
+     * @param {object} target 対象テキスト
+     * @param {Array<object>} unlocked 復元用の記録
+     * @returns {void}
+     */
     function unlockFramesFor(target) {
         var saved = [];
         if (!includeLocked) return saved;
@@ -1547,7 +1751,12 @@ function setupGroup(group, orientation, spacing) {
         return saved;
     }
 
-    /* ロックされていれば解除し、復元対象として記録 / Unlock if locked and remember for restore */
+    /**
+     * ロック解除したフレームを復元用に記録する
+     * @param {Array<object>} unlocked 復元用の記録
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {void}
+     */
     function pushUnlock(container, saved) {
         try {
             if (container.locked) {
@@ -1557,14 +1766,22 @@ function setupGroup(group, orientation, spacing) {
         } catch (e) { }
     }
 
-    /* 記録したコンテナのロックを戻す / Restore lock state of remembered containers */
+    /**
+     * 一時解除したロックを元に戻す
+     * @param {Array<object>} unlocked 復元用の記録
+     * @returns {void}
+     */
     function restoreLocks(saved) {
         for (var i = 0; i < saved.length; i++) {
             try { saved[i].locked = true; } catch (e) { }
         }
     }
 
-    /* スタイルコレクションにフォント変更を適用 / Apply font changes to a style collection */
+    /**
+     * 段落・文字スタイルへフォント変更を適用する
+     * @param {object} selected 適用する変更内容
+     * @returns {number} 変更した件数
+     */
     function applyChangesToStyles(styles, nameMap) {
         for (var k = 0; k < styles.length; k++) {
             var psName = styleFontPsName(styles[k]);
@@ -1577,7 +1794,11 @@ function setupGroup(group, orientation, spacing) {
         }
     }
 
-    /* 合成フォントの各エントリにフォント変更を適用 / Apply font changes to composite font entries */
+    /**
+     * 合成フォントへフォント変更を適用する
+     * @param {object} selected 適用する変更内容
+     * @returns {number} 変更した件数
+     */
     function applyChangesToCompositeFonts(nameMap) {
         var compositeFonts = activeDocument.compositeFonts;
         for (var c = 0; c < compositeFonts.length; c++) {
@@ -1598,21 +1819,37 @@ function setupGroup(group, orientation, spacing) {
     // ユーティリティ / Utilities
     // =========================================
 
-    /* ダイアログにパネルを追加（共通設定）/ Add a panel to the dialog (shared setup) */
+    /**
+     * ラベル付きのパネルを追加する
+     * @param {object} parent 追加先のコンテナ
+     * @param {string} labelPath パネル名のラベルキー
+     * @param {number} spacing 要素間隔
+     * @returns {Panel} 追加したパネル
+     */
     function addPanel(parent, labelPath, spacing) {
-        var panel = parent.add("panel", undefined, L(labelPath));
+        var panel = parent.add("panel", undefined, getLabel(labelPath));
         setupPanel(panel, spacing);
         return panel;
     }
 
-    /* ラジオ 3 択（あり/なし/現状維持）の状態を返す / Return tri-state radio mode (on/off/keep) */
+    /**
+     * 3 択ラジオ（現状維持／なし／あり）の選択値を取得する
+     * @param {RadioButton} keepRadio 「現状維持」のラジオ
+     * @param {RadioButton} offRadio 「なし」のラジオ
+     * @returns {string} 選択値
+     */
     function radioMode(onRadio, offRadio) {
         if (onRadio.value) return "on";
         if (offRadio.value) return "off";
         return "keep";
     }
 
-    /* 配列中の位置を返す（ES3 互換）/ indexOf for arrays (ES3 compatible) */
+    /**
+     * 配列内で値が現れる位置を探す
+     * @param {Array} list 対象の配列
+     * @param {*} value 探す値
+     * @returns {number} 見つかった位置。なければ -1
+     */
     function indexOfArray(arr, value) {
         for (var i = 0; i < arr.length; i++) {
             if (arr[i] === value) return i;
@@ -1620,7 +1857,11 @@ function setupGroup(group, orientation, spacing) {
         return -1;
     }
 
-    /* 重複を除いた配列を返す / Return array with duplicates removed */
+    /**
+     * 配列から重複を取り除く
+     * @param {Array} list 対象の配列
+     * @returns {Array} 重複を除いた配列
+     */
     function uniqueArray(arr) {
         var seen = {};
         var unique = [];

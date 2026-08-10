@@ -1,68 +1,110 @@
 #target indesign
 
-    /*
-    
-    ### 概要
-    
-    - 選択中の表に対して、行の高さを設定します。
-    - ［範囲］で、現在の選択範囲・選択中の表が属するストーリー・ドキュメント全体のいずれを対象にするかを切り替えられます。ストーリー／ドキュメントを選ぶと、複数の表へまとめて適用します。
-    - 表全体、見出し行を除く全体、または選択した行のみを対象にできます。「選択した行のみ」は範囲が選択範囲のときだけ有効です。
-    - 選択した行は行オブジェクトではなく行インデックスで保持し、適用時に再解決します。
-    - 複数の表が混在する選択はエラーにします。
-    - すべてのセルを選択している場合は、選択行ではなく表全体として扱います。
-    - 行の高さは手動入力で指定でき、初期値には現在の行高を使います。対象行がすべて同じ高さならその値を表示し、そうでない場合は見出し行を除く平均値を表示します。入力値はドキュメントの縦方向単位で表示・入力し、内部では pt に変換して適用します。
-    - プレビューは常に有効で、結果を確認しながら調整できます。表全体を対象にしているときのみ、ダイアログ表示中の選択ハイライトを解除し、閉じた後に元の選択を復元します。
-    - プレビュー適用と最終適用は共通ロジックに寄せ、ダイアログは設定状態を返し、適用はメイン処理側で行います。
-    - 左下には画面モード切り替えボタンと、親テキストフレームを内容に合わせてフィットする［親フレームの調整］ボタンを配置しています。
-    - 画面モード切り替えボタンは動作ベースの文言（Enter Preview / Exit Preview）を使います。
-    
-    ### Overview
-    
-    - Sets row heights for the selected table.
-    - The Scope setting switches whether to target the current selection, the story that contains the selected table, or the whole document. Choosing Story or Document applies the change to multiple tables at once.
-    - You can target the whole table, the whole table except header rows, or only the selected rows. "Selected Rows" is available only when the scope is Selection.
-    - Selected rows are stored as row indices rather than row objects and are resolved again when applied.
-    - Selections that mix multiple tables are treated as an error.
-    - If all cells are selected, the script treats the target as the whole table rather than selected rows.
-    - Row height can be set manually, and the initial value is based on the current row height. If all target rows share the same height, that value is shown; otherwise, the average of the non-header rows is shown. The input value is shown and entered in the document's vertical units, then converted internally to points.
-    - Preview is always enabled so you can adjust the setting while seeing the result. Only when the whole table is targeted, the script clears the selection highlight while the dialog is open and restores the original selection after closing.
-    - Preview apply and final apply share the same apply logic, while the dialog returns state and the main flow performs the actual apply.
-    - At the lower left, the dialog includes a screen-mode toggle button and a Fit Parent Frame button that fits the parent text frame to its content.
-    - The screen-mode toggle button uses action-oriented labels (Enter Preview / Exit Preview).
-    
-    ### 更新履歴 / Changelog
-    
-    - v1.0.0 (20260420) : Initial version
-    - v1.2.1 (20260420) : Clear selection highlight while the dialog is open and restore the original selection after closing
-    - v1.3.1 (20260609) : Wire up the Scope panel (Document / Story / Selection) so it actually selects which tables are targeted
-    
-    */
+/*
+ * TableRowHeightManager.jsx
+ *
+ * 選択した表の行の高さを、範囲（選択範囲／ストーリー／ドキュメント）と対象行を指定しながらプレビュー付きで設定します。
+ * 詳細は README を参照してください。
+ */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TableRowHeightManager";        /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-09";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/TableRowHeightManager.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/TableRowHeightManager.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
     (function () {
 
         // =========================================
-        // バージョン / Version
+        // ユーザー設定 / User settings
         // =========================================
 
-        var SCRIPT_VERSION = "v1.3.1";
-
-        // =========================================
-        // ユーザー設定 / User Settings
-        // =========================================
-
-        /* 行の高さの下限（pt）。InDesign の最小行高（約 0.0139 inch ≒ 1pt）に合わせる / Minimum row height in points (InDesign's own minimum is about 0.0139 inch ≈ 1pt) */
+        /* 行の高さの下限（pt）。InDesign の最小行高（約 0.0139 inch ≒ 1pt）に合わせる
+           / Minimum row height in points; InDesign's own minimum is about 0.0139 inch (≈ 1pt) */
         var MIN_ROW_HEIGHT_PT = 1.0008;
 
         // =========================================
-        // ローカライズ / Localization
+        // レイアウト設定 / Layout settings
         // =========================================
 
+        /* 行高入力欄の文字数 / Character width of the row-height field */
+        var ROW_HEIGHT_INPUT_CHARACTERS = 5;
+
+        // =========================================
+        // ラベル定義 / Labels
+        // =========================================
+
+        /**
+         * UI 言語を判定する
+         * @returns {string} "ja" または "en"
+         */
         function getCurrentLang() {
-            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+            return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
         var currentLanguage = getCurrentLang();
 
-        /* 日英ラベル定義 / Japanese-English label definitions */
         var LABELS = {
             dialog: {
                 title: { ja: "行の高さを設定", en: "Set Row Height" }
@@ -144,29 +186,39 @@
             },
             progress: {
                 title: { ja: "行の高さを適用中", en: "Applying Row Heights" }
+            },
+            undo: {
+                applyRowHeight: { ja: "行の高さを設定", en: "Set Row Height" }
             }
         };
 
-        /* ドット区切りパスでラベルを取得し、{slash} を / に置換 / Resolve a dotted label path and replace {slash} with / */
-        function L(path) {
-            var parts = path.split(".");
+        /**
+         * ドット区切りキーでラベルを取得する（{slash} は / に置換）
+         * @param {string} labelKey 例: "dialog.title"
+         * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+         */
+        function getLabel(labelKey) {
+            var keyParts = labelKey.split(".");
             var node = LABELS;
-            for (var i = 0; i < parts.length; i++) {
-                if (node && node.hasOwnProperty(parts[i])) {
-                    node = node[parts[i]];
+            for (var i = 0; i < keyParts.length; i++) {
+                if (node && node.hasOwnProperty(keyParts[i])) {
+                    node = node[keyParts[i]];
                 } else {
-                    return path;
+                    return labelKey;
                 }
             }
-            var text = (node && node[currentLanguage]) ? node[currentLanguage] : path;
-            return text.replace(/\{slash\}/g, "/");
+            var labelText = (node && node[currentLanguage]) ? node[currentLanguage] : labelKey;
+            return labelText.replace(/\{slash\}/g, "/");
         }
 
         // =========================================
         // 単位 / Units
         // =========================================
 
-        /* 環境設定の単位ラベルを取得 / Get unit label from preferences */
+        /**
+         * 環境設定の縦方向単位のラベルを取得する
+         * @returns {string} 単位のラベル
+         */
         function getUnitLabel() {
             try {
                 var unit = app.activeDocument.viewPreferences.verticalMeasurementUnits;
@@ -192,7 +244,10 @@
             }
         }
 
-        /* 単位ラベルから MeasurementUnits を推定 / Resolve MeasurementUnits from document preferences */
+        /**
+         * ドキュメントの縦方向の単位を取得する
+         * @returns {MeasurementUnits} 縦方向の単位
+         */
         function getDocumentVerticalUnit() {
             try {
                 return app.activeDocument.viewPreferences.verticalMeasurementUnits;
@@ -201,7 +256,11 @@
             }
         }
 
-        /* 1単位あたりの pt 数を取得 / Get points per one unit */
+        /**
+         * 1 単位あたりのポイント数を返す
+         * @param {MeasurementUnits} unit 対象の単位
+         * @returns {number} 1 単位あたりのポイント数
+         */
         function getPointsPerUnit(unit) {
             switch (unit) {
                 case MeasurementUnits.MILLIMETERS: return 72 / 25.4;
@@ -218,17 +277,31 @@
             }
         }
 
-        /* 表示単位の値を pt に変換 / Convert a value in display units to points */
+        /**
+         * 指定単位の数値をポイントへ換算する
+         * @param {number} value 換算元の数値
+         * @param {MeasurementUnits} unit 換算元の単位
+         * @returns {number} ポイント値
+         */
         function convertToPointsByUnit(value, unit) {
             return value * getPointsPerUnit(unit);
         }
 
-        /* pt を表示単位の値に変換 / Convert points to a value in display units */
+        /**
+         * ポイント値を指定単位の数値へ換算する
+         * @param {number} value ポイント値
+         * @param {MeasurementUnits} unit 換算先の単位
+         * @returns {number} 指定単位での数値
+         */
         function convertFromPointsByUnit(value, unit) {
             return value / getPointsPerUnit(unit);
         }
 
-        /* 表示用の数値を整形 / Format display value */
+        /**
+         * 入力欄に表示する数値を整形する
+         * @param {number} value 表示する数値
+         * @returns {string} 整形した文字列
+         */
         function formatDisplayValue(value) {
             if (Math.abs(value - Math.round(value)) < 0.0001) return String(Math.round(value));
             return String(Math.round(value * 1000) / 1000);
@@ -238,7 +311,11 @@
         // ユーティリティ / Utilities
         // =========================================
 
-        /* 選択ノードから表・セル・行へさかのぼる / Walk up from a selected node to its table, cell, or row */
+        /**
+         * 親方向にたどって表とその経路情報を求める
+         * @param {object} start 起点となるオブジェクト
+         * @returns {object|null} 表と経路の情報。見つからない場合は null
+         */
         function walkUpToTable(start) {
             var node = start;
             var foundCell = null;
@@ -258,17 +335,30 @@
             return { table: foundTable, cell: foundCell, row: foundRow, node: start };
         }
 
-        /* 行インデックスを重複なく集める収集オブジェクト / A collector that gathers unique row indices */
+        /**
+         * 行インデックスを重複なく集めるコレクタを作る
+         * @returns {object} 行インデックスを追加・取得するオブジェクト
+         */
         function createRowIndexCollector() {
             var rowMap = {};
             var hasSpecificRows = false;
 
+            /**
+             * 行インデックスを 1 つ追加する
+             * @param {number} index 行インデックス
+             * @returns {void}
+             */
             function addRowIndex(index) {
                 if (index === undefined || index === null) return;
                 rowMap[index] = true;
                 hasSpecificRows = true;
             }
 
+            /**
+             * 行オブジェクトの配列からインデックスを追加する
+             * @param {Array<Row>} rows 行の配列
+             * @returns {void}
+             */
             function addRowsFromRows(rows) {
                 if (!rows || rows.length === 0) return false;
                 var added = false;
@@ -281,6 +371,11 @@
                 return added;
             }
 
+            /**
+             * セルの配列から行インデックスを追加する
+             * @param {Array<Cell>} cells セルの配列
+             * @returns {void}
+             */
             function addRowsFromCells(cells) {
                 if (!cells || cells.length === 0) return false;
                 var added = false;
@@ -293,6 +388,10 @@
                 return added;
             }
 
+            /**
+             * 集めた行インデックスを昇順の配列で返す
+             * @returns {Array<number>} 昇順の行インデックス
+             */
             function toSortedIndices() {
                 var rowIndices = [];
                 for (var k in rowMap) {
@@ -311,7 +410,12 @@
             };
         }
 
-        /* 選択 1 件分の行インデックスを収集オブジェクトへ集める / Collect the row indices for a single selection item into the collector */
+        /**
+         * 選択項目から行インデックスを収集する
+         * @param {object} walkResult walkUpToTable の結果
+         * @param {object} collector 行インデックスのコレクタ
+         * @returns {void}
+         */
         function collectRowIndicesFromItem(walkResult, collector) {
             var node = walkResult.node;
 
@@ -341,6 +445,11 @@
             } catch (e) { }
         }
 
+        /**
+         * 選択から対象の表と選択行インデックスを特定する
+         * @param {Array} selection 選択オブジェクトの配列
+         * @returns {object|null} 表と選択行の情報。特定できない場合は null
+         */
         function resolveTargetFromSelection(selection) {
             if (!selection || selection.length === 0) return null;
 
@@ -375,7 +484,10 @@
             return { table: table, rowIndices: rowIndices };
         }
 
-        /* ドキュメント内のすべての表を取得 / Collect all tables in the document */
+        /**
+         * ドキュメント内のすべての表を集める
+         * @returns {Array<Table>} 表の配列
+         */
         function collectDocumentTables() {
             var tables = [];
             try {
@@ -388,7 +500,11 @@
             return tables;
         }
 
-        /* 指定した表が属するストーリー内のすべての表を取得 / Collect all tables in the story that contains the given table */
+        /**
+         * 基準の表が属するストーリー内の表を集める
+         * @param {Table} baseTable 基準となる表
+         * @returns {Array<Table>} 表の配列
+         */
         function collectStoryTables(baseTable) {
             try {
                 var story = baseTable.parentStory;
@@ -401,18 +517,31 @@
             }
         }
 
-        /* 範囲設定に応じて対象となる表の配列を返す / Resolve the array of target tables for the current scope */
+        /**
+         * 指定した範囲に含まれる表を求める
+         * @param {string} scope "document" / "story" / "selection"
+         * @param {Table} baseTable 基準となる表
+         * @returns {Array<Table>} 対象の表の配列
+         */
         function resolveScopeTables(scope, baseTable) {
             if (scope === "document") return collectDocumentTables();
             if (scope === "story") return collectStoryTables(baseTable);
             return [baseTable];
         }
 
-        /* 触れた表の元の行高を遅延記憶し、まとめて復元する / Lazily snapshot original row heights of touched tables and restore them together */
+        /**
+         * 行の高さを一時保存して復元できるストアを作る
+         * @returns {object} 保存と復元を行うオブジェクト
+         */
         function createRowSnapshotStore() {
             var entries = [];
             var seen = [];
 
+            /**
+             * まだ保存していない表の行高を控える
+             * @param {Table} table 対象の表
+             * @returns {void}
+             */
             function ensure(table) {
                 for (var i = 0; i < seen.length; i++) {
                     if (seen[i] === table) return;
@@ -422,6 +551,10 @@
                 seen.push(table);
             }
 
+            /**
+             * 控えておいたすべての行高を元に戻す
+             * @returns {void}
+             */
             function restoreAll() {
                 for (var i = 0; i < entries.length; i++) {
                     restoreRowHeights(entries[i].rows, entries[i].heights);
@@ -433,14 +566,23 @@
 
 
 
-        /* 表全体の行を取得 / Get all rows of the table */
+        /**
+         * 表のすべての行を取得する
+         * @param {Table} table 対象の表
+         * @returns {Array<Row>} 行の配列
+         */
         function getAllRows(table) {
             var all = [];
             for (var i = 0; i < table.rows.length; i++) all.push(table.rows[i]);
             return all;
         }
 
-        /* 保存した行インデックスから行配列を再解決 / Re-resolve rows from saved row indices */
+        /**
+         * 指定したインデックスの行を取得する
+         * @param {Table} table 対象の表
+         * @param {Array<number>} rowIndices 行インデックスの配列
+         * @returns {Array<Row>} 行の配列
+         */
         function getRowsByIndices(table, rowIndices) {
             if (!rowIndices || rowIndices.length === 0) return [];
             var rows = [];
@@ -453,7 +595,11 @@
             return rows;
         }
 
-        /* 見出し行を除く全行を取得 / Get all rows excluding header rows */
+        /**
+         * 見出し行を除いた本文行を取得する
+         * @param {Table} table 対象の表
+         * @returns {Array<Row>} 行の配列
+         */
         function getBodyRows(table) {
             var headerCount = 0;
             try { headerCount = table.headerRowCount || 0; } catch (e) { }
@@ -464,7 +610,11 @@
             return rows;
         }
 
-        /* すべての対象行が同じ高さか確認し、一致していればその値を返す / Return the common row height if all target rows match */
+        /**
+         * すべての行が同じ高さならその値を返す
+         * @param {Array<Row>} rows 対象の行
+         * @returns {number|null} 共通の高さ。異なる場合は null
+         */
         function getCommonRowHeight(rows) {
             if (!rows || rows.length === 0) return null;
             var first = rows[0].height;
@@ -474,7 +624,11 @@
             return first;
         }
 
-        /* 行高の平均値を返す / Return the average row height */
+        /**
+         * 行の高さの平均を求める
+         * @param {Array<Row>} rows 対象の行
+         * @returns {number} 平均の高さ
+         */
         function getAverageRowHeight(rows) {
             if (!rows || rows.length === 0) return null;
             var total = 0;
@@ -484,7 +638,12 @@
             return total / rows.length;
         }
 
-        /* ダイアログ初期値の行高を求める / Resolve the initial row height for the dialog */
+        /**
+         * ダイアログの初期値に使う行の高さを求める
+         * @param {Table} table 対象の表
+         * @param {Array<number>} selectedRowIndices 選択行のインデックス
+         * @returns {number} 初期値（pt）
+         */
         function getInitialRowHeightForDialog(table, selectedRowIndices) {
             var targetRows = resolveTargetRows(table, selectedRowIndices, selectedRowIndices && selectedRowIndices.length > 0 ? "selected" : "whole");
             var commonHeight = getCommonRowHeight(targetRows);
@@ -501,7 +660,12 @@
         // プログレス / Progress
         // =========================================
 
-        /* 適用中の進捗を表示する palette を作る / Build a palette that shows apply progress */
+        /**
+         * 進捗表示用のパレットを作る
+         * @param {string} title タイトル
+         * @param {number} maxValue 進捗の最大値
+         * @returns {object} 更新と終了を行うオブジェクト
+         */
         function createProgressBar(title, maxValue) {
             var win = new Window("palette", title);
             win.orientation = "column";
@@ -532,6 +696,10 @@
         // スクリーンモード切り替え / Screen mode toggle
         // =========================================
 
+        /**
+         * 現在プレビュー表示になっているかを判定する
+         * @returns {boolean} プレビュー表示なら true
+         */
         function isInPreviewScreenMode() {
             try {
                 return app.activeWindow && app.activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE;
@@ -540,6 +708,10 @@
             }
         }
 
+        /**
+         * 標準表示とプレビュー表示を切り替える
+         * @returns {void}
+         */
         function toggleScreenPreviewMode() {
             try {
                 var activeWindow = app.activeWindow;
@@ -552,10 +724,19 @@
             } catch (e) { /* ignore */ }
         }
 
+        /**
+         * 画面モードに応じたトグルボタンのラベルを返す
+         * @returns {string} ボタンに表示する文字列
+         */
         function getScreenModeToggleButtonLabel() {
-            return isInPreviewScreenMode() ? L('button.exitPreview') : L('button.enterPreview');
+            return isInPreviewScreenMode() ? getLabel('button.exitPreview') : getLabel('button.enterPreview');
         }
 
+        /**
+         * トグルボタンのラベルを現在の画面モードに合わせて更新する
+         * @param {Button} button 対象のボタン
+         * @returns {void}
+         */
         function updateScreenModeToggleButtonLabel(button) {
             button.text = getScreenModeToggleButtonLabel();
         }
@@ -606,12 +787,23 @@
         // 行の高さ操作 / Row height operations
         // =========================================
 
+        /**
+         * 指定した行に高さを適用する
+         * @param {Array<Row>} rows 対象の行
+         * @param {number} height 行の高さ（pt）
+         * @returns {void}
+         */
         function applyRowHeight(rows, height) {
             for (var i = 0; i < rows.length; i++) {
                 rows[i].height = height;
             }
         }
 
+        /**
+         * 行の現在の高さを控える
+         * @param {Array<Row>} rows 対象の行
+         * @returns {Array<number>} 各行の高さ
+         */
         function getOriginalHeights(rows) {
             var heights = [];
             for (var i = 0; i < rows.length; i++) {
@@ -620,13 +812,25 @@
             return heights;
         }
 
+        /**
+         * 控えておいた行の高さを戻す
+         * @param {Array<Row>} rows 対象の行
+         * @param {Array<number>} heights 戻す高さの配列
+         * @returns {void}
+         */
         function restoreRowHeights(rows, heights) {
             for (var i = 0; i < rows.length; i++) {
                 rows[i].height = heights[i];
             }
         }
 
-        /* 現在の対象行を解決 / Resolve current target rows */
+        /**
+         * 対象モードに応じて処理する行を求める
+         * @param {Table} table 対象の表
+         * @param {Array<number>|null} selectedRowIndices 選択行のインデックス
+         * @param {string} targetMode "whole" / "body" / "selected"
+         * @returns {Array<Row>} 対象の行
+         */
         function resolveTargetRows(table, selectedRowIndices, targetMode) {
             var hasSelection = !!(selectedRowIndices && selectedRowIndices.length > 0);
             if (targetMode === "selected" && hasSelection) return getRowsByIndices(table, selectedRowIndices);
@@ -634,7 +838,10 @@
             return getAllRows(table);
         }
 
-        /* 現在の選択を保存 / Save current selection */
+        /**
+         * 実行前の選択状態を控えておく
+         * @returns {Array} 復元用の選択情報
+         */
         function getSelectionSnapshot() {
             var snapshot = [];
             try {
@@ -644,7 +851,11 @@
             return snapshot;
         }
 
-        /* 保存した選択を復元 / Restore saved selection */
+        /**
+         * 控えておいた選択状態を復元する
+         * @param {Array} snapshot 復元用の選択情報
+         * @returns {void}
+         */
         function restoreSelectionSnapshot(snapshot) {
             try {
                 if (snapshot && snapshot.length > 0) {
@@ -655,6 +866,11 @@
             } catch (e) { }
         }
 
+        /**
+         * 表を含む親テキストフレームを内容に合わせる
+         * @param {Table} table 対象の表
+         * @returns {void}
+         */
         function fitParentFrameToContent(table) {
             try {
                 var parentFrame = null;
@@ -707,6 +923,13 @@
         // ダイアログ / Dialog
         // =========================================
 
+        /**
+         * 行の高さを設定するダイアログを表示する
+         * @param {Table} table 対象の表
+         * @param {Array<number>} selectedRowIndices 選択行のインデックス
+         * @param {number} defaultValuePt 初期値（pt）
+         * @returns {object|null} 設定内容。キャンセル時は null
+         */
         function showRowHeightDialog(table, selectedRowIndices, defaultValuePt) {
             /* 触れた表の元の高さを遅延記憶（範囲切り替えに追従） / Lazily remember original heights of touched tables (follows scope changes) */
             var snapshot = createRowSnapshotStore();
@@ -714,14 +937,12 @@
             var documentUnit = getDocumentVerticalUnit();
             var defaultValueDisplay = convertFromPointsByUnit(defaultValuePt, documentUnit);
 
-            var dlg = new Window("dialog", L('dialog.title') + ' ' + SCRIPT_VERSION);
-            dlg.orientation = "column";
-            dlg.alignChildren = "fill";
+            var dlg = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+            setupWindow(dlg, 10);
 
             var contentGroup = dlg.add("group");
-            contentGroup.orientation = "row";
+            setupRow(contentGroup, "fill", COLUMN_SPACING);
             contentGroup.alignChildren = ["fill", "top"];
-            contentGroup.alignment = "fill";
 
             var leftColumn = contentGroup.add("group");
             leftColumn.orientation = "column";
@@ -734,16 +955,17 @@
             rightColumn.alignment = ["right", "fill"];
 
             /* 範囲選択パネル / Scope selection panel */
-            var scopeGroup = leftColumn.add("panel", undefined, L('scope.panel'));
-            scopeGroup.orientation = "column";
+            var scopeGroup = leftColumn.add("panel", undefined, getLabel('scope.panel'));
+
+            setupPanel(scopeGroup, 6);
+
             scopeGroup.alignChildren = "left";
-            scopeGroup.margins = [15, 20, 15, 10];
-            var scopeDocument = scopeGroup.add("radiobutton", undefined, L('scope.document'));
-            var scopeStory = scopeGroup.add("radiobutton", undefined, L('scope.story'));
-            var scopeSelection = scopeGroup.add("radiobutton", undefined, L('scope.selection'));
-            scopeDocument.helpTip = L('tooltip.scopeDocument');
-            scopeStory.helpTip = L('tooltip.scopeStory');
-            scopeSelection.helpTip = L('tooltip.scopeSelection');
+            var scopeDocument = scopeGroup.add("radiobutton", undefined, getLabel('scope.document'));
+            var scopeStory = scopeGroup.add("radiobutton", undefined, getLabel('scope.story'));
+            var scopeSelection = scopeGroup.add("radiobutton", undefined, getLabel('scope.selection'));
+            scopeDocument.helpTip = getLabel('tooltip.scopeDocument');
+            scopeStory.helpTip = getLabel('tooltip.scopeStory');
+            scopeSelection.helpTip = getLabel('tooltip.scopeSelection');
             scopeSelection.value = true;
 
             scopeDocument.onClick = function () { syncTargetEnabled(); updatePreview(); };
@@ -751,13 +973,14 @@
             scopeSelection.onClick = function () { syncTargetEnabled(); updatePreview(); };
 
             /* 対象選択パネル / Target selection panel */
-            var targetGroup = leftColumn.add("panel", undefined, L('target.panel'));
-            targetGroup.orientation = "column";
+            var targetGroup = leftColumn.add("panel", undefined, getLabel('target.panel'));
+
+            setupPanel(targetGroup, 6);
+
             targetGroup.alignChildren = "left";
-            targetGroup.margins = [15, 20, 15, 10];
-            var targetWhole = targetGroup.add("radiobutton", undefined, L('target.whole'));
-            var targetBody = targetGroup.add("radiobutton", undefined, L('target.wholeNoHead'));
-            var targetSel = targetGroup.add("radiobutton", undefined, L('target.selected'));
+            var targetWhole = targetGroup.add("radiobutton", undefined, getLabel('target.whole'));
+            var targetBody = targetGroup.add("radiobutton", undefined, getLabel('target.wholeNoHead'));
+            var targetSel = targetGroup.add("radiobutton", undefined, getLabel('target.selected'));
             targetSel.enabled = hasSelection;
             if (hasSelection) {
                 targetSel.value = true;
@@ -766,26 +989,30 @@
             }
 
             /* モード選択パネル / Mode selection panel */
-            var modeGroup = leftColumn.add("panel", undefined, L('mode.panel'));
-            modeGroup.orientation = "column";
-            modeGroup.alignChildren = "left";
-            modeGroup.margins = [15, 20, 15, 10];
+            var modeGroup = leftColumn.add("panel", undefined, getLabel('mode.panel'));
 
-            var modeMinimum = modeGroup.add("radiobutton", undefined, L('mode.minimum'));
-            var modeSpecified = modeGroup.add("radiobutton", undefined, L('mode.specified'));
-            modeMinimum.helpTip = L('tooltip.modeMinimum');
-            modeSpecified.helpTip = L('tooltip.modeSpecified');
+            setupPanel(modeGroup, 6);
+
+            modeGroup.alignChildren = "left";
+
+            var modeMinimum = modeGroup.add("radiobutton", undefined, getLabel('mode.minimum'));
+            var modeSpecified = modeGroup.add("radiobutton", undefined, getLabel('mode.specified'));
+            modeMinimum.helpTip = getLabel('tooltip.modeMinimum');
+            modeSpecified.helpTip = getLabel('tooltip.modeSpecified');
             modeMinimum.value = true;
 
             var manualRow = modeGroup.add("group");
-            manualRow.orientation = "row";
+            setupRow(manualRow, "left", 6);
             manualRow.alignChildren = ["left", "center"];
             var input = manualRow.add("edittext", undefined, formatDisplayValue(defaultValueDisplay));
-            input.characters = 5;
-            input.helpTip = L('tooltip.rowHeightInput');
+            input.characters = ROW_HEIGHT_INPUT_CHARACTERS;
+            input.helpTip = getLabel('tooltip.rowHeightInput');
             manualRow.add("statictext", undefined, getUnitLabel());
 
-            /* 指定値モードのときだけ入力欄を有効化 / Enable the input only in the specified-value mode */
+            /**
+             * 指定値モードのときだけ入力欄を有効にする
+             * @returns {void}
+             */
             function syncInputEnabled() {
                 input.enabled = modeSpecified.value;
             }
@@ -808,8 +1035,8 @@
             actionGroup.orientation = "column";
             actionGroup.alignChildren = ["fill", "top"];
             actionGroup.alignment = ["fill", "top"];
-            var okBtn = actionGroup.add("button", undefined, L('button.ok'), { name: "ok" });
-            var cancelBtn = actionGroup.add("button", undefined, L('button.cancel'), { name: "cancel" });
+            var okBtn = actionGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
+            var cancelBtn = actionGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
 
             /* OK/Cancel とプレビューボタンの間を伸ばすスペーサー / Spacer that pushes the preview button to the bottom */
             var rightSpacer = rightColumn.add("group");
@@ -817,12 +1044,11 @@
 
             /* 右カラム下部の画面モード切り替え / Screen mode toggle at the bottom of the right column */
             var screenModeGroup = rightColumn.add("group");
-            screenModeGroup.orientation = "row";
+            setupRow(screenModeGroup, "fill", 8);
             screenModeGroup.alignChildren = ["fill", "center"];
-            screenModeGroup.alignment = ["fill", "bottom"];
             var screenModeToggleBtn = screenModeGroup.add("button", undefined, getScreenModeToggleButtonLabel());
             screenModeToggleBtn.alignment = ["fill", "center"];
-            screenModeToggleBtn.helpTip = L('tooltip.screenModeToggle');
+            screenModeToggleBtn.helpTip = getLabel('tooltip.screenModeToggle');
 
             screenModeToggleBtn.onClick = function () {
                 toggleScreenPreviewMode();
@@ -830,12 +1056,13 @@
             };
 
             /* 左カラム下部のオプションパネル / Options panel at the bottom of the left column */
-            var optionsGroup = leftColumn.add("panel", undefined, L('options.panel'));
-            optionsGroup.orientation = "row";
+            var optionsGroup = leftColumn.add("panel", undefined, getLabel('options.panel'));
+
+            setupPanel(optionsGroup, 6);
+
             optionsGroup.alignChildren = ["left", "center"];
-            optionsGroup.margins = [15, 20, 15, 10];
-            var fitParentFrameBtn = optionsGroup.add("button", undefined, L('button.fitParentFrame'));
-            fitParentFrameBtn.helpTip = L('tooltip.fitParentFrame');
+            var fitParentFrameBtn = optionsGroup.add("button", undefined, getLabel('button.fitParentFrame'));
+            fitParentFrameBtn.helpTip = getLabel('tooltip.fitParentFrame');
 
             fitParentFrameBtn.onClick = function () {
                 snapshot.restoreAll();
@@ -844,25 +1071,39 @@
             };
 
 
+            /**
+             * 入力欄の値をポイント値に変換する
+             * @returns {number|null} ポイント値。無効な場合は null
+             */
             function parseValue() {
                 var v = parseFloat(input.text);
                 if (isNaN(v) || v <= 0) return null;
                 return convertToPointsByUnit(v, documentUnit);
             }
 
-            /* 現在のモードに応じた行高（pt）を取得 / Resolve the row height (pt) for the current mode */
+            /**
+             * 現在のモードに応じた行の高さ（pt）を求める
+             * @returns {number|null} 行の高さ。無効な場合は null
+             */
             function getRowHeightValue() {
                 if (modeMinimum.value) return MIN_ROW_HEIGHT_PT;
                 return parseValue();
             }
 
+            /**
+             * 選択中の範囲を取得する
+             * @returns {string} "document" / "story" / "selection"
+             */
             function getCurrentScope() {
                 if (scopeDocument.value) return "document";
                 if (scopeStory.value) return "story";
                 return "selection";
             }
 
-            /* 選択行モードは「選択範囲」のときだけ有効 / The selected-rows mode is valid only in the Selection scope */
+            /**
+             * 範囲に応じて「選択した行のみ」の有効／無効を切り替える
+             * @returns {void}
+             */
             function syncTargetEnabled() {
                 var allowSelected = (getCurrentScope() === "selection") && hasSelection;
                 targetSel.enabled = allowSelected;
@@ -871,12 +1112,20 @@
                 }
             }
 
+            /**
+             * 選択中の対象モードを取得する
+             * @returns {string} "whole" / "body" / "selected"
+             */
             function getCurrentTargetMode() {
                 if (targetSel.value && targetSel.enabled && hasSelection) return "selected";
                 if (targetBody.value) return "body";
                 return "whole";
             }
 
+            /**
+             * 現在の設定で行の高さのプレビューを描き直す
+             * @returns {void}
+             */
             function updatePreview() {
                 /* 毎回すべて元に戻してから対象表に適用 / Always restore then apply to the current target tables */
                 snapshot.restoreAll();
@@ -915,7 +1164,7 @@
             snapshot.restoreAll();
 
             if (value === null) {
-                alert(L('error.invalidNumber'));
+                alert(getLabel('error.invalidNumber'));
                 return null;
             }
             return { height: value, targetMode: finalTargetMode, scope: finalScope };
@@ -929,9 +1178,9 @@
         var target = resolveTargetFromSelection(app.selection);
 
         if (!target) {
-            alert(L('error.noTable'));
+            alert(getLabel('error.noTable'));
         } else if (target.error === "multipleTables") {
-            alert(L('error.multipleTables'));
+            alert(getLabel('error.multipleTables'));
         } else {
             var table = target.table;
             var initialHeightPt = getInitialRowHeightForDialog(table, target.rowIndices);
@@ -965,23 +1214,27 @@
                     totalRows += rows.length;
                 }
 
-                var progress = createProgressBar(L('progress.title') + ' ' + SCRIPT_VERSION, totalRows);
-                try {
-                    var doneRows = 0;
-                    for (var ji = 0; ji < jobRowSets.length; ji++) {
-                        var jobRows = jobRowSets[ji];
-                        for (var ri = 0; ri < jobRows.length; ri++) {
-                            jobRows[ri].height = result.height;
-                            doneRows++;
-                            /* 行ごとの更新は重いので間引く / Throttle updates since per-row refresh is costly */
-                            if (doneRows === totalRows || doneRows % 10 === 0) {
-                                progress.update(doneRows, doneRows + " / " + totalRows);
+                var progress = createProgressBar(getLabel('progress.title') + ' ' + SCRIPT_VERSION, totalRows);
+
+                /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+                app.doScript(function () {
+                    try {
+                        var doneRows = 0;
+                        for (var ji = 0; ji < jobRowSets.length; ji++) {
+                            var jobRows = jobRowSets[ji];
+                            for (var ri = 0; ri < jobRows.length; ri++) {
+                                jobRows[ri].height = result.height;
+                                doneRows++;
+                                /* 行ごとの更新は重いので間引く / Throttle updates since per-row refresh is costly */
+                                if (doneRows === totalRows || doneRows % 10 === 0) {
+                                    progress.update(doneRows, doneRows + " / " + totalRows);
+                                }
                             }
                         }
+                    } finally {
+                        progress.close();
                     }
-                } finally {
-                    progress.close();
-                }
+                }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel('undo.applyRowHeight'));
             }
         }
 

@@ -1,60 +1,72 @@
 #target indesign
 
-    /*
-    
-    ### スクリプト名：
-    
-    FileNameManager.jsx — 現在のドキュメントのファイル名を変更／別名で保存
-    
-    ### 概要：
+/*
+ * Id-FileNameManager.jsx
+ *
+ * アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・日付・連番・バージョンのセグメント単位で編集し、リネーム／別名保存／コピー保存を行います。
+ * 詳細は README を参照してください。
+ */
 
-    - アクティブな InDesign ドキュメントのファイル名を変更（実ファイルのリネーム）／別名で保存／コピーを保存します。
-    - 保存先は常に現在のファイルと同じフォルダ。未保存ドキュメントは保存先フォルダを選択して保存します。
-    - ファイル名を base / title / status / timestamp / page / version の各セグメントに分解し、UI から個別に編集できます。
-      - base: 先頭の固定部分。「ベース」入力欄で編集可能（検出値が初期値、空欄可）
-      - title: 「サブテキスト」ラジオで「なし / 指定（入力欄）/ 親フォルダー / 2 階層上のフォルダー」を選択
-      - status: 「ステータス」dropdown で制作ステータス（wip / draft / review / approved / flattened など）を挿入。`：` より前の値だけがファイル名に入る
-      - timestamp: 「タイムスタンプ」ラジオで「なし / YYYYMMDD / YYYY-MM-DD」を選択（デフォルト YYYYMMDD）
-      - page: 「連番」で page01 / page001 のようなページ番号セグメントを追加（保存時に同フォルダ内の最大連番 +1 へ自動繰り上げ）
-      - version: 「バージョン番号」ラジオで「なし / v1, v2… / v01, v02… / v001, v002…」を選択（元ファイルに v 番号が無ければ強制的に v01 形式）。既存の v 番号は +1、親フォルダ内に同パターンがあれば最大 v +1 まで自動繰り上げ
-    - ステータス検出、サブテキスト選択、構成要素順のカスタマイズ、連番（pageNN）、タイムスタンプ／バージョン番号の形式切替や自動繰り上げに対応します。
-    - 区切り記号統一、NFC 正規化、クリーンなファイル名処理、丸数字や法人略記などの ASCII 化など、ファイル名整形機能を搭載しています。
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "Id-FileNameManager";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-29";                   /* 更新日 / last updated */
 
-    ### 解説記事：
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/Id-FileNameManager.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/Id-FileNameManager.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹介記事 / article URL */
 
-    https://note.com/dtp_tranist/n/nc88dd887eb1c
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
 
-    ### 更新履歴：
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
 
-    - v1.0 (2026-05-27) : 初期バージョン
-    - v1.3.1 (2026-05-29) : 概要コメント整理。処理の流れと中間履歴を削除し、概要と主な機能を統合。page セグメントの説明を追加。
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
 
-    ---
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
 
-    ### Script name:
-
-    FileNameManager.jsx — Rename or Save As the Current Document
-
-    ### Overview:
-
-    - Renames the active InDesign document (true rename), saves as a new file, or saves a copy.
-    - Destination is always the same folder as the current file; for unsaved docs, a destination folder is chosen.
-    - Decomposes the filename into base / title / status / timestamp / page / version segments and lets you edit them.
-      - base: editable via the "Base" input (defaults to the detected value; may be empty)
-      - title: "Project Name" radio (None / Custom input / Parent Folder / Grandparent Folder)
-      - status: "Status" dropdown (wip / draft / review / approved / flattened, etc.); only the text before `:` is written to the filename
-      - timestamp: "Timestamp" radio selects "None / YYYYMMDD / YYYY-MM-DD" (default YYYYMMDD)
-      - page: "Sequence" adds a page number segment such as page01 / page001 and auto-bumps to (max sequence in folder) + 1 on save
-      - version: "Version" radio selects "None / v1, v2… / v01, v02… / v001, v002…". When the original has no v-number, defaults to v01 form. Existing v-numbers are bumped by +1; if files matching the same pattern exist in the parent folder, the result is bumped further to (max v) + 1.
-    - Supports status detection, project name selection from folder hierarchy, customizable segment order, sequence numbers (pageNN), timestamp/version formatting, and auto-increment.
-    - Includes separator unification, NFC normalization, filename cleaning, and ASCII conversion of symbols/corporate abbreviations for safer filename formatting.
-
-    ### Changelog:
-
-    - v1.0 (2026-05-27): Initial release
-    - v1.3.1 (2026-05-29): Cleaned up the overview comments, removed flow and intermediate history sections, merged overview and feature descriptions, and added page-segment documentation.
-    
-    */
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
     (function () {
 
@@ -168,13 +180,16 @@
             { value: 'outlined', ja: 'outlined：アウトライン済み（.ai）', en: 'outlined: Outlined (.ai)' }
         ];
 
-        /* 区切り線エントリかどうか / Whether a STATUS_ITEMS entry is a divider */
+        /**
+         * ステータス表記の区切り文字かどうかを判定する
+         * @param {string} character 判定する文字
+         * @returns {boolean} 区切り文字なら true
+         */
         function isStatusDivider(item) {
             return item && item.ja === '---';
         }
 
         var NEW_NAME_FIELD_WIDTH = 250;
-        var PANEL_MARGINS = [15, 20, 15, 10];
         var PANEL_SPACING = 8;
 
         var DIALOG_OPACITY = 0.98;
@@ -335,8 +350,12 @@
             }
         };
 
-        /* ドット記法でローカライズ済み文字列を取得 / Get the localized string by dotted key (e.g. L('dialog.title')) */
-        function L(path) {
+        /**
+         * ドット区切りキーでラベルを取得する
+         * @param {string} path 例: "dialog.title"
+         * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+         */
+        function getLabel(path) {
             var parts = String(path).split('.');
             var entry = LABELS;
             for (var i = 0; i < parts.length; i++) {
@@ -346,8 +365,12 @@
             return entry[currentLanguage] || entry.en || path;
         }
 
-        /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-        function labelText(path) {
+        /**
+         * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
+         * @param {string} path 例: "label.separator"
+         * @returns {string} コロンを付与したラベル文字列
+         */
+        function getLabelWithColon(path) {
             return L(path) + (currentLanguage === 'ja' ? '：' : ':');
         }
 
@@ -357,14 +380,23 @@
 
         var VERSION_TOKEN_RE = /^[vV]\d+$/;   // v123 / V123
 
-        /* 月（1-12）と日（1-31）の妥当性 / Validate month (1-12) and day (1-31) */
+        /**
+         * 月日として妥当な組み合わせかを判定する
+         * @param {number} month 月
+         * @param {number} day 日
+         * @returns {boolean} 妥当なら true
+         */
         function isValidMonthDay(monthStr, dayStr) {
             var m = parseInt(monthStr, 10);
             var d = parseInt(dayStr, 10);
             return m >= 1 && m <= 12 && d >= 1 && d <= 31;
         }
 
-        /* YYYYMMDD（8 桁）または YYMMDD（6 桁）の日付トークンか / Whether a token is a YYYYMMDD or YYMMDD date */
+        /**
+         * 日付セグメントとして解釈できる文字列かを判定する
+         * @param {string} token 判定する文字列
+         * @returns {boolean} 日付なら true
+         */
         function isDateToken(token) {
             var s = String(token);
             if (/^\d{8}$/.test(s)) return isValidMonthDay(s.substring(4, 6), s.substring(6, 8));
@@ -372,13 +404,20 @@
             return false;
         }
 
-        /* "v123" 形式のバージョントークンか / Whether a token is a v+digits version */
+        /**
+         * バージョンセグメントとして解釈できる文字列かを判定する
+         * @param {string} token 判定する文字列
+         * @returns {boolean} バージョンなら true
+         */
         function isVersionToken(token) {
             return VERSION_TOKEN_RE.test(String(token));
         }
 
-        /* STATUS_ITEMS のいずれかの value と完全一致（大文字小文字無視）すれば true。一致した正規 value を返す。divider は除外
-           / Match against STATUS_ITEMS values (case-insensitive); returns the canonical value or '' (skips dividers) */
+        /**
+         * ステータスセグメントとして解釈できるかを判定する
+         * @param {string} token 判定する文字列
+         * @returns {string|null} ステータス名。該当しない場合は null
+         */
         function matchStatusToken(token) {
             var s = String(token).toLowerCase();
             for (var i = 1; i < STATUS_ITEMS.length; i++) {
@@ -388,8 +427,11 @@
             return '';
         }
 
-        /* ファイル名を順序付きセグメント配列に分解。各 segment は前にあった区切り文字も保持
-           / Decompose into ordered segments; each segment stores the preceding separator */
+        /**
+         * ファイル名をセグメントの配列へ分解する
+         * @param {string} fileName 分解するファイル名
+         * @returns {Array<object>} セグメントの配列
+         */
         function parseFileName(name) {
             var split = String(name).split(/([-_])/); // ["handout","-","Adobe","-","20260422"]
             var segments = [];
@@ -398,6 +440,10 @@
             var hasDate = false, hasVersion = false, hasStatus = false;
             var currentSep = '';
 
+            /**
+             * 読み取り中のテキストを 1 セグメントとして確定する
+             * @returns {void}
+             */
             function flushText() {
                 if (!textBuffer.length) return;
                 segments.push({
@@ -463,9 +509,11 @@
             return segments;
         }
 
-        /* 複数の text セグメントが分散している（間に date/version/status が挟まる）場合、
-           それらをまとめて 1 つの text として再結合。subtext として完全な文字列を扱えるようにする
-           / Merge fragmented text segments back into one (with the in-between non-text segments inlined) */
+        /**
+         * 分断されたテキストセグメントをつなぎ直す
+         * @param {Array<object>} segments セグメントの配列
+         * @returns {Array<object>} 統合後のセグメント
+         */
         function mergeFragmentedText(segments) {
             var firstText = -1, lastText = -1;
             for (var i = 0; i < segments.length; i++) {
@@ -486,10 +534,11 @@
             return result;
         }
 
-        /* parseFileName の kind を SEGMENT_ORDER の kind に変換しつつ、現在のファイル名で
-           実際に出現した要素の並びを返す。重複・FEATURE_STATUS=false の status は除外
-           / Map parsed segment kinds to SEGMENT_ORDER kinds in appearance order;
-           dedupe and drop 'status' when FEATURE_STATUS is false */
+        /**
+         * 既存のファイル名からセグメントの並び順を推定する
+         * @param {Array<object>} segments セグメントの配列
+         * @returns {Array<string>} セグメント種別の並び
+         */
         function deriveOrderFromSegments(segments) {
             var kindToOrder = {
                 base: 'base',
@@ -510,7 +559,12 @@
             return order;
         }
 
-        /* segments から最初に出現する kind の value を取得 / Get the value of the first segment of the given kind */
+        /**
+         * 指定した種別の最初のセグメント値を取得する
+         * @param {Array<object>} segments セグメントの配列
+         * @param {string} kind セグメントの種別
+         * @returns {string} セグメントの値。なければ空文字
+         */
         function getFirstSegmentValue(segments, kind) {
             for (var i = 0; i < segments.length; i++) {
                 if (segments[i].kind === kind) return segments[i].value;
@@ -518,14 +572,22 @@
             return '';
         }
 
-        /* 文字列を左 0 パディング / Left-pad a string with zeros to the given width */
+        /**
+         * 左側をゼロ埋めして桁を揃える
+         * @param {*} value 対象の値
+         * @param {number} length 揃える桁数
+         * @returns {string} ゼロ埋めした文字列
+         */
         function padLeft(str, width) {
             while (str.length < width) str = '0' + str;
             return str;
         }
 
-        /* 今日の日付を返す。sep で日付内区切り、withTime=true で末尾に "-HHMM" を付加
-           / Today's date; with `sep` between Y/M/D parts; `withTime=true` appends "-HHMM" */
+        /**
+         * 今日の日付からタイムスタンプ文字列を作る
+         * @param {string} format 日付の書式
+         * @returns {string} タイムスタンプ
+         */
         function todayTimestamp(sep, withTime) {
             sep = sep || '';
             var d = new Date();
@@ -536,10 +598,11 @@
             return date + '-' + padLeft(String(d.getHours()), 2) + padLeft(String(d.getMinutes()), 2);
         }
 
-        /* 現在のファイル名（拡張子なし）の v 番号だけを桁数維持で +1。
-           v 番号が無ければ末尾に "-v2" を付与
-           / Bump the v-number inside the current basename in place (preserving digit width).
-           Appends "-v2" if no v-number exists. */
+        /**
+         * バージョン番号を 1 つ繰り上げる
+         * @param {string} versionText 現在のバージョン表記
+         * @returns {string} 繰り上げ後の表記
+         */
         function bumpVersionInPlace(currentBaseName) {
             var match = String(currentBaseName).match(/([vV])(\d+)/);
             if (match) {
@@ -552,9 +615,12 @@
             return currentBaseName + '-v2';
         }
 
-        /* バージョン文字列を +1。mode='padded' で 2 桁ゼロ埋め、'paddedWide' で 3 桁ゼロ埋め。
-           元バージョンが無ければ新規付与（v1 / v01 / v001）
-           / Bump the version string by +1. 'padded'=min 2 digits, 'paddedWide'=min 3. Returns v1/v01/v001 if no original */
+        /**
+         * バージョン番号を指定の書式へ整形する
+         * @param {number} versionNumber バージョン番号
+         * @param {string} format バージョンの書式
+         * @returns {string} 整形した文字列
+         */
         function formatVersion(originalVersion, mode) {
             var match = String(originalVersion || '').match(/^([vV])(\d+)$/);
             var letter = match ? match[1] : 'v';
@@ -570,17 +636,22 @@
             return letter + String(nextNum);
         }
 
-        /* baseName 内の最初の v+数字パターンを抽出。マッチしなければ null
-           / Extract the first v+digits in baseName; null if no v-number */
+        /**
+         * バージョン表記を接頭辞と数値へ分解する
+         * @param {string} versionText バージョン表記
+         * @returns {object|null} 分解結果。該当しない場合は null
+         */
         function extractVersionParts(baseName) {
             var m = String(baseName).match(/^(.*?)([vV])(\d+)(.*)$/);
             if (!m) return null;
             return { prefix: m[1], letter: m[2], digits: m[3], suffix: m[4] };
         }
 
-        /* baseName 内の最初の {prefix}+数字パターンを抽出。マッチしなければ null
-           prefix は "page" などユーザー指定可能（空文字なら null）
-           / Extract the first {prefix} + digits in baseName; null if no match (or empty prefix) */
+        /**
+         * 連番表記を接頭辞と数値へ分解する
+         * @param {string} pageText 連番表記
+         * @returns {object|null} 分解結果。該当しない場合は null
+         */
         function extractPageParts(baseName, prefix) {
             var p = String(prefix || '');
             if (!p) return null;
@@ -590,13 +661,21 @@
             return { prefix: m[1], digits: m[3], suffix: m[4] };
         }
 
-        /* 正規表現エスケープ / Escape for use in RegExp */
+        /**
+         * 正規表現で特別な意味を持つ文字をエスケープする
+         * @param {string} text 対象の文字列
+         * @returns {string} エスケープした文字列
+         */
         function escapeRegExp(s) {
             return String(s).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         }
 
-        /* baseName と同じ prefix / suffix を持つファイルを folder から探し、最大の v 番号を返す
-           / Scan folder for files matching baseName's v-pattern; return max v-number or null */
+        /**
+         * 同じフォルダ内で使われている最大のバージョン番号を探す
+         * @param {Folder} folder 対象のフォルダ
+         * @param {string} baseName 照合するベース名
+         * @returns {number} 最大のバージョン番号
+         */
         function findMaxVersionInFolder(baseName, folder, ext) {
             if (!folder) return null;
             var parts = extractVersionParts(baseName);
@@ -620,9 +699,12 @@
             return maxNum >= 0 ? maxNum : null;
         }
 
-        /* 親フォルダー内の同パターンファイルの最大 v 番号 +1 に置き換える。
-           無い、または +1 が現在値以下のときは baseName のまま返す。桁数は維持
-           / Replace v-number with (folder max + 1); preserves digit width */
+        /**
+         * 重複しない次のバージョン付きファイル名を求める
+         * @param {Folder} folder 対象のフォルダ
+         * @param {string} fileName 元のファイル名
+         * @returns {string} 次に使えるファイル名
+         */
         function nextAvailableVersionName(baseName, folder, ext) {
             var maxNum = findMaxVersionInFolder(baseName, folder, ext);
             if (maxNum === null) return baseName;
@@ -635,8 +717,12 @@
             return parts.prefix + parts.letter + padLeft(String(target), width) + parts.suffix;
         }
 
-        /* 親フォルダー内で baseName の連番（{prefix}NN）と同じ prefix / suffix を持つ最大連番を返す
-           / Scan folder for files matching baseName's sequence pattern; return max sequence number or null */
+        /**
+         * 同じフォルダ内で使われている最大の連番を探す
+         * @param {Folder} folder 対象のフォルダ
+         * @param {string} baseName 照合するベース名
+         * @returns {number} 最大の連番
+         */
         function findMaxPageInFolder(baseName, folder, ext, prefix) {
             if (!folder) return null;
             var p = String(prefix || '');
@@ -662,8 +748,12 @@
             return maxNum >= 0 ? maxNum : null;
         }
 
-        /* baseName 内の連番を、親フォルダー内の同パターンの最大連番 +1 に置き換える
-           / Replace sequence number with (folder max + 1); preserves digit width */
+        /**
+         * 重複しない次の連番付きファイル名を求める
+         * @param {Folder} folder 対象のフォルダ
+         * @param {string} fileName 元のファイル名
+         * @returns {string} 次に使えるファイル名
+         */
         function nextAvailablePageName(baseName, folder, ext, prefix) {
             var p = String(prefix || '');
             if (!p) return baseName;
@@ -688,14 +778,21 @@
             LPT6: 1, LPT7: 1, LPT8: 1, LPT9: 1
         };
 
-        /* baseName が Windows 予約名と衝突するなら末尾に "_" を足して回避（大文字小文字無視）
-           / If baseName matches a Windows reserved name, append "_" to avoid the collision */
+        /**
+         * Windows の予約語にあたる名前を安全な形へ変える
+         * @param {string} fileName 対象のファイル名
+         * @returns {string} 安全なファイル名
+         */
         function escapeWindowsReserved(baseName) {
             var key = String(baseName).toUpperCase();
             return (WINDOWS_RESERVED_NAMES[key] === 1) ? baseName + '_' : baseName;
         }
 
-        /* % エンコードを 1 回デコード / Decode a percent-encoded string once (best-effort) */
+        /**
+         * パーセントエンコードされた文字列を復号する
+         * @param {string} text 対象の文字列
+         * @returns {string} 復号した文字列
+         */
         function decodePercentEncoded(str) {
             str = String(str);
             if (str.indexOf('%') === -1) return str;
@@ -706,15 +803,21 @@
             }
         }
 
-        /* 拡張子を除去 / Strip a trailing file extension */
+        /**
+         * ファイル名から拡張子を取り除く
+         * @param {string} fileName 対象のファイル名
+         * @returns {string} 拡張子を除いた名前
+         */
         function stripExtension(name) {
             var dot = name.lastIndexOf('.');
             return (dot > 0) ? name.substring(0, dot) : name;
         }
 
-        /* 連続する区切り（- _ .）を 1 つに圧縮し、先頭・末尾の区切りと空白をトリム。
-           sep は最終的な区切り文字（'-' / '_' / '' のいずれか、'' のときは混在をそのまま残す）
-           / Collapse runs of separators (-, _, .) to one and trim leading/trailing separators + spaces */
+        /**
+         * 連続する区切り記号をまとめ、前後の区切りを取り除く
+         * @param {string} fileName 対象のファイル名
+         * @returns {string} 整えたファイル名
+         */
         function collapseAndTrimSeparators(str, sep) {
             var s = String(str);
             if (sep === '-' || sep === '_') {
@@ -729,8 +832,11 @@
             return s;
         }
 
-        /* 文字列の UTF-8 バイト長（拡張子込みのファイル名サイズ判定用）。ES3 / ExtendScript 向け
-           / UTF-8 byte length of a string (for file-name size checks); ES3-safe */
+        /**
+         * UTF-8 でのバイト数を数える
+         * @param {string} text 対象の文字列
+         * @returns {number} バイト数
+         */
         function byteLengthUTF8(str) {
             var s = String(str);
             var n = 0;
@@ -744,17 +850,22 @@
             return n;
         }
 
-        /* 前後空白をトリム。FEATURE_CLEAN=false のときは OS 禁止文字も除去（後段で処理されないため）
-           / Trim whitespace. When FEATURE_CLEAN is off, also strip OS-invalid chars (no post-process safety net) */
+        /**
+         * ファイル名に使えない文字を置き換える
+         * @param {string} fileName 元のファイル名
+         * @returns {string} 安全なファイル名
+         */
         function sanitizeFilename(str) {
             var trimmed = String(str).replace(/^\s+|\s+$/g, '');
             if (FEATURE_CLEAN) return trimmed;
             return trimmed.replace(/[\\\/:*?"<>|]/g, '');
         }
 
-        /* HFS+/APFS 由来の NFD 文字列（か + ゛など）を NFC（が）に結合。
-           ひらがな・カタカナ + U+3099/U+309A を主に対象。う/ウ/ワ/ヰ/ヱ/ヲ は特例マッピング
-           / Normalize NFD-style hiragana/katakana + combining marks to composed NFC form */
+        /**
+         * 文字列を NFC 正規化する
+         * @param {string} text 対象の文字列
+         * @returns {string} 正規化した文字列
+         */
         function normalizeNFC(str) {
             return String(str).replace(/(.)([゙゚])/g, function (_, base, mark) {
                 var voiced = (mark === '゙');
@@ -776,10 +887,11 @@
             });
         }
 
-        /* ファイル名で安全に使える「標準」文字か。
-           OS 禁止文字（\ / : * ? " < > |）と半角・全角スペースは ASCII / CJK 範囲だが除外。
-           ASCII printable / CJK 記号 / 仮名 / 漢字 / 全角 ASCII / 半角カタカナ を許容
-           / Whether a code point is "standard" for filenames; OS-invalid chars and spaces are excluded */
+        /**
+         * ファイル名にそのまま使える文字かを判定する
+         * @param {string} character 判定する文字
+         * @returns {boolean} 使えるなら true
+         */
         function isStandardFilenameChar(code) {
             // OS 禁止文字: \ 5C / 2F : 3A * 2A ? 3F " 22 < 3C > 3E | 7C
             if (code === 0x5C || code === 0x2F || code === 0x3A || code === 0x2A
@@ -799,10 +911,11 @@
             return false;
         }
 
-        /* OS 禁止文字 + 絵文字 + 機種依存文字 + スペースを mode に応じて置換／削除。
-           連続するスペース（タブ・改行含む）は事前に 1 つに畳んでから処理。サロゲートペアは 2 文字単位
-           mode: 'remove'（削除） / 'dash'（-）/ 'underscore'（_）
-           / Clean OS-invalid + emoji + platform-dependent chars + spaces per mode */
+        /**
+         * ファイル名に不向きな文字を置き換える
+         * @param {string} fileName 対象のファイル名
+         * @returns {string} 整えたファイル名
+         */
         function cleanFilenameChars(str, mode) {
             var replacement = (mode === 'dash') ? '-' : (mode === 'underscore') ? '_' : '';
             // 連続する空白を 1 つにまとめてから per-char で置換（mode='dash' で "  " が "--" にならないように）
@@ -857,8 +970,11 @@
             'ﾊ': 'パ', 'ﾋ': 'ピ', 'ﾌ': 'プ', 'ﾍ': 'ペ', 'ﾎ': 'ポ'
         };
 
-        /* 半角カタカナを全角カタカナへ変換。ｶﾞ → ガ、ﾊﾟ → パ のように濁点・半濁点も結合
-           / Convert half-width katakana to full-width; merges trailing dakuten / handakuten */
+        /**
+         * 半角カナを全角カナへ変換する
+         * @param {string} text 対象の文字列
+         * @returns {string} 変換した文字列
+         */
         function convertHalfwidthKana(str) {
             var s = String(str);
             var result = '';
@@ -891,9 +1007,11 @@
             return result;
         }
 
-        /* TRANSLITERATE_MAP に従って 1 文字ずつ処理。mode='convert' は変換、'remove' は削除、'keep' は無処理。
-           値が文字列のときのみ対象（toString などの prototype プロパティ衝突を回避）
-           / Per-char transform via TRANSLITERATE_MAP: 'convert' replaces, 'remove' drops, 'keep' returns as-is */
+        /**
+         * 丸数字や法人略記などを ASCII 表記へ置き換える
+         * @param {string} text 対象の文字列
+         * @returns {string} 置き換えた文字列
+         */
         function transliterate(str, mode) {
             if (mode === 'keep') return String(str);
             var s = String(str);
@@ -910,7 +1028,10 @@
             return result;
         }
 
-        /* 保存先ダイアログ。.indd 拡張子を補正して File を返す。キャンセルは null / Show save dialog, normalize to .indd; null on cancel */
+        /**
+         * 保存先フォルダをユーザーに選ばせる
+         * @returns {Folder|null} 選択したフォルダ。キャンセル時は null
+         */
         function pickInddDestination(promptLabel) {
             var chosen = File.saveDialog(promptLabel, '*.indd');
             if (!chosen) return null;
@@ -921,12 +1042,18 @@
             return file;
         }
 
-        /* プリセット保存用ファイル / Preferences file (key=value lines) */
+        /**
+         * 設定を保存するファイルを取得する
+         * @returns {File} 設定ファイル
+         */
         function getPrefsFile() {
             return File(Folder.userData.fsName + '/FileNameManager-prefs.txt');
         }
 
-        /* 前回保存したプリセットを読み込み（無ければ空オブジェクト） / Load previously saved prefs (or empty if none) */
+        /**
+         * 保存しておいた設定を読み込む
+         * @returns {object} 読み込んだ設定
+         */
         function loadPrefs() {
             var file = getPrefsFile();
             if (!file.exists) return {};
@@ -944,7 +1071,11 @@
             return prefs;
         }
 
-        /* プリセットを保存（失敗時は黙って継続） / Save prefs (silently ignore failure) */
+        /**
+         * 現在の設定を保存する
+         * @param {object} prefs 保存する設定
+         * @returns {void}
+         */
         function savePrefs(prefs) {
             try {
                 var file = getPrefsFile();
@@ -959,7 +1090,10 @@
             } catch (e) { /* 保存できなくても処理は止めない */ }
         }
 
-        /* ドキュメントから現在のファイル情報を収集 / Collect file info from the active document */
+        /**
+         * アクティブドキュメントのファイル情報を集める
+         * @returns {object|null} ファイル情報。取得できない場合は null
+         */
         function gatherDocumentInfo(doc) {
             var fullName = doc.fullName;
             var currentName = decodePercentEncoded(fullName ? fullName.name : doc.name);
@@ -981,22 +1115,33 @@
             };
         }
 
-        /* 保存先フォルダを確定（未保存なら saveDialog で取得）。キャンセル時は null / Resolve the target folder (prompt if needed); null on cancel */
+        /**
+         * 保存先フォルダを確定する（未保存なら選択させる）
+         * @param {object} documentInfo ファイル情報
+         * @returns {Folder|null} 保存先フォルダ。決まらない場合は null
+         */
         function ensureTargetFolder(folder) {
             if (folder) return folder;
-            var picked = pickInddDestination(L('message.chooseDestination'));
+            var picked = pickInddDestination(getLabel('message.chooseDestination'));
             return picked ? picked.parent : null;
         }
 
-        /* 既存同名（自分自身を除く）の上書き確認。OK なら true / Confirm overwrite for an existing file (excluding self); true if approved */
+        /**
+         * 同名ファイルがある場合に上書きの可否を確認する
+         * @param {File} targetFile 保存先のファイル
+         * @returns {boolean} 続行してよければ true
+         */
         function confirmOverwriteIfExists(destFile, originalFsPath) {
             if (!destFile.exists) return true;
             if (destFile.fsName === originalFsPath) return true;
-            return confirm(L('message.confirmOverwrite') + '\n\n' + destFile.fsName);
+            return confirm(getLabel('message.confirmOverwrite') + '\n\n' + destFile.fsName);
         }
 
-        /* file を ~/.Trash に移動。同名衝突時は連番でユニーク化。成功で true、失敗で false
-           / Move file to ~/.Trash, disambiguating by appending a counter. Returns true on success */
+        /**
+         * ファイルをゴミ箱へ移動する
+         * @param {File} targetFile 対象のファイル
+         * @returns {boolean} 移動できたら true
+         */
         function moveToTrash(file) {
             if (!file || !file.exists) return false;
             var trash = Folder("~/.Trash");
@@ -1020,8 +1165,11 @@
             }
         }
 
-        /* 旧ファイルを削除（FEATURE_USE_TRASH=true ならゴミ箱に移動、失敗時は file.remove() にフォールバック）
-           / Remove the original file: move to ~/.Trash when enabled, else (or on failure) hard-remove */
+        /**
+         * リネーム時に元ファイルを削除する
+         * @param {File} originalFile 元のファイル
+         * @returns {void}
+         */
         function removeOriginalFile(originalFsPath, destFsPath) {
             if (!originalFsPath || originalFsPath === destFsPath) return;
             var file = File(originalFsPath);
@@ -1030,14 +1178,20 @@
             try { file.remove(); } catch (e) { /* 削除できない場合は黙って継続 */ }
         }
 
-        /* モード別の出力処理（rename / saveAs / copy） / Execute the output according to the selected mode */
+        /**
+         * 選択したモードでリネーム・別名保存・コピー保存を実行する
+         * @param {string} mode 動作モード
+         * @param {File} targetFile 保存先のファイル
+         * @param {object} documentInfo ファイル情報
+         * @returns {boolean} 成功したら true
+         */
         function executeOutput(doc, destFile, mode, originalFsPath) {
             if (mode === 'copy' && originalFsPath) {
                 // 現在の変更を元ファイルへ保存してから、物理ファイルとしてコピー
                 if (!doc.saved) doc.save();
                 var originalFile = File(originalFsPath);
                 if (!originalFile.exists || !originalFile.copy(destFile)) {
-                    throw new Error(L('message.saveFailed') + '\n' + destFile.fsName);
+                    throw new Error(getLabel('message.saveFailed') + '\n' + destFile.fsName);
                 }
                 return;
             }
@@ -1048,8 +1202,12 @@
             }
         }
 
-        /* segments と UI 状態から最終ファイル名（拡張子なし）を構築。SEGMENT_ORDER に従う
-           / Build the final filename from segments and UI state, following SEGMENT_ORDER */
+        /**
+         * UI の状態とセグメントから最終的なファイル名を組み立てる
+         * @param {object} uiState UI の状態
+         * @param {Array<object>} segments セグメントの配列
+         * @returns {string} 最終的なファイル名
+         */
         function buildFinalName(segments, uiState) {
             // 区切り記号: 明示選択があればそれを、無ければ元のファイル名で優勢な区切りを使う
             var defaultSep;
@@ -1059,6 +1217,13 @@
                 defaultSep = dominantSeparator(segments);
             }
 
+            /**
+             * セグメント種別ごとに出力する値を決める
+             * @param {string} kind セグメントの種別
+             * @param {object} uiState UI の状態
+             * @param {Array<object>} segments セグメントの配列
+             * @returns {string} 出力する値
+             */
             function valueForKind(kind) {
                 if (kind === 'base') {
                     return sanitizeFilename(uiState.baseText || '');
@@ -1115,7 +1280,11 @@
             return result;
         }
 
-        /* segments から優勢な区切り記号を返す。同数なら "-" / Dominant separator across segments (defaults to "-") */
+        /**
+         * ファイル名で最も多く使われている区切り記号を求める
+         * @param {string} fileName 対象のファイル名
+         * @returns {string} 区切り記号
+         */
         function dominantSeparator(segments) {
             var dashes = 0, underscores = 0;
             for (var i = 0; i < segments.length; i++) {
@@ -1129,26 +1298,20 @@
         // ダイアログビルダー / Dialog builders
         // =========================================
 
-        /* パネルの共通設定（向き・整列・余白・子要素間隔） / Apply shared panel settings (orientation, alignment, margins, spacing) */
-        function setupPanel(panel, spacing) {
-            panel.orientation = 'column';
-            panel.alignChildren = ['fill', 'top'];
-            panel.alignment = 'fill';
-            panel.margins = PANEL_MARGINS;
-            panel.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
-        }
 
-        /* ソートパネルを構築（標準順 / 現在のファイル名に準じる / カスタム順 + [順序を編集] ボタン）。
-           ボタンは「カスタム順」のときだけ有効。currentOrderAvailable=false なら「現在...」は無効化
-           / Build the sort panel: Default / Match Current / Custom + [Edit order] button.
-           The button is enabled only for "Custom". When currentOrderAvailable=false, "Match Current" is disabled */
+        /**
+         * セグメントの並び替えパネルを組み立てる
+         * @param {Window} dialog 対象のダイアログ
+         * @param {object} prefs 保存しておいた設定
+         * @returns {object} パネル内のコントロール
+         */
         function buildSortPanel(parent, currentOrderAvailable) {
-            var panel = parent.add('panel', undefined, L('panel.sort'));
+            var panel = parent.add('panel', undefined, getLabel('panel.sort'));
             setupPanel(panel);
-            var sortOffRadio = panel.add('radiobutton', undefined, L('radio.sortOff'));
-            sortOffRadio.helpTip = L('tip.sort');
-            var sortCurrentRadio = panel.add('radiobutton', undefined, L('radio.sortCurrent'));
-            sortCurrentRadio.helpTip = L('tip.sort');
+            var sortOffRadio = panel.add('radiobutton', undefined, getLabel('radio.sortOff'));
+            sortOffRadio.helpTip = getLabel('tip.sort');
+            var sortCurrentRadio = panel.add('radiobutton', undefined, getLabel('radio.sortCurrent'));
+            sortCurrentRadio.helpTip = getLabel('tip.sort');
             if (!currentOrderAvailable) sortCurrentRadio.enabled = false;
             // 「カスタム順」ラジオと「編集」ボタンを同じ行に並べる
             var customRow = panel.add('group');
@@ -1156,15 +1319,19 @@
             customRow.alignment = ['fill', 'top'];
             customRow.alignChildren = ['left', 'center'];
             customRow.spacing = 8;
-            var sortOnRadio = customRow.add('radiobutton', undefined, L('radio.sortOn'));
-            sortOnRadio.helpTip = L('tip.sort');
-            var sortButton = customRow.add('button', undefined, L('button.sort'));
+            var sortOnRadio = customRow.add('radiobutton', undefined, getLabel('radio.sortOn'));
+            sortOnRadio.helpTip = getLabel('tip.sort');
+            var sortButton = customRow.add('button', undefined, getLabel('button.sort'));
             // 並び順の初期値は prefs を見ず、常に「現在のファイル名に準じる」（不可なら「標準順」）に固定
             var initialSort = currentOrderAvailable ? 'current' : 'off';
             sortOffRadio.value = (initialSort === 'off');
             sortCurrentRadio.value = (initialSort === 'current');
             sortOnRadio.value = (initialSort === 'on');
             sortButton.enabled = (initialSort === 'on');
+            /**
+             * 並び替えボタンの有効／無効を切り替える
+             * @returns {void}
+             */
             function syncSortButtonEnabled() {
                 sortButton.enabled = sortOnRadio.value;
             }
@@ -1186,13 +1353,17 @@
             };
         }
 
-        /* 「モード」パネルを構築（バージョン番号のみ / 全体）。常に「全体」が初期値
-           / Build the scope panel (Version Only / Full); always defaults to "Full" */
+        /**
+         * 動作モード（リネーム／別名保存／コピー）のパネルを組み立てる
+         * @param {Window} dialog 対象のダイアログ
+         * @param {object} prefs 保存しておいた設定
+         * @returns {object} パネル内のコントロール
+         */
         function buildOpModePanel(parent) {
-            var panel = parent.add('panel', undefined, L('panel.opMode'));
+            var panel = parent.add('panel', undefined, getLabel('panel.opMode'));
             setupPanel(panel);
-            var versionOnlyRadio = panel.add('radiobutton', undefined, L('radio.opVersionOnly'));
-            var fullRadio = panel.add('radiobutton', undefined, L('radio.opFull'));
+            var versionOnlyRadio = panel.add('radiobutton', undefined, getLabel('radio.opVersionOnly'));
+            var fullRadio = panel.add('radiobutton', undefined, getLabel('radio.opFull'));
             versionOnlyRadio.value = false;
             fullRadio.value = true;
             return {
@@ -1204,16 +1375,21 @@
             };
         }
 
-        /* モード選択パネルを構築（リネーム / 別名で保存 / コピーを保存） / Build the mode panel (Rename / Save As / Save a Copy) */
+        /**
+         * 動作モードのパネルを組み立てる
+         * @param {Window} dialog 対象のダイアログ
+         * @param {object} prefs 保存しておいた設定
+         * @returns {object} パネル内のコントロール
+         */
         function buildModePanel(parent) {
-            var panel = parent.add('panel', undefined, L('panel.mode'));
+            var panel = parent.add('panel', undefined, getLabel('panel.mode'));
             setupPanel(panel);
-            var renameRadio = panel.add('radiobutton', undefined, L('radio.rename'));
-            renameRadio.helpTip = L('tip.rename');
-            var saveAsRadio = panel.add('radiobutton', undefined, L('radio.saveAs'));
-            saveAsRadio.helpTip = L('tip.saveAs');
-            var saveCopyRadio = panel.add('radiobutton', undefined, L('radio.saveCopy'));
-            saveCopyRadio.helpTip = L('tip.saveCopy');
+            var renameRadio = panel.add('radiobutton', undefined, getLabel('radio.rename'));
+            renameRadio.helpTip = getLabel('tip.rename');
+            var saveAsRadio = panel.add('radiobutton', undefined, getLabel('radio.saveAs'));
+            saveAsRadio.helpTip = getLabel('tip.saveAs');
+            var saveCopyRadio = panel.add('radiobutton', undefined, getLabel('radio.saveCopy'));
+            saveCopyRadio.helpTip = getLabel('tip.saveCopy');
             // 初期選択は常に「別名で保存」
             renameRadio.value = false;
             saveAsRadio.value = true;
@@ -1232,19 +1408,24 @@
             };
         }
 
-        /* ファイル名パネルを構築（現在名・変更後名のみ） / Build the file-name panel (current / final only) */
+        /**
+         * ファイル名のパネルを組み立てる
+         * @param {Window} dialog 対象のダイアログ
+         * @param {string} currentName 現在のファイル名
+         * @returns {object} パネル内のコントロール
+         */
         function buildFilenamePanel(parent, currentName) {
-            var panel = parent.add('panel', undefined, L('panel.filename'));
+            var panel = parent.add('panel', undefined, getLabel('panel.filename'));
             setupPanel(panel);
 
             var currentNameRow = panel.add('group');
             currentNameRow.orientation = 'row';
-            var currentNameLabel = currentNameRow.add('statictext', undefined, labelText('label.currentName'), { justify: 'right' });
+            var currentNameLabel = currentNameRow.add('statictext', undefined, getLabelWithColon('label.currentName'), { justify: 'right' });
             currentNameRow.add('statictext', undefined, currentName);
 
             var finalNameRow = panel.add('group');
             finalNameRow.orientation = 'row';
-            var finalNameLabel = finalNameRow.add('statictext', undefined, labelText('label.finalName'), { justify: 'right' });
+            var finalNameLabel = finalNameRow.add('statictext', undefined, getLabelWithColon('label.finalName'), { justify: 'right' });
             // 「変更後：」は statictext のためレイアウト後にサイズ固定。
             // 現在のファイル名と「入力フィールド + 余白」の大きい方を確保しておく
             var finalNameValue = finalNameRow.add('statictext', undefined, currentName + '.indd');
@@ -1256,24 +1437,30 @@
                 panel: panel,
                 finalNameValue: finalNameValue,
                 labels: [currentNameLabel, finalNameLabel],
-                labelTexts: [labelText('label.currentName'), labelText('label.finalName')]
+                labelTexts: [getLabelWithColon('label.currentName'), getLabelWithColon('label.finalName')]
             };
         }
 
-        /* オプションパネルを構築（ベース表示・タイトル選択・タイムスタンプ・バージョン番号・区切り） / Build the options panel */
+        /**
+         * セグメントごとのオプションパネルを組み立てる
+         * @param {object} parent 追加先のコンテナ
+         * @param {Array<object>} segments セグメントの配列
+         * @param {object} prefs 保存しておいた設定
+         * @returns {object} パネル内のコントロール
+         */
         function buildOptionsPanel(parent, segments, prefs, parentFolderName, grandparentFolderName) {
-            var panel = parent.add('panel', undefined, L('panel.options'));
+            var panel = parent.add('panel', undefined, getLabel('panel.options'));
             setupPanel(panel);
 
             // ベース: 検出値を初期表示する入力欄。空欄可、prefs には保存しない
             var detectedBase = getFirstSegmentValue(segments, 'base');
             var baseRow = panel.add('group');
             baseRow.orientation = 'row';
-            var baseLabel = baseRow.add('statictext', undefined, labelText('label.base'));
-            baseLabel.helpTip = L('tip.base');
+            var baseLabel = baseRow.add('statictext', undefined, getLabelWithColon('label.base'));
+            baseLabel.helpTip = getLabel('tip.base');
             var baseField = baseRow.add('edittext', undefined, detectedBase);
             baseField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
-            baseField.helpTip = L('tip.base');
+            baseField.helpTip = getLabel('tip.base');
 
             // 元ファイル名のテキスト部（base / status / date / version 以外）をサブテキストとして検出
             var detectedTitle = getFirstSegmentValue(segments, 'text');
@@ -1285,16 +1472,16 @@
             titleSection.spacing = 4;
 
             var titleRow = addRadioRow(titleSection, 'label.title', 'tip.title', [
-                { key: 'none', text: L('radio.titleNone') },
-                { key: 'custom', text: L('radio.titleCustom') },
-                { key: 'parent', text: L('radio.titleParent') },
-                { key: 'grandparent', text: L('radio.titleGrandparent') }
+                { key: 'none', text: getLabel('radio.titleNone') },
+                { key: 'custom', text: getLabel('radio.titleCustom') },
+                { key: 'parent', text: getLabel('radio.titleParent') },
+                { key: 'grandparent', text: getLabel('radio.titleGrandparent') }
             ]);
             titleRow.group.alignment = ['left', 'top'];
             // 親/2 階層上のフォルダー名がある場合は helpTip にフォルダ名を追記、無ければ無効化
-            if (parentFolderName) titleRow.radios.parent.helpTip = L('tip.title') + ' (' + parentFolderName + ')';
+            if (parentFolderName) titleRow.radios.parent.helpTip = getLabel('tip.title') + ' (' + parentFolderName + ')';
             else titleRow.radios.parent.enabled = false;
-            if (grandparentFolderName) titleRow.radios.grandparent.helpTip = L('tip.title') + ' (' + grandparentFolderName + ')';
+            if (grandparentFolderName) titleRow.radios.grandparent.helpTip = getLabel('tip.title') + ' (' + grandparentFolderName + ')';
             else titleRow.radios.grandparent.enabled = false;
 
             // 「指定」用の入力欄は次の行（ラベル列幅だけ左に余白を入れて radios に揃える）
@@ -1304,7 +1491,7 @@
             var titleFieldSpacer = titleFieldRow.add('statictext', undefined, '');
             var titleField = titleFieldRow.add('edittext', undefined, detectedTitle);
             titleField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
-            titleField.helpTip = L('tip.title');
+            titleField.helpTip = getLabel('tip.title');
 
             // 初期モード: 元ファイル名にサブテキストが無ければ「なし」を強制。
             // 検出できた場合は prefs.titleMode を優先、無ければ 'custom'（parent/grandparent は対応フォルダ名必須）
@@ -1322,6 +1509,10 @@
             titleRow.radios.custom.value = (initialTitleMode === 'custom');
             titleField.enabled = (initialTitleMode === 'custom');
 
+            /**
+             * タイトルの指定方法に応じて入力欄の有効／無効を切り替える
+             * @returns {void}
+             */
             function syncTitleFieldEnabled() {
                 titleField.enabled = titleRow.radios.custom.value;
             }
@@ -1331,10 +1522,10 @@
             if (FEATURE_STATUS) {
                 var statusRow = panel.add('group');
                 statusRow.orientation = 'row';
-                statusLabel = statusRow.add('statictext', undefined, labelText('label.status'));
-                statusLabel.helpTip = L('tip.status');
+                statusLabel = statusRow.add('statictext', undefined, getLabelWithColon('label.status'));
+                statusLabel.helpTip = getLabel('tip.status');
                 statusDropdown = statusRow.add('dropdownlist', undefined, undefined);
-                statusDropdown.helpTip = L('tip.status');
+                statusDropdown.helpTip = getLabel('tip.status');
                 var parsedStatus = getFirstSegmentValue(segments, 'status');
                 var initialStatus = parsedStatus || ((prefs && prefs.status) ? prefs.status : '');
                 var initialStatusIdx = -1;
@@ -1356,19 +1547,23 @@
             // タイムスタンプ（なし / YYYYMMDD / YYYY-MM-DD。デフォルト YYYYMMDD）
             // 末尾に「時刻も付与」(HHMM) チェックボックスを同居
             var timestampRow = addRadioRow(panel, 'label.timestamp', 'tip.timestamp', [
-                { key: 'none', text: L('radio.timestampNone') },
-                { key: 'date', text: L('radio.timestampDate') },
-                { key: 'dateDash', text: L('radio.timestampDateDash') }
+                { key: 'none', text: getLabel('radio.timestampNone') },
+                { key: 'date', text: getLabel('radio.timestampDate') },
+                { key: 'dateDash', text: getLabel('radio.timestampDateDash') }
             ]);
             var initialTimestamp = pickPref(prefs, 'timestamp', ['none', 'date', 'dateDash'], 'date');
             timestampRow.radios.none.value = (initialTimestamp === 'none');
             timestampRow.radios.date.value = (initialTimestamp === 'date');
             timestampRow.radios.dateDash.value = (initialTimestamp === 'dateDash');
 
-            var timestampHHMMCheckbox = timestampRow.group.add('checkbox', undefined, L('radio.timestampWithTime'));
-            timestampHHMMCheckbox.helpTip = L('tip.timestampWithTime');
+            var timestampHHMMCheckbox = timestampRow.group.add('checkbox', undefined, getLabel('radio.timestampWithTime'));
+            timestampHHMMCheckbox.helpTip = getLabel('tip.timestampWithTime');
             timestampHHMMCheckbox.value = pickPref(prefs, 'timestampTime', ['no', 'hhmm'], 'no') === 'hhmm';
 
+            /**
+             * タイムスタンプの書式に応じて時刻入力の有効／無効を切り替える
+             * @returns {void}
+             */
             function syncTimestampHHMMEnabled() {
                 timestampHHMMCheckbox.enabled = !timestampRow.radios.none.value;
             }
@@ -1384,25 +1579,29 @@
             if (FEATURE_PAGE) {
                 pageRow = panel.add('group');
                 pageRow.orientation = 'row';
-                var pageLabelCtrl = pageRow.add('statictext', undefined, labelText('label.page'));
-                pageLabelCtrl.helpTip = L('tip.page');
-                pageCheckbox = pageRow.add('checkbox', undefined, L('radio.pageEnable'));
-                pageCheckbox.helpTip = L('tip.page');
+                var pageLabelCtrl = pageRow.add('statictext', undefined, getLabelWithColon('label.page'));
+                pageLabelCtrl.helpTip = getLabel('tip.page');
+                pageCheckbox = pageRow.add('checkbox', undefined, getLabel('radio.pageEnable'));
+                pageCheckbox.helpTip = getLabel('tip.page');
                 pageCheckbox.value = pickPref(prefs, 'pageEnable', ['no', 'yes'], 'no') === 'yes';
                 pagePrefixField = pageRow.add('edittext', undefined, '');
                 pagePrefixField.preferredSize.width = 60;
-                pagePrefixField.helpTip = L('tip.page');
+                pagePrefixField.helpTip = getLabel('tip.page');
                 pagePrefixField.text = (prefs && typeof prefs.pagePrefix === 'string') ? prefs.pagePrefix : 'page';
-                pagePadRadio2 = pageRow.add('radiobutton', undefined, L('radio.pagePad2'));
-                pagePadRadio2.helpTip = L('tip.page');
-                pagePadRadio3 = pageRow.add('radiobutton', undefined, L('radio.pagePad3'));
-                pagePadRadio3.helpTip = L('tip.page');
+                pagePadRadio2 = pageRow.add('radiobutton', undefined, getLabel('radio.pagePad2'));
+                pagePadRadio2.helpTip = getLabel('tip.page');
+                pagePadRadio3 = pageRow.add('radiobutton', undefined, getLabel('radio.pagePad3'));
+                pagePadRadio3.helpTip = getLabel('tip.page');
                 var initialPagePad = pickPref(prefs, 'pagePad', ['2', '3'], '2');
                 pagePadRadio2.value = (initialPagePad === '2');
                 pagePadRadio3.value = (initialPagePad === '3');
                 pageRow.label = pageLabelCtrl; // alignLabelWidths 用に統一形にしておく
             }
 
+            /**
+             * 連番の ON/OFF に応じて関連項目を切り替える
+             * @returns {void}
+             */
             function syncPageControlsEnabled() {
                 if (!pageCheckbox) return;
                 var enabled = pageCheckbox.value;
@@ -1415,10 +1614,10 @@
             // バージョン番号（なし / v1, v2… / v01, v02… / v001, v002…。デフォルト v1, v2…）
             // ES3 で 'short' は予約語のため、ラジオキーは short_ にする（pref 値 'short' とは別物）
             var versionRow = addRadioRow(panel, 'label.version', 'tip.version', [
-                { key: 'none', text: L('radio.versionNone') },
-                { key: 'short_', text: L('radio.versionShort') },
-                { key: 'padded', text: L('radio.versionPadded') },
-                { key: 'paddedWide', text: L('radio.versionPaddedWide') }
+                { key: 'none', text: getLabel('radio.versionNone') },
+                { key: 'short_', text: getLabel('radio.versionShort') },
+                { key: 'padded', text: getLabel('radio.versionPadded') },
+                { key: 'paddedWide', text: getLabel('radio.versionPaddedWide') }
             ]);
             // デフォルトは「なし」。元ファイルに v 番号がある場合は prefs を優先（無ければ「なし」）
             var hasOriginalVersion = !!getFirstSegmentValue(segments, 'version');
@@ -1434,7 +1633,7 @@
             var separatorRow = null;
             if (FEATURE_SEPARATOR) {
                 separatorRow = addRadioRow(panel, 'label.separator', 'tip.separator', [
-                    { key: 'noChange', text: L('radio.noChange') },
+                    { key: 'noChange', text: getLabel('radio.noChange') },
                     { key: 'dash', text: '-' },
                     { key: 'underscore', text: '_' }
                 ]);
@@ -1450,8 +1649,8 @@
             var nfcRow = null;
             if (FEATURE_NFC) {
                 nfcRow = addRadioRow(panel, 'label.nfc', 'tip.nfc', [
-                    { key: 'keep', text: L('radio.noChange') },
-                    { key: 'combine', text: L('radio.nfcCombine') }
+                    { key: 'keep', text: getLabel('radio.noChange') },
+                    { key: 'combine', text: getLabel('radio.nfcCombine') }
                 ]);
                 var initialNfc = pickPref(prefs, 'nfc', ['keep', 'combine'], 'combine');
                 nfcRow.radios.keep.value = (initialNfc === 'keep');
@@ -1465,9 +1664,9 @@
             var halfwidthKanaCheckbox = null;
             if (FEATURE_CLEAN) {
                 cleanRow = addRadioRow(panel, 'label.clean', 'tip.clean', [
-                    { key: 'remove', text: L('radio.cleanRemove') },
-                    { key: 'dash', text: L('radio.changeToDash') },
-                    { key: 'underscore', text: L('radio.changeToUnderscore') }
+                    { key: 'remove', text: getLabel('radio.cleanRemove') },
+                    { key: 'dash', text: getLabel('radio.changeToDash') },
+                    { key: 'underscore', text: getLabel('radio.changeToUnderscore') }
                 ]);
                 var initialClean = pickPref(prefs, 'clean', ['remove', 'dash', 'underscore'], 'dash');
                 cleanRow.radios.remove.value = (initialClean === 'remove');
@@ -1475,8 +1674,8 @@
                 cleanRow.radios.underscore.value = (initialClean === 'underscore');
 
                 if (FEATURE_HALFWIDTH_KANA) {
-                    halfwidthKanaCheckbox = cleanRow.group.add('checkbox', undefined, L('radio.halfwidthKanaConvert'));
-                    halfwidthKanaCheckbox.helpTip = L('tip.halfwidthKana');
+                    halfwidthKanaCheckbox = cleanRow.group.add('checkbox', undefined, getLabel('radio.halfwidthKanaConvert'));
+                    halfwidthKanaCheckbox.helpTip = getLabel('tip.halfwidthKana');
                     halfwidthKanaCheckbox.value = pickPref(prefs, 'halfwidthKana', ['keep', 'convert'], 'convert') === 'convert';
                 }
             }
@@ -1485,9 +1684,9 @@
             var translitRow = null;
             if (FEATURE_TRANSLITERATE) {
                 translitRow = addRadioRow(panel, 'label.translit', 'tip.translit', [
-                    { key: 'keep', text: L('radio.noChange') },
-                    { key: 'remove', text: L('radio.translitRemove') },
-                    { key: 'convert', text: L('radio.translitConvert') }
+                    { key: 'keep', text: getLabel('radio.noChange') },
+                    { key: 'remove', text: getLabel('radio.translitRemove') },
+                    { key: 'convert', text: getLabel('radio.translitConvert') }
                 ]);
                 var initialTranslit = pickPref(prefs, 'translit', ['keep', 'remove', 'convert'], 'convert');
                 translitRow.radios.keep.value = (initialTranslit === 'keep');
@@ -1496,6 +1695,10 @@
             }
 
             // クリーンが '-' / '_' のときだけ「半角カナ → 全角」を有効化
+            /**
+             * 半角カナ変換の ON/OFF に応じて関連項目を切り替える
+             * @returns {void}
+             */
             function syncHalfwidthKanaEnabled() {
                 if (!halfwidthKanaCheckbox || !cleanRow) return;
                 halfwidthKanaCheckbox.enabled = (cleanRow.radios.dash.value || cleanRow.radios.underscore.value);
@@ -1503,16 +1706,16 @@
             syncHalfwidthKanaEnabled();
 
             // ラベル幅を統一（FEATURE で UI 非表示の行は除外）
-            var labelTexts = [labelText('label.base'), labelText('label.title')];
+            var labelTexts = [getLabelWithColon('label.base'), getLabelWithColon('label.title')];
             var labelControls = [baseLabel, titleRow.label];
-            if (FEATURE_STATUS) { labelTexts.push(labelText('label.status')); labelControls.push(statusLabel); }
-            labelTexts.push(labelText('label.timestamp')); labelControls.push(timestampRow.label);
-            if (FEATURE_PAGE) { labelTexts.push(labelText('label.page')); labelControls.push(pageRow.label); }
-            labelTexts.push(labelText('label.version')); labelControls.push(versionRow.label);
-            if (FEATURE_SEPARATOR) { labelTexts.push(labelText('label.separator')); labelControls.push(separatorRow.label); }
-            if (FEATURE_NFC) { labelTexts.push(labelText('label.nfc')); labelControls.push(nfcRow.label); }
-            if (FEATURE_CLEAN) { labelTexts.push(labelText('label.clean')); labelControls.push(cleanRow.label); }
-            if (FEATURE_TRANSLITERATE) { labelTexts.push(labelText('label.translit')); labelControls.push(translitRow.label); }
+            if (FEATURE_STATUS) { labelTexts.push(getLabelWithColon('label.status')); labelControls.push(statusLabel); }
+            labelTexts.push(getLabelWithColon('label.timestamp')); labelControls.push(timestampRow.label);
+            if (FEATURE_PAGE) { labelTexts.push(getLabelWithColon('label.page')); labelControls.push(pageRow.label); }
+            labelTexts.push(getLabelWithColon('label.version')); labelControls.push(versionRow.label);
+            if (FEATURE_SEPARATOR) { labelTexts.push(getLabelWithColon('label.separator')); labelControls.push(separatorRow.label); }
+            if (FEATURE_NFC) { labelTexts.push(getLabelWithColon('label.nfc')); labelControls.push(nfcRow.label); }
+            if (FEATURE_CLEAN) { labelTexts.push(getLabelWithColon('label.clean')); labelControls.push(cleanRow.label); }
+            if (FEATURE_TRANSLITERATE) { labelTexts.push(getLabelWithColon('label.translit')); labelControls.push(translitRow.label); }
             // 個別整列はせず、呼び出し側に渡してファイル名パネルと統一整列する
             // titleFieldSpacer の幅は createDialog 側で整列後に設定する
 
@@ -1626,17 +1829,16 @@
             };
         }
 
-        /* 並び順を ↑↓ で編集するサブダイアログ。OK で新しい順序を返す。キャンセルで null
-           / Sub-dialog to reorder segments with ↑↓; returns the new order, or null on cancel */
+        /**
+         * セグメントの並び替えダイアログを開く
+         * @returns {Array<string>|null} 並び順。キャンセル時は null
+         */
         function openSortDialog(initialOrder) {
-            var dlg = new Window('dialog', L('sort.title'));
+            var dlg = new Window('dialog', getLabel('sort.title'));
             dlg.opacity = DIALOG_OPACITY;
-            dlg.orientation = 'column';
-            dlg.alignChildren = 'fill';
-            dlg.margins = 15;
-            dlg.spacing = 10;
+            setupWindow(dlg, 10);
 
-            var hint = dlg.add('statictext', undefined, L('sort.hint'));
+            var hint = dlg.add('statictext', undefined, getLabel('sort.hint'));
             hint.alignment = 'left';
 
             var body = dlg.add('group');
@@ -1647,7 +1849,7 @@
             var list = body.add('listbox', undefined, []);
             list.preferredSize = [200, 140];
             for (var i = 0; i < order.length; i++) {
-                list.add('item', L('label.' + order[i]));
+                list.add('item', getLabel('label.' + order[i]));
             }
             list.selection = 0;
 
@@ -1659,9 +1861,13 @@
             var downBtn = btnCol.add('button', undefined, '↓');
             downBtn.preferredSize = [36, 24];
 
+            /**
+             * 並び替えダイアログのリスト表示を更新する
+             * @returns {void}
+             */
             function refreshList(newIdx) {
                 for (var i = 0; i < order.length; i++) {
-                    list.items[i].text = L('label.' + order[i]);
+                    list.items[i].text = getLabel('label.' + order[i]);
                 }
                 list.selection = newIdx;
             }
@@ -1684,14 +1890,19 @@
 
             var buttons = dlg.add('group');
             buttons.alignment = ['center', 'top'];
-            buttons.add('button', undefined, L('button.cancel'), { name: 'cancel' });
+            buttons.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
             buttons.add('button', undefined, 'OK', { name: 'ok' });
 
             if (dlg.show() !== 1) return null;
             return order;
         }
 
-        /* ES3 互換: 配列に値が含まれるか / ES3-safe array contains check */
+        /**
+         * 配列に値が含まれるかを判定する
+         * @param {Array} list 対象の配列
+         * @param {*} value 探す値
+         * @returns {boolean} 含まれていれば true
+         */
         function arrayContains(arr, val) {
             for (var i = 0; i < arr.length; i++) {
                 if (arr[i] === val) return true;
@@ -1699,15 +1910,23 @@
             return false;
         }
 
-        /* prefs[key] が validValues 内ならそれを、そうでなければ fallback を返す
-           / Returns prefs[key] if it's in validValues, else fallback */
+        /**
+         * 保存された設定から値を取り出す（無ければ既定値）
+         * @param {object} prefs 保存しておいた設定
+         * @param {string} key 設定のキー
+         * @param {*} fallback 既定値
+         * @returns {*} 設定の値
+         */
         function pickPref(prefs, key, validValues, fallback) {
             var v = prefs && prefs[key];
             return arrayContains(validValues, v) ? v : fallback;
         }
 
-        /* 保存された並び順文字列を妥当性チェックして配列で返す。不正なら null
-           / Parse a comma-separated segment order; returns null if invalid */
+        /**
+         * 保存されたセグメント順の設定を配列へ変換する
+         * @param {*} orderValue 保存されている値
+         * @returns {Array<string>} セグメント種別の並び
+         */
         function parseSegmentOrderPref(value) {
             if (!value) return null;
             var parts = String(value).split(',');
@@ -1721,10 +1940,11 @@
             return parts;
         }
 
-        /* labelTexts の最大幅に controls の幅を揃える。checkbox/radiobutton が含まれていれば
-           インジケーター分（+20px）を全コントロールに加算して右端を揃える
-           / Align controls' widths to the widest label. If any control is a checkbox/radiobutton,
-           add indicator width (+20px) to all so their right edges align */
+        /**
+         * ラベル群の幅を最大値に揃える
+         * @param {Array<StaticText>} labelControls 幅を揃えるラベル
+         * @returns {void}
+         */
         function alignLabelWidths(panel, labelTexts, controls) {
             var graphics = panel.graphics;
             var maxWidth = 0;
@@ -1746,14 +1966,18 @@
             }
         }
 
-        /* ラベル + ラジオ群を 1 行追加して { group, label, radios: { key: radio, ... } } を返す。
-           radioDefs: [{ key, text }, ...]。すべてのコントロールに L(tipKey) の helpTip を設定
-           / Add a label + radio row; returns { group, label, radios } */
+        /**
+         * ラベル付きのラジオボタン行を追加する
+         * @param {object} parent 追加先のコンテナ
+         * @param {string} labelText ラベルの文字列
+         * @param {Array<string>} optionLabels 選択肢の表示名
+         * @returns {object} 追加したコントロール
+         */
         function addRadioRow(panel, labelKey, tipKey, radioDefs) {
             var row = panel.add('group');
             row.orientation = 'row';
             var tip = L(tipKey);
-            var label = row.add('statictext', undefined, labelText(labelKey));
+            var label = row.add('statictext', undefined, getLabelWithColon(labelKey));
             label.helpTip = tip;
             var radios = {};
             for (var i = 0; i < radioDefs.length; i++) {
@@ -1765,9 +1989,11 @@
             return { group: row, label: label, radios: radios };
         }
 
-        /* 各コントロールの種類に応じた変更イベントに callback を割り当てる。null/undefined はスキップ。
-           radiobutton/checkbox → onClick、edittext → onChanging、dropdownlist → onChange
-           / Wire a refresh callback to each control's appropriate change event */
+        /**
+         * コントロールの変更時にプレビューを更新するよう結び付ける
+         * @param {Array} controls 対象のコントロール
+         * @returns {void}
+         */
         function wireRefresh(callback, controls) {
             for (var i = 0; i < controls.length; i++) {
                 var c = controls[i];
@@ -1779,12 +2005,17 @@
             }
         }
 
-        /* ダイアログ全体を組み立て、イベント配線とプレビューを行う / Compose the full dialog, wire events, and run live preview */
+        /**
+         * ファイル名変更のダイアログを組み立てる
+         * @param {object} documentInfo ファイル情報
+         * @param {Array<object>} segments セグメントの配列
+         * @param {object} prefs 保存しておいた設定
+         * @returns {object} ダイアログとコントロール
+         */
         function createDialog(segments, currentName, prefs, parentFolderName, grandparentFolderName, folder) {
-            var dialog = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
+            var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
             dialog.opacity = DIALOG_OPACITY;
-            dialog.orientation = 'column';
-            dialog.alignChildren = 'fill';
+            setupWindow(dialog, 10);
 
             // 上部: 動作パネル + モードパネル + ソートパネル（FEATURE_SORT=false ならソートパネル無し）
             var topRow = dialog.add('group');
@@ -1812,6 +2043,10 @@
             options.titleFieldSpacer.preferredSize = [options.titleRow.label.preferredSize.width, 1];
 
             // ---- ライブプレビュー ----
+            /**
+             * ダイアログの現在の状態を取得する
+             * @returns {object} UI の状態
+             */
             function currentUIState() {
                 var sortMode = (FEATURE_SORT && sort) ? sort.getSortMode() : 'off';
                 var segmentOrder;
@@ -1844,6 +2079,10 @@
             }
 
             // 「バージョン番号のみ」モード時に隠す UI（ソート + ファイル名の設定）
+            /**
+             * 動作モードに応じて関連コントロールの表示を切り替える
+             * @returns {void}
+             */
             function syncOpModeVisibility() {
                 var versionOnly = opMode.isVersionOnly();
                 if (sort) sort.panel.visible = !versionOnly;
@@ -1852,6 +2091,10 @@
                 dialog.layout.resize();
             }
 
+            /**
+             * 現在の入力内容でファイル名のプレビューを更新する
+             * @returns {void}
+             */
             function refreshPreviews() {
                 options.syncTitleFieldEnabled();
                 options.syncHalfwidthKanaEnabled();
@@ -1909,6 +2152,10 @@
 
             // 構成要素（ベース／サブテキスト／ステータス／タイムスタンプ／バージョン）を変更したら、
             // 「現在のファイル名に準じる」は前提が崩れるので「標準順」に降格させる
+            /**
+             * 並び順の指定を既定へ戻す
+             * @returns {void}
+             */
             function demoteSortToDefault() {
                 if (!sort) return;
                 if (!sort.sortCurrentRadio.value) return;
@@ -1916,6 +2163,10 @@
                 sort.sortOffRadio.value = true;
                 sort.syncSortButtonEnabled();
             }
+            /**
+             * プレビューを更新し、必要なら並び順を既定へ戻す
+             * @returns {void}
+             */
             function refreshAndDemoteSort() {
                 demoteSortToDefault();
                 refreshPreviews();
@@ -1963,7 +2214,7 @@
             // ---- ボタン（右寄せ Cancel / OK） ----
             var buttonGroup = dialog.add('group');
             buttonGroup.alignment = ['right', 'top'];
-            buttonGroup.add('button', undefined, L('button.cancel'), { name: 'cancel' });
+            buttonGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
             buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
 
             return {
@@ -1977,10 +2228,13 @@
         // メイン / Main
         // =========================================
 
-        /* エントリポイント。ダイアログを開き、選択モードに応じた出力を実行 / Entry point: open the dialog and execute the selected mode */
+        /**
+         * ドキュメントを検証し、ダイアログの指定に従って出力する
+         * @returns {void}
+         */
         function main() {
             if (app.documents.length === 0) {
-                alert(L('message.noDoc'));
+                alert(getLabel('message.noDoc'));
                 return;
             }
 
@@ -1997,7 +2251,7 @@
                 ? bumpVersionInPlace(info.baseName)
                 : buildFinalName(segments, uiState);
             if (!newBaseName) {
-                alert(L('message.emptyName'));
+                alert(getLabel('message.emptyName'));
                 return;
             }
 
@@ -2035,7 +2289,7 @@
             // 長さチェック（拡張子込み）: 上限超過なら確認ダイアログを出して続行可
             var fullByteLength = byteLengthUTF8(newBaseName + '.indd');
             if (fullByteLength > FEATURE_MAX_FILENAME_BYTES) {
-                var msg = L('message.confirmTooLong')
+                var msg = getLabel('message.confirmTooLong')
                     .replace('{bytes}', String(fullByteLength))
                     .replace('{limit}', String(FEATURE_MAX_FILENAME_BYTES));
                 if (!confirm(msg + '\n\n' + newBaseName + '.indd')) return;
@@ -2071,7 +2325,7 @@
                     savePrefs(prefsToSave);
                 }
             } catch (e) {
-                alert(L('message.saveFailed') + '\n' + e);
+                alert(getLabel('message.saveFailed') + '\n' + e);
             }
         }
 

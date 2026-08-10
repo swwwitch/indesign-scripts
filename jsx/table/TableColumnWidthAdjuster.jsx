@@ -1,196 +1,188 @@
 #target indesign
-app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH_ALL;
+
+/*
+ * TableColumnWidthAdjuster.jsx
+ *
+ * 選択したセルや表の列幅を、列ごとの個別指定または一括入力でまとめて調整します。
+ * 詳細は README を参照してください。
+ */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TableColumnWidthAdjuster";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-19";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-04-19";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/TableColumnWidthAdjuster.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/TableColumnWidthAdjuster.md
+
+// Original idea
+// AdjColWidth_221003a.jsx by 照山裕爾（mottainaiDTP）
+// https://mottainaidtp.seesaa.net/article/492096133.html
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
 (function () {
 
-	/* 
-	概要 / Overview
-	選択中のセル、セル内テキスト、表、またはテーブルを含むテキストフレームを対象に、列幅をまとめて調整する InDesign スクリプトです。
-	入力方法は「個別に設定」と「一括入力」を切り替えできます。
+	app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH_ALL;
 
-	【個別に設定】
-	- 指定方法は「幅で指定」または「文字数で指定」を選択可能
-	- 列ごとに、幅／文字数換算／左右の余白／自動調整を設定
-	- 自動調整は、2行目がある列では2行目が消えるまで列幅を広げ、2行目がない列では文字数ベースで幅を推定
-	- 「全列に適用」で、編集中の値を他列へ連動反映
-	- 自動調整を ON にした列は、その時点の算出結果を固定し、ユーザーが変更するまで維持
+	// =========================================
+	// ラベル定義 / Labels
+	// =========================================
 
-	【一括入力】
-	- 幅指定専用
-	- 入力形式：スペース区切りまたはカンマ区切り（例：30 50 70 70 / 30, 50, 70, 70）
-
-	【共通仕様】
-	- 列幅と左右の余白はドキュメントの単位設定に従う
-	- 文字数換算は、表内で最も支配的なフォントサイズを基準に計算
-	- 左右の余白は各列内すべてのセルに適用
-	- 変更は常に即時反映し、キャンセル時は元に戻す
-
-	*/
-
-	/*
-	 * 参考 / References
-	 * Based on: AdjColWidth_221003a.jsx by 照山裕爾（mottainaiDTP）
-	 * https://mottainaidtp.seesaa.net/article/492096133.html
-	 * Error-handling pattern reference: http://cat.adodtp.com/2016/08/23/?p=638
-	 * UI ダイアログ、ローカライズ、文字数指定モード、プレビューなどを追加して再構成。
-	 * Reworked with UI dialog, localization, character-count mode, preview support, and related enhancements.
+	/**
+	 * UI 言語を判定する
+	 * @returns {string} "ja" または "en"
 	 */
-
-	// =========================================
-	// バージョンとローカライズ / Version and localization
-	// =========================================
-
-	var SCRIPT_VERSION = "v1.1.0";
-
 	function getCurrentLang() {
-		return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+		return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 	}
-	var lang = getCurrentLang();
+	var currentLang = getCurrentLang();
 
-	/* 日英ラベル定義 / Japanese-English label definitions */
 	var LABELS = {
-		dialogTitle: {
-			ja: "列幅の調整",
-			en: "Adjust Column Widths"
+		dialog: {
+			title: { ja: "列幅の調整", en: "Adjust Column Widths" }
 		},
-		panelBasic: {
-			ja: "指定方法",
-			en: "Sizing Method"
+		panel: {
+			basic:        { ja: "指定方法", en: "Sizing Method" },
+			perColumn:    { ja: "個別に設定", en: "Per-Column Settings" },
+			columnWidths: { ja: "各列の設定", en: "Column Settings" },
+			batch:        { ja: "一括入力", en: "Batch Input" }
 		},
-		panelPerColumn: {
-			ja: "個別に設定",
-			en: "Per-Column Settings"
+		field: {
+			calculationBasis: { ja: "指定方法", en: "Sizing Method" },
+			inputMethod:      { ja: "入力方法", en: "Input Method" }
 		},
-		labelCalculationBasis: {
-			ja: "指定方法",
-			en: "Sizing Method"
+		radio: {
+			inputMethodPerColumn: { ja: "個別に設定", en: "Per-Column Input" },
+			inputMethodBatch:     { ja: "一括入力", en: "Batch Input" },
+			modeAbsolute:         { ja: "幅で指定", en: "Set by Width" },
+			modeCharacterBased:   { ja: "文字数で指定", en: "Set by Character Count" }
 		},
-		labelInputMethod: {
-			ja: "入力方法",
-			en: "Input Method"
+		checkbox: {
+			unify:   { ja: "全列に適用", en: "Apply to All Columns" },
+			preview: { ja: "プレビュー", en: "Preview" }
 		},
-		inputMethodPerColumn: {
-			ja: "個別に設定",
-			en: "Per-Column Input"
+		header: {
+			column:    { ja: "列", en: "Col" },
+			width:     { ja: "幅", en: "Width" },
+			charCount: { ja: "文字数", en: "Character Count" },
+			inset:     { ja: "左右の余白", en: "Left/Right Inset" },
+			autoFit:   { ja: "自動調整", en: "Auto Fit" }
 		},
-		inputMethodBatch: {
-			ja: "一括入力",
-			en: "Batch Input"
+		unit: {
+			mm:         { ja: "mm", en: "mm" },
+			characters: { ja: "文字", en: "chars" },
+			columnSuffix: { ja: "列目", en: "Col" }
 		},
-		modeAbsolute: {
-			ja: "幅で指定",
-			en: "Set by Width"
+		button: {
+			ok:     { ja: "OK", en: "OK" },
+			cancel: { ja: "キャンセル", en: "Cancel" },
+			apply:  { ja: "適用", en: "Apply" }
 		},
-		modeCharacterBased: {
-			ja: "文字数で指定",
-			en: "Set by Character Count"
+		hint: {
+			batch: {
+				ja: "入力形式：15 20 34 10 または 15, 20, 34, 10",
+				en: "Example: Enter column widths as 15 20 34 10 or 15, 20, 34, 10"
+			}
 		},
-		checkboxUnify: {
-			ja: "全列に適用",
-			en: "Apply to All Columns"
-		},
-		panelColumnWidths: {
-			ja: "各列の設定",
-			en: "Column Settings"
-		},
-		unitMm: {
-			ja: "mm",
-			en: "mm"
-		},
-		unitCharacters: {
-			ja: "文字",
-			en: "chars"
-		},
-		columnSuffix: {
-			ja: "列目",
-			en: "Col"
-		},
-		headerColumn: {
-			ja: "列",
-			en: "Col"
-		},
-		headerWidth: {
-			ja: "幅",
-			en: "Width"
-		},
-		headerCharCount: {
-			ja: "文字数",
-			en: "Character Count"
-		},
-		headerInset: {
-			ja: "左右の余白",
-			en: "Left/Right Inset"
-		},
-		headerAutoFit: {
-			ja: "自動調整",
-			en: "Auto Fit"
-		},
-		panelBatch: {
-			ja: "一括入力",
-			en: "Batch Input"
-		},
-		buttonApply: {
-			ja: "適用",
-			en: "Apply"
-		},
-		batchHint: {
-			ja: "入力形式：15 20 34 10 または 15, 20, 34, 10",
-			en: "Example: Enter column widths as 15 20 34 10 or 15, 20, 34, 10"
-		},
-		checkboxPreview: {
-			ja: "プレビュー",
-			en: "Preview"
-		},
-		buttonCancel: {
-			ja: "キャンセル",
-			en: "Cancel"
-		},
-		buttonOk: {
-			ja: "OK",
-			en: "OK"
-		},
-		alertSelectCellOrTable: {
-			ja: "セルまたは表を選択してから実行してください",
-			en: "Select a cell or table before running this script."
-		},
-		alertBatchInvalidValue: {
-			ja: "一括入力に無効な値が含まれています",
-			en: "Batch input contains invalid values."
-		},
-		alertBatchTooManyValues: {
-			ja: "入力数が列数を超えています",
-			en: "Too many values for the number of columns."
-		},
-		alertInvalidNumber: {
-			ja: "数値を入力してください",
-			en: "Enter a valid number."
-		},
-		alertNegativeWidth: {
-			ja: "幅には 0 以上の数値を入力してください",
-			en: "Width must be 0 or greater."
-		},
-		alertNegativeCharCount: {
-			ja: "文字数には 0 以上の数値を入力してください",
-			en: "Character count must be 0 or greater."
-		},
-		alertNegativeInset: {
-			ja: "左右の余白には 0 以上の数値を入力してください",
-			en: "Left/right inset must be 0 or greater."
-		},
-		alertInsetTooLarge: {
-			ja: "左右の余白が大きすぎます。内容幅が 0 以下になります",
-			en: "Left/right inset is too large. Content width would become 0 or less."
+		alert: {
+			selectCellOrTable:   { ja: "セルまたは表を選択してから実行してください", en: "Select a cell or table before running this script." },
+			batchInvalidValue:   { ja: "一括入力に無効な値が含まれています", en: "Batch input contains invalid values." },
+			batchTooManyValues:  { ja: "入力数が列数を超えています", en: "Too many values for the number of columns." },
+			invalidNumber:       { ja: "数値を入力してください", en: "Enter a valid number." },
+			negativeWidth:       { ja: "幅には 0 以上の数値を入力してください", en: "Width must be 0 or greater." },
+			negativeCharCount:   { ja: "文字数には 0 以上の数値を入力してください", en: "Character count must be 0 or greater." },
+			negativeInset:       { ja: "左右の余白には 0 以上の数値を入力してください", en: "Left/right inset must be 0 or greater." },
+			insetTooLarge:       { ja: "左右の余白が大きすぎます。内容幅が 0 以下になります", en: "Left/right inset is too large. Content width would become 0 or less." }
 		}
 	};
 
-	function L(key) {
-		return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key;
+	/**
+	 * ドット区切りキーでラベルを取得する
+	 * @param {string} labelKey 例: "dialog.title"
+	 * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+	 */
+	function getLabel(labelKey) {
+		var node = LABELS;
+		var keyParts = labelKey.split(".");
+		for (var i = 0; i < keyParts.length; i++) {
+			node = node[keyParts[i]];
+			if (!node) return labelKey;
+		}
+		return node[currentLang] || node.en || labelKey;
 	}
 
-	function labelText(key) {
-		return L(key) + (lang === 'ja' ? '：' : ':');
+	/**
+	 * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
+	 * @param {string} labelKey 例: "field.inputMethod"
+	 * @returns {string} コロンを付与したラベル文字列
+	 */
+	function getLabelWithColon(labelKey) {
+		return getLabel(labelKey) + (currentLang === "ja" ? "：" : ":");
 	}
 
+	/**
+	 * 現在プレビュー表示になっているかを判定する
+	 * @returns {boolean} プレビュー表示なら true
+	 */
 	function isPreviewScreenMode() {
 		try {
 			return app.activeWindow && app.activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE;
@@ -199,6 +191,10 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		}
 	}
 
+	/**
+	 * 標準表示とプレビュー表示を切り替える
+	 * @returns {void}
+	 */
 	function togglePreviewScreenMode() {
 		try {
 			var w = app.activeWindow;
@@ -211,22 +207,41 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		} catch (e) { }
 	}
 
-	function getPreviewToggleButtonLabel(lang) {
+	/**
+	 * 画面モードに応じたトグルボタンのラベルを返す
+	 * @param {string} currentLang UI 言語
+	 * @returns {string} ボタンに表示する文字列
+	 */
+	function getPreviewToggleButtonLabel(currentLang) {
 		return isPreviewScreenMode()
-			? (lang === "ja" ? "プレビュー" : "Preview")
-			: (lang === "ja" ? "標準モード" : "Normal Mode");
+			? (currentLang === "ja" ? "プレビュー" : "Preview")
+			: (currentLang === "ja" ? "標準モード" : "Normal Mode");
 	}
 
-	function updatePreviewToggleButtonLabel(btn, lang) {
-		btn.text = getPreviewToggleButtonLabel(lang);
+	/**
+	 * トグルボタンのラベルを現在の画面モードに合わせて更新する
+	 * @param {Button} btn 対象のボタン
+	 * @param {string} currentLang UI 言語
+	 * @returns {void}
+	 */
+	function updatePreviewToggleButtonLabel(btn, currentLang) {
+		btn.text = getPreviewToggleButtonLabel(currentLang);
 	}
 
 	/* 実行とエラー対策 / Execution and error handling */
 	main();
+	/**
+	 * 列幅調整の処理を開始する
+	 * @returns {void}
+	 */
 	function main() {
 		app.doScript("adjustColumnWidths()", ScriptLanguage.JAVASCRIPT, [], UndoModes.fastEntireScript);
 	}
 
+	/**
+	 * ダイアログを表示して列幅の調整を実行する
+	 * @returns {void}
+	 */
 	function adjustColumnWidths() {
 		var selection = app.activeDocument.selection;
 		var targetTable = resolveTableFromSelection(selection);
@@ -241,6 +256,10 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			app.select(NothingEnum.NOTHING);
 		} catch (e) { }
 
+		/**
+		 * 実行前の選択状態を復元する
+		 * @returns {void}
+		 */
 		function restoreSelection() {
 			try {
 				if (savedSelection.length > 0) {
@@ -256,11 +275,8 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		var dominantFontSizePt = findDominantFontSize(targetTable);
 		fontSizePtForValidationCache = dominantFontSizePt;
 
-		var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-		dialog.orientation = "column";
-		dialog.alignChildren = "fill";
-		dialog.margins = 15;
-		dialog.spacing = 10;
+		var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+		setupWindow(dialog, 10);
 
 		var inputMethodOuterGroup = dialog.add("group");
 		inputMethodOuterGroup.orientation = "row";
@@ -269,46 +285,38 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		inputMethodOuterGroup.margins = [0, 3, 0, 10];
 
 		var inputMethodGroup = inputMethodOuterGroup.add("group");
-		inputMethodGroup.orientation = "row";
-		inputMethodGroup.spacing = 12;
-		var perColumnRadio = inputMethodGroup.add("radiobutton", undefined, L("inputMethodPerColumn"));
-		var batchModeRadio = inputMethodGroup.add("radiobutton", undefined, L("inputMethodBatch"));
+		setupRow(inputMethodGroup, "left", COLUMN_SPACING);
+		var perColumnRadio = inputMethodGroup.add("radiobutton", undefined, getLabel("radio.inputMethodPerColumn"));
+		var batchModeRadio = inputMethodGroup.add("radiobutton", undefined, getLabel("radio.inputMethodBatch"));
 		perColumnRadio.value = true;
 
 
 		var panelUnitLabel = getRulerUnitString();
-		var perColumnPanel = dialog.add("panel", undefined, L("panelPerColumn"));
-		perColumnPanel.orientation = "column";
-		perColumnPanel.alignChildren = "fill";
-		perColumnPanel.margins = [15, 20, 15, 10];
-		perColumnPanel.spacing = 10;
+		var perColumnPanel = dialog.add("panel", undefined, getLabel("panel.perColumn"));
+		setupPanel(perColumnPanel, 10);
 
-		var basicSettingsPanel = perColumnPanel.add("panel", undefined, L("panelBasic"));
-		basicSettingsPanel.orientation = "column";
+		var basicSettingsPanel = perColumnPanel.add("panel", undefined, getLabel("panel.basic"));
+		setupPanel(basicSettingsPanel, 6);
 		basicSettingsPanel.alignChildren = "left";
-		basicSettingsPanel.margins = [15, 20, 15, 10];
-		// basicSettingsPanel.spacing = 15; // 必要に応じて有効化 / Enable if needed
 
 		var modeGroup = basicSettingsPanel.add("group");
 		modeGroup.orientation = "column";
 		modeGroup.alignChildren = "left";
 		modeGroup.spacing = 4;
-		var absoluteRadio = modeGroup.add("radiobutton", undefined, L("modeAbsolute"));
-		var characterBasedRadio = modeGroup.add("radiobutton", undefined, L("modeCharacterBased"));
+		var absoluteRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeAbsolute"));
+		var characterBasedRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeCharacterBased"));
 		absoluteRadio.value = true;
 
 
 		var columnSettingsPanel = perColumnPanel.add(
 			"panel",
 			undefined,
-			L("panelColumnWidths") + (lang === "ja" ? "（" + panelUnitLabel + "）" : " (" + panelUnitLabel + ")")
+			getLabel("panel.columnWidths") + (currentLang === "ja" ? "（" + panelUnitLabel + "）" : " (" + panelUnitLabel + ")")
 		);
-		columnSettingsPanel.orientation = "column";
+		setupPanel(columnSettingsPanel, 6);
 		columnSettingsPanel.alignChildren = "left";
-		columnSettingsPanel.margins = [15, 20, 15, 10];
-		columnSettingsPanel.spacing = 6;
 		// 全列に適用 / Apply to all columns
-		var unifyCheckbox = columnSettingsPanel.add("checkbox", undefined, L("checkboxUnify"));
+		var unifyCheckbox = columnSettingsPanel.add("checkbox", undefined, getLabel("checkbox.unify"));
 
 		var initialInsetValuesUi = insetsToInitialInsetValues(originalInsets);
 		var columnSettingsControls = buildColumnSettingsControls(columnSettingsPanel, columnCount, originalWidths, initialInsetValuesUi, dominantFontSizePt);
@@ -334,11 +342,8 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		if (!rowLabels || !(rowLabels instanceof Array)) rowLabels = [];
 		if (!headerLabels || !(headerLabels instanceof Array)) headerLabels = [];
 
-		var batchInputPanel = dialog.add("panel", undefined, L("panelBatch"));
-		batchInputPanel.orientation = "column";
-		batchInputPanel.alignChildren = "fill";
-		batchInputPanel.margins = [15, 20, 15, 10];
-		batchInputPanel.spacing = 6;
+		var batchInputPanel = dialog.add("panel", undefined, getLabel("panel.batch"));
+		setupPanel(batchInputPanel, 6);
 
 		var batchRow = batchInputPanel.add("group");
 		batchRow.orientation = "row";
@@ -359,13 +364,12 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		batchRightGroup.alignment = ["right", "center"];
 		batchRightGroup.alignChildren = ["right", "center"];
 
-		var batchApplyButton = batchRightGroup.add("button", undefined, L("buttonApply"));
+		var batchApplyButton = batchRightGroup.add("button", undefined, getLabel("button.apply"));
 
-		var batchHintText = batchInputPanel.add("statictext", undefined, L("batchHint"));
+		var batchHintText = batchInputPanel.add("statictext", undefined, getLabel("hint.batch"));
 
 		var footerGroup = dialog.add("group");
-		footerGroup.orientation = "row";
-		footerGroup.alignment = "fill";
+		setupRow(footerGroup, "fill", 8);
 		footerGroup.alignChildren = ["left", "center"];
 		footerGroup.margins = [0, 10, 0, 0];
 
@@ -375,35 +379,49 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		footerLeft.alignment = ["left", "center"];
 		footerLeft.alignChildren = ["left", "center"];
 
-		var previewModeButton = footerLeft.add("button", undefined, getPreviewToggleButtonLabel(lang));
+		var previewModeButton = footerLeft.add("button", undefined, getPreviewToggleButtonLabel(currentLang));
 
 		// 中央：spacer
 		var footerCenter = footerGroup.add("group");
 		footerCenter.alignment = ["fill", "center"];
 
 		// 右：ボタン
+		/* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
 		var footerRight = footerGroup.add("group");
-		footerRight.orientation = "row";
-		footerRight.alignment = ["right", "center"];
+		setupRow(footerRight, "right", 8);
 		footerRight.alignChildren = ["right", "center"];
 
-		footerRight.add("button", undefined, L("buttonCancel"), { name: "cancel" });
-		footerRight.add("button", undefined, L("buttonOk"), { name: "ok" });
+		footerRight.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+		footerRight.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
 		var primaryInputMode = "absolute";
 		var currentInputMethod = "perColumn";
 		var isPreviewCurrentlyApplied = false;
 
+		/**
+		 * 指定方法（幅／文字数）を切り替える
+		 * @param {string} mode "absolute" または "character"
+		 * @returns {void}
+		 */
 		function setInputMode(mode) {
 			primaryInputMode = mode;
 			refreshControlStates();
 		}
 
+		/**
+		 * 入力方法（個別／一括）を切り替える
+		 * @param {string} method "perColumn" または "batch"
+		 * @returns {void}
+		 */
 		function setInputMethod(method) {
 			currentInputMethod = method;
 			refreshControlStates();
 		}
 
+		/**
+		 * 現在のモードに応じてコントロールの有効／無効を更新する
+		 * @returns {void}
+		 */
 		function refreshControlStates() {
 			var isPerColumnMode = (currentInputMethod == "perColumn");
 			columnSettingsPanel.visible = true;
@@ -457,6 +475,10 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			} catch (e) { }
 		}
 
+		/**
+		 * 入力値を列幅と余白へ反映する
+		 * @returns {void}
+		 */
 		function applyColumnSettings() {
 			// columnStates を唯一の truth として適用する
 			// Apply everything from columnStates as the single source of truth
@@ -481,6 +503,10 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			isPreviewCurrentlyApplied = true;
 		}
 
+		/**
+		 * 列幅と余白を実行前の状態に戻す
+		 * @returns {void}
+		 */
 		function restoreOriginalColumnSettings() {
 			restoreColumnWidths(targetTable, originalWidths);
 			restoreColumnInsets(targetTable, originalInsets);
@@ -488,6 +514,12 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		}
 
 		// 高速自動調整: 文字数推定による列内容幅計算
+		/**
+		 * 文字数を基準に列の内容幅を見積もる
+		 * @param {number} colIdx 列の位置
+		 * @param {number} fontSizePt 基準の文字サイズ（pt）
+		 * @returns {number} 見積もった内容幅
+		 */
 		function estimateColumnContentWidthByChars(colIdx, fontSizePt) {
 			var col = targetTable.columns[colIdx];
 			var cells = col.cells;
@@ -508,6 +540,11 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			return ptToInputUnit(maxChars * fontSizePt);
 		}
 
+		/**
+		 * 列の内容が収まる幅を実測する
+		 * @param {number} colIdx 列の位置
+		 * @returns {number} 実測した内容幅
+		 */
 		function measureColumnContentWidth(colIdx) {
 			var table = targetTable;
 			var col = table.columns[colIdx];
@@ -521,6 +558,10 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 				}
 			}
 
+			/**
+			 * 列内のいずれかのセルに 2 行目があるかを判定する
+			 * @returns {boolean} 2 行目があれば true
+			 */
 			function hasSecondLineInAnyCell() {
 				for (var k = 0; k < cells.length; k++) {
 					var cell = cells[k];
@@ -575,6 +616,11 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			return rulerValueToInputUnit(measuredWidth);
 		}
 
+		/**
+		 * 指定した列に自動調整を適用する
+		 * @param {number} colIdx 列の位置
+		 * @returns {void}
+		 */
 		function applyAutoFitToColumn(colIdx) {
 			var contentW = measureColumnContentWidth(colIdx);
 			var inset = parseFloat(sideInsetInputs[colIdx].text);
@@ -630,7 +676,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 
 		previewModeButton.onClick = function () {
 			togglePreviewScreenMode();
-			updatePreviewToggleButtonLabel(previewModeButton, lang);
+			updatePreviewToggleButtonLabel(previewModeButton, currentLang);
 		};
 
 		for (var i = 0; i < columnCount; i++) {
@@ -721,6 +767,10 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 
 					applyColumnSettings();
 				};
+				/**
+				 * 自動調整チェックボックスの切り替えを処理する
+				 * @returns {void}
+				 */
 				function handleAutoFitToggle() {
 					var isAutoFitOn = !!autoFitCheckboxes[idx].value;
 					if (isAutoFitOn) {
@@ -738,6 +788,10 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			})(i);
 		}
 
+		/**
+		 * 一括入力の値を各列へ反映する
+		 * @returns {void}
+		 */
 		function applyBatchInput() {
 			var values = parseBatchInput(batchInput.text);
 			if (values.length == 0) return;
@@ -745,14 +799,14 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			// 入力検証：無効な値があれば中断 / Validation: reject if any invalid value exists
 			for (var i = 0; i < values.length; i++) {
 				if (values[i] == null) {
-					alert(L("alertBatchInvalidValue"));
+					alert(getLabel("alert.batchInvalidValue"));
 					return;
 				}
 			}
 
 			// 入力検証：列数を超える場合は中断 / Validation: reject if too many values
 			if (values.length > columnCount) {
-				alert(L("alertBatchTooManyValues"));
+				alert(getLabel("alert.batchTooManyValues"));
 				return;
 			}
 
@@ -793,15 +847,20 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 	// 表・選択ヘルパー / Table and selection helpers
 	// =========================================
 
+	/**
+	 * 選択から対象の表を特定する
+	 * @param {Array} selection 選択オブジェクトの配列
+	 * @returns {Table|null} 対象の表。特定できない場合は null
+	 */
 	function resolveTableFromSelection(selection) {
 		if (!selection || selection.length === 0) {
-			alert(L("alertSelectCellOrTable"));
+			alert(getLabel("alert.selectCellOrTable"));
 			return null;
 		}
 
 		var node = selection[0];
 		if (node == null) {
-			alert(L("alertSelectCellOrTable"));
+			alert(getLabel("alert.selectCellOrTable"));
 			return null;
 		}
 
@@ -820,10 +879,15 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			}
 		}
 
-		alert(L("alertSelectCellOrTable"));
+		alert(getLabel("alert.selectCellOrTable"));
 		return null;
 	}
 
+	/**
+	 * 各列の現在の幅を取得する
+	 * @param {Table} table 対象の表
+	 * @returns {Array<number>} 列幅の配列
+	 */
 	function getColumnWidths(table) {
 		var widths = [];
 		for (var i = 0; i < table.columns.length; i++) {
@@ -832,6 +896,11 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		return widths;
 	}
 
+	/**
+	 * 各列の現在の左右余白を控える
+	 * @param {Table} table 対象の表
+	 * @returns {Array<object>} 列ごとの余白情報
+	 */
 	function getOriginalInsets(table) {
 		var perColumn = [];
 		for (var i = 0; i < table.columns.length; i++) {
@@ -845,6 +914,11 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		return perColumn;
 	}
 
+	/**
+	 * 控えた余白から入力欄の初期値を作る
+	 * @param {Array<object>} originalInsets 列ごとの余白情報
+	 * @returns {Array<number>} 入力欄の初期値
+	 */
 	function insetsToInitialInsetValues(originalInsets) {
 		var insetValues = [];
 		for (var i = 0; i < originalInsets.length; i++) {
@@ -854,6 +928,13 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		return insetValues;
 	}
 
+	/**
+	 * 入力値に従って列幅を設定する
+	 * @param {Table} table 対象の表
+	 * @param {Array<EditText>} widthInputs 幅の入力欄
+	 * @param {Array<number>} originalWidths 元の列幅
+	 * @returns {void}
+	 */
 	function applyColumnWidths(table, widthInputs, originalWidths) {
 		for (var i = widthInputs.length - 1; i >= 0; i--) {
 			try {
@@ -867,6 +948,12 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		}
 	}
 
+	/**
+	 * 入力値に従って列の左右余白を設定する
+	 * @param {Table} table 対象の表
+	 * @param {Array<EditText>} sideInsetInputs 余白の入力欄
+	 * @returns {void}
+	 */
 	function applyColumnInsets(table, sideInsetInputs) {
 		for (var i = 0; i < sideInsetInputs.length; i++) {
 			var text = sideInsetInputs[i].text;
@@ -884,6 +971,12 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		}
 	}
 
+	/**
+	 * 列の状態オブジェクトから左右余白を設定する
+	 * @param {Table} table 対象の表
+	 * @param {Array<object>} columnStates 列ごとの状態
+	 * @returns {void}
+	 */
 	function applyColumnInsetsFromStates(table, columnStates) {
 		for (var i = 0; i < columnStates.length; i++) {
 			var insetValue = columnStates[i].inset;
@@ -899,12 +992,24 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		}
 	}
 
+	/**
+	 * 控えておいた列幅を戻す
+	 * @param {Table} table 対象の表
+	 * @param {Array<number>} originalWidths 元の列幅
+	 * @returns {void}
+	 */
 	function restoreColumnWidths(table, originalWidths) {
 		for (var i = 0; i < originalWidths.length; i++) {
 			try { table.columns[i].width = originalWidths[i]; } catch (e) { }
 		}
 	}
 
+	/**
+	 * 控えておいた左右余白を戻す
+	 * @param {Table} table 対象の表
+	 * @param {Array<object>} originalInsets 元の余白情報
+	 * @returns {void}
+	 */
 	function restoreColumnInsets(table, originalInsets) {
 		for (var i = 0; i < originalInsets.length; i++) {
 			var cells = table.columns[i].cells;
@@ -921,6 +1026,15 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 	// UI ヘルパー / UI helpers
 	// =========================================
 
+	/**
+	 * 列ごとの設定コントロールを組み立てる
+	 * @param {object} parent 追加先のコンテナ
+	 * @param {number} columnCount 列数
+	 * @param {Array<number>} originalWidths 元の列幅
+	 * @param {Array<number>} initialInsetValues 余白の初期値
+	 * @param {number} fontSizePt 基準の文字サイズ（pt）
+	 * @returns {object} 生成したコントロール
+	 */
 	function buildColumnSettingsControls(parent, columnCount, originalWidths, initialInsetValues, fontSizePt) {
 		var widthInputFields = [];
 		var charCountInputFields = [];
@@ -936,13 +1050,13 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		headerRow.margins = [0, 2, 0, 6];
 
 		// 「列」
-		var headerColumn = headerRow.add("statictext", undefined, L("headerColumn"));
+		var headerColumn = headerRow.add("statictext", undefined, getLabel("header.column"));
 		headerColumn.justify = "center";
 		headerColumn.preferredSize.width = 14;
 		headerLabelControls.push(headerColumn);
 
 		//　「幅」
-		var headerWidth = headerRow.add("statictext", undefined, L("headerWidth"));
+		var headerWidth = headerRow.add("statictext", undefined, getLabel("header.width"));
 		headerWidth.justify = "center";
 		headerWidth.preferredSize.width = 70;
 		headerLabelControls.push(headerWidth);
@@ -951,7 +1065,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		// headerMidSpacer.preferredSize.width = 10;
 
 		// 「文字数」
-		var headerCharCount = headerRow.add("statictext", undefined, L("headerCharCount"));
+		var headerCharCount = headerRow.add("statictext", undefined, getLabel("header.charCount"));
 		headerCharCount.justify = "center";
 		headerCharCount.preferredSize.width = 73;
 		headerLabelControls.push(headerCharCount);
@@ -960,7 +1074,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		// headerSpacer.preferredSize.width = 16;
 
 		// 「左右の余白」
-		var headerInset = headerRow.add("statictext", undefined, L("headerInset"));
+		var headerInset = headerRow.add("statictext", undefined, getLabel("header.inset"));
 		headerInset.justify = "center";
 		headerInset.preferredSize.width = 70;
 		headerLabelControls.push(headerInset);
@@ -969,7 +1083,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		// headerAutoFitSpacer.preferredSize.width = 16;
 
 		// 「自動調整」
-		var headerAutoFit = headerRow.add("statictext", undefined, L("headerAutoFit"));
+		var headerAutoFit = headerRow.add("statictext", undefined, getLabel("header.autoFit"));
 		headerAutoFit.justify = "center";
 		headerAutoFit.preferredSize.width = 60;
 		headerLabelControls.push(headerAutoFit);
@@ -988,7 +1102,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			var widthInput = inputRow.add("edittext", undefined, formatNumber(widthValue));
 			widthInput.characters = 5;
 			// 行ごとの幅単位ラベルは表示しない / Per-row width unit label is omitted
-			// rowLabelRow.push(inputRow.add("statictext", undefined, L("unitMm")));
+			// rowLabelRow.push(inputRow.add("statictext", undefined, getLabel("unit.mm")));
 
 			var midSpacer = inputRow.add("group");
 			midSpacer.preferredSize.width = 10;
@@ -997,7 +1111,7 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 			var charCountInput = inputRow.add("edittext", undefined, formatNumber(charCount));
 			charCountInput.characters = 5;
 			// 行ごとの文字数単位ラベルは表示しない / Per-row character-count unit label is omitted
-			// rowLabelRow.push(inputRow.add("statictext", undefined, L("unitCharacters")));
+			// rowLabelRow.push(inputRow.add("statictext", undefined, getLabel("unit.characters")));
 
 			var rowSpacer = inputRow.add("group");
 			rowSpacer.preferredSize.width = 16;
@@ -1029,6 +1143,14 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		};
 	}
 
+	/**
+	 * 幅の入力値から文字数の表示を更新する
+	 * @param {EditText} widthInput 幅の入力欄
+	 * @param {EditText} charCountInput 文字数の入力欄
+	 * @param {EditText} sideInsetInput 余白の入力欄
+	 * @param {number} fontSizePt 基準の文字サイズ（pt）
+	 * @returns {void}
+	 */
 	function updateCharCountFromWidth(widthInput, charCountInput, sideInsetInput, fontSizePt) {
 		var widthValue = parseFloat(widthInput.text);
 		var insetValue = parseFloat(sideInsetInput.text);
@@ -1036,6 +1158,14 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		charCountInput.text = formatNumber(cc);
 	}
 
+	/**
+	 * 文字数の入力値から幅の表示を更新する
+	 * @param {EditText} widthInput 幅の入力欄
+	 * @param {EditText} charCountInput 文字数の入力欄
+	 * @param {EditText} sideInsetInput 余白の入力欄
+	 * @param {number} fontSizePt 基準の文字サイズ（pt）
+	 * @returns {void}
+	 */
 	function updateWidthFromCharCount(widthInput, charCountInput, sideInsetInput, fontSizePt) {
 		var cc = parseFloat(charCountInput.text);
 		var insetValue = parseFloat(sideInsetInput.text);
@@ -1043,6 +1173,15 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		widthInput.text = formatNumber(widthValue);
 	}
 
+	/**
+	 * 余白の変更に合わせて幅と文字数を揃える
+	 * @param {EditText} widthInput 幅の入力欄
+	 * @param {EditText} charCountInput 文字数の入力欄
+	 * @param {EditText} sideInsetInput 余白の入力欄
+	 * @param {number} fontSizePt 基準の文字サイズ（pt）
+	 * @param {string} primaryInputMode 現在の指定方法
+	 * @returns {void}
+	 */
 	function syncWidthAndCharCountFromInset(widthInput, charCountInput, sideInsetInput, fontSizePt, primaryInputMode) {
 		if (primaryInputMode == "absolute") {
 			updateCharCountFromWidth(widthInput, charCountInput, sideInsetInput, fontSizePt);
@@ -1052,6 +1191,17 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		}
 	}
 
+	/**
+	 * 「全列に適用」で 1 列の値を他の列へ反映する
+	 * @param {Array<EditText>} widthInputs 幅の入力欄
+	 * @param {Array<EditText>} charCountInputs 文字数の入力欄
+	 * @param {Array<EditText>} sideInsetInputs 余白の入力欄
+	 * @param {number} sourceIdx 基準にする列の位置
+	 * @param {number} fontSizePt 基準の文字サイズ（pt）
+	 * @param {string} primaryInputMode 現在の指定方法
+	 * @param {Array<Checkbox>} autoFitCheckboxes 自動調整のチェックボックス
+	 * @returns {void}
+	 */
 	function syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, sourceIdx, fontSizePt, primaryInputMode, autoFitCheckboxes) {
 		var sourceWidth = parseFloat(widthInputs[sourceIdx].text);
 		var sourceChar = parseFloat(charCountInputs[sourceIdx].text);
@@ -1110,6 +1260,12 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 	}
 
 
+	/**
+	 * コントロールの有効／無効を切り替える
+	 * @param {object} control 対象のコントロール
+	 * @param {boolean} enabled 有効にするなら true
+	 * @returns {void}
+	 */
 	function setControlEnabled(control, enabled) {
 		try {
 			control.enabled = enabled;
@@ -1117,6 +1273,12 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		setLabelDimmed(control, !enabled);
 	}
 
+	/**
+	 * ラベルのディム表示を切り替える
+	 * @param {object} control 対象のコントロール
+	 * @param {boolean} dim ディム表示にするなら true
+	 * @returns {void}
+	 */
 	function setLabelDimmed(control, dim) {
 		try {
 			var g = control.graphics;
@@ -1125,6 +1287,12 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		} catch (e) { }
 	}
 
+	/**
+	 * 入力欄に上下キーでの増減操作を追加する
+	 * @param {EditText} editText 対象の入力欄
+	 * @param {object} options 最小値などの追加設定
+	 * @returns {void}
+	 */
 	function attachArrowKeyStepper(editText, options) {
 		// ↑↓キーと修飾キーで数値を増減 / Adjust numeric values with arrow keys and modifier keys
 		editText.addEventListener("keydown", function (event) {
@@ -1187,6 +1355,11 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 
 	var fontSizePtForValidationCache = null;
 
+	/**
+	 * 表内で最も支配的な文字サイズを求める
+	 * @param {Table} table 対象の表
+	 * @returns {number} 文字サイズ（pt）
+	 */
 	function findDominantFontSize(table) {
 		var sizeCharCounts = {};
 		var allCells = table.cells;
@@ -1220,10 +1393,29 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 	// 単位変換 / Unit conversion
 	// =========================================
 
+	/**
+	 * ポイントを Q に換算する
+	 * @param {number} pt ポイント値
+	 * @returns {number} Q 値
+	 */
 	function ptToQ(pt) { return pt * 25.4 / 18; }
+	/**
+	 * ポイントをミリメートルに換算する
+	 * @param {number} pt ポイント値
+	 * @returns {number} ミリメートル値
+	 */
 	function ptToMm(pt) { return pt * 25.4 / 72; }
+	/**
+	 * ミリメートルをポイントに換算する
+	 * @param {number} mm ミリメートル値
+	 * @returns {number} ポイント値
+	 */
 	function mmToPt(mm) { return mm * 72 / 25.4; }
 
+	/**
+	 * 現在の定規単位の表示文字列を取得する
+	 * @returns {string} 単位の文字列
+	 */
 	function getRulerUnitString() {
 		var u = app.activeDocument.viewPreferences.horizontalMeasurementUnits;
 		if (u == MeasurementUnits.MILLIMETERS) return "mm";
@@ -1234,27 +1426,54 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		return "pt";
 	}
 
+	/**
+	 * 定規単位の値を入力欄の単位へ変換する
+	 * @param {number} value 定規単位での値
+	 * @returns {number} 入力欄での値
+	 */
 	function rulerValueToInputUnit(value) {
 		var unit = getRulerUnitString();
 		try { return new UnitValue(value, unit).as(unit); } catch (e) { return value; }
 	}
 
+	/**
+	 * 入力欄の値を定規単位へ変換する
+	 * @param {number} value 入力欄での値
+	 * @returns {number} 定規単位での値
+	 */
 	function inputUnitToRulerValue(value) {
 		return value;
 	}
 
+	/**
+	 * 入力欄の値をポイントへ変換する
+	 * @param {number} value 入力欄での値
+	 * @returns {number} ポイント値
+	 */
 	function inputUnitToPt(value) {
 		var unit = getRulerUnitString();
 		if (unit == "pt") return value;
 		try { return new UnitValue(value, unit).as("pt"); } catch (e) { return value; }
 	}
 
+	/**
+	 * ポイント値を入力欄の単位へ変換する
+	 * @param {number} value ポイント値
+	 * @returns {number} 入力欄での値
+	 */
 	function ptToInputUnit(value) {
 		var unit = getRulerUnitString();
 		if (unit == "pt") return value;
 		try { return new UnitValue(value, "pt").as(unit); } catch (e) { return value; }
 	}
 
+	/**
+	 * 幅と余白から収まる文字数を求める
+	 * @param {number} widthValue 列幅
+	 * @param {number} insetValue 左右の余白
+	 * @param {number} fontSizePt 基準の文字サイズ（pt）
+	 * @returns {number} 文字数
+	 */
 	function calculateCharCount(widthValue, insetValue, fontSizePt) {
 		if (!fontSizePt || widthValue == null || isNaN(widthValue)) return null;
 		var inset = (insetValue == null || isNaN(insetValue)) ? 0 : insetValue;
@@ -1263,6 +1482,13 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		return inputUnitToPt(contentValue) / fontSizePt;
 	}
 
+	/**
+	 * 文字数と余白から必要な列幅を求める
+	 * @param {number} charCount 文字数
+	 * @param {number} insetValue 左右の余白
+	 * @param {number} fontSizePt 基準の文字サイズ（pt）
+	 * @returns {number} 列幅
+	 */
 	function calculateWidthFromCharCount(charCount, insetValue, fontSizePt) {
 		if (!fontSizePt || charCount == null || isNaN(charCount)) return null;
 		if (charCount < 0) return null;
@@ -1270,39 +1496,52 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		return ptToInputUnit(charCount * fontSizePt) + 2 * inset;
 	}
 
+	/**
+	 * 入力欄に表示する数値を整形する
+	 * @param {number} value 表示する数値
+	 * @returns {string} 整形した文字列
+	 */
 	function formatNumber(value) {
 		if (value == null || isNaN(value)) return "";
 		return String(Math.round(value * 100) / 100);
 	}
 
+	/**
+	 * 列ごとの入力値を検証する
+	 * @param {EditText} widthInput 幅の入力欄
+	 * @param {EditText} charCountInput 文字数の入力欄
+	 * @param {EditText} sideInsetInput 余白の入力欄
+	 * @param {string} primaryInputMode 現在の指定方法
+	 * @returns {boolean} すべて有効なら true
+	 */
 	function validatePerColumnRow(widthInput, charCountInput, sideInsetInput, primaryInputMode) {
 		var widthValue = parseFloat(widthInput.text);
 		var charValue = parseFloat(charCountInput.text);
 		var insetValue = parseFloat(sideInsetInput.text);
 
 		if (sideInsetInput.text !== "") {
-			if (isNaN(insetValue)) return { ok: false, message: L("alertInvalidNumber"), focus: sideInsetInput };
-			if (insetValue < 0) return { ok: false, message: L("alertNegativeInset"), focus: sideInsetInput };
+			if (isNaN(insetValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: sideInsetInput };
+			if (insetValue < 0) return { ok: false, message: getLabel("alert.negativeInset"), focus: sideInsetInput };
 		}
 
 		if (primaryInputMode == "absolute") {
 			if (widthInput.text !== "") {
-				if (isNaN(widthValue)) return { ok: false, message: L("alertInvalidNumber"), focus: widthInput };
-				if (widthValue < 0) return { ok: false, message: L("alertNegativeWidth"), focus: widthInput };
+				if (isNaN(widthValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: widthInput };
+				if (widthValue < 0) return { ok: false, message: getLabel("alert.negativeWidth"), focus: widthInput };
 			}
 			if (!isNaN(widthValue) && !isNaN(insetValue) && (widthValue - 2 * insetValue) <= 0) {
-				return { ok: false, message: L("alertInsetTooLarge"), focus: sideInsetInput };
+				return { ok: false, message: getLabel("alert.insetTooLarge"), focus: sideInsetInput };
 			}
 		}
 		else {
 			if (charCountInput.text !== "") {
-				if (isNaN(charValue)) return { ok: false, message: L("alertInvalidNumber"), focus: charCountInput };
-				if (charValue < 0) return { ok: false, message: L("alertNegativeCharCount"), focus: charCountInput };
+				if (isNaN(charValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: charCountInput };
+				if (charValue < 0) return { ok: false, message: getLabel("alert.negativeCharCount"), focus: charCountInput };
 			}
 			if (!isNaN(charValue) && !isNaN(insetValue)) {
 				var calculatedWidth = calculateWidthFromCharCount(charValue, insetValue, fontSizePtForValidationCache);
 				if (calculatedWidth == null || (calculatedWidth - 2 * insetValue) <= 0) {
-					return { ok: false, message: L("alertInsetTooLarge"), focus: sideInsetInput };
+					return { ok: false, message: getLabel("alert.insetTooLarge"), focus: sideInsetInput };
 				}
 			}
 		}
@@ -1310,6 +1549,11 @@ app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH
 		return { ok: true };
 	}
 
+	/**
+	 * 一括入力の文字列を数値の配列に変換する
+	 * @param {string} text 入力された文字列
+	 * @returns {Array<number>|null} 数値の配列。無効な場合は null
+	 */
 	function parseBatchInput(text) {
 		if (text == null) return [];
 		var trimmed = text.replace(/^\s+|\s+$/g, "");

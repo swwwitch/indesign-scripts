@@ -1,157 +1,231 @@
 #target indesign
+
 /*
-
-### 概要
-
-選択したテキストの「現在の行送り（絶対値）」とフォントサイズから行送り％を段落ごとに逆算し、
-それを自動行送り量（％）として設定したうえで、行送りを「自動」に切り替えるスクリプトです。
-あわせて行送りの基準位置を「仮想ボディの上/右」に設定します。
-ダイアログやパレットは表示せず、実行するとその場で選択中のテキストへ適用します。
-
-対応する選択：
-- テキスト編集モードの範囲選択（触れている段落全体が対象）
-- 選択ツールでのテキストフレーム選択（グループ内のネストしたフレームも再帰的に処理）
-
-すでに自動行送りの段落は逆算できないためスキップします。
-処理後は選択を選び直して文字パネルの表示を更新します。
-
-### Overview
-
-For each paragraph, back-calculates the leading percentage from the selection's current
-(absolute) leading and font size, applies it as the paragraph's auto-leading amount, switches
-leading to Auto, and sets the leading model to the top/right of the virtual body. No dialog is
-shown; it applies to the selection in place.
-
-Supported selections:
-- Range selections in text-edit mode (whole touched paragraphs)
-- Text frames picked with the Selection tool (recurses into nested frames inside groups)
-
-Paragraphs already set to Auto leading are skipped (nothing to back-calculate). After applying,
-the selection is re-selected so the Character panel refreshes its displayed values.
-
-*/
+ * IdAutoLeadingCalc.jsx
+ *
+ * 選択テキストの現在の行送り（絶対値）と文字サイズから行送り％を段落ごとに逆算し、自動行送りに切り替えます。
+ * 詳細は README を参照してください。
+ */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_NAME     = "IdAutoLeadingCalc";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-07-09";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-09";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAutoLeadingCalc.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAutoLeadingCalc.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
-    var isJa = ($.locale.indexOf("ja") === 0);
-    /* 言語に応じた文字列 / Pick a string for the current UI language */
-    function t(ja, en) { return isJa ? ja : en; }
+// =========================================
+// ユーザー設定 / User settings
+// =========================================
 
-    /* テキストとして段落を取り出せる選択オブジェクトの型 / Selection types that expose paragraphs */
-    var TEXT_SELECTION_TYPES = {
-        Character: true, Word: true, TextStyleRange: true, Paragraph: true,
-        Line: true, TextColumn: true, Text: true, InsertionPoint: true, Story: true
-    };
+/* 逆算した行送り％の丸め桁数（小数第 1 位）/ Rounding of the back-calculated leading percentage (1 decimal) */
+var LEADING_PERCENT_ROUND_FACTOR = 10;
 
-    /* 型名を安全に取得（InDesign は typename ではなく constructor.name）
-       Safely resolve the constructor name (InDesign has no typename; use constructor.name) */
-    function getConstructorName(obj) {
-        try { return obj && obj.constructor ? obj.constructor.name : ""; } catch (e) { return ""; }
+/* 段落を取り出せる選択オブジェクトの型 / Selection types that expose paragraphs */
+var TEXT_SELECTION_TYPES = {
+    Character: true, Word: true, TextStyleRange: true, Paragraph: true,
+    Line: true, TextColumn: true, Text: true, InsertionPoint: true, Story: true
+};
+
+// =========================================
+// ラベル定義 / Labels
+// =========================================
+
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+
+var currentLang = getCurrentLang();
+
+var LABELS = {
+    alert: {
+        noDocument:  { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+        noSelection: { ja: "テキストが選択されていません。", en: "No text is selected." }
+    },
+    undo: {
+        applyAutoLeading: { ja: "自動行送りに変換", en: "Convert to Auto Leading" }
+    }
+};
+
+/**
+ * ラベルを現在の言語で取得する
+ * @param {object} labelEntry ja / en を持つラベルオブジェクト
+ * @returns {string} 現在の言語のラベル文字列
+ */
+function localize(labelEntry) {
+    return labelEntry[currentLang];
+}
+
+// =========================================
+// 段落の収集 / Paragraph collection
+// =========================================
+
+/**
+ * オブジェクトの型名を安全に取得する
+ * @param {object} targetObject 対象オブジェクト
+ * @returns {string} 型名。取得できない場合は空文字
+ */
+function getConstructorName(targetObject) {
+    try {
+        return (targetObject && targetObject.constructor) ? targetObject.constructor.name : "";
+    } catch (e) {
+        return "";
+    }
+}
+
+/**
+ * テキストオブジェクトの段落を対象配列へ追加する
+ * @param {object} textObject paragraphs を持つテキストオブジェクト
+ * @param {Array<Paragraph>} paragraphTargets 追加先の配列
+ * @returns {void}
+ */
+function addParagraphs(textObject, paragraphTargets) {
+    try {
+        var paragraphs = textObject.paragraphs;
+        for (var i = 0; i < paragraphs.length; i++) {
+            paragraphTargets.push(paragraphs[i]);
+        }
+    } catch (e) {}
+}
+
+/**
+ * 選択項目 1 つから対象の段落を収集する
+ * @param {object} selectionItem 選択オブジェクト
+ * @param {Array<Paragraph>} paragraphTargets 追加先の配列
+ * @returns {void}
+ */
+function collectParagraphsFromItem(selectionItem, paragraphTargets) {
+    if (!selectionItem) return;
+    var typeName = getConstructorName(selectionItem);
+
+    /* テキスト編集モード：選択が触れている段落全体が対象 / Text-edit mode: every touched paragraph */
+    if (TEXT_SELECTION_TYPES[typeName]) {
+        addParagraphs(selectionItem, paragraphTargets);
+        return;
     }
 
-    /* テキストオブジェクトの段落を対象配列へ追加 / Push a text object's paragraphs into the target list */
-    function addParagraphs(textObject, paragraphTargets) {
+    /* 選択ツールでのフレーム選択：そのフレームの本文が対象 / A selected frame contributes its own text */
+    if (typeName === "TextFrame") {
         try {
-            var paragraphs = textObject.paragraphs;
-            for (var i = 0; i < paragraphs.length; i++) paragraphTargets.push(paragraphs[i]);
-        } catch (e) { }
+            if (selectionItem.texts.length > 0) addParagraphs(selectionItem.texts[0], paragraphTargets);
+        } catch (e) {}
+        return;
     }
 
-    /* 選択アイテム1つから対象段落を収集（テキスト選択／テキストフレーム／グループ再帰）
-       Collect target paragraphs from one selected item (text selection / text frame / recurse groups) */
-    function collectFromItem(item, paragraphTargets) {
-        if (!item) return;
-        var typeName = getConstructorName(item);
-
-        if (TEXT_SELECTION_TYPES[typeName]) {
-            // テキスト編集モード：選択が触れている段落全体を対象 / Text-edit mode: touched paragraphs
-            addParagraphs(item, paragraphTargets);
-
-        } else if (typeName === "TextFrame") {
-            // 選択ツールでフレーム選択：そのフレームの本文を対象 / Frame selected: its own text
-            try {
-                if (item.texts.length > 0) addParagraphs(item.texts[0], paragraphTargets);
-            } catch (e) { }
-
-        } else if (typeName === "Group") {
-            // グループは内部（ネスト含む）の全テキストフレームを対象 / Group: every nested text frame
-            try {
-                var innerItems = item.allPageItems;
-                for (var i = 0; i < innerItems.length; i++) {
-                    if (getConstructorName(innerItems[i]) === "TextFrame" && innerItems[i].texts.length > 0) {
-                        addParagraphs(innerItems[i].texts[0], paragraphTargets);
-                    }
+    /* グループは内部（ネスト含む）の全テキストフレームが対象 / A group contributes every nested text frame */
+    if (typeName === "Group") {
+        try {
+            var innerItems = selectionItem.allPageItems;
+            for (var i = 0; i < innerItems.length; i++) {
+                if (getConstructorName(innerItems[i]) === "TextFrame" && innerItems[i].texts.length > 0) {
+                    addParagraphs(innerItems[i].texts[0], paragraphTargets);
                 }
-            } catch (e) { }
-
-        } else {
-            // 長方形などテキストを保持し得る図形フレーム / Rectangle etc. that may hold text
-            try {
-                if (item.texts && item.texts.length > 0 && item.texts[0].contents.length > 0) {
-                    addParagraphs(item.texts[0], paragraphTargets);
-                }
-            } catch (e) { }
-        }
+            }
+        } catch (e) {}
+        return;
     }
 
-    /* 1段落へ、その段落の現在の行送り（絶対値）÷サイズから % を逆算して自動行送りを適用
-       Apply auto-leading to one paragraph by back-calculating the % from its absolute leading ÷ size */
-    function applyAutoLeadingToParagraph(paragraph) {
-        try {
-            if (paragraph.characters.length === 0) return;
-            var firstChar = paragraph.characters[0];
-            var sizePt = firstChar.pointSize;
-            var leadingValue = firstChar.leading; // 数値 or Leading.AUTO / Number or Leading.AUTO
+    /* 長方形などテキストを保持し得る図形フレーム / Rectangles and similar shapes that may hold text */
+    try {
+        if (selectionItem.texts && selectionItem.texts.length > 0 && selectionItem.texts[0].contents.length > 0) {
+            addParagraphs(selectionItem.texts[0], paragraphTargets);
+        }
+    } catch (e) {}
+}
 
-            // すでに自動行送りなら計算不能なのでスキップ / Skip if already Auto (nothing to back-calculate)
-            if (leadingValue === Leading.AUTO) return;
-            var leadingPt = Number(leadingValue);
-            if (isNaN(sizePt) || sizePt <= 0 || isNaN(leadingPt) || leadingPt <= 0) return;
+// =========================================
+// 自動行送りの適用 / Auto-leading
+// =========================================
 
-            var percent = Math.round((leadingPt / sizePt) * 100 * 10) / 10;
+/**
+ * 1 段落の行送り％を逆算し、自動行送りとして適用する
+ * @param {Paragraph} paragraph 対象の段落
+ * @returns {void}
+ */
+function applyAutoLeadingToParagraph(paragraph) {
+    try {
+        if (paragraph.characters.length === 0) return;
 
-            paragraph.autoLeading = percent;   // 自動行送り量（％）/ Auto-leading amount (%)
-            paragraph.leading = Leading.AUTO;   // 行送りを自動に切り替え / Switch leading to Auto
-            // 基準は仮想ボディの上/右に固定 / Fix the leading basis to the top/right of the virtual body
-            paragraph.leadingModel = LeadingModel.LEADING_MODEL_AKI_BELOW;
-        } catch (e) { }
+        var firstCharacter = paragraph.characters[0];
+        var pointSize      = firstCharacter.pointSize;
+        var leadingValue   = firstCharacter.leading;
+
+        /* すでに自動行送りなら逆算できないためスキップ / Already Auto: nothing to back-calculate */
+        if (leadingValue === Leading.AUTO) return;
+
+        var leadingInPoints = Number(leadingValue);
+        if (isNaN(pointSize) || pointSize <= 0 || isNaN(leadingInPoints) || leadingInPoints <= 0) return;
+
+        var leadingPercent = Math.round((leadingInPoints / pointSize) * 100 * LEADING_PERCENT_ROUND_FACTOR) /
+            LEADING_PERCENT_ROUND_FACTOR;
+
+        paragraph.autoLeading = leadingPercent;
+        paragraph.leading = Leading.AUTO;
+
+        /* 行送りの基準は仮想ボディの上／右に固定 / Fix the leading basis to the top/right of the virtual body */
+        paragraph.leadingModel = LeadingModel.LEADING_MODEL_AKI_BELOW;
+    } catch (e) {}
+}
+
+// =========================================
+// メイン処理 / Main
+// =========================================
+
+/**
+ * 選択テキストの各段落を自動行送りへ変換する
+ * @returns {void}
+ */
+function main() {
+    if (app.documents.length === 0) {
+        alert(localize(LABELS.alert.noDocument));
+        return;
     }
 
-    function main() {
-        if (app.documents.length === 0) {
-            alert(t("ドキュメントを開いてください。", "Please open a document."));
-            return;
-        }
-
-        var selectionItems = app.selection;
-        if (!selectionItems || selectionItems.length === 0) {
-            alert(t("テキストが選択されていません。", "No text is selected."));
-            return;
-        }
-
-        var paragraphTargets = []; // 対象の段落 / Target paragraphs
-        for (var i = 0; i < selectionItems.length; i++) collectFromItem(selectionItems[i], paragraphTargets);
-
-        if (paragraphTargets.length === 0) {
-            alert(t("テキストが選択されていません。", "No text is selected."));
-            return;
-        }
-
-        for (var p = 0; p < paragraphTargets.length; p++) applyAutoLeadingToParagraph(paragraphTargets[p]);
-
-        // 文字パネル等の表示を更新するため、いったん選択を解除してから同じ選択を選び直す
-        // Deselect then re-select the same objects so the Character panel refreshes its cached values
-        try {
-            app.select(NothingEnum.NOTHING);
-            app.select(selectionItems);
-        } catch (e) { }
+    var selectionItems = app.selection;
+    if (!selectionItems || selectionItems.length === 0) {
+        alert(localize(LABELS.alert.noSelection));
+        return;
     }
 
-    main();
+    var paragraphTargets = [];
+    for (var i = 0; i < selectionItems.length; i++) {
+        collectParagraphsFromItem(selectionItems[i], paragraphTargets);
+    }
+
+    if (paragraphTargets.length === 0) {
+        alert(localize(LABELS.alert.noSelection));
+        return;
+    }
+
+    for (var j = 0; j < paragraphTargets.length; j++) {
+        applyAutoLeadingToParagraph(paragraphTargets[j]);
+    }
+
+    /* 文字パネルの表示を更新するため、いったん選択を解除して同じ選択を選び直す
+       / Deselect and re-select so the Character panel refreshes its cached values */
+    try {
+        app.select(NothingEnum.NOTHING);
+        app.select(selectionItems);
+    } catch (e) {}
+}
+
+/* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, localize(LABELS.undo.applyAutoLeading));
 
 })();

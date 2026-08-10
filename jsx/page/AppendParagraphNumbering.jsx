@@ -1,55 +1,79 @@
 #target indesign
 
 /*
-
-### 概要
-
-- 同じテキストが同じ段落スタイルで繰り返すとき、末尾にナンバリングを追加します
-- 親見出しの階層を考慮し、親単位で同一テキストを正確に判別します
-- 段落スタイル選択、ストーリー／ドキュメント範囲、全角／半角括弧の切り替えに対応（全角／半角は日本語UIのみ）
-- 既存ナンバリングの削除にも対応
-
-### 限定条件
-
-- InDesignで動作
-- 対象は開いているアクティブドキュメント
-
-*/
-
-/*
-
-### Overview
-
-- When the same text repeats with the same paragraph style, appends numbering at the end
-- Considers heading hierarchy to accurately judge repetitions per parent
-- Supports paragraph style selection, story/document scope, and full-width/half-width brackets (full/half is Japanese UI only)
-- Includes numbering removal
-
-### Limitations
-
-- Runs in InDesign
-- Targets the active (open) document
-
-*/
-
+ * AppendParagraphNumbering.jsx
+ *
+ * 同じテキストが同じ段落スタイルで繰り返すとき、親見出しの階層を見ながら末尾に連番を付けます。
+ * 詳細は README を参照してください。
+ */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.1.2";
+var SCRIPT_NAME     = "AppendParagraphNumbering";     /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-06-30";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
 
-/*
-    更新履歴 / Changelog:
-    - v1.0.0 (2025-06-29): 初版
-    - v1.0.7 (2025-07-01): p.img, p.table スタイルの段落を無視
-    - v1.0.8 (2025-07-02): 段落スタイル選択パネル追加
-    - v1.0.9 (2025-07-03): 削除ボタン追加
-    - v1.1.0 (2025-07-04): 階層判定ロジック改良、UIラベル整理
-    - v1.1.1 (2026-06-30): 対象ラジオが無視されるバグ修正、削除をundoにまとめる、
-                           instanceof を constructor.name に変更、IIFE化・ローカライズ整理
-    - v1.1.2 (2026-06-30): 変数・パネル・関数名を具体名に整理、コメント拡充、jsx/page/ へ移動
-*/
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/AppendParagraphNumbering.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/AppendParagraphNumbering.md
 
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
 (function () {
 
@@ -57,8 +81,8 @@ var SCRIPT_VERSION = "v1.1.2";
     // ユーザー設定 / User settings
     // =========================================
 
-    /* 段落見出しレベル設定 / Heading level map */
-    var headingLevelMap = {
+    /* 段落スタイル名と見出しレベルの対応 / Map of paragraph style names to heading levels */
+    var HEADING_LEVEL_MAP = {
         "Heading 1": 1, "h1": 1,
         "Heading 2": 2, "h2": 2,
         "Heading 3": 3, "h3": 3,
@@ -67,20 +91,36 @@ var SCRIPT_VERSION = "v1.1.2";
         "Heading 6": 6, "h6": 6
     };
 
-    /* ナンバリング対象から除外する段落スタイル / Paragraph styles to ignore */
-    var ignoreStyleNames = ["p.img", "p.table"];
+    /* ナンバリング対象から除外する段落スタイル / Paragraph styles excluded from numbering */
+    var IGNORE_STYLE_NAMES = ["p.img", "p.table"];
 
-    /* 末尾ナンバリングの正規表現 / Trailing numbering pattern */
-    var numberingRegex = /[（\(][0-9０-９]+[）\)]$/;
-
+    /* 末尾ナンバリングを見つける正規表現 / Pattern that matches trailing numbering */
+    var NUMBERING_PATTERN = /[（\(][0-9０-９]+[）\)]$/;
 
     // =========================================
-    // ローカライズ / Localization
+    // レイアウト設定 / Layout settings
     // =========================================
 
-    /* 現在の言語を判定 / Detect current language */
+    /* 対象リストのサイズ [幅, 高さ]（px）/ Size of the target list [width, height] (px) */
+    var TARGET_LIST_SIZE = [400, 400];
+
+    /* 進捗バーのサイズ [幅, 高さ]（px）/ Size of the progress bar [width, height] (px) */
+    var PROGRESS_BAR_SIZE = [330, 7];
+
+    /* リスト表示で省略を始める文字数と、省略後に残す文字数 / Length that triggers truncation, and the kept length */
+    var LIST_TEXT_MAX_LENGTH  = 28;
+    var LIST_TEXT_KEEP_LENGTH = 25;
+
+    // =========================================
+    // ラベル定義 / Labels
+    // =========================================
+
+    /**
+     * UI 言語を判定する
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
     var currentLanguage = getCurrentLang();
 
@@ -121,15 +161,19 @@ var SCRIPT_VERSION = "v1.1.2";
         }
     };
 
-    /* ドット区切りのキーで LABELS を引く / Look up a label by dotted key */
-    function L(path) {
-        var parts = path.split(".");
+    /**
+     * ドット区切りキーでラベルを取得する
+     * @param {string} labelKey 例: "dialog.title"
+     * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+     */
+    function getLabel(labelKey) {
+        var keyParts = labelKey.split(".");
         var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            if (node == null) return path;
-            node = node[parts[i]];
+        for (var i = 0; i < keyParts.length; i++) {
+            if (node == null) return labelKey;
+            node = node[keyParts[i]];
         }
-        if (node == null) return path;
+        if (node == null) return labelKey;
         return (node[currentLanguage] != null) ? node[currentLanguage] : node.en;
     }
 
@@ -138,15 +182,23 @@ var SCRIPT_VERSION = "v1.1.2";
     // ヘルパー / Helpers
     // =========================================
 
-    /* 除外スタイルかどうか / Whether the style is in the ignore list */
+    /**
+     * ナンバリング対象から除外する段落スタイルかどうかを判定する
+     * @param {string} styleName 段落スタイル名
+     * @returns {boolean} 除外対象なら true
+     */
     function isIgnoredStyle(styleName) {
-        for (var i = 0; i < ignoreStyleNames.length; i++) {
-            if (ignoreStyleNames[i] === styleName) return true;
+        for (var i = 0; i < IGNORE_STYLE_NAMES.length; i++) {
+            if (IGNORE_STYLE_NAMES[i] === styleName) return true;
         }
         return false;
     }
 
-    /* マスターページ上の段落か / Whether the paragraph sits on a master spread */
+    /**
+     * 段落が親（マスター）ページ上にあるかを判定する
+     * @param {Paragraph} paragraph 対象の段落
+     * @returns {boolean} 親ページ上なら true
+     */
     function isOnMasterSpread(paragraph) {
         if (paragraph.parentTextFrames && paragraph.parentTextFrames.length > 0) {
             var textFrame = paragraph.parentTextFrames[0];
@@ -155,17 +207,26 @@ var SCRIPT_VERSION = "v1.1.2";
         return false;
     }
 
-    /* 末尾の改行を除いた本文を取得 / Get contents without trailing line breaks */
+    /**
+     * 末尾の改行を取り除く
+     * @param {string} text 対象の文字列
+     * @returns {string} 末尾の改行を除いた文字列
+     */
     function trimTrailingBreaks(text) {
         return text.replace(/[\r\n]+$/, "");
     }
 
-    /* 段落から識別キーを生成（見出しスタックを更新しながら）/ Build an identity key, updating the heading stack */
+    /**
+     * 見出しスタックを更新しながら、段落の識別キーを作る
+     * @param {Paragraph} paragraph 対象の段落
+     * @param {Array<object>} headingStack 見出しの階層スタック
+     * @returns {object} 識別キーと関連情報
+     */
     function buildKeyForParagraph(paragraph, headingStack) {
         var content = trimTrailingBreaks(paragraph.contents);
         var styleName = paragraph.appliedParagraphStyle.name;
-        var cleanedText = content.replace(numberingRegex, "");
-        var headingLevel = headingLevelMap[styleName] || 99;
+        var cleanedText = content.replace(NUMBERING_PATTERN, "");
+        var headingLevel = HEADING_LEVEL_MAP[styleName] || 99;
 
         /* 現在のレベル以上の親をスタックから除去 / Pop parents at the same or deeper level */
         while (headingStack.length > 0 && headingStack[headingStack.length - 1].level >= headingLevel) {
@@ -195,10 +256,14 @@ var SCRIPT_VERSION = "v1.1.2";
         };
     }
 
-    /* 既存のナンバリングを段落末尾から削除 / Remove existing numbering at the paragraph end */
+    /**
+     * 段落末尾の既存ナンバリングを削除する
+     * @param {Paragraph} paragraph 対象の段落
+     * @returns {void}
+     */
     function removeExistingNumbering(paragraph) {
         var content = trimTrailingBreaks(paragraph.contents);
-        var match = content.match(numberingRegex);
+        var match = content.match(NUMBERING_PATTERN);
         if (!match) return;
         var lengthToRemove = match[0].length;
         var endIndex = paragraph.characters.length - 1;
@@ -213,18 +278,22 @@ var SCRIPT_VERSION = "v1.1.2";
     // =========================================
     // メイン処理 / Main
     // =========================================
+    /**
+     * 対象を解析し、ダイアログの指定に従ってナンバリングを付与する
+     * @returns {void}
+     */
     function main() {
         var activeDoc = app.activeDocument;
         var allStories = activeDoc.stories;
         var occurrenceMap = {};
 
         /* 解析中プログレスバー / Progress bar while analyzing */
-        var progressWindow = new Window("palette", L("progress.title"));
+        var progressWindow = new Window("palette", getLabel("progress.title"));
         progressWindow.orientation = "column";
         progressWindow.alignChildren = ["fill", "top"];
-        progressWindow.margins = [20, 20, 20, 20];
+        progressWindow.margins = WINDOW_MARGINS;
         var progressBar = progressWindow.add("progressbar", undefined, 0, allStories.length);
-        progressBar.preferredSize = [330, 7];
+        progressBar.preferredSize = PROGRESS_BAR_SIZE;
         progressWindow.show();
 
         /* 全ストーリーを走査して同一テキストの出現を集計 / Scan all stories and count repeated text */
@@ -236,7 +305,7 @@ var SCRIPT_VERSION = "v1.1.2";
                 if (isOnMasterSpread(paragraph)) continue;
 
                 var content = trimTrailingBreaks(paragraph.contents);
-                var cleanedText = content.replace(numberingRegex, "");
+                var cleanedText = content.replace(NUMBERING_PATTERN, "");
                 /* 空行・1文字以下・空白のみはスキップ / Skip empty, single-char, or whitespace-only */
                 if (cleanedText.length <= 1) continue;
                 if (cleanedText.match(/^\s+$/)) continue;
@@ -281,48 +350,46 @@ var SCRIPT_VERSION = "v1.1.2";
         });
 
         if (numberingTargets.length === 0) {
-            alert(L("alert.noTargets"));
+            alert(getLabel("alert.noTargets"));
             return;
         }
 
         // -----------------------------------------
         // UIダイアログ / Dialog
         // -----------------------------------------
-        var dialogWindow = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
-        dialogWindow.orientation = "column";
-        dialogWindow.alignChildren = ["fill", "top"];
+        var dialogWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(dialogWindow, 10);
 
         var fullWidthBtn, halfWidthBtn;
 
         var contentGroup = dialogWindow.add("group");
-        contentGroup.orientation = "row";
+        setupRow(contentGroup, "fill", COLUMN_SPACING);
         contentGroup.alignChildren = ["fill", "top"];
 
         /* 左カラム：スタイル・対象・全角半角 / Left column: styles, target, brackets */
         var optionColumn = contentGroup.add("group");
         optionColumn.orientation = "column";
         optionColumn.alignChildren = ["fill", "top"];
+        optionColumn.spacing = PANEL_SPACING;
 
-        var stylePanel = optionColumn.add("panel", undefined, L("panel.paragraphStyle"));
-        stylePanel.orientation = "column";
+        var stylePanel = optionColumn.add("panel", undefined, getLabel("panel.paragraphStyle"));
+        setupPanel(stylePanel, 6);
         stylePanel.alignChildren = ["left", "top"];
-        stylePanel.margins = [15, 20, 15, 10];
 
-        var targetPanel = optionColumn.add("panel", undefined, L("panel.target"));
+        var targetPanel = optionColumn.add("panel", undefined, getLabel("panel.target"));
+        setupPanel(targetPanel, 6);
         targetPanel.orientation = "row";
         targetPanel.alignChildren = ["left", "top"];
-        var storyRadio = targetPanel.add("radiobutton", undefined, L("radio.story"));
-        var documentRadio = targetPanel.add("radiobutton", undefined, L("radio.document"));
-        targetPanel.margins = [15, 20, 15, 10];
+        var storyRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.story"));
+        var documentRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.document"));
         storyRadio.value = true;
 
         /* 全角／半角選択（日本語UIのみ）/ Full/half-width selection (Japanese UI only) */
         if (currentLanguage === "ja") {
             var bracketRadioGroup = optionColumn.add("group");
-            bracketRadioGroup.orientation = "row";
-            bracketRadioGroup.alignment = "center";
-            fullWidthBtn = bracketRadioGroup.add("radiobutton", undefined, L("radio.fullWidth"));
-            halfWidthBtn = bracketRadioGroup.add("radiobutton", undefined, L("radio.halfWidth"));
+            setupRow(bracketRadioGroup, "center", 8);
+            fullWidthBtn = bracketRadioGroup.add("radiobutton", undefined, getLabel("radio.fullWidth"));
+            halfWidthBtn = bracketRadioGroup.add("radiobutton", undefined, getLabel("radio.halfWidth"));
             fullWidthBtn.value = true;
         }
 
@@ -331,11 +398,11 @@ var SCRIPT_VERSION = "v1.1.2";
         listColumn.orientation = "column";
         listColumn.alignChildren = ["fill", "top"];
         var targetListBox = listColumn.add("listbox", undefined, "", { multiselect: true });
-        targetListBox.preferredSize = [400, 400];
+        targetListBox.preferredSize = TARGET_LIST_SIZE;
 
         for (var i = 0; i < numberingTargets.length; i++) {
             var baseText = numberingTargets[i].text;
-            var displayText = baseText.length > 28 ? baseText.substring(0, 25) + "…" : baseText;
+            var displayText = baseText.length > LIST_TEXT_MAX_LENGTH ? baseText.substring(0, LIST_TEXT_KEEP_LENGTH) + "…" : baseText;
             var countText = (currentLanguage === "ja") ? "（" + numberingTargets[i].count + "）" : " (" + numberingTargets[i].count + ")";
             var listItem = targetListBox.add("item", numberingTargets[i].style + ": " + displayText + countText);
             listItem.helpTip = numberingTargets[i].text;
@@ -360,7 +427,10 @@ var SCRIPT_VERSION = "v1.1.2";
         }
         stylePanel.layout.layout(true);
 
-        /* チェックボックス連動でリスト項目の有効/無効を切り替え / Toggle list items per checkbox */
+        /**
+         * 対象リストの有効／無効を現在の設定に合わせて切り替える
+         * @returns {void}
+         */
         function updateListBoxEnabled() {
             for (var i = 0; i < targetListBox.items.length; i++) {
                 var listItem = targetListBox.items[i];
@@ -380,7 +450,10 @@ var SCRIPT_VERSION = "v1.1.2";
             targetListBox.items[0].selected = true;
         }
 
-        /* 選択中の項目からキー集合を取得 / Collect keys of the selected items */
+        /**
+         * リストで選択中の識別キーを集める
+         * @returns {object} 識別キーをキーに持つマップ
+         */
         function getSelectedKeys() {
             var selectedKeyMap = {};
             for (var i = 0; i < targetListBox.items.length; i++) {
@@ -393,7 +466,10 @@ var SCRIPT_VERSION = "v1.1.2";
             return selectedKeyMap;
         }
 
-        /* 処理対象のストーリーを取得（ダイアログの選択を都度反映）/ Resolve target stories per current selection */
+        /**
+         * 対象範囲に応じて処理するストーリーを求める
+         * @returns {Array<Story>} 対象のストーリー
+         */
         function getTargetStories() {
             if (storyRadio.value && app.selection.length > 0) {
                 var selectionItem = app.selection[0];
@@ -406,7 +482,7 @@ var SCRIPT_VERSION = "v1.1.2";
                 if (parentStory) {
                     return [parentStory];
                 }
-                alert(L("alert.notStory"));
+                alert(getLabel("alert.notStory"));
                 return allStories;
             }
             return allStories;
@@ -415,20 +491,25 @@ var SCRIPT_VERSION = "v1.1.2";
         // -----------------------------------------
         // ボタン / Buttons
         // -----------------------------------------
+        /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
         var buttonGroup = dialogWindow.add("group");
-        buttonGroup.alignment = "fill";
+        setupRow(buttonGroup, "fill", 8);
         buttonGroup.alignChildren = ["fill", "center"];
         var leftButtonGroup = buttonGroup.add("group");
-        leftButtonGroup.alignment = "left";
-        var cancelBtn = leftButtonGroup.add("button", undefined, L("button.cancel"));
+        setupRow(leftButtonGroup, "left", 8);
+        var cancelBtn = leftButtonGroup.add("button", undefined, getLabel("button.cancel"));
         var rightButtonGroup = buttonGroup.add("group");
-        rightButtonGroup.alignment = ["right", "center"];
-        var deleteBtn = rightButtonGroup.add("button", undefined, L("button.deleteItem"));
+        setupRow(rightButtonGroup, "right", 8);
+        var deleteBtn = rightButtonGroup.add("button", undefined, getLabel("button.deleteItem"));
 
         /* 選択テキストから既存ナンバリングを削除（undoは1ステップ）/ Remove numbering from selected text (single undo) */
         deleteBtn.onClick = function () {
             var targetStories = getTargetStories();
             var selectedKeyMap = getSelectedKeys();
+            /**
+             * 選択した対象から既存のナンバリングを削除する
+             * @returns {void}
+             */
             function removeNumberingTask() {
                 for (var i = 0; i < targetStories.length; i++) {
                     var paragraphs = targetStories[i].paragraphs;
@@ -445,7 +526,7 @@ var SCRIPT_VERSION = "v1.1.2";
                 }
             }
             app.doScript(removeNumberingTask, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "Remove Paragraph Numbering");
-            alert(L("alert.removed"));
+            alert(getLabel("alert.removed"));
         };
 
         var okBtn = rightButtonGroup.add("button", undefined, "OK");
@@ -464,7 +545,10 @@ var SCRIPT_VERSION = "v1.1.2";
         var targetStories = getTargetStories();
         var selectedKeyMap = getSelectedKeys();
 
-        /* 選択テキストの末尾に連番を付与 / Append sequential numbering to selected text */
+        /**
+         * 選択した対象の末尾にナンバリングを付与する
+         * @returns {void}
+         */
         function applyNumberingTask() {
             var counterByKey = {};
             for (var seedKey in selectedKeyMap) {

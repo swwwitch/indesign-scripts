@@ -1,125 +1,158 @@
 #target indesign
+
+/*
+ * TableWidthColumnWidthManager.jsx
+ *
+ * 選択位置から対象の表を特定し、表全体の幅と列の幅をプレビュー付きでまとめて調整します。
+ * 詳細は README を参照してください。
+ */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "TableWidthColumnWidthManager"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-04-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-05";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/TableWidthColumnWidthManager.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/TableWidthColumnWidthManager.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
     (function () {
         app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH_ALL;
 
-        /*
-         * 概要 / Overview
-         * テーブル内の選択位置から対象テーブルを特定し、表全体の幅と列の幅をまとめて調整するスクリプトです。
-         * ダイアログでは、表全体の幅を「変更しない」「自動調整」「親フレームいっぱいに」「指定」から選択でき、
-         * 列の幅を「均等に」「自動調整」「自動調整を維持」「最終列のみ調整」「指定」から選択できます。
-         * 常時プレビュー、選択復元、画面のプレビュー表示切り替えに対応し、指定値入力では
-         * 定規の単位に応じた値入力と、↑↓キーでの増減（Shift: ±10、Option: ±0.1）も行えます。
-         * 列の幅で「指定」を選択した場合は、表全体の幅より列の幅の指定を優先し、
-         * 表全体の幅の指定値は「列の幅 × 列数」で自動更新されます。
-         * 「自動調整を維持」では、自動調整で得た各列幅を基準に、表全体の幅の増減差分を列数で均等配分します。
-         * 「最終列のみ調整」では、最終列以外の現在の幅を維持したまま、最終列だけを調整します。
-         *
-         * This script resolves the target table from the current selection inside a table
-         * and adjusts the table width and column width together.
-         * In the dialog, Table Width can be set to Do Not Change, Auto, Fit to Parent Frame,
-         * or Custom, and Column Width can be set to Equal Widths, Fit to Content,
-         * Fit to Content+, Adjust Last Column, or Custom.
-         * It supports always-on preview, restoring the original selection, and toggling the screen preview mode.
-         * For Custom inputs, the value uses the current ruler unit and can be changed with the arrow keys
-         * (Shift: ±10, Option: ±0.1).
-         * When Column Width is set to Custom, the column width takes precedence over Table Width,
-         * and the Table Width Custom field is updated automatically as column width × number of columns.
-         * In Fit to Content+, the fitted column widths are used as a base, and the table-width difference
-         * is distributed evenly across all columns.
-         * In Adjust Last Column, all non-last columns keep their current widths, and only the last column is adjusted.
+        // =========================================
+        // ユーザー設定 / User settings
+        // =========================================
+
+        /* ↑↓キーでの増減幅（通常 / Shift / Option）/ Arrow-key steps (normal, Shift, Option) */
+        var ARROW_STEP_NORMAL = 1;
+        var ARROW_STEP_SHIFT  = 10;
+        var ARROW_STEP_OPTION = 0.1;
+
+        // =========================================
+        // ラベル定義 / Labels
+        // =========================================
+
+        /**
+         * UI 言語を判定する
+         * @returns {string} "ja" または "en"
          */
-
-        // =========================================
-        // バージョンとローカライズ / Version and localization
-        // =========================================
-        var SCRIPT_VERSION = "v1.1.0";
-
         function getCurrentLang() {
-            return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+            return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
-        var lang = getCurrentLang();
+        var currentLang = getCurrentLang();
 
-        /* 日英ラベル定義 / Japanese-English label definitions */
         var LABELS = {
-            dialogTitle: {
-                ja: "表全体の幅、列の幅の調整",
-                en: "Adjust Table and Column Widths"
+            dialog: {
+                title: { ja: "表全体の幅、列の幅の調整", en: "Adjust Table and Column Widths" }
             },
-            errorSelectTable: {
-                ja: "テーブル内にカーソルを置いてください。",
-                en: "Place the cursor inside a table."
+            panel: {
+                tableWidth:  { ja: "表全体の幅", en: "Table Width" },
+                columnWidth: { ja: "列の幅", en: "Column Width" }
             },
-            errorTextFrameNotFound: {
-                ja: "テーブルがテキストフレーム内に見つかりません。",
-                en: "The table was not found inside a text frame."
+            radio: {
+                widthKeep:       { ja: "変更しない", en: "Do Not Change" },
+                widthAuto:       { ja: "自動調整", en: "Auto" },
+                widthFit:        { ja: "親フレームいっぱいに", en: "Fit to Parent Frame" },
+                widthCustom:     { ja: "指定", en: "Custom" },
+                cellEqual:       { ja: "均等に", en: "Equal Widths" },
+                cellNatural:     { ja: "自動調整", en: "Fit to Content" },
+                cellNaturalPlus: { ja: "自動調整を維持", en: "Fit to Content+" },
+                cellLast:        { ja: "最終列のみ調整", en: "Adjust Last Column" },
+                cellCustom:      { ja: "指定", en: "Custom" }
             },
-            panelWidth: {
-                ja: "表全体の幅",
-                en: "Table Width"
+            button: {
+                ok:          { ja: "OK", en: "OK" },
+                cancel:      { ja: "キャンセル", en: "Cancel" },
+                previewMode: { ja: "プレビュー", en: "Preview" },
+                normalMode:  { ja: "標準モード", en: "Normal Mode" }
             },
-            panelCell: {
-                ja: "列の幅",
-                en: "Column Width"
+            undo: {
+                applyWidths: { ja: "表全体の幅、列の幅の調整", en: "Adjust Table and Column Widths" }
             },
-            widthKeep: {
-                ja: "変更しない",
-                en: "Do Not Change"
-            },
-            widthAuto: {
-                ja: "自動調整",
-                en: "Auto"
-            },
-            widthFit: {
-                ja: "親フレームいっぱいに",
-                en: "Fit to Parent Frame"
-            },
-            widthCustom: {
-                ja: "指定",
-                en: "Custom"
-            },
-            cellEqual: {
-                ja: "均等に",
-                en: "Equal Widths"
-            },
-            cellNatural: {
-                ja: "自動調整",
-                en: "Fit to Content"
-            },
-            cellNaturalPlus: {
-                ja: "自動調整を維持",
-                en: "Fit to Content+"
-            },
-            cellLast: {
-                ja: "最終列のみ調整",
-                en: "Adjust Last Column"
-            },
-            cellCustom: {
-                ja: "指定",
-                en: "Custom"
-            },
-            previewMode: {
-                ja: "プレビュー",
-                en: "Preview"
-            },
-            normalMode: {
-                ja: "標準モード",
-                en: "Normal Mode"
-            },
-            cancel: {
-                ja: "キャンセル",
-                en: "Cancel"
-            },
-            ok: {
-                ja: "OK",
-                en: "OK"
+            error: {
+                selectTable:        { ja: "テーブル内にカーソルを置いてください。", en: "Place the cursor inside a table." },
+                textFrameNotFound:  { ja: "テーブルがテキストフレーム内に見つかりません。", en: "The table was not found inside a text frame." }
             }
         };
 
-        function L(key) {
-            return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key;
+        /**
+         * ドット区切りキーでラベルを取得する
+         * @param {string} labelKey 例: "dialog.title"
+         * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+         */
+        function getLabel(labelKey) {
+            var node = LABELS;
+            var keyParts = labelKey.split(".");
+            for (var i = 0; i < keyParts.length; i++) {
+                node = node[keyParts[i]];
+                if (!node) return labelKey;
+            }
+            return node[currentLang] || node.en || labelKey;
         }
 
-
+        /**
+         * 現在の定規単位のラベルと単位記号を取得する
+         * @returns {{label: string, unitValue: string}} 単位の情報
+         */
         function getCurrentRulerUnitInfo() {
             var doc = app.activeDocument;
             var unit = doc.viewPreferences.horizontalMeasurementUnits;
@@ -141,23 +174,34 @@
             }
         }
 
+        /**
+         * 小数第 1 位に丸める
+         * @param {number} value 対象の数値
+         * @returns {number} 丸めた数値
+         */
         function roundToOneDecimal(value) {
             return Math.round(value * 10) / 10;
         }
 
+        /**
+         * 表の 1 列目の幅を取得する
+         * @param {Table} table 対象の表
+         * @returns {number} 列幅。取得できない場合は 0
+         */
         function getFirstColumnWidth(table) {
             if (!table || !table.columns || table.columns.length === 0) return 0;
             return table.columns[0].width;
         }
 
-        /*
-         * メイン処理 / Main process
+        /**
+         * 選択から表を特定し、幅調整ダイアログを表示して適用する
+         * @returns {void}
          */
         function runAdjustTableWidth() {
             var selection = app.selection;
 
             if (selection.length == 0) {
-                alert(L("errorSelectTable"));
+                alert(getLabel("error.selectTable"));
                 return;
             }
 
@@ -184,7 +228,7 @@
             }
 
             if (!targetTable) {
-                alert(L("errorSelectTable"));
+                alert(getLabel("error.selectTable"));
                 return;
             }
 
@@ -197,6 +241,10 @@
                 app.select(NothingEnum.NOTHING);
             } catch (e) { /* 無視 */ }
 
+            /**
+             * 実行前の選択状態を復元する
+             * @returns {void}
+             */
             function restoreSelection() {
                 try {
                     if (savedSelection.length > 0) {
@@ -216,6 +264,10 @@
                 originalRightInsets.push(targetTable.columns[columnIndex].rightInset);
             }
 
+            /**
+             * プレビューで加えた変更を元に戻す
+             * @returns {void}
+             */
             function revert() {
                 targetTable.width = originalTableWidth;
                 for (var columnIndex = 0; columnIndex < targetTable.columns.length; columnIndex++) {
@@ -225,6 +277,11 @@
                 }
             }
 
+            /**
+             * ダイアログの結果に従って表と列の幅を適用する
+             * @param {object} result ダイアログが返した設定
+             * @returns {void}
+             */
             function applyTableWidthResult(result) {
                 var currentPreviewColumnWidths = null;
                 if (result.columnWidth && result.columnWidth.value === "last") {
@@ -267,7 +324,7 @@
                         textFrame = textFrame.parent;
                     }
                     if (textFrame.constructor.name !== "TextFrame") {
-                        alert(L("errorTextFrameNotFound"));
+                        alert(getLabel("error.textFrameNotFound"));
                         return;
                     }
                     targetTableWidth = textFrame.geometricBounds[3] - textFrame.geometricBounds[1];
@@ -323,26 +380,26 @@
             var rulerUnitInfo = getCurrentRulerUnitInfo();
             var currentColumnWidthValue = roundToOneDecimal(getFirstColumnWidth(targetTable));
             var currentTableWidthValue = roundToOneDecimal(targetTable.width);
-            var result = showMultiPanelOptionDialog(L("dialogTitle"), [
+            var result = showMultiPanelOptionDialog(getLabel("dialog.title"), [
                 {
                     key: "tableWidth",
-                    label: L("panelWidth"),
+                    label: getLabel("panel.tableWidth"),
                     options: [
-                        { value: "keep", label: L("widthKeep"), defaultSelected: true },
-                        { value: "auto", label: L("widthAuto") },
-                        { value: "fit", label: L("widthFit") },
-                        { value: "custom", label: L("widthCustom"), input: { suffix: rulerUnitInfo.label, defaultValue: currentTableWidthValue } }
+                        { value: "keep", label: getLabel("radio.widthKeep"), defaultSelected: true },
+                        { value: "auto", label: getLabel("radio.widthAuto") },
+                        { value: "fit", label: getLabel("radio.widthFit") },
+                        { value: "custom", label: getLabel("radio.widthCustom"), input: { suffix: rulerUnitInfo.label, defaultValue: currentTableWidthValue } }
                     ]
                 },
                 {
                     key: "columnWidth",
-                    label: L("panelCell"),
+                    label: getLabel("panel.columnWidth"),
                     options: [
-                        { value: "equal", label: L("cellEqual"), defaultSelected: true },
-                        { value: "natural", label: L("cellNatural"), linkedSelection: { panel: "tableWidth", value: "auto" } },
-                        { value: "naturalPlus", label: L("cellNaturalPlus") },
-                        { value: "last", label: L("cellLast"), linkedSelection: { panel: "tableWidth", value: "fit" } },
-                        { value: "custom", label: L("cellCustom"), input: { suffix: rulerUnitInfo.label, defaultValue: currentColumnWidthValue } }
+                        { value: "equal", label: getLabel("radio.cellEqual"), defaultSelected: true },
+                        { value: "natural", label: getLabel("radio.cellNatural"), linkedSelection: { panel: "tableWidth", value: "auto" } },
+                        { value: "naturalPlus", label: getLabel("radio.cellNaturalPlus") },
+                        { value: "last", label: getLabel("radio.cellLast"), linkedSelection: { panel: "tableWidth", value: "fit" } },
+                        { value: "custom", label: getLabel("radio.cellCustom"), input: { suffix: rulerUnitInfo.label, defaultValue: currentColumnWidthValue } }
                     ]
                 }
             ], applyTableWidthResult, revert, targetTable);
@@ -353,12 +410,19 @@
                 return;
             }
 
-            applyTableWidthResult(result);
+            /* プレビューを一度戻してから、確定分だけを 1 つの取り消しにまとめる
+               / Revert the preview first so only the confirmed change forms the undo step */
+            revert();
+            app.doScript(function () {
+                applyTableWidthResult(result);
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.applyWidths"));
             restoreSelection();
         }
 
-        /*
-         * 列幅を均等化 / Equalize column widths
+        /**
+         * すべての列幅を均等にする
+         * @param {Table} table 対象の表
+         * @returns {void}
          */
         function equalizeColumns(table) {
             var avg = table.width / table.columns.length;
@@ -368,14 +432,10 @@
         }
 
 
-        /*
-         * 行の組版後の実幅を取得 / Get composed line width
-         * 行頭と行末の insertionPoint の horizontalOffset 差分から、
-         * 実際に組版された行の横幅を返します。
-         *
-         * Returns the actual composed width of a line
-         * from the difference between the horizontal offsets of
-         * the first and last insertion points.
+        /**
+         * 組版後の 1 行の幅を求める
+         * @param {Line} line 対象の行
+         * @returns {number} 行の幅
          */
         function getComposedLineWidth(line) {
             if (!line) return 0;
@@ -388,13 +448,10 @@
             }
         }
 
-        /*
-         * セル内の最長行幅を取得 / Get maximum composed line width in a cell
-         * ハードリターンや折り返しを含むセル内の全行を走査し、
-         * 組版後の実幅が最大の行の幅を返します。
-         *
-         * Scans all lines in a cell, including hard returns and wrapped lines,
-         * and returns the width of the longest composed line.
+        /**
+         * セル内で最も長い行の幅を求める
+         * @param {Cell} cell 対象のセル
+         * @returns {number} 最大の行幅
          */
         function getMaxComposedLineWidthInCell(cell) {
             if (!cell || !cell.lines || cell.lines.length === 0) return 0;
@@ -408,11 +465,11 @@
             return maxContentWidth;
         }
 
-        /*
-         * 内容に合わせて列幅を調整 / Fit column widths to content
-         * いったん表を親テキストフレームいっぱいまで広げ、各列を均等化して
-         * 各セルに余裕を持たせた状態で内容幅を計測する。
-         * その後、最大行幅に基づいて各列の幅を設定する。
+        /**
+         * 各列の幅を内容に合わせて調整する
+         * @param {Table} table 対象の表
+         * @param {number} margin 内容に加える余白
+         * @returns {Array<number>} 調整後の列幅
          */
         function fitColumnsToContent(table, margin) {
             if (margin === undefined) margin = 2;
@@ -452,14 +509,9 @@
             }
         }
 
-        /*
-         * 画面プレビューモード補助 / Screen preview mode helpers
-         * 他のスクリプトでも使い回せるように、現在の画面モード判定、
-         * プレビュー表示と標準表示の切り替え、ボタンラベル更新をまとめています。
-         *
-         * Reusable helpers for checking the current screen mode,
-         * toggling between Preview and Normal Mode,
-         * and updating the toggle button label.
+        /**
+         * 現在プレビュー表示になっているかを判定する
+         * @returns {boolean} プレビュー表示なら true
          */
         function isPreviewScreenMode() {
             try {
@@ -469,6 +521,10 @@
             }
         }
 
+        /**
+         * 標準表示とプレビュー表示を切り替える
+         * @returns {void}
+         */
         function togglePreviewScreenMode() {
             try {
                 var w = app.activeWindow;
@@ -481,53 +537,57 @@
             } catch (e) { /* 無視 */ }
         }
 
-        /*
-         * 再利用用ラベル取得 / Get reusable toggle button label
+        /**
+         * 画面モードに応じたトグルボタンのラベルを返す
+         * @returns {string} ボタンに表示する文字列
          */
         function getPreviewToggleButtonLabel() {
-            return isPreviewScreenMode() ? L("previewMode") : L("normalMode");
+            return isPreviewScreenMode() ? getLabel("button.previewMode") : getLabel("button.normalMode");
         }
 
-        /*
-         * ボタンラベル更新 / Update toggle button label
+        /**
+         * トグルボタンのラベルを現在の画面モードに合わせて更新する
+         * @param {Button} btn 対象のボタン
+         * @returns {void}
          */
         function updatePreviewToggleButtonLabel(btn) {
             btn.text = getPreviewToggleButtonLabel();
         }
 
-        /*
-         * 概要 / Overview
-         * 複数パネルのラジオボタンUIを構築するダイアログです。
-         * 各パネルの選択状態と入力値を収集し、常時プレビューの適用・復元、
-         * linkedSelection による他パネル連動、画面のプレビュー表示切り替え、
-         * 定規の単位に応じた入力欄表示、↑↓キーによる値変更、
-         * 列の幅の指定時に表全体の幅より列の幅を優先する制御、
-         * および依存オプションの有効・無効制御に対応します。
-         * キャンセル時は null を返し、OK時は各パネルの結果をオブジェクトで返します。
-         *
-         * Builds a dialog that contains multiple radio-button panels.
-         * It collects selected values and input values, supports applying and reverting always-on preview,
-         * linked selections across panels, toggling the screen preview mode,
-         * showing input units based on the current ruler unit, changing input values with the arrow keys,
-         * prioritizing Column Width Custom input over Table Width,
-         * and enabling or disabling dependent options as needed.
-         * It returns null on cancel, or an object containing the selected results on OK.
+        /**
+         * 複数のラジオボタンパネルを持つ設定ダイアログを表示する
+         * @param {string} title ダイアログのタイトル
+         * @param {Array<object>} panels パネルの定義
+         * @param {function} onApply プレビュー適用時に呼ぶ処理
+         * @param {function} onRevert プレビュー復元時に呼ぶ処理
+         * @param {Table} targetTable 対象の表
+         * @returns {object|null} 各パネルの選択結果。キャンセル時は null
          */
         function showMultiPanelOptionDialog(title, panels, onApply, onRevert, targetTable) {
             var dlg = new Window("dialog", title + " " + SCRIPT_VERSION);
-            dlg.alignChildren = "fill";
+            setupWindow(dlg, 10);
 
             var previewToggleCount = 0;
             var panelStates = [];
 
+            /**
+             * パネルを横に並べる行グループを作る
+             * @param {object} parent 追加先のコンテナ
+             * @param {Array<object>} panels パネルの定義
+             * @returns {Group} 行グループ
+             */
             function buildPanelsRow(parent, panels) {
                 var row = parent.add("group");
-                row.orientation = "row";
+                setupRow(row, "fill", COLUMN_SPACING);
                 row.alignChildren = ["fill", "top"];
-                row.alignment = ["fill", "top"];
                 return row;
             }
 
+            /**
+             * 1 パネル分の状態オブジェクトを作る
+             * @param {object} panelDef パネルの定義
+             * @returns {object} パネルの状態
+             */
             function createPanelState(panelDef) {
                 return {
                     key: panelDef.key,
@@ -538,16 +598,23 @@
                 };
             }
 
+            /**
+             * 入力欄に上下キーでの増減操作を追加する
+             * @param {EditText} editText 対象の入力欄
+             * @param {object} state パネルの状態
+             * @param {number} optionIndex 対象オプションの位置
+             * @returns {void}
+             */
             function changeValueByArrowKey(editText, state, optionIndex) {
                 editText.addEventListener("keydown", function (event) {
                     var value = Number(editText.text);
                     if (isNaN(value)) return;
 
                     var keyboard = ScriptUI.environment.keyboardState;
-                    var delta = 1;
+                    var delta = ARROW_STEP_NORMAL;
 
                     if (keyboard.shiftKey) {
-                        delta = 10;
+                        delta = ARROW_STEP_SHIFT;
                         if (event.keyName == "Up") {
                             value = Math.ceil((value + 1) / delta) * delta;
                             event.preventDefault();
@@ -557,7 +624,7 @@
                             event.preventDefault();
                         }
                     } else if (keyboard.altKey) {
-                        delta = 0.1;
+                        delta = ARROW_STEP_OPTION;
                         if (event.keyName == "Up") {
                             value += delta;
                             event.preventDefault();
@@ -595,6 +662,13 @@
                 });
             }
 
+            /**
+             * パネル内のオプション 1 行を組み立てる
+             * @param {Panel} panel 追加先のパネル
+             * @param {object} state パネルの状態
+             * @param {object} option オプションの定義
+             * @returns {void}
+             */
             function buildOptionRow(panel, state, option) {
                 var row = panel.add("group");
                 row.alignChildren = ["left", "center"];
@@ -614,17 +688,22 @@
                 }
             }
 
+            /**
+             * パネル 1 つを組み立てる
+             * @param {object} parent 追加先のコンテナ
+             * @param {object} panelDef パネルの定義
+             * @returns {object} パネルの状態
+             */
             function buildPanel(parent, panelDef) {
-                var pan = parent.add("panel", undefined, panelDef.label);
-                pan.alignChildren = "left";
-                pan.alignment = ["fill", "top"];
-                pan.margins = [15, 20, 15, 10];
+                var optionPanel = parent.add("panel", undefined, panelDef.label);
+                setupPanel(optionPanel, 6);
+                optionPanel.alignChildren = "left";
 
                 var state = createPanelState(panelDef);
                 var defaultIndex = 0;
 
                 for (var i = 0; i < panelDef.options.length; i++) {
-                    buildOptionRow(pan, state, panelDef.options[i]);
+                    buildOptionRow(optionPanel, state, panelDef.options[i]);
                     if (panelDef.options[i].defaultSelected) defaultIndex = i;
                 }
 
@@ -632,6 +711,12 @@
                 return state;
             }
 
+            /**
+             * すべてのパネルを組み立てる
+             * @param {object} parent 追加先のコンテナ
+             * @param {Array<object>} panels パネルの定義
+             * @returns {void}
+             */
             function buildAllPanels(parent, panels) {
                 var row = buildPanelsRow(parent, panels);
                 for (var panelIndex = 0; panelIndex < panels.length; panelIndex++) {
@@ -640,6 +725,10 @@
             }
 
 
+            /**
+             * 各パネルの選択結果をまとめて返す
+             * @returns {object} パネルごとの選択結果
+             */
             function collectDialogResult() {
                 var result = {};
                 for (var panelIndex = 0; panelIndex < panelStates.length; panelIndex++) {
@@ -656,16 +745,31 @@
                 return result;
             }
 
+            /**
+             * 現在のダイアログ設定でプレビューを適用する
+             * @returns {void}
+             */
             function applyPreviewFromDialog() {
                 if (onApply) onApply(collectDialogResult());
             }
 
+            /**
+             * 指定した位置のラジオボタンを選択状態にする
+             * @param {object} state パネルの状態
+             * @param {number} idx 選択する位置
+             * @returns {void}
+             */
             function selectRadio(state, idx) {
                 for (var radioIndex = 0; radioIndex < state.radios.length; radioIndex++) {
                     state.radios[radioIndex].value = (radioIndex === idx);
                 }
             }
 
+            /**
+             * キーからパネルの状態を探す
+             * @param {string} panelKey パネルのキー
+             * @returns {object|null} パネルの状態。見つからない場合は null
+             */
             function findPanelState(panelKey) {
                 for (var i = 0; i < panelStates.length; i++) {
                     if (panelStates[i].key === panelKey) return panelStates[i];
@@ -673,6 +777,12 @@
                 return null;
             }
 
+            /**
+             * 指定したパネルで、値に対応するオプションを選択する
+             * @param {string} panelKey パネルのキー
+             * @param {string} targetValue 選択したい値
+             * @returns {void}
+             */
             function selectInPanel(panelKey, targetValue) {
                 var targetState = findPanelState(panelKey);
                 if (!targetState) return;
@@ -685,12 +795,24 @@
                 }
             }
 
+            /**
+             * 連動指定のあるオプションを他パネルへ反映する
+             * @param {object} option 選択されたオプション
+             * @returns {void}
+             */
             function applyLinkedSelection(option) {
                 if (option && option.linkedSelection) {
                     selectInPanel(option.linkedSelection.panel, option.linkedSelection.value);
                 }
             }
 
+            /**
+             * 指定したオプションの有効／無効を切り替える
+             * @param {object} state パネルの状態
+             * @param {string} optionValue 対象の値
+             * @param {boolean} isEnabled 有効にするなら true
+             * @returns {void}
+             */
             function setOptionEnabled(state, optionValue, isEnabled) {
                 if (!state) return;
 
@@ -705,6 +827,11 @@
                 }
             }
 
+            /**
+             * パネルで選択中のオプション値を取得する
+             * @param {object} state パネルの状態
+             * @returns {string|null} 選択中の値。なければ null
+             */
             function getSelectedOptionValue(state) {
                 if (!state) return null;
                 for (var optionIndex = 0; optionIndex < state.radios.length; optionIndex++) {
@@ -715,6 +842,12 @@
                 return null;
             }
 
+            /**
+             * 依存関係で無効化したオプションを既定状態に戻す
+             * @param {object} tableWidthState 表全体の幅パネルの状態
+             * @param {object} columnWidthState 列の幅パネルの状態
+             * @returns {void}
+             */
             function resetDependentUI(tableWidthState, columnWidthState) {
                 setOptionEnabled(tableWidthState, "keep", true);
                 setOptionEnabled(tableWidthState, "auto", true);
@@ -727,9 +860,22 @@
                 setOptionEnabled(columnWidthState, "custom", true);
             }
 
+            /**
+             * 表全体の幅の選択に応じて列の幅パネルを制御する
+             * @param {string} selectedTableWidthValue 表全体の幅の選択値
+             * @param {string} selectedColumnWidthValue 列の幅の選択値
+             * @param {object} columnWidthState 列の幅パネルの状態
+             * @returns {void}
+             */
             function applyTableWidthDependencies(selectedTableWidthValue, selectedColumnWidthValue, columnWidthState) {
             }
 
+            /**
+             * 列の幅の選択に応じて表全体の幅パネルを制御する
+             * @param {string} selectedColumnWidthValue 列の幅の選択値
+             * @param {object} tableWidthState 表全体の幅パネルの状態
+             * @returns {void}
+             */
             function applyColumnWidthDependencies(selectedColumnWidthValue, tableWidthState) {
                 if (selectedColumnWidthValue === "equal") {
                     setOptionEnabled(tableWidthState, "auto", false);
@@ -750,6 +896,10 @@
                 }
             }
 
+            /**
+             * 列の幅の指定値から、表全体の幅の指定値を更新する
+             * @returns {void}
+             */
             function syncTableWidthCustomInputFromColumnWidth() {
                 var tableWidthState = findPanelState("tableWidth");
                 var columnWidthState = findPanelState("columnWidth");
@@ -787,6 +937,10 @@
                 } catch (e) { }
             }
 
+            /**
+             * パネル間の依存関係をまとめて反映する
+             * @returns {void}
+             */
             function updateDependentUI() {
                 var tableWidthState = findPanelState("tableWidth");
                 var columnWidthState = findPanelState("columnWidth");
@@ -800,6 +954,11 @@
                 applyColumnWidthDependencies(selectedColumnWidthValue, tableWidthState);
             }
 
+            /**
+             * 1 パネル分のイベントを結び付ける
+             * @param {object} state パネルの状態
+             * @returns {void}
+             */
             function bindStateEvents(state) {
                 for (var radioIndex = 0; radioIndex < state.radios.length; radioIndex++) {
                     (function (optionIndex) {
@@ -832,17 +991,25 @@
                 }
             }
 
+            /**
+             * すべてのパネルのイベントを結び付ける
+             * @returns {void}
+             */
             function bindAllStateEvents() {
                 for (var panelIndex = 0; panelIndex < panelStates.length; panelIndex++) {
                     bindStateEvents(panelStates[panelIndex]);
                 }
             }
 
+            /**
+             * ダイアログ下部のボタン行を組み立てる
+             * @param {object} parent 追加先のコンテナ
+             * @returns {object} 生成したボタン
+             */
             function createBottomButtons(parent) {
                 var bottomGroup = parent.add("group");
-                bottomGroup.orientation = "row";
+                setupRow(bottomGroup, "fill", 8);
                 bottomGroup.alignChildren = "fill";
-                bottomGroup.alignment = ["fill", "top"];
                 bottomGroup.margins = [0, 8, 0, 0];
 
                 var btnPreviewToggle = bottomGroup.add("button", undefined, getPreviewToggleButtonLabel());
@@ -851,12 +1018,12 @@
                 var spacer = bottomGroup.add("group");
                 spacer.alignment = ["fill", "top"];
 
+                /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
                 var buttonGroup = bottomGroup.add("group");
-                buttonGroup.orientation = "row";
-                buttonGroup.alignment = ["right", "top"];
+                setupRow(buttonGroup, "right", 8);
                 buttonGroup.alignChildren = "right";
-                var cancelBtn = buttonGroup.add("button", undefined, L("cancel"), { name: "cancel" });
-                var okBtn = buttonGroup.add("button", undefined, L("ok"), { name: "ok" });
+                var cancelBtn = buttonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+                var okBtn = buttonGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
                 return {
                     previewToggleButton: btnPreviewToggle,
@@ -865,6 +1032,11 @@
                 };
             }
 
+            /**
+             * 画面モード切り替えボタンにイベントを結び付ける
+             * @param {Button} btn 対象のボタン
+             * @returns {void}
+             */
             function bindPreviewToggleButton(btn) {
                 btn.onClick = function () {
                     togglePreviewScreenMode();

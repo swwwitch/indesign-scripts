@@ -1,117 +1,177 @@
 #target indesign
 
 /*
- * 概要
+ * NestedStyleSetup.jsx
  *
- * アクティブな InDesign ドキュメントの段落スタイルに対し、
- * 正規表現スタイル（GREP スタイル）を適用・管理する。
- *
- * - ダイアログボックスは日本語／英語環境に応じて表示を切り替える
- * - タイトルバーにスクリプトのバージョンを表示する
- * - 左カラムの「正規表現のルール」パネルで、登録済みルールの選択とカスタムルールの追加を行う
- * - ルール追加は専用ダイアログで、管理用名称と正規表現を入力する
- * - 選択中の正規表現は `\\t` などを文字として読める形で表示する
- * - 左カラムの「適用する文字スタイル」パネルで、適用する文字スタイルを選択／新規作成する
- * - ルールに応じて、候補の文字スタイルが存在する場合は自動選択する
- * - 新規文字スタイル作成時、選択中ルールに応じた初期設定を自動適用する
- * - 右カラムの「適用先の段落スタイル」パネルで、対象の段落スタイルを複数選択する
- * - 段落スタイル一覧は Option/Alt クリックで全選択／全解除できる
- * - 必須項目（段落スタイル／文字スタイル）が未選択の場合、OKボタンは無効化される
- * - 同じ段落スタイル内に同一の正規表現がある場合は上書きする
- * - 主要UIには日本語／英語の tooltip を設定する
- *
- * 既定ルール:
- * - 箇条書きのラベル      : `^.+?(?=：)` → 文字スタイル候補「li-label」
- * - 言語設定              : `[\\u\\l]` → 文字スタイル候補「lang-US」／新規作成時に言語「英語：米国」を設定
- * - スマル                : `..[。」』？！…]?$` → 文字スタイル候補「sumaru」／新規作成時に分割禁止を設定
- * - 目次の数字            : `(?<=\\t)\\d+`
- * - インライングラフィック: `~a` → 文字スタイル候補「inline-graphic」／新規作成時に前後四分アキを設定
- */
-
-/*
- * Summary
- *
- * Apply and manage GREP styles for paragraph styles
- * in the active InDesign document.
- *
- * - Switch UI labels between Japanese and English based on the locale
- * - Show the script version in the dialog title bar
- * - Select saved rules and add custom rules in the left-column GREP Rules panel
- * - Add custom rules with a dedicated dialog for a management name and GREP expression
- * - Display the selected GREP expression with escaped characters such as `\\t` shown literally
- * - Select or create the character style in the left-column Character Style to Apply panel
- * - Automatically select the preferred character style when it exists
- * - Apply rule-specific defaults when creating a new character style
- * - Select target paragraph styles in the right-column Target Paragraph Styles panel
- * - Option/Alt-click the paragraph style list to select or deselect all items
- * - Disable the OK button when required selections are missing
- * - Overwrite existing GREP styles with the same expression in the same paragraph style
- * - Provide localized tooltips for the main UI controls
+ * 段落スタイルに正規表現スタイル（GREP スタイル）を適用・管理します。ルールと文字スタイルを選び、複数の段落スタイルへまとめて反映できます。
+ * 詳細は README を参照してください。
  */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "NestedStyleSetup";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-03";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0";
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/NestedStyleSetup.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/NestedStyleSetup.md
 
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
-var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+// =========================================
+// ラベル定義 / Labels
+// =========================================
+
+/**
+ * UI 言語を判定する
+ * @returns {string} "ja" または "en"
+ */
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+
+var currentLang = getCurrentLang();
+
 var LABELS = {
-    dialogTitle: { ja: "正規表現スタイルを適用", en: "Apply GREP Styles" },
-    noDocumentError: { ja: "ドキュメントを開いてから実行してください。", en: "Open a document before running this script." },
-    noParagraphStylesError: { ja: "段落スタイルが見つかりません。", en: "No paragraph styles were found." },
-    regexPanel: { ja: "正規表現のルール", en: "GREP Rules" },
-    addRuleButton: { ja: "＋ ルール追加", en: "+ Add Rule" },
-    characterStylePanel: { ja: "適用する文字スタイル", en: "Character Style to Apply" },
-    createButton: { ja: "作成", en: "Create" },
-    targetParagraphStylesPanel: { ja: "適用先の段落スタイル", en: "Target Paragraph Styles" },
-    multipleSelectHint: { ja: "複数の段落スタイルを選択できます", en: "Multiple selection allowed" },
-    cancelButton: { ja: "キャンセル", en: "Cancel" },
-    okButton: { ja: "OK", en: "OK" },
-    addRuleTitlePrompt: { ja: "追加する正規表現の管理用の名称を入力してください。", en: "Enter a management name for the GREP expression to add." },
-    addRuleTitleDefault: { ja: "新規ルール", en: "New Rule" },
-    addRuleExpressionPrompt: { ja: "正規表現を入力してください。", en: "Enter a GREP expression." },
-    // --- Tooltip labels for UI ---
-    regexRuleListTip: { ja: "登録済みの正規表現ルールを選択します。右側で適用先の段落スタイルを指定します。", en: "Select a saved GREP rule. Configure target paragraph styles on the right." },
-    selectedExpressionTip: { ja: "選択中の正規表現です。\\t などの制御文字は、文字として読める形で表示します。", en: "The selected GREP expression. Control characters such as \\t are shown literally." },
-    addRuleButtonTip: { ja: "新しい正規表現ルールを追加します。", en: "Add a new GREP rule." },
-    characterStyleDropdownTip: { ja: "適用する文字スタイルを選択します。", en: "Select the character style to apply." },
-    newCharacterStyleNameTip: { ja: "新しく作成する文字スタイル名を入力します。", en: "Enter a name for the new character style." },
-    createCharacterStyleButtonTip: { ja: "文字スタイルを作成します。ルールによっては言語設定・分割禁止・前後アキなどの初期設定を自動適用します。", en: "Create a character style. Depending on the selected rule, default settings such as language, no-break, or spacing are applied automatically." },
-    paragraphStyleListTip: { ja: "正規表現スタイルを適用する段落スタイルを選択します。Option/Altクリックで全選択／全解除できます。", en: "Select paragraph styles to apply the GREP style to. Option/Alt-click toggles select all." },
-    addRuleTitleInputTip: { ja: "このルールを識別するための管理用名称です。処理内容には影響しません。", en: "Management name used to identify this rule. It does not affect processing." },
-    addRuleExpressionInputTip: { ja: "適用する正規表現を入力します。例：(?<=\\t)\\d+", en: "Enter the GREP expression to apply. Example: (?<=\\t)\\d+" },
-    addRuleDialogOkTip: { ja: "入力した名称と正規表現でルールを追加します。", en: "Add a rule using the entered name and GREP expression." },
-    addRuleDialogCancelTip: { ja: "ルール追加をキャンセルします。", en: "Cancel adding the rule." },
-    mainOkButtonTip: { ja: "選択した文字スタイルと段落スタイルに、選択中の正規表現スタイルを適用します。", en: "Apply the selected GREP style using the selected character and paragraph styles." },
-    mainCancelButtonTip: { ja: "処理を実行せずに閉じます。", en: "Close without applying changes." },
-    // ---
-    emptyCharacterStyleNameError: { ja: "文字スタイル名を入力してください。", en: "Enter a character style name." },
-    duplicateCharacterStyleNameError: { ja: "同名の文字スタイルが既にあります。", en: "A character style with the same name already exists." },
-    ruleBulletLabel: { ja: "箇条書きのラベル", en: "Bullet Label" },
-    ruleLanguage: { ja: "言語設定", en: "Language" },
-    ruleSumaru: { ja: "スマル", en: "No-break Ending" },
-    ruleTocNumber: { ja: "目次の数字", en: "TOC Number" },
-    ruleInlineGraphic: { ja: "インライングラフィック", en: "Inline Graphic" }
+    dialog: {
+        title:      { ja: "正規表現スタイルを適用", en: "Apply GREP Styles" },
+        addRuleTitleDefault: { ja: "新規ルール", en: "New Rule" }
+    },
+    panel: {
+        regex:                 { ja: "正規表現のルール", en: "GREP Rules" },
+        characterStyle:        { ja: "適用する文字スタイル", en: "Character Style to Apply" },
+        targetParagraphStyles: { ja: "適用先の段落スタイル", en: "Target Paragraph Styles" }
+    },
+    button: {
+        addRule: { ja: "＋ ルール追加", en: "+ Add Rule" },
+        create:  { ja: "作成", en: "Create" },
+        cancel:  { ja: "キャンセル", en: "Cancel" },
+        ok:      { ja: "OK", en: "OK" }
+    },
+    hint: {
+        multipleSelect: { ja: "複数の段落スタイルを選択できます", en: "Multiple selection allowed" }
+    },
+    prompt: {
+        addRuleTitle:      { ja: "追加する正規表現の管理用の名称を入力してください。", en: "Enter a management name for the GREP expression to add." },
+        addRuleExpression: { ja: "正規表現を入力してください。", en: "Enter a GREP expression." }
+    },
+    tooltip: {
+        regexRuleList:          { ja: "登録済みの正規表現ルールを選択します。右側で適用先の段落スタイルを指定します。", en: "Select a saved GREP rule. Configure target paragraph styles on the right." },
+        selectedExpression:     { ja: "選択中の正規表現です。\\t などの制御文字は、文字として読める形で表示します。", en: "The selected GREP expression. Control characters such as \\t are shown literally." },
+        addRuleButton:          { ja: "新しい正規表現ルールを追加します。", en: "Add a new GREP rule." },
+        characterStyleDropdown: { ja: "適用する文字スタイルを選択します。", en: "Select the character style to apply." },
+        newCharacterStyleName:  { ja: "新しく作成する文字スタイル名を入力します。", en: "Enter a name for the new character style." },
+        createCharacterStyle:   { ja: "文字スタイルを作成します。ルールによっては言語設定・分割禁止・前後アキなどの初期設定を自動適用します。", en: "Create a character style. Depending on the selected rule, default settings such as language, no-break, or spacing are applied automatically." },
+        paragraphStyleList:     { ja: "正規表現スタイルを適用する段落スタイルを選択します。Option/Altクリックで全選択／全解除できます。", en: "Select paragraph styles to apply the GREP style to. Option/Alt-click toggles select all." },
+        addRuleTitleInput:      { ja: "このルールを識別するための管理用名称です。処理内容には影響しません。", en: "Management name used to identify this rule. It does not affect processing." },
+        addRuleExpressionInput: { ja: "適用する正規表現を入力します。例：(?<=\\t)\\d+", en: "Enter the GREP expression to apply. Example: (?<=\\t)\\d+" },
+        addRuleDialogOk:        { ja: "入力した名称と正規表現でルールを追加します。", en: "Add a rule using the entered name and GREP expression." },
+        addRuleDialogCancel:    { ja: "ルール追加をキャンセルします。", en: "Cancel adding the rule." },
+        mainOk:                 { ja: "選択した文字スタイルと段落スタイルに、選択中の正規表現スタイルを適用します。", en: "Apply the selected GREP style using the selected character and paragraph styles." },
+        mainCancel:             { ja: "処理を実行せずに閉じます。", en: "Close without applying changes." }
+    },
+    rule: {
+        bulletLabel:    { ja: "箇条書きのラベル", en: "Bullet Label" },
+        language:       { ja: "言語設定", en: "Language" },
+        sumaru:         { ja: "スマル", en: "No-break Ending" },
+        tocNumber:      { ja: "目次の数字", en: "TOC Number" },
+        inlineGraphic:  { ja: "インライングラフィック", en: "Inline Graphic" }
+    },
+    undo: {
+        applyGrepStyles: { ja: "正規表現スタイルを適用", en: "Apply GREP Styles" }
+    },
+    error: {
+        noDocument:                 { ja: "ドキュメントを開いてから実行してください。", en: "Open a document before running this script." },
+        noParagraphStyles:          { ja: "段落スタイルが見つかりません。", en: "No paragraph styles were found." },
+        emptyCharacterStyleName:    { ja: "文字スタイル名を入力してください。", en: "Enter a character style name." },
+        duplicateCharacterStyleName:{ ja: "同名の文字スタイルが既にあります。", en: "A character style with the same name already exists." }
+    }
 };
 
+/**
+ * ドット区切りキーでラベルを取得する
+ * @param {string} labelKey 例: "dialog.title"
+ * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+ */
 function getLabel(labelKey) {
-    return LABELS[labelKey] ? LABELS[labelKey][lang] : labelKey;
+    var node = LABELS;
+    var keyParts = labelKey.split(".");
+    for (var i = 0; i < keyParts.length; i++) {
+        node = node[keyParts[i]];
+        if (!node) return labelKey;
+    }
+    return node[currentLang] || node.en || labelKey;
 }
 
-/* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-function labelText(labelKey) {
-    return getLabel(labelKey) + (lang === "ja" ? "：" : ":");
+/**
+ * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
+ * @param {string} labelKey 例: "panel.regex"
+ * @returns {string} コロンを付与したラベル文字列
+ */
+function getLabelWithColon(labelKey) {
+    return getLabel(labelKey) + (currentLang === "ja" ? "：" : ":");
 }
 
 (function () {
     if (app.documents.length === 0) {
-        alert(getLabel("noDocumentError"));
+        alert(getLabel("error.noDocument"));
         return;
     }
     var doc = app.activeDocument;
@@ -119,7 +179,7 @@ function labelText(labelKey) {
     var nestedGrepRules = [
         {
             key: "bulletLabel",
-            title: getLabel("ruleBulletLabel"),
+            title: getLabel("rule.bulletLabel"),
             defaultParagraph: "ul-li",
             defaultCharacter: "li-label",
             autoSelect: true,
@@ -127,9 +187,9 @@ function labelText(labelKey) {
         },
         {
             key: "language",
-            title: getLabel("ruleLanguage"),
+            title: getLabel("rule.language"),
             defaultParagraph: "p",
-            defaultCharacter: "lang-US",
+            defaultCharacter: "currentLang-US",
             autoSelect: true,
             expression: "[\\u\\l]",
             apply: function (style) {
@@ -145,7 +205,7 @@ function labelText(labelKey) {
         },
         {
             key: "sumaru",
-            title: getLabel("ruleSumaru"),
+            title: getLabel("rule.sumaru"),
             defaultParagraph: "p",
             defaultCharacter: "sumaru",
             autoSelect: true,
@@ -156,7 +216,7 @@ function labelText(labelKey) {
         },
         {
             key: "tocNumber",
-            title: getLabel("ruleTocNumber"),
+            title: getLabel("rule.tocNumber"),
             defaultParagraph: "p",
             defaultCharacter: "",
             autoSelect: false,
@@ -164,7 +224,7 @@ function labelText(labelKey) {
         },
         {
             key: "inlineGraphic",
-            title: getLabel("ruleInlineGraphic"),
+            title: getLabel("rule.inlineGraphic"),
             defaultParagraph: "p",
             defaultCharacter: "inline-graphic",
             autoSelect: true,
@@ -176,18 +236,11 @@ function labelText(labelKey) {
         }
     ];
 
-    var PANEL_MARGINS = [15, 20, 15, 10];
-
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = "left";
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        if (typeof spacing === "number") {
-            panel.spacing = spacing;
-        }
-    }
-
+    /**
+     * 「[...]」で始まる既定スタイルを除いたスタイル名を集める
+     * @param {object} styleCollection スタイルのコレクション
+     * @returns {Array<string>} スタイル名の配列
+     */
     function collectVisibleStyleNames(styleCollection) {
         var visibleStyleNames = [];
         for (var styleIndex = 0; styleIndex < styleCollection.length; styleIndex++) {
@@ -198,6 +251,12 @@ function labelText(labelKey) {
         return visibleStyleNames;
     }
 
+    /**
+     * 名前の一覧から一致する位置を探す
+     * @param {Array<string>} nameList 名前の一覧
+     * @param {string} targetName 探す名前
+     * @returns {number} 見つかった位置。なければ -1
+     */
     function findNameIndex(nameList, targetName) {
         for (var nameIndex = 0; nameIndex < nameList.length; nameIndex++) {
             if (nameList[nameIndex] === targetName) return nameIndex;
@@ -205,6 +264,12 @@ function labelText(labelKey) {
         return -1;
     }
 
+    /**
+     * 名前からスタイルを探す
+     * @param {object} styleCollection スタイルのコレクション
+     * @param {string} targetStyleName 探すスタイル名
+     * @returns {object|null} スタイル。見つからない場合は null
+     */
     function findStyleByName(styleCollection, targetStyleName) {
         for (var styleIndex = 0; styleIndex < styleCollection.length; styleIndex++) {
             if (styleCollection[styleIndex].name === targetStyleName) return styleCollection[styleIndex];
@@ -212,30 +277,35 @@ function labelText(labelKey) {
         return null;
     }
 
+    /**
+     * 正規表現スタイルの設定ダイアログを表示する
+     * @param {Array<object>} grepRules 正規表現ルールの一覧
+     * @param {Array<string>} paragraphStyleNames 段落スタイル名の一覧
+     * @param {Array<string>} characterStyleNames 文字スタイル名の一覧
+     * @param {Document} targetDocument 対象ドキュメント
+     * @returns {Array<object>|null} 適用するスタイルの組み合わせ。キャンセル時は null
+     */
     function showDialog(grepRules, paragraphStyleNames, characterStyleNames, targetDocument) {
-        var dialogWindow = new Window("dialog", getLabel("dialogTitle") + " " + SCRIPT_VERSION);
-        dialogWindow.alignChildren = "fill";
-        dialogWindow.margins = 16;
-        dialogWindow.spacing = 12;
+        var dialogWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(dialogWindow);
 
         var mainContentGroup = dialogWindow.add("group");
-        mainContentGroup.orientation = "row";
+        setupRow(mainContentGroup, "fill", COLUMN_SPACING);
         mainContentGroup.alignChildren = ["fill", "fill"];
-        mainContentGroup.spacing = 12;
 
         var leftColumn = mainContentGroup.add("group");
         leftColumn.orientation = "column";
         leftColumn.alignChildren = ["fill", "top"];
         leftColumn.spacing = 8;
 
-        var regexPanel = leftColumn.add("panel", undefined, getLabel("regexPanel"));
+        var regexPanel = leftColumn.add("panel", undefined, getLabel("panel.regex"));
         setupPanel(regexPanel, 6);
         var grepRuleTitles = [];
         for (var ruleIndex = 0; ruleIndex < grepRules.length; ruleIndex++) grepRuleTitles.push(grepRules[ruleIndex].title);
         var grepRuleListbox = regexPanel.add("listbox", undefined, grepRuleTitles);
         grepRuleListbox.alignment = ["fill", "top"];
         grepRuleListbox.preferredSize.height = 140;
-        grepRuleListbox.helpTip = getLabel("regexRuleListTip");
+        grepRuleListbox.helpTip = getLabel("tooltip.regexRuleList");
 
         var selectedRegexGroup = regexPanel.add("group");
         selectedRegexGroup.orientation = "column";
@@ -245,28 +315,28 @@ function labelText(labelKey) {
         // selectedExpressionText.alignment = ["fill", "top"];
         selectedExpressionText.preferredSize.width = 180;
         selectedExpressionText.enabled = false;
-        selectedExpressionText.helpTip = getLabel("selectedExpressionTip");
+        selectedExpressionText.helpTip = getLabel("tooltip.selectedExpression");
 
-        var addGrepRuleButton = regexPanel.add("button", undefined, getLabel("addRuleButton"));
+        var addGrepRuleButton = regexPanel.add("button", undefined, getLabel("button.addRule"));
         addGrepRuleButton.alignment = "right";
-        addGrepRuleButton.helpTip = getLabel("addRuleButtonTip");
+        addGrepRuleButton.helpTip = getLabel("tooltip.addRuleButton");
 
         /* 共通の文字スタイルパネル / Shared character style panel */
-        var sharedCharacterStylePanel = leftColumn.add("panel", undefined, getLabel("characterStylePanel"));
+        var sharedCharacterStylePanel = leftColumn.add("panel", undefined, getLabel("panel.characterStyle"));
         setupPanel(sharedCharacterStylePanel, 6);
 
         var sharedCharacterStyleDropdown = sharedCharacterStylePanel.add("dropdownlist", undefined, characterStyleNames);
         sharedCharacterStyleDropdown.preferredSize.width = 160;
-        sharedCharacterStyleDropdown.helpTip = getLabel("characterStyleDropdownTip");
+        sharedCharacterStyleDropdown.helpTip = getLabel("tooltip.characterStyleDropdown");
 
         var characterStyleCreateGroup = sharedCharacterStylePanel.add("group");
         characterStyleCreateGroup.orientation = "row";
         characterStyleCreateGroup.spacing = 4;
         var newCharacterStyleNameInput = characterStyleCreateGroup.add("edittext", undefined, "");
         newCharacterStyleNameInput.preferredSize.width = 120;
-        newCharacterStyleNameInput.helpTip = getLabel("newCharacterStyleNameTip");
-        var createCharacterStyleButton = characterStyleCreateGroup.add("button", undefined, getLabel("createButton"));
-        createCharacterStyleButton.helpTip = getLabel("createCharacterStyleButtonTip");
+        newCharacterStyleNameInput.helpTip = getLabel("tooltip.newCharacterStyleName");
+        var createCharacterStyleButton = characterStyleCreateGroup.add("button", undefined, getLabel("button.create"));
+        createCharacterStyleButton.helpTip = getLabel("tooltip.createCharacterStyle");
 
         /* 右カラム（縦構造）/ Right column with vertical layout */
         var paragraphStyleColumn = mainContentGroup.add("group");
@@ -279,11 +349,21 @@ function labelText(labelKey) {
 
         var ruleRows = [];
 
+        /**
+         * ルールに対応する既定の文字スタイル名を返す
+         * @param {object} grepRule 正規表現ルール
+         * @returns {string} 文字スタイル名
+         */
         function getDefaultCharacterStyleNameForRule(grepRule) {
             if (!grepRule) return "";
             return grepRule.defaultCharacter || "";
         }
 
+        /**
+         * 選択したルールに合わせて表示と候補を更新する
+         * @param {number} selectedRuleIndex 選択したルールの位置
+         * @returns {void}
+         */
         function updateSelectedGrepRule(selectedRuleIndex) {
             for (var rowIndex = 0; rowIndex < ruleRows.length; rowIndex++) {
                 ruleRows[rowIndex].paragraphStylePanel.visible = (rowIndex === selectedRuleIndex);
@@ -309,17 +389,22 @@ function labelText(labelKey) {
             }
         }
 
+        /**
+         * ルール 1 件分の表示行を作る
+         * @param {object} grepRule 正規表現ルール
+         * @returns {string} リストに表示する文字列
+         */
         function createGrepRuleRow(grepRule) {
-            var paragraphStylePanel = paragraphStylePanelStack.add("panel", undefined, getLabel("targetParagraphStylesPanel"));
+            var paragraphStylePanel = paragraphStylePanelStack.add("panel", undefined, getLabel("panel.targetParagraphStyles"));
             setupPanel(paragraphStylePanel, 6);
             paragraphStylePanel.preferredSize = [280, 300];
             paragraphStylePanel.visible = false;
 
-            paragraphStylePanel.add("statictext", undefined, getLabel("multipleSelectHint"));
+            paragraphStylePanel.add("statictext", undefined, getLabel("hint.multipleSelect"));
             var paragraphStyleListbox = paragraphStylePanel.add("listbox", undefined, paragraphStyleNames, { multiselect: true });
             paragraphStyleListbox.alignment = ["fill", "fill"];
             paragraphStyleListbox.preferredSize.height = 300;
-            paragraphStyleListbox.helpTip = getLabel("paragraphStyleListTip");
+            paragraphStyleListbox.helpTip = getLabel("tooltip.paragraphStyleList");
 
             paragraphStyleListbox.onClick = function () {
                 /* Option/Altクリックで全選択トグル / Toggle select all with Option/Alt-click */
@@ -372,42 +457,46 @@ function labelText(labelKey) {
 
         addGrepRuleButton.onClick = function () {
 
-            var ruleDialog = new Window("dialog", getLabel("addRuleButton") + " " + SCRIPT_VERSION);
-            ruleDialog.orientation = "column";
-            ruleDialog.alignChildren = "fill";
-            ruleDialog.margins = 16;
-            ruleDialog.spacing = 10;
+            var ruleDialog = new Window("dialog", getLabel("button.addRule") + " " + SCRIPT_VERSION);
+            setupWindow(ruleDialog, 10);
 
             // --- タイトル入力 ---
             var titleGroup = ruleDialog.add("group");
             titleGroup.orientation = "column";
             titleGroup.alignChildren = "left";
 
-            titleGroup.add("statictext", undefined, labelText("addRuleTitlePrompt"));
-            var titleInput = titleGroup.add("edittext", undefined, getLabel("addRuleTitleDefault"));
+            titleGroup.add("statictext", undefined, getLabel("prompt.addRuleTitle"));
+            var titleInput = titleGroup.add("edittext", undefined, getLabel("dialog.addRuleTitleDefault"));
             titleInput.preferredSize.width = 240;
-            titleInput.helpTip = getLabel("addRuleTitleInputTip");
+            titleInput.helpTip = getLabel("tooltip.addRuleTitleInput");
 
             // --- 正規表現入力 ---
             var exprGroup = ruleDialog.add("group");
             exprGroup.orientation = "column";
             exprGroup.alignChildren = "left";
 
-            exprGroup.add("statictext", undefined, labelText("addRuleExpressionPrompt"));
+            exprGroup.add("statictext", undefined, getLabel("prompt.addRuleExpression"));
             var expressionInput = exprGroup.add("edittext", undefined, "");
             expressionInput.preferredSize.width = 240;
-            expressionInput.helpTip = getLabel("addRuleExpressionInputTip");
+            expressionInput.helpTip = getLabel("tooltip.addRuleExpressionInput");
 
             // --- ボタン ---
-            var btnGroup = ruleDialog.add("group");
-            btnGroup.alignment = "right";
+            /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
 
-            var cancelBtn = btnGroup.add("button", undefined, getLabel("cancelButton"), { name: "cancel" });
-            var okBtn = btnGroup.add("button", undefined, getLabel("okButton"), { name: "ok" });
-            cancelBtn.helpTip = getLabel("addRuleDialogCancelTip");
-            okBtn.helpTip = getLabel("addRuleDialogOkTip");
+            var btnGroup = ruleDialog.add("group");
+
+            setupRow(btnGroup, "right", 8);
+
+            var cancelBtn = btnGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+            var okBtn = btnGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+            cancelBtn.helpTip = getLabel("tooltip.addRuleDialogCancel");
+            okBtn.helpTip = getLabel("tooltip.addRuleDialogOk");
 
             // --- OKボタン制御 ---
+            /**
+             * 入力状態に応じてコントロールの有効／無効を切り替える
+             * @returns {void}
+             */
             function updateState() {
                 okBtn.enabled = (titleInput.text.length > 0 && expressionInput.text.length > 0);
             }
@@ -442,11 +531,11 @@ function labelText(labelKey) {
         createCharacterStyleButton.onClick = function () {
             var newCharacterStyleName = newCharacterStyleNameInput.text;
             if (!newCharacterStyleName || newCharacterStyleName.length === 0) {
-                alert(getLabel("emptyCharacterStyleNameError"));
+                alert(getLabel("error.emptyCharacterStyleName"));
                 return;
             }
             if (findNameIndex(characterStyleNames, newCharacterStyleName) >= 0) {
-                alert(getLabel("duplicateCharacterStyleNameError"));
+                alert(getLabel("error.duplicateCharacterStyleName"));
                 return;
             }
             var newCharacterStyle = doc.characterStyles.add({ name: newCharacterStyleName });
@@ -462,13 +551,18 @@ function labelText(labelKey) {
             dialogWindow.layout.layout(true);
         };
 
+        /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
         var buttonRow = dialogWindow.add("group");
-        buttonRow.alignment = "right";
-        var cancelButton = buttonRow.add("button", undefined, getLabel("cancelButton"), { name: "cancel" });
-        var okButton = buttonRow.add("button", undefined, getLabel("okButton"), { name: "ok" });
-        cancelButton.helpTip = getLabel("mainCancelButtonTip");
-        okButton.helpTip = getLabel("mainOkButtonTip");
+        setupRow(buttonRow, "right", 8);
+        var cancelButton = buttonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okButton = buttonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        cancelButton.helpTip = getLabel("tooltip.mainCancel");
+        okButton.helpTip = getLabel("tooltip.mainOk");
 
+        /**
+         * 必須項目の入力状況に応じて OK ボタンの有効／無効を切り替える
+         * @returns {void}
+         */
         function updateOkButtonState() {
             var hasCharacter = sharedCharacterStyleDropdown.selection !== null;
             var hasParagraph = false;
@@ -521,6 +615,12 @@ function labelText(labelKey) {
         return styleRegistrations;
     }
 
+    /**
+     * 選択した段落スタイルへ正規表現スタイルを適用する
+     * @param {Document} targetDocument 対象ドキュメント
+     * @param {Array<object>} styleRegistrations 適用するスタイルの組み合わせ
+     * @returns {void}
+     */
     function applyNestedGrepStyleSettings(targetDocument, styleRegistrations) {
         var paragraphStyleCollection = targetDocument.allParagraphStyles;
         var characterStyleCollection = targetDocument.allCharacterStyles;
@@ -548,12 +648,15 @@ function labelText(labelKey) {
     var characterStyleNames = collectVisibleStyleNames(doc.allCharacterStyles);
 
     if (paragraphStyleNames.length === 0) {
-        alert(getLabel("noParagraphStylesError"));
+        alert(getLabel("error.noParagraphStyles"));
         return;
     }
 
     var styleRegistrations = showDialog(nestedGrepRules, paragraphStyleNames, characterStyleNames, doc);
     if (!styleRegistrations) return;
 
-    applyNestedGrepStyleSettings(doc, styleRegistrations);
+    /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+    app.doScript(function () {
+        applyNestedGrepStyleSettings(doc, styleRegistrations);
+    }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.applyGrepStyles"));
 })();

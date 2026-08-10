@@ -1,92 +1,71 @@
 #target indesign
 
-    /*
-    
-    ### スクリプト名：
-    
-    FileNameManager.jsx — 現在のドキュメントのファイル名を変更／別名で保存
-    
-    ### 概要：
-    
-    - アクティブな InDesign ドキュメントのファイル名を変更（実ファイルのリネーム）／別名で保存／コピーを保存します。
-    - 保存先は常に現在のファイルと同じフォルダ。未保存ドキュメントは保存先フォルダを選択して保存します。
-    - ファイル名を base / date / text / version の各セグメントに分解し、元の出現順序を保持したまま編集できます。
-      - base: 「ベース」として読み取り専用表示（先頭の固定部分）
-      - date: 「タイムスタンプ」ラジオで「つけない / YYYYMMDD」を選択（デフォルト YYYYMMDD）
-      - text: 「タイトル」ラジオで「つけない / 親フォルダー / 指定（入力欄）」を選択
-      - version: 「バージョン番号」ラジオで「つけない / -vN / -v0N」を選択（デフォルト -vN）
-    - 動作モード: 「ファイル名の変更」「別名で保存」（デフォルト）「コピーを保存」（元ファイル維持＋別名コピー）
-    - 区切り記号: 「変更しない / `-` / `_`」から選択。`-` または `_` を選ぶとファイル名全体で統一。
-    - UI は「動作」「ファイル名」パネル（内部にオプションサブパネル）で構成。各要素に tooltip を付与。
-    
-    ### 主な機能：
-    
-    - ファイル名の変更（新名で保存後に元ファイルを削除して実質的にリネーム）
-    - 別名で保存（元ファイルは保持。アクティブドキュメントは新ファイルに切り替わる。デフォルト）
-    - コピーを保存（元ファイルに上書き保存後、別名のコピーを物理ファイルとして作成。アクティブドキュメントは元のまま）
-    - セグメント分解による独立編集（base / date / text / version。順序維持）
-    - タイムスタンプ／バージョン番号は「つけない」で削除、「YYYYMMDD」「-vN」等で形式を切替
-    - バージョンは選択時に元バージョン +1（無ければ新規付与）
-    - モードに応じて OK ボタン文言を「リネーム / 保存 / コピーを保存」に動的切替
-    
-    ### 処理の流れ：
-    
-    1) ドキュメント検証 → gatherDocumentInfo() でファイル情報を取得
-    2) parseFileName() でセグメント配列に分解（区切り文字も保持）
-    3) createDialog() でダイアログを構築（buildModePanel + buildFilenamePanel + buildOptionsPanel）
-    4) buildFinalName() で UI 状態と segments から最終ファイル名を構築
-    5) ensureTargetFolder() で未保存ドキュメントは保存先フォルダを取得
-    6) confirmOverwriteIfExists() で既存同名の上書きを確認
-    7) executeOutput() で選択モード（rename / saveAs / copy）に応じた出力を実行
-    
-    ### 更新履歴：
-    
-    - v1.0 (2026-05-27) : 初期バージョン
-    
-    ---
-    
-    ### Script name:
-    
-    FileNameManager.jsx — Rename or Save As the Current Document
-    
-    ### Overview:
-    
-    - Renames the active InDesign document (true rename), saves as a new file, or saves a copy.
-    - Destination is always the same folder as the current file; for unsaved docs, a destination folder is chosen.
-    - Decomposes the filename into base / date / text / version segments, preserving their original order.
-      - base: displayed read-only as "Base" (the fixed prefix)
-      - date: "Timestamp" radio selects "None / YYYYMMDD" (default YYYYMMDD)
-      - text: chosen via the "Title" radio (None / Parent Folder / Custom input)
-      - version: "Version" radio selects "None / -vN / -v0N" (default -vN)
-    - Modes: "Rename", "Save As" (default), and "Save a Copy".
-    - Separator: choose from "No Change", `-`, or `_`. Choosing `-` or `_` unifies separators across the filename.
-    - UI is composed of "Mode" and "File Name" panels (with an "Options" sub-panel inside) and tooltips on each element.
-    
-    ### Key features:
-    
-    - Rename (saves with the new name, then removes the original)
-    - Save As (keeps the original; the active document switches to the new file; default)
-    - Save a Copy (keeps the original, creates a separate copy; the active document is unchanged)
-    - Segment-based editing with order preservation (base / date / text / version)
-    - Timestamp / version radios switch the format; "None" removes the segment
-    - Version radios bump the existing version by +1 (or create a new one if missing)
-    - OK button label switches between Rename / Save / Save a Copy based on the selected mode
-    
-    ### Flow:
-    
-    1) gatherDocumentInfo() collects file info
-    2) parseFileName() splits the name into ordered segments (separators preserved)
-    3) createDialog() composes the dialog (buildModePanel + buildFilenamePanel + buildOptionsPanel)
-    4) buildFinalName() composes the final filename from UI state and segments
-    5) ensureTargetFolder() prompts for a destination folder if the doc is unsaved
-    6) confirmOverwriteIfExists() confirms before overwriting an existing file
-    7) executeOutput() runs the action for the selected mode (rename / saveAs / copy)
-    
-    ### Changelog:
-    
-    - v1.0 (2026-05-27): Initial release
-    
-    */
+/*
+ * FileNameManager.jsx
+ *
+ * アクティブなドキュメントのファイル名を、ベース・日付・タイトル・バージョンのセグメント単位で編集し、リネーム／別名保存／コピー保存を行います。
+ * 詳細は README を参照してください。
+ */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "FileNameManager";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-27";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/FileNameManager.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/FileNameManager.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
     (function () {
 
@@ -105,7 +84,6 @@
         var SEGMENT_ORDER = ['base', 'title', 'timestamp', 'version'];
 
         var NEW_NAME_FIELD_WIDTH = 250;
-        var PANEL_MARGINS = [15, 20, 15, 10];
         var PANEL_SPACING = 8;
 
         var DIALOG_OPACITY = 0.98;
@@ -195,8 +173,12 @@
             }
         };
 
-        /* ドット記法でローカライズ済み文字列を取得 / Get the localized string by dotted key (e.g. L('dialog.title')) */
-        function L(path) {
+        /**
+         * ドット区切りキーでラベルを取得する
+         * @param {string} path 例: "dialog.title"
+         * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+         */
+        function getLabel(path) {
             var parts = String(path).split('.');
             var entry = LABELS;
             for (var i = 0; i < parts.length; i++) {
@@ -206,8 +188,12 @@
             return entry[lang] || entry.en || path;
         }
 
-        /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-        function labelText(path) {
+        /**
+         * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
+         * @param {string} path 例: "label.separator"
+         * @returns {string} コロンを付与したラベル文字列
+         */
+        function getLabelWithColon(path) {
             return L(path) + (lang === 'ja' ? '：' : ':');
         }
 
@@ -217,14 +203,23 @@
 
         var VERSION_TOKEN_RE = /^[vV]\d+$/;   // v123 / V123
 
-        /* 月（1-12）と日（1-31）の妥当性 / Validate month (1-12) and day (1-31) */
+        /**
+         * 月日として妥当な組み合わせかを判定する
+         * @param {number} month 月
+         * @param {number} day 日
+         * @returns {boolean} 妥当なら true
+         */
         function isValidMonthDay(monthStr, dayStr) {
             var m = parseInt(monthStr, 10);
             var d = parseInt(dayStr, 10);
             return m >= 1 && m <= 12 && d >= 1 && d <= 31;
         }
 
-        /* YYYYMMDD（8 桁）または YYMMDD（6 桁）の日付トークンか / Whether a token is a YYYYMMDD or YYMMDD date */
+        /**
+         * 日付セグメントとして解釈できる文字列かを判定する
+         * @param {string} token 判定する文字列
+         * @returns {boolean} 日付なら true
+         */
         function isDateToken(token) {
             var s = String(token);
             if (/^\d{8}$/.test(s)) return isValidMonthDay(s.substring(4, 6), s.substring(6, 8));
@@ -232,13 +227,20 @@
             return false;
         }
 
-        /* "v123" 形式のバージョントークンか / Whether a token is a v+digits version */
+        /**
+         * バージョンセグメントとして解釈できる文字列かを判定する
+         * @param {string} token 判定する文字列
+         * @returns {boolean} バージョンなら true
+         */
         function isVersionToken(token) {
             return VERSION_TOKEN_RE.test(String(token));
         }
 
-        /* ファイル名を順序付きセグメント配列に分解。各 segment は前にあった区切り文字も保持
-           / Decompose into ordered segments; each segment stores the preceding separator */
+        /**
+         * ファイル名をセグメントの配列へ分解する
+         * @param {string} fileName 分解するファイル名
+         * @returns {Array<object>} セグメントの配列
+         */
         function parseFileName(name) {
             var split = String(name).split(/([-_])/); // ["handout","-","Adobe","-","20260422"]
             var segments = [];
@@ -247,6 +249,10 @@
             var hasDate = false, hasVersion = false;
             var currentSep = '';
 
+            /**
+             * 読み取り中のテキストを 1 セグメントとして確定する
+             * @returns {void}
+             */
             function flushText() {
                 if (!textBuffer.length) return;
                 segments.push({
@@ -308,7 +314,12 @@
             return segments;
         }
 
-        /* segments から最初に出現する kind の value を取得 / Get the value of the first segment of the given kind */
+        /**
+         * 指定した種別の最初のセグメント値を取得する
+         * @param {Array<object>} segments セグメントの配列
+         * @param {string} kind セグメントの種別
+         * @returns {string} セグメントの値。なければ空文字
+         */
         function getFirstSegmentValue(segments, kind) {
             for (var i = 0; i < segments.length; i++) {
                 if (segments[i].kind === kind) return segments[i].value;
@@ -316,13 +327,22 @@
             return '';
         }
 
-        /* 文字列を左 0 パディング / Left-pad a string with zeros to the given width */
+        /**
+         * 左側をゼロ埋めして桁を揃える
+         * @param {*} value 対象の値
+         * @param {number} length 揃える桁数
+         * @returns {string} ゼロ埋めした文字列
+         */
         function padLeft(str, width) {
             while (str.length < width) str = '0' + str;
             return str;
         }
 
-        /* 今日の日付を YYYYMMDD 形式で / Today's date as YYYYMMDD */
+        /**
+         * 今日の日付からタイムスタンプ文字列を作る
+         * @param {string} format 日付の書式
+         * @returns {string} タイムスタンプ
+         */
         function todayTimestamp() {
             var d = new Date();
             return String(d.getFullYear()) +
@@ -330,8 +350,12 @@
                 padLeft(String(d.getDate()), 2);
         }
 
-        /* バージョン文字列を +1。mode='padded' でゼロ埋め（最低 2 桁）。元バージョンが無ければ新規付与（v2 / v02）
-           / Bump the version string by +1. 'padded' zero-pads to at least 2 digits. Returns v2 / v02 if no original */
+        /**
+         * バージョン番号を指定の書式へ整形する
+         * @param {number} versionNumber バージョン番号
+         * @param {string} format バージョンの書式
+         * @returns {string} 整形した文字列
+         */
         function formatVersion(originalVersion, mode) {
             var match = String(originalVersion || '').match(/^([vV])(\d+)$/);
             var letter = match ? match[1] : 'v';
@@ -343,7 +367,11 @@
             return letter + String(nextNum);
         }
 
-        /* % エンコードを 1 回デコード / Decode a percent-encoded string once (best-effort) */
+        /**
+         * パーセントエンコードされた文字列を復号する
+         * @param {string} text 対象の文字列
+         * @returns {string} 復号した文字列
+         */
         function decodePercentEncoded(str) {
             str = String(str);
             if (str.indexOf('%') === -1) return str;
@@ -354,18 +382,29 @@
             }
         }
 
-        /* 拡張子を除去 / Strip a trailing file extension */
+        /**
+         * ファイル名から拡張子を取り除く
+         * @param {string} fileName 対象のファイル名
+         * @returns {string} 拡張子を除いた名前
+         */
         function stripExtension(name) {
             var dot = name.lastIndexOf('.');
             return (dot > 0) ? name.substring(0, dot) : name;
         }
 
-        /* ファイル名として無効な文字を除去し前後空白をトリム / Strip invalid filename chars and trim whitespace */
+        /**
+         * ファイル名に使えない文字を置き換える
+         * @param {string} fileName 元のファイル名
+         * @returns {string} 安全なファイル名
+         */
         function sanitizeFilename(str) {
             return String(str).replace(/[\\\/:*?"<>|]/g, '').replace(/^\s+|\s+$/g, '');
         }
 
-        /* 保存先ダイアログ。.indd 拡張子を補正して File を返す。キャンセルは null / Show save dialog, normalize to .indd; null on cancel */
+        /**
+         * 保存先フォルダをユーザーに選ばせる
+         * @returns {Folder|null} 選択したフォルダ。キャンセル時は null
+         */
         function pickInddDestination(promptLabel) {
             var chosen = File.saveDialog(promptLabel, '*.indd');
             if (!chosen) return null;
@@ -376,12 +415,18 @@
             return file;
         }
 
-        /* プリセット保存用ファイル / Preferences file (key=value lines) */
+        /**
+         * 設定を保存するファイルを取得する
+         * @returns {File} 設定ファイル
+         */
         function getPrefsFile() {
             return File(Folder.userData.fsName + '/FileNameManager-prefs.txt');
         }
 
-        /* 前回保存したプリセットを読み込み（無ければ空オブジェクト） / Load previously saved prefs (or empty if none) */
+        /**
+         * 保存しておいた設定を読み込む
+         * @returns {object} 読み込んだ設定
+         */
         function loadPrefs() {
             var file = getPrefsFile();
             if (!file.exists) return {};
@@ -399,7 +444,11 @@
             return prefs;
         }
 
-        /* プリセットを保存（失敗時は黙って継続） / Save prefs (silently ignore failure) */
+        /**
+         * 現在の設定を保存する
+         * @param {object} prefs 保存する設定
+         * @returns {void}
+         */
         function savePrefs(prefs) {
             try {
                 var file = getPrefsFile();
@@ -414,7 +463,10 @@
             } catch (e) { /* 保存できなくても処理は止めない */ }
         }
 
-        /* ドキュメントから現在のファイル情報を収集 / Collect file info from the active document */
+        /**
+         * アクティブドキュメントのファイル情報を集める
+         * @returns {object|null} ファイル情報。取得できない場合は null
+         */
         function gatherDocumentInfo(doc) {
             var fullName = doc.fullName;
             var currentName = decodePercentEncoded(fullName ? fullName.name : doc.name);
@@ -431,21 +483,33 @@
             };
         }
 
-        /* 保存先フォルダを確定（未保存なら saveDialog で取得）。キャンセル時は null / Resolve the target folder (prompt if needed); null on cancel */
+        /**
+         * 保存先フォルダを確定する（未保存なら選択させる）
+         * @param {object} documentInfo ファイル情報
+         * @returns {Folder|null} 保存先フォルダ。決まらない場合は null
+         */
         function ensureTargetFolder(folder) {
             if (folder) return folder;
-            var picked = pickInddDestination(L('message.chooseDestination'));
+            var picked = pickInddDestination(getLabel('message.chooseDestination'));
             return picked ? picked.parent : null;
         }
 
-        /* 既存同名（自分自身を除く）の上書き確認。OK なら true / Confirm overwrite for an existing file (excluding self); true if approved */
+        /**
+         * 同名ファイルがある場合に上書きの可否を確認する
+         * @param {File} targetFile 保存先のファイル
+         * @returns {boolean} 続行してよければ true
+         */
         function confirmOverwriteIfExists(destFile, originalFsPath) {
             if (!destFile.exists) return true;
             if (destFile.fsName === originalFsPath) return true;
-            return confirm(L('message.confirmOverwrite') + '\n\n' + destFile.fsName);
+            return confirm(getLabel('message.confirmOverwrite') + '\n\n' + destFile.fsName);
         }
 
-        /* 旧ファイルを削除（失敗時は黙って継続） / Remove the original file (silently ignore failure) */
+        /**
+         * リネーム時に元ファイルを削除する
+         * @param {File} originalFile 元のファイル
+         * @returns {void}
+         */
         function removeOriginalFile(originalFsPath, destFsPath) {
             if (!originalFsPath || originalFsPath === destFsPath) return;
             var file = File(originalFsPath);
@@ -453,7 +517,13 @@
             try { file.remove(); } catch (e) { /* 削除できない場合は黙って継続 */ }
         }
 
-        /* モード別の出力処理（rename / saveAs / copy） / Execute the output according to the selected mode */
+        /**
+         * 選択したモードでリネーム・別名保存・コピー保存を実行する
+         * @param {string} mode 動作モード
+         * @param {File} targetFile 保存先のファイル
+         * @param {object} documentInfo ファイル情報
+         * @returns {boolean} 成功したら true
+         */
         function executeOutput(doc, destFile, mode, originalFsPath) {
             if (mode === 'copy' && originalFsPath) {
                 // 現在の変更を元ファイルへ保存してから、物理ファイルとしてコピー
@@ -468,8 +538,12 @@
             }
         }
 
-        /* segments と UI 状態から最終ファイル名（拡張子なし）を構築。SEGMENT_ORDER に従う
-           / Build the final filename from segments and UI state, following SEGMENT_ORDER */
+        /**
+         * UI の状態とセグメントから最終的なファイル名を組み立てる
+         * @param {object} uiState UI の状態
+         * @param {Array<object>} segments セグメントの配列
+         * @returns {string} 最終的なファイル名
+         */
         function buildFinalName(segments, uiState) {
             // 区切り記号: 明示選択があればそれを、無ければ元のファイル名で優勢な区切りを使う
             var defaultSep;
@@ -479,6 +553,13 @@
                 defaultSep = dominantSeparator(segments);
             }
 
+            /**
+             * セグメント種別ごとに出力する値を決める
+             * @param {string} kind セグメントの種別
+             * @param {object} uiState UI の状態
+             * @param {Array<object>} segments セグメントの配列
+             * @returns {string} 出力する値
+             */
             function valueForKind(kind) {
                 if (kind === 'base') {
                     return getFirstSegmentValue(segments, 'base');
@@ -515,7 +596,11 @@
             return result;
         }
 
-        /* segments から優勢な区切り記号を返す。同数なら "-" / Dominant separator across segments (defaults to "-") */
+        /**
+         * ファイル名で最も多く使われている区切り記号を求める
+         * @param {string} fileName 対象のファイル名
+         * @returns {string} 区切り記号
+         */
         function dominantSeparator(segments) {
             var dashes = 0, underscores = 0;
             for (var i = 0; i < segments.length; i++) {
@@ -529,25 +614,22 @@
         // ダイアログビルダー / Dialog builders
         // =========================================
 
-        /* パネルの共通設定（向き・整列・余白・子要素間隔） / Apply shared panel settings (orientation, alignment, margins, spacing) */
-        function setupPanel(panel, spacing) {
-            panel.orientation = 'column';
-            panel.alignChildren = ['fill', 'top'];
-            panel.alignment = 'fill';
-            panel.margins = PANEL_MARGINS;
-            panel.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
-        }
 
-        /* モード選択パネルを構築（リネーム / 別名で保存 / コピーを保存） / Build the mode panel (Rename / Save As / Save a Copy) */
+        /**
+         * 動作モードのパネルを組み立てる
+         * @param {Window} dialog 対象のダイアログ
+         * @param {object} prefs 保存しておいた設定
+         * @returns {object} パネル内のコントロール
+         */
         function buildModePanel(parent, prefs) {
-            var panel = parent.add('panel', undefined, L('panel.mode'));
+            var panel = parent.add('panel', undefined, getLabel('panel.mode'));
             setupPanel(panel);
-            var renameRadio = panel.add('radiobutton', undefined, L('radio.rename'));
-            renameRadio.helpTip = L('tip.rename');
-            var saveAsRadio = panel.add('radiobutton', undefined, L('radio.saveAs'));
-            saveAsRadio.helpTip = L('tip.saveAs');
-            var saveCopyRadio = panel.add('radiobutton', undefined, L('radio.saveCopy'));
-            saveCopyRadio.helpTip = L('tip.saveCopy');
+            var renameRadio = panel.add('radiobutton', undefined, getLabel('radio.rename'));
+            renameRadio.helpTip = getLabel('tip.rename');
+            var saveAsRadio = panel.add('radiobutton', undefined, getLabel('radio.saveAs'));
+            saveAsRadio.helpTip = getLabel('tip.saveAs');
+            var saveCopyRadio = panel.add('radiobutton', undefined, getLabel('radio.saveCopy'));
+            saveCopyRadio.helpTip = getLabel('tip.saveCopy');
             // 初期選択（プリセットがあれば優先、無ければ「別名で保存」）
             var initialMode = (prefs && (prefs.mode === 'rename' || prefs.mode === 'copy')) ? prefs.mode : 'saveAs';
             renameRadio.value = (initialMode === 'rename');
@@ -567,19 +649,24 @@
             };
         }
 
-        /* ファイル名パネルを構築（現在名・変更後名のみ） / Build the file-name panel (current / final only) */
+        /**
+         * ファイル名のパネルを組み立てる
+         * @param {Window} dialog 対象のダイアログ
+         * @param {string} currentName 現在のファイル名
+         * @returns {object} パネル内のコントロール
+         */
         function buildFilenamePanel(parent, currentName) {
-            var panel = parent.add('panel', undefined, L('panel.filename'));
+            var panel = parent.add('panel', undefined, getLabel('panel.filename'));
             setupPanel(panel);
 
             var currentNameRow = panel.add('group');
             currentNameRow.orientation = 'row';
-            var currentNameLabel = currentNameRow.add('statictext', undefined, labelText('label.currentName'));
+            var currentNameLabel = currentNameRow.add('statictext', undefined, getLabelWithColon('label.currentName'));
             currentNameRow.add('statictext', undefined, currentName);
 
             var finalNameRow = panel.add('group');
             finalNameRow.orientation = 'row';
-            var finalNameLabel = finalNameRow.add('statictext', undefined, labelText('label.finalName'));
+            var finalNameLabel = finalNameRow.add('statictext', undefined, getLabelWithColon('label.finalName'));
             // 「変更後：」は statictext のためレイアウト後にサイズ固定。
             // 現在のファイル名と「入力フィールド + 余白」の大きい方を確保しておく
             var finalNameValue = finalNameRow.add('statictext', undefined, currentName + '.indd');
@@ -587,8 +674,8 @@
             finalNameValue.preferredSize.width = Math.max(currentNameWidth + 20, NEW_NAME_FIELD_WIDTH + 150);
 
             alignLabelWidths(panel, [
-                labelText('label.currentName'),
-                labelText('label.finalName')
+                getLabelWithColon('label.currentName'),
+                getLabelWithColon('label.finalName')
             ], [currentNameLabel, finalNameLabel]);
 
             return {
@@ -597,9 +684,15 @@
             };
         }
 
-        /* オプションパネルを構築（ベース表示・タイトル選択・タイムスタンプ・バージョン番号・区切り） / Build the options panel */
+        /**
+         * セグメントごとのオプションパネルを組み立てる
+         * @param {object} parent 追加先のコンテナ
+         * @param {Array<object>} segments セグメントの配列
+         * @param {object} prefs 保存しておいた設定
+         * @returns {object} パネル内のコントロール
+         */
         function buildOptionsPanel(parent, segments, prefs, parentFolderName) {
-            var panel = parent.add('panel', undefined, L('panel.options'));
+            var panel = parent.add('panel', undefined, getLabel('panel.options'));
             setupPanel(panel);
 
             var baseValue = getFirstSegmentValue(segments, 'base');
@@ -608,7 +701,7 @@
             // ベース（読み取り専用表示）
             var baseRow = panel.add('group');
             baseRow.orientation = 'row';
-            var baseLabel = baseRow.add('statictext', undefined, labelText('label.base'));
+            var baseLabel = baseRow.add('statictext', undefined, getLabelWithColon('label.base'));
             baseRow.add('statictext', undefined, baseValue);
 
             // タイトル: 1 行目 = ラベル + 3 ラジオ、2 行目 = 「指定」用の入力欄
@@ -620,17 +713,17 @@
             var titleRow = titleSection.add('group');
             titleRow.orientation = 'row';
             titleRow.alignment = ['left', 'top'];
-            var titleLabel = titleRow.add('statictext', undefined, labelText('label.title'));
-            titleLabel.helpTip = L('tip.title');
-            var titleNoneRadio = titleRow.add('radiobutton', undefined, L('radio.titleNone'));
-            titleNoneRadio.helpTip = L('tip.title');
-            var titleParentRadio = titleRow.add('radiobutton', undefined, L('radio.titleParent'));
+            var titleLabel = titleRow.add('statictext', undefined, getLabelWithColon('label.title'));
+            titleLabel.helpTip = getLabel('tip.title');
+            var titleNoneRadio = titleRow.add('radiobutton', undefined, getLabel('radio.titleNone'));
+            titleNoneRadio.helpTip = getLabel('tip.title');
+            var titleParentRadio = titleRow.add('radiobutton', undefined, getLabel('radio.titleParent'));
             titleParentRadio.helpTip = parentFolderName
-                ? L('tip.title') + ' (' + parentFolderName + ')'
-                : L('tip.title');
+                ? getLabel('tip.title') + ' (' + parentFolderName + ')'
+                : getLabel('tip.title');
             if (!parentFolderName) titleParentRadio.enabled = false;
-            var titleCustomRadio = titleRow.add('radiobutton', undefined, L('radio.titleCustom'));
-            titleCustomRadio.helpTip = L('tip.title');
+            var titleCustomRadio = titleRow.add('radiobutton', undefined, getLabel('radio.titleCustom'));
+            titleCustomRadio.helpTip = getLabel('tip.title');
 
             // 「指定」用の入力欄は次の行（ラベル列幅だけ左に余白を入れて radios に揃える）
             var titleFieldRow = titleSection.add('group');
@@ -639,7 +732,7 @@
             var titleFieldSpacer = titleFieldRow.add('statictext', undefined, '');
             var titleField = titleFieldRow.add('edittext', undefined, initialText);
             titleField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
-            titleField.helpTip = L('tip.title');
+            titleField.helpTip = getLabel('tip.title');
 
             // 初期モード: プリセット優先、無ければ初期テキスト有無で 'custom' / 'none'
             var initialTitleMode;
@@ -656,6 +749,10 @@
             titleCustomRadio.value = (initialTitleMode === 'custom');
             titleField.enabled = (initialTitleMode === 'custom');
 
+            /**
+             * タイトルの指定方法に応じて入力欄の有効／無効を切り替える
+             * @returns {void}
+             */
             function syncTitleFieldEnabled() {
                 titleField.enabled = titleCustomRadio.value;
             }
@@ -663,12 +760,12 @@
             // タイムスタンプ（つけない / YYYYMMDD。デフォルト YYYYMMDD）
             var timestampRow = panel.add('group');
             timestampRow.orientation = 'row';
-            var timestampLabel = timestampRow.add('statictext', undefined, labelText('label.timestamp'));
-            timestampLabel.helpTip = L('tip.timestamp');
-            var timestampNoneRadio = timestampRow.add('radiobutton', undefined, L('radio.timestampNone'));
-            timestampNoneRadio.helpTip = L('tip.timestamp');
-            var timestampDateRadio = timestampRow.add('radiobutton', undefined, L('radio.timestampDate'));
-            timestampDateRadio.helpTip = L('tip.timestamp');
+            var timestampLabel = timestampRow.add('statictext', undefined, getLabelWithColon('label.timestamp'));
+            timestampLabel.helpTip = getLabel('tip.timestamp');
+            var timestampNoneRadio = timestampRow.add('radiobutton', undefined, getLabel('radio.timestampNone'));
+            timestampNoneRadio.helpTip = getLabel('tip.timestamp');
+            var timestampDateRadio = timestampRow.add('radiobutton', undefined, getLabel('radio.timestampDate'));
+            timestampDateRadio.helpTip = getLabel('tip.timestamp');
             var initialTimestamp = (prefs && prefs.timestamp === 'none') ? 'none' : 'date';
             timestampNoneRadio.value = (initialTimestamp === 'none');
             timestampDateRadio.value = (initialTimestamp === 'date');
@@ -676,14 +773,14 @@
             // バージョン番号（つけない / -vN / -v0N。デフォルト -vN）
             var versionRow = panel.add('group');
             versionRow.orientation = 'row';
-            var versionLabel = versionRow.add('statictext', undefined, labelText('label.version'));
-            versionLabel.helpTip = L('tip.version');
-            var versionNoneRadio = versionRow.add('radiobutton', undefined, L('radio.versionNone'));
-            versionNoneRadio.helpTip = L('tip.version');
-            var versionShortRadio = versionRow.add('radiobutton', undefined, L('radio.versionShort'));
-            versionShortRadio.helpTip = L('tip.version');
-            var versionPaddedRadio = versionRow.add('radiobutton', undefined, L('radio.versionPadded'));
-            versionPaddedRadio.helpTip = L('tip.version');
+            var versionLabel = versionRow.add('statictext', undefined, getLabelWithColon('label.version'));
+            versionLabel.helpTip = getLabel('tip.version');
+            var versionNoneRadio = versionRow.add('radiobutton', undefined, getLabel('radio.versionNone'));
+            versionNoneRadio.helpTip = getLabel('tip.version');
+            var versionShortRadio = versionRow.add('radiobutton', undefined, getLabel('radio.versionShort'));
+            versionShortRadio.helpTip = getLabel('tip.version');
+            var versionPaddedRadio = versionRow.add('radiobutton', undefined, getLabel('radio.versionPadded'));
+            versionPaddedRadio.helpTip = getLabel('tip.version');
             var initialVersion = (prefs && (prefs.version === 'none' || prefs.version === 'padded')) ? prefs.version : 'short';
             versionNoneRadio.value = (initialVersion === 'none');
             versionShortRadio.value = (initialVersion === 'short');
@@ -692,14 +789,14 @@
             // 区切り記号（変更しない / - / _ 横並び。デフォルト "-"）
             var separatorRow = panel.add('group');
             separatorRow.orientation = 'row';
-            var separatorLabel = separatorRow.add('statictext', undefined, L('label.separator'));
-            separatorLabel.helpTip = L('tip.separator');
-            var noChangeRadio = separatorRow.add('radiobutton', undefined, L('radio.noChange'));
-            noChangeRadio.helpTip = L('tip.separator');
+            var separatorLabel = separatorRow.add('statictext', undefined, getLabel('label.separator'));
+            separatorLabel.helpTip = getLabel('tip.separator');
+            var noChangeRadio = separatorRow.add('radiobutton', undefined, getLabel('radio.noChange'));
+            noChangeRadio.helpTip = getLabel('tip.separator');
             var dashRadio = separatorRow.add('radiobutton', undefined, '-');
-            dashRadio.helpTip = L('tip.separator');
+            dashRadio.helpTip = getLabel('tip.separator');
             var underscoreRadio = separatorRow.add('radiobutton', undefined, '_');
-            underscoreRadio.helpTip = L('tip.separator');
+            underscoreRadio.helpTip = getLabel('tip.separator');
             var initialSeparator = (prefs && (prefs.separator === '' || prefs.separator === '_')) ? prefs.separator : '-';
             noChangeRadio.value = (initialSeparator === '');
             dashRadio.value = (initialSeparator === '-');
@@ -707,11 +804,11 @@
 
             // 5 行のラベル幅を統一（区切り記号のみコロン無し）
             alignLabelWidths(panel, [
-                labelText('label.base'),
-                labelText('label.title'),
-                labelText('label.timestamp'),
-                labelText('label.version'),
-                L('label.separator')
+                getLabelWithColon('label.base'),
+                getLabelWithColon('label.title'),
+                getLabelWithColon('label.timestamp'),
+                getLabelWithColon('label.version'),
+                getLabel('label.separator')
             ], [baseLabel, titleLabel, timestampLabel, versionLabel, separatorLabel]);
 
             // タイトル 2 行目「指定」入力欄の左余白をラベル列幅と一致させる
@@ -757,10 +854,11 @@
             };
         }
 
-        /* labelTexts の最大幅に controls の幅を揃える。checkbox/radiobutton が含まれていれば
-           インジケーター分（+20px）を全コントロールに加算して右端を揃える
-           / Align controls' widths to the widest label. If any control is a checkbox/radiobutton,
-           add indicator width (+20px) to all so their right edges align */
+        /**
+         * ラベル群の幅を最大値に揃える
+         * @param {Array<StaticText>} labelControls 幅を揃えるラベル
+         * @returns {void}
+         */
         function alignLabelWidths(panel, labelTexts, controls) {
             var graphics = panel.graphics;
             var maxWidth = 0;
@@ -782,12 +880,17 @@
             }
         }
 
-        /* ダイアログ全体を組み立て、イベント配線とプレビューを行う / Compose the full dialog, wire events, and run live preview */
+        /**
+         * ファイル名変更のダイアログを組み立てる
+         * @param {object} documentInfo ファイル情報
+         * @param {Array<object>} segments セグメントの配列
+         * @param {object} prefs 保存しておいた設定
+         * @returns {object} ダイアログとコントロール
+         */
         function createDialog(segments, currentName, prefs, parentFolderName) {
-            var dialog = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
+            var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
             dialog.opacity = DIALOG_OPACITY;
-            dialog.orientation = 'column';
-            dialog.alignChildren = 'fill';
+            setupWindow(dialog, 10);
 
             var mode = buildModePanel(dialog, prefs);
             var filename = buildFilenamePanel(dialog, currentName);
@@ -797,6 +900,10 @@
             var options = buildOptionsPanel(filename.panel, segments, prefs, parentFolderName);
 
             // ---- ライブプレビュー ----
+            /**
+             * ダイアログの現在の状態を取得する
+             * @returns {object} UI の状態
+             */
             function currentUIState() {
                 return {
                     titleMode: options.getTitleMode(),
@@ -808,6 +915,10 @@
                 };
             }
 
+            /**
+             * 現在の入力内容でファイル名のプレビューを更新する
+             * @returns {void}
+             */
             function refreshPreviews() {
                 options.syncTitleFieldEnabled();
                 var finalBase = buildFinalName(segments, currentUIState());
@@ -831,7 +942,7 @@
             // ---- ボタン ----
             var buttonGroup = dialog.add('group');
             buttonGroup.alignment = 'center';
-            buttonGroup.add('button', undefined, L('button.cancel'), { name: 'cancel' });
+            buttonGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
             buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
 
             return {
@@ -845,10 +956,13 @@
         // メイン / Main
         // =========================================
 
-        /* エントリポイント。ダイアログを開き、選択モードに応じた出力を実行 / Entry point: open the dialog and execute the selected mode */
+        /**
+         * ドキュメントを検証し、ダイアログの指定に従って出力する
+         * @returns {void}
+         */
         function main() {
             if (app.documents.length === 0) {
-                alert(L('message.noDoc'));
+                alert(getLabel('message.noDoc'));
                 return;
             }
 
@@ -863,7 +977,7 @@
             var uiState = ui.getUIState();
             var newBaseName = buildFinalName(segments, uiState);
             if (!newBaseName) {
-                alert(L('message.emptyName'));
+                alert(getLabel('message.emptyName'));
                 return;
             }
 
@@ -884,7 +998,7 @@
                     separator: uiState.separator
                 });
             } catch (e) {
-                alert(L('message.saveFailed') + '\n' + e);
+                alert(getLabel('message.saveFailed') + '\n' + e);
             }
         }
 

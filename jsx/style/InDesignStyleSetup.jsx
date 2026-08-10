@@ -1,235 +1,178 @@
 #target indesign
 
 /*
+ * InDesignStyleSetup.jsx
+ *
+ * 段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイルまでを一括で登録します。
+ * 詳細は README を参照してください。
+ */
 
-    ### 概要
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "InDesignStyleSetup";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
 
-    アクティブな InDesign ドキュメントに、段落スタイル／文字スタイルとそれぞれのグループ（フォルダー）を一括登録し、見出し・本文・表・目次・コードなどの定番属性をまとめて設定する。
+// README (Japanese)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/InDesignStyleSetup.md
+// README (English)
+// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/InDesignStyleSetup.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfe87ec253780"; /* 紹介記事 / article URL */
 
-    - 同名のスタイル／グループが既にあれば作成はスキップ（重複登録しない）
-    - 属性の適用は動作スイッチ `OVERWRITE_EXISTING_STYLES`（同名の既存スタイルを置き換えるか。既定 false）で制御。basedOn（基準スタイル）は常に設定する
-    - 継承は basestyle グループに集約。共通の正規表現スタイル（GREP）は base-regex に持たせ、body-text / heading を base-regex 基準にすることで、本文系（p / ul-li / ol-li / p.caption・表セル）は body-text、見出し系（h1〜h6）は heading を経由して GREP を継承する（目次系 base-toc / toc-title / toc-h1〜h3 は base-regex を基準にしないため GREP は継承しない）
-    - 行揃え・カーニング・段落分離禁止などの定番属性も body-text / heading / base-toc の基準スタイルに集約し、配下のスタイルへ basedOn で継承させる
-    - パネル上の並び順は配列の宣言順に揃える（既存スタイルも move() で並び替え）
-    - 全処理は `app.doScript`（UndoModes.ENTIRE_SCRIPT）で 1 つのアンドゥ単位にまとめる
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
-    #### ユーザーが手動で設定する項目（本スクリプトは未設定）
+// ==============================
+// UIレイアウトの共通設定 / Shared UI layout
+// ==============================
 
-    本スクリプトは行揃え・カーニング・分離禁止・言語・基準スタイル・GREP などの「構造」を整えるが、
-    フォント・級数（サイズ）・行送り・文字色などの「見た目」は設定しない。以下は実行後に各自で設定する。
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
 
-    - 全般: フォント／級数／行送り／文字色（特に p・h1〜h6）
-    - strong-bold: 太字（フォントスタイルを Bold に）
-    - em-italic: 斜体（フォントスタイルを Italic に）
-    - code-normal / code-strong / p.code: 等幅フォント
-    - highlighter: 強調表現（蛍光ペン／背景色など。基準は strong-bold）
-    - link: リンク色（下線なしは設定済み）
+/**
+ * ウィンドウの共通設定を適用する
+ * @param {Window} win 対象ウィンドウ
+ * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
 
-    #### basestyle グループの各スタイルと設定
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
-    継承の最上位を basestyle グループに集約し、本文系・見出し系・目次系の基準として使う。
-
-    - base-regex: 共通 GREP（lang-US / no-break / inline-graphic）を保持する継承の最上位。直接の子は body-text / heading（base-toc は基準にしない）
-    - body-text: 本文系の基準。カーニング「和文等幅」・行揃え「均等配置（最終行左揃え）」・すべての行を分離禁止・ハイフネーション OFF。base-regex を継承（GREP も継承）。p / ul-li / ol-li / p.caption・表セル（th / td）の基準（p は分離禁止のみ OFF で上書き）
-    - heading: 見出し系の基準。カーニング「メトリクス」・行揃え「左揃え」・段落分離禁止（次の段落を保持2行＋すべての行を分離禁止）・ハイフネーション OFF。base-regex を継承（GREP も継承）。h1〜h6 の基準
-    - base-toc: 目次系の基準。行揃え「左揃え」・段落分離禁止（次の段落を保持2行＋すべての行を分離禁止）・ハイフネーション OFF。basedOn なし（base-regex の GREP は継承しない）。toc-title / toc-h1 / toc-h2 / toc-h3 の基準
-
-    ### 登録内容
-
-    - 段落スタイル（ルート）: h1〜h6, ul-li, ol-li, p, p.caption, p.code, p.img
-    - 段落スタイルグループ
-      - basestyle: base-regex, body-text, heading, base-toc
-      - table: th, th-left, th-center, th-right, td, td-left, td-center, td-right
-      - toc: toc-title, toc-h1, toc-h2, toc-h3
-      - book: page-number, running-head, thumb-index
-    - 文字スタイル（ルート）: strong-bold, em-italic, link, code-normal, code-strong, highlighter
-    - 文字スタイルグループ
-      - table: td-bold
-      - auto-apply: no-break, lang-US, inline-graphic, li-label, li-bullet, li-num
-
-    ### 仕様
-
-    同じ場所に同名のスタイル／グループが既にあれば追加せずスキップ（ルート直下と各グループ内を分けて判定）。
-    以下の属性は `OVERWRITE_EXISTING_STYLES`（置き換えスイッチ）に従って適用。既定 false：同名の既存スタイルには
-    一切触れず今回新規作成分のみ。true：同名の既存スタイルを置き換え（全属性を再適用、GREP は消してから付け直し）。
-
-    **行揃え**
-
-    - heading: 左揃え（h1〜h6 は basedOn で継承）
-    - toc: 左揃え（toc-h1〜toc-h3 は basedOn で継承）
-    - body-text: 均等配置（最終行左揃え）（p / ul-li / ol-li / p.caption・表セルは basedOn で継承）
-    - th-left / th-center / th-right: 左 / 中央 / 右
-    - td-left / td-center / td-right: 左 / 中央 / 右
-    - p.code: 左
-    - p.img: 中央
-
-    **カーニング**
-
-    - body-text: 和文等幅（本文系は basedOn で継承）
-    - heading: メトリクス（h1〜h6 は basedOn で継承）
-
-    **段落分離禁止（Keep Options）**
-
-    - heading（→ h1〜h6）/ base-toc（→ toc-title / toc-h1〜toc-h3）: 次の段落を保持「2行」＋ すべての行を分離禁止（basedOn で継承）
-    - body-text: すべての行を分離禁止（p / ul-li / ol-li / p.caption・th / td は basedOn で継承）
-    - p: 分離禁止オプションをすべて OFF（すべての行を分離禁止／次の段落を保持／前の段落から分離しない。body-text の継承も打ち消す）
-    - ul-li / p.caption: 前の段落から分離しない
-    - p.code: すべての行を分離禁止（body-text を継承しないため単独設定）
-
-    **箇条書き（リスト）**
-
-    - ul-li: 箇条書き「記号」（bulletsAndNumberingListType = BULLET_LIST）。行頭記号に文字スタイル li-bullet を適用（bulletsCharacterStyle）
-    - ol-li: 箇条書き「自動番号」（bulletsAndNumberingListType = NUMBERED_LIST）。番号に文字スタイル li-num を適用（numberingCharacterStyle）
-
-    **次のスタイル**
-
-    - h1〜h6 / p.caption → p（toc-h1〜toc-h3 は対象外）
-
-    **言語・欧文合字・ハイフネーション**
-
-    - body-text / heading / base-toc: ハイフネーション OFF（配下は basedOn で継承）
-    - lang-US: 言語「英語：米国」
-    - code-normal: 言語「なし」・欧文合字オフ
-    - p.code: 言語「なし」・欧文合字オフ・ハイフネーションオフ
-
-    **その他**
-
-    - inline-graphic: 前後四分のアキ（leadingAki / trailingAki = 0.25）
-    - link: 下線なし（underline = false）
-    - no-break: noBreak（分割禁止）
-
-    ### 基準スタイル（basedOn）
-
-    - body-text → base-regex（basestyle グループ内。base-regex の GREP を継承）
-    - heading → base-regex（basestyle グループ内。base-regex の GREP を継承）
-    - p / ul-li / ol-li / p.caption → body-text（ルート → basestyle グループ）
-    - h1〜h6 → heading（ルート → basestyle グループ）
-    - th / td → body-text（table → basestyle グループ）
-    - th-left / th-center / th-right → th（table グループ内）
-    - td-left / td-center / td-right → td（table グループ内）
-    - toc-title / toc-h1 / toc-h2 / toc-h3 → base-toc（toc グループ → basestyle グループ）
-    - code-strong → code-normal
-    - highlighter → strong-bold
-    - li-label → strong-bold
-
-    ### 正規表現スタイル（追加のみ・旧ルールは削除しない）
-
-    同条件（GREP 式＋適用文字スタイル id が一致）のルールがあれば重複追加しない。
-    既存の GREP ルールは削除しない仕様（追加のみ）。本スクリプトの定義に無い旧ルールもそのまま残す。
-
-    共通3つ（lang-US / no-break / inline-graphic）は base-regex に持たせ、own GREP を持たない子
-    （p / ol-li / p.caption / h1〜h6 / 表セルなど）へ basedOn で継承させる。一方 ul-li は li-label を
-    自身に持つため、InDesign の仕様で GREP の継承が切れる（own GREP を1つでも持つと親の GREP を継承しない）。
-    そのため ul-li には共通3つ（lang-US / no-break / inline-graphic）も直接設定する。
-
-    - base-regex（basestyle）: `[\u\l]` → lang-US
-    - base-regex（basestyle）: `..[。」』？！…]?$` → no-break
-    - base-regex（basestyle）: `~a` → inline-graphic
-    - ul-li（共通3つ＋固有1つを直接設定）: `[\u\l]` → lang-US / `..[。」』？！…]?$` → no-break / `~a` → inline-graphic / `^.+?(?=：)` → li-label
-
-    ### 紹介記事
-
-    https://note.com/dtp_tranist/n/nfe87ec253780
-
-    ### 変更履歴
-
-    v1.3.1
-    - 処理中にプログレスバー（4 段階: 作成→属性→GREP→並び替え）を表示
-    - ul-li の「同じスタイルが連続する段落間のスペース」（sameParaStyleSpacing）を 0 に設定
-    - UI 文言（プログレスバー・アラート・アンドゥ名）を日英ローカライズ（LABELS / L）
-
-    v1.3.0
-    - ul-li の GREP 継承切れを修正（ul-li に共通3つ＋li-label を直接設定）
-    - OVERWRITE_EXISTING_STYLES を「置き換え」化（既定 false。ON で全属性再適用＋GREP は消して付け直し）
-    - APPLY_BASED_ON_RELATIONSHIPS スイッチを廃止（basedOn は常に設定）
-    - 概要に「ユーザーが手動で設定する項目（フォント・太字・色など）」を追記
-
-    v1.2.5
-    - auto-apply グループを追加し no-break / lang-US / inline-graphic / li-label / li-bullet / li-num を集約
-    - スタイル名を整理（body-text / base-toc / auto-apply / no-break）、文字スタイルの toc / book グループを廃止
-    - ハイフネーション OFF・分離禁止を基準スタイルへ集約、ul-li=箇条書き記号 / ol-li=自動番号
-    - p.caption の次スタイル=p、p.img 中央、code-normal 欧文合字オフ、link 下線なし
-
-    v1.2.0
-    - basestyle に body-text / heading / base-toc を追加し継承を再編、共通 GREP を base-regex に集約
-    - カーニング・行揃え・段落分離禁止を基準スタイルへ集約（配下は basedOn で継承）
-    - p.code に言語なし・欧文合字オフ等、OVERWRITE_EXISTING_STYLES の既定を true に変更
-    - 全処理を 1 アンドゥ（ENTIRE_SCRIPT）化＆ IIFE 化、各種バグ修正・堅牢化
-
-    */
+/**
+ * 行グループの共通設定を適用する（ボタン列など）
+ * @param {Group} group 対象グループ
+ * @param {string} [alignment] 配置。省略時は "left"
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
 (function () {
 
     // =========================================
-    // バージョン / Version
+    // ユーザー設定 / User settings
     // =========================================
 
-    var SCRIPT_VERSION = "v1.3.1";
-
-    // =========================================
-    // 動作スイッチ / Behavior switches
-    // =========================================
-
-    /* 対象ドキュメントに同名の段落スタイル／文字スタイルが既にある場合の挙動（全スタイル・全属性が対象）/
-       Behavior when a same-named paragraph/character style already exists (all styles, all attributes).
-       true:  既存スタイルを「置き換え」る。本スクリプトが設定する全属性（行揃え／カーニング／言語／basedOn など）を
-              再適用し、GREP は既存ルールを消してから付け直す（add-only ではなく完全置換）/
-              replace the existing same-named style: re-apply every attribute this script sets, and
-              fully replace its GREP rules (clear existing, then add).
-       false: 既存スタイルには一切触れず、今回新規作成したスタイルにのみ属性を適用する（現在の設定）/
-              leave existing same-named styles untouched; apply only to newly created ones.
-       ※ 本スクリプトが扱わない属性（任意のフォント・サイズ等）はリセットしない。スタイル実体は削除しないため、
-          適用済みテキストとの関連は保たれる / Attributes this script doesn't set are not reset; the style
-          object itself is not deleted, so text keeps its style association. */
+    /* 同名スタイルが既にある場合の挙動 / Behavior when a same-named style already exists.
+       true:  既存スタイルを置き換える。本スクリプトが設定する全属性を再適用し、GREP は消してから付け直す
+              / Replace the existing style: re-apply every attribute this script sets and rebuild its GREP rules
+       false: 既存スタイルには触れず、新規作成したスタイルにだけ属性を適用する
+              / Leave existing styles untouched and apply attributes only to newly created ones
+       本スクリプトが扱わない属性（フォント・サイズなど）はリセットしません。スタイル実体も削除しないため、
+       適用済みテキストとの関連は保たれます。
+       / Attributes this script does not set are left alone, and no style object is deleted,
+         so text keeps its style association. */
     var OVERWRITE_EXISTING_STYLES = false;
 
     // =========================================
-    // ローカライズ / Localization
+    // レイアウト設定 / Layout settings
     // =========================================
 
-    /* UI 言語（ja / en）。ja 以外は en にフォールバック / UI language; fall back to en when not Japanese */
-    var L = ($.locale && String($.locale).indexOf("ja") === 0) ? "ja" : "en";
+    /* 進捗バーの幅と高さ（px）/ Width and height of the progress bar (px) */
+    var PROGRESS_BAR_WIDTH  = 320;
+    var PROGRESS_BAR_HEIGHT = 12;
+
+    // =========================================
+    // ラベル定義 / Labels
+    // =========================================
+
+    /**
+     * UI 言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getCurrentLang() {
+        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+
+    var currentLang = getCurrentLang();
 
     var LABELS = {
-        progressTitle:   { ja: "スタイル一括登録", en: "Register Styles" },
-        progressStyles:  { ja: "スタイルとグループを作成中…", en: "Creating styles and groups…" },
-        progressAttrs:   { ja: "属性を適用中…", en: "Applying attributes…" },
-        progressGrep:    { ja: "正規表現スタイルを設定中…", en: "Setting GREP styles…" },
-        progressReorder: { ja: "並び替え中…", en: "Reordering…" },
-        noDocument:      { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." },
-        undoStep:        { ja: "スタイル一括登録", en: "Register Styles" }
+        progress: {
+            title:   { ja: "スタイル一括登録", en: "Register Styles" },
+            styles:  { ja: "スタイルとグループを作成中…", en: "Creating styles and groups…" },
+            attrs:   { ja: "属性を適用中…", en: "Applying attributes…" },
+            grep:    { ja: "正規表現スタイルを設定中…", en: "Setting GREP styles…" },
+            reorder: { ja: "並び替え中…", en: "Reordering…" }
+        },
+        alert: {
+            noDocument: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." }
+        },
+        undo: {
+            registerStyles: { ja: "スタイル一括登録", en: "Register Styles" }
+        }
     };
+
+    /**
+     * ドット区切りキーでラベルを取得する
+     * @param {string} labelKey 例: "dialog.title"
+     * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+     */
+    function getLabel(labelKey) {
+        var node = LABELS;
+        var keyParts = labelKey.split(".");
+        for (var i = 0; i < keyParts.length; i++) {
+            node = node[keyParts[i]];
+            if (!node) return labelKey;
+        }
+        return node[currentLang] || node.en || labelKey;
+    }
 
     // =========================================
     // プログレスバー / Progress bar
     // =========================================
 
-    /* ダイアログを閉じた後の処理中に表示する非モーダルのプログレスパレットを作る。
-       step(message) で 1 段階進めつつメッセージを更新し、close() で閉じる。
-       UI を作れない環境（バックグラウンド実行等）では何もしないダミーを返す /
-       Build a non-modal progress palette shown while processing runs after the dialog closes.
-       step(message) advances one tick and updates the message; close() closes it.
-       Returns a no-op stub where UI cannot be created (e.g. background execution). */
+    /**
+     * 進捗表示用のパレットを作る
+     * @param {number} totalSteps 全体のステップ数
+     * @returns {object} 更新と終了を行うオブジェクト
+     */
     function createProgressWindow(totalSteps) {
         var progressWindow = null;
         try {
-            progressWindow = new Window("palette", LABELS.progressTitle[L] + "  " + SCRIPT_VERSION, undefined, { closeButton: false });
+            progressWindow = new Window("palette", getLabel("progress.title") + "  " + SCRIPT_VERSION, undefined, { closeButton: false });
         } catch (e) {
             progressWindow = null;
         }
         if (!progressWindow) {
             return { step: function () {}, close: function () {} };
         }
-        progressWindow.alignChildren = "fill";
-        progressWindow.margins = 16;
-        progressWindow.spacing = 10;
+        setupWindow(progressWindow, 10);
 
         var progressMessage = progressWindow.add("statictext", undefined, "");
-        progressMessage.preferredSize.width = 320;
+        progressMessage.preferredSize.width = PROGRESS_BAR_WIDTH;
 
         var progressBar = progressWindow.add("progressbar", undefined, 0, totalSteps);
-        progressBar.preferredSize.width = 320;
-        progressBar.preferredSize.height = 12;
+        progressBar.preferredSize.width = PROGRESS_BAR_WIDTH;
+        progressBar.preferredSize.height = PROGRESS_BAR_HEIGHT;
 
         progressWindow.show();
 
@@ -249,9 +192,13 @@
     // メイン処理 / Main
     // =========================================
 
+    /**
+     * スタイルとグループを作成し、属性・GREP・並び順をまとめて適用する
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) {
-            alert(LABELS.noDocument[L]);
+            alert(getLabel("alert.noDocument"));
             return;
         }
         var doc = app.activeDocument;
@@ -302,13 +249,22 @@
         var paragraphStyleKeysCreatedThisRun = {};
         var characterStyleKeysCreatedThisRun = {};
 
-        /* コンテナ（doc またはグループ）とスタイル名から複合キーを作る /
-           Build a composite key from a container (doc or group) and a style name */
+        /**
+         * スタイルの所在を表す一意なキーを作る
+         * @param {object} styleContainer スタイルのコンテナ
+         * @param {string} styleName スタイル名
+         * @returns {string} 識別キー
+         */
         function styleContainerKey(styleContainer, styleName) {
             return styleContainer.id + "\t" + styleName;
         }
 
-        /* 段落スタイルグループを取得、無ければ作成 / Get a paragraph style group, create if missing */
+        /**
+         * 段落スタイルグループを取得する（なければ作成）
+         * @param {Document} doc 対象ドキュメント
+         * @param {string} groupName グループ名
+         * @returns {ParagraphStyleGroup} スタイルグループ
+         */
         function ensureParagraphStyleGroup(doc, groupName) {
             var styleGroup = doc.paragraphStyleGroups.itemByName(groupName);
             if (!styleGroup.isValid) {
@@ -317,7 +273,12 @@
             return styleGroup;
         }
 
-        /* 文字スタイルグループを取得、無ければ作成 / Get a character style group, create if missing */
+        /**
+         * 文字スタイルグループを取得する（なければ作成）
+         * @param {Document} doc 対象ドキュメント
+         * @param {string} groupName グループ名
+         * @returns {CharacterStyleGroup} スタイルグループ
+         */
         function ensureCharacterStyleGroup(doc, groupName) {
             var styleGroup = doc.characterStyleGroups.itemByName(groupName);
             if (!styleGroup.isValid) {
@@ -326,8 +287,12 @@
             return styleGroup;
         }
 
-        /* 指定コンテナ（ドキュメントまたはグループ）の段落スタイルを取得、無ければ作成 /
-           Get a paragraph style in the given container (doc or group), create if missing */
+        /**
+         * 段落スタイルを取得する（なければ作成）
+         * @param {object} styleContainer スタイルのコンテナ
+         * @param {string} styleName スタイル名
+         * @returns {ParagraphStyle} 段落スタイル
+         */
         function ensureParagraphStyle(styleContainer, styleName) {
             var paragraphStyle = styleContainer.paragraphStyles.itemByName(styleName);
             if (!paragraphStyle.isValid) {
@@ -337,8 +302,12 @@
             return paragraphStyle;
         }
 
-        /* 指定コンテナの文字スタイルを取得、無ければ作成 /
-           Get a character style in the given container, create if missing */
+        /**
+         * 文字スタイルを取得する（なければ作成）
+         * @param {object} styleContainer スタイルのコンテナ
+         * @param {string} styleName スタイル名
+         * @returns {CharacterStyle} 文字スタイル
+         */
         function ensureCharacterStyle(styleContainer, styleName) {
             var characterStyle = styleContainer.characterStyles.itemByName(styleName);
             if (!characterStyle.isValid) {
@@ -348,15 +317,23 @@
             return characterStyle;
         }
 
-        /* 段落スタイルへ属性を適用してよいか判定（新規作成 or 上書きスイッチ ON） /
-           Whether to apply attributes to a paragraph style (newly created OR overwrite switch on) */
+        /**
+         * その段落スタイルへ属性を適用してよいかを判定する
+         * @param {object} styleContainer スタイルのコンテナ
+         * @param {string} styleName スタイル名
+         * @returns {boolean} 適用してよければ true
+         */
         function shouldApplyAttributesToParagraphStyle(styleContainer, styleName) {
             return OVERWRITE_EXISTING_STYLES ||
                 paragraphStyleKeysCreatedThisRun[styleContainerKey(styleContainer, styleName)] === true;
         }
 
-        /* 文字スタイルへ属性を適用してよいか判定 /
-           Whether to apply attributes to a character style */
+        /**
+         * その文字スタイルへ属性を適用してよいかを判定する
+         * @param {object} styleContainer スタイルのコンテナ
+         * @param {string} styleName スタイル名
+         * @returns {boolean} 適用してよければ true
+         */
         function shouldApplyAttributesToCharacterStyle(styleContainer, styleName) {
             return OVERWRITE_EXISTING_STYLES ||
                 characterStyleKeysCreatedThisRun[styleContainerKey(styleContainer, styleName)] === true;
@@ -368,11 +345,11 @@
         // ※ 既存スタイルへの上書きは OVERWRITE_EXISTING_STYLES（shouldApplyAttributesTo* がガード）。basedOn は常に設定。
         //   Guarded by OVERWRITE_EXISTING_STYLES (overwrite). basedOn is always set.
 
-        /* basestyle グループの body-text / heading / base-toc に基本属性を設定 /
-           - body-text: カーニング「和文等幅」・行揃え「均等配置（最終行左揃え）」・すべての行を分離禁止（p 等は basedOn で継承）
-           - heading: カーニング「メトリクス」・行揃え「左揃え」・段落分離禁止（次の段落を保持2行＋すべての行を分離禁止）（h1〜h6 は basedOn で継承）
-           - toc: 行揃え「左揃え」・段落分離禁止（次の段落を保持2行＋すべての行を分離禁止）（toc-h1〜toc-h3 は basedOn で継承）/
-           Apply base attributes to body-text, heading and toc; descendants inherit via basedOn */
+        /**
+         * 基準スタイルへ共通の組版設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyBaseGroupStyleSettings(doc) {
             var baseGroup = doc.paragraphStyleGroups.itemByName("basestyle");
             if (!baseGroup.isValid) return;
@@ -412,12 +389,11 @@
             }
         }
 
-        /* basestyle グループ内の基準連鎖を設定（base-regex の GREP などを継承）/
-           - body-text → base-regex
-           - heading → base-regex（basestyle グループ内）
-           - p / ul-li / ol-li / p.caption → body-text（ルート → basestyle グループ）
-           - h1〜h6 → heading（ルート → basestyle グループ。heading 経由で base-regex の GREP を継承）/
-           Set basedOn chain: base-regex → body-text → (p/ul-li/ol-li/p.caption); base-regex → heading → h1–h6 */
+        /**
+         * 基準スタイルの継承関係（basedOn）を設定する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyBaseStyleBasedOn(doc) {
             var baseGroup = doc.paragraphStyleGroups.itemByName("basestyle");
             if (!baseGroup.isValid) return;
@@ -462,10 +438,11 @@
             }
         }
 
-        /* h1〜h6 / p.caption の「次のスタイル」を p に設定 /
-           （行揃え・カーニング・段落分離禁止は heading（basestyle）に設定済みで basedOn 継承。
-             toc-h1〜toc-h3 も同様に toc から継承するため、ここでは toc を扱わない）/
-           Set next style = p for h1–h6 and p.caption */
+        /**
+         * 段落スタイルの「次のスタイル」を設定する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyNextStyleSettings(doc) {
             var bodyParagraphStyle = doc.paragraphStyles.itemByName("p");
             if (!bodyParagraphStyle.isValid) return;
@@ -478,14 +455,11 @@
             }
         }
 
-        /* 段落分離禁止オプションを設定 /
-           Apply keep options:
-           - 前の段落から分離しない（泣き別れ禁止）: ul-li / p.caption /
-             keep-with-previous: ul-li, p.caption
-           - すべての行を分離禁止: body-text に集約（ol-li / ul-li / p.caption は basedOn で継承）。
-             p.code は body-text を継承しないため単独で設定。p は body-text を継承するが OFF で上書き /
-             keep-all-lines-together: lives on body-text (ol-li/ul-li/p.caption inherit);
-             p.code set directly; p overrides it OFF */
+        /**
+         * 段落の分離禁止に関する設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyKeepTogetherSettings(doc) {
             var keepWithPreviousStyleNames = ["ul-li", "p.caption"];
             for (var keepWithPreviousIndex = 0; keepWithPreviousIndex < keepWithPreviousStyleNames.length; keepWithPreviousIndex++) {
@@ -520,7 +494,11 @@
             }
         }
 
-        /* p.img（画像用段落）を中央寄せに / Center-align p.img (image paragraph) */
+        /**
+         * 画像用段落スタイルの設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyImageParagraphSettings(doc) {
             if (!shouldApplyAttributesToParagraphStyle(doc, "p.img")) return;
             var imageParagraphStyle = doc.paragraphStyles.itemByName("p.img");
@@ -529,9 +507,11 @@
             }
         }
 
-        /* ul-li に箇条書き「記号」（行頭記号に文字スタイル li-bullet を適用）、
-           ol-li に箇条書き「自動番号」（番号に文字スタイル li-num を適用）を設定 /
-           Set bullet list on ul-li (bullet uses li-bullet) and numbered list on ol-li (number uses li-num) */
+        /**
+         * 箇条書き・番号リストの設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyListSettings(doc) {
             if (shouldApplyAttributesToParagraphStyle(doc, "ul-li")) {
                 var bulletListStyle = doc.paragraphStyles.itemByName("ul-li");
@@ -560,9 +540,11 @@
             }
         }
 
-        /* table グループ内 th / td を body-text ベースに（「すべての行を分離禁止」は body-text から継承）、
-           th-* / td-* に行揃えと th / td ベースを設定 /
-           Set basedOn=body-text on th/td (keep-all-lines-together inherited), plus alignment and basedOn=th/td for th-* and td-* */
+        /**
+         * 表セル用スタイルの設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyTableCellSettings(doc) {
             var tableGroup = doc.paragraphStyleGroups.itemByName("table");
             if (!tableGroup.isValid) return;
@@ -621,8 +603,11 @@
             }
         }
 
-        /* toc グループ内 toc-title / toc-h1 / toc-h2 / toc-h3 を basestyle グループの base-toc ベースに /
-           Set basedOn=base-toc (basestyle group) for toc-title, toc-h1, toc-h2 and toc-h3 */
+        /**
+         * 目次見出しスタイルの継承関係を設定する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyTocSubheadingBasedOn(doc) {
             var tocGroup = doc.paragraphStyleGroups.itemByName("toc");
             if (!tocGroup.isValid) return;
@@ -640,8 +625,11 @@
             }
         }
 
-        /* toc-h3 の「次の段落を保持」を 0 に設定（base-toc から継承した 2 を打ち消す）/
-           Set keep-with-next = 0 on toc-h3 (cancels the 2 inherited from base-toc) */
+        /**
+         * 目次末端スタイルの個別設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyTocLeafOverrides(doc) {
             var tocGroup = doc.paragraphStyleGroups.itemByName("toc");
             if (!tocGroup.isValid) return;
@@ -652,11 +640,13 @@
             }
         }
 
-        /* バージョンによって存在しないプロパティを安全に設定する。
-           候補名を順に reflect で存在確認し、最初に見つかったものへ value を設定。
-           設定できた名前を返す（どれも未対応なら null）/
-           Safely set a possibly-unsupported property: try candidate names, set the first one
-           that exists (checked via reflect). Returns the name used, or null if none supported. */
+        /**
+         * 環境によって有無が変わるプロパティを安全に設定する
+         * @param {object} targetObject 設定先のオブジェクト
+         * @param {Array<string>} candidateNames 試すプロパティ名
+         * @param {*} value 設定する値
+         * @returns {boolean} 設定できたら true
+         */
         function setOptionalProperty(targetObject, candidateNames, value) {
             var availableProperties = targetObject.reflect.properties;
             for (var candidateIndex = 0; candidateIndex < candidateNames.length; candidateIndex++) {
@@ -671,10 +661,12 @@
             return null;
         }
 
-        /* 文字スタイルを名前で解決（ルート → auto-apply グループの順で探す）。
-           見つかれば { style: 文字スタイル, container: doc または auto-apply グループ } を返す。無ければ null /
-           Resolve a character style by name (root first, then the "auto-apply" group).
-           Returns { style, container } or null. container is used for the create/overwrite guard. */
+        /**
+         * 名前から文字スタイルを取得する
+         * @param {Document} doc 対象ドキュメント
+         * @param {string} styleName 文字スタイル名
+         * @returns {CharacterStyle|null} 文字スタイル。見つからない場合は null
+         */
         function resolveCharacterStyle(doc, styleName) {
             var rootStyle = doc.characterStyles.itemByName(styleName);
             if (rootStyle.isValid) return { style: rootStyle, container: doc };
@@ -686,8 +678,11 @@
             return null;
         }
 
-        /* inline-graphic に前後四分のアキを設定 /
-           Apply quarter-em leading/trailing spacing to inline-graphic */
+        /**
+         * インライングラフィック用の前後アキを設定する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyInlineGraphicSpacing(doc) {
             var resolved = resolveCharacterStyle(doc, "inline-graphic");
             if (!resolved) return;
@@ -696,7 +691,11 @@
             resolved.style.trailingAki = 0.25;
         }
 
-        /* link の下線をなしに / Turn off underline on link */
+        /**
+         * リンク用文字スタイルの設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyLinkSettings(doc) {
             var resolved = resolveCharacterStyle(doc, "link");
             if (!resolved) return;
@@ -704,7 +703,11 @@
             resolved.style.underline = false;
         }
 
-        /* no-break の分割禁止を有効化 / Enable noBreak on no-break */
+        /**
+         * 分割禁止の文字スタイル設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyNoBreakSettings(doc) {
             var resolved = resolveCharacterStyle(doc, "no-break");
             if (!resolved) return;
@@ -712,8 +715,13 @@
             resolved.style.noBreak = true;
         }
 
-        /* 1 つの文字スタイルの basedOn を別の文字スタイルに設定する共通処理（グループ越え可）/
-           Common helper: set basedOn of one character style to another (across groups) */
+        /**
+         * 文字スタイルの継承関係（basedOn）を設定する
+         * @param {Document} doc 対象ドキュメント
+         * @param {string} targetStyleName 対象のスタイル名
+         * @param {string} parentStyleName 継承元のスタイル名
+         * @returns {void}
+         */
         function applyCharacterStyleBasedOn(doc, targetStyleName, parentStyleName) {
             var target = resolveCharacterStyle(doc, targetStyleName);
             var parent = resolveCharacterStyle(doc, parentStyleName);
@@ -722,8 +730,11 @@
             target.style.basedOn = parent.style;
         }
 
-        /* 候補名（環境の UI 言語差を吸収）から言語を解決。見つからなければ null /
-           Resolve a language by trying candidate names; returns null if none match */
+        /**
+         * 候補名から言語設定を解決する
+         * @param {Array<string>} languageNames 言語名の候補
+         * @returns {Language|null} 言語。見つからない場合は null
+         */
         function resolveLanguageByNames(languageNames) {
             for (var languageNameIndex = 0; languageNameIndex < languageNames.length; languageNameIndex++) {
                 var languageEntry = app.languagesWithVendors.itemByName(languageNames[languageNameIndex]);
@@ -735,7 +746,11 @@
         var ENGLISH_USA_LANGUAGE_NAMES = ["English: USA", "英語：米国"];
         var NO_LANGUAGE_NAMES = ["[No Language]", "[言語なし]", "[なし]"];
 
-        /* lang-US の言語を「英語：米国」に / Set applied language to English: USA */
+        /**
+         * lang-US スタイルに英語（米国）を設定する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyLangUSLanguageSetting(doc) {
             var resolved = resolveCharacterStyle(doc, "lang-US");
             if (!resolved) return;
@@ -744,7 +759,11 @@
             if (englishLanguage) resolved.style.appliedLanguage = englishLanguage;
         }
 
-        /* code-normal の言語を「なし」に・欧文合字オフ / Set applied language to [No Language] and ligatures off */
+        /**
+         * コード用文字スタイルの言語設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyCodeNormalLanguageSetting(doc) {
             var resolved = resolveCharacterStyle(doc, "code-normal");
             if (!resolved) return;
@@ -754,8 +773,11 @@
             resolved.style.ligatures = false;
         }
 
-        /* p.code に 言語なし・欧文合字オフ・左揃え・ハイフネーションオフ を設定 /
-           Apply [No Language], ligatures off, left alignment and hyphenation off to p.code */
+        /**
+         * コード用段落スタイルの設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyCodeParagraphSettings(doc) {
             if (!shouldApplyAttributesToParagraphStyle(doc, "p.code")) return;
             var codeParagraphStyle = doc.paragraphStyles.itemByName("p.code");
@@ -767,7 +789,11 @@
             codeParagraphStyle.hyphenation = false;
         }
 
-        /* 個別スタイルの属性適用をまとめて実行 / Run all style-specific settings */
+        /**
+         * すべてのスタイル属性の適用処理をまとめて実行する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyAllStyleAttributes(doc) {
             applyBaseGroupStyleSettings(doc);
             applyNextStyleSettings(doc);
@@ -793,12 +819,11 @@
         // 正規表現スタイル（ネスト GREP） / Nested GREP styles
         // =========================================
 
-        /* 段落スタイルに正規表現スタイルを設定 / Set nested GREP styles on paragraph styles.
-           OVERWRITE_EXISTING_STYLES（置き換え）= ON: 既存スタイルの GREP を全削除してから本定義を付け直す
-             （add-only ではなく完全置換。旧ルール・残存ルールも消える）/
-             replace mode on: clear the style's existing GREP entirely, then add this definition.
-           OFF: 同名の既存スタイルには触れない（guard でスキップ）。今回新規作成したスタイルにのみ付ける /
-             off: leave existing same-named styles untouched; only newly created styles get GREP. */
+        /**
+         * 基準スタイルと ul-li に正規表現スタイルを設定する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function applyNestedGrepStyleSettings(doc) {
             // group: 段落スタイルの所属グループ名（null はルート）/ owning group name (null = root)
             // base-regex: 共通3つ。own GREP を持たない子（p / ol-li / p.caption / h1〜h6 / 表セル）へ basedOn で継承 /
@@ -876,8 +901,11 @@
         // パネル上の並び替え / Reorder styles in the panel
         // =========================================
 
-        /* 段落スタイル・グループを配列順にパネル末尾へ並べ替える /
-           Reorder paragraph styles and groups to match the declared array order */
+        /**
+         * 段落スタイルの並び順を整える
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function reorderParagraphStyles(doc) {
             // ルート段落スタイルを配列順に末尾へ移動 / Move root styles to the end in array order
             for (var rootIndex = 0; rootIndex < paragraphStyleNames.length; rootIndex++) {
@@ -901,8 +929,11 @@
             }
         }
 
-        /* 文字スタイル・グループを配列順にパネル末尾へ並べ替える /
-           Reorder character styles and groups to match the declared array order */
+        /**
+         * 文字スタイルの並び順を整える
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
         function reorderCharacterStyles(doc) {
             // ルート文字スタイルを配列順に末尾へ移動 / Move root styles to the end in array order
             for (var rootCharacterIndex = 0; rootCharacterIndex < characterStyleNames.length; rootCharacterIndex++) {
@@ -935,7 +966,7 @@
         var progress = createProgressWindow(4);
         try {
 
-        progress.step(LABELS.progressStyles[L]);
+        progress.step(getLabel("progress.styles"));
 
         for (var paragraphGroupIndex = 0; paragraphGroupIndex < paragraphStyleGroupNames.length; paragraphGroupIndex++) {
             ensureParagraphStyleGroup(doc, paragraphStyleGroupNames[paragraphGroupIndex]);
@@ -969,15 +1000,15 @@
             }
         }
 
-        progress.step(LABELS.progressAttrs[L]);
+        progress.step(getLabel("progress.attrs"));
         applyAllStyleAttributes(doc);
 
-        progress.step(LABELS.progressGrep[L]);
+        progress.step(getLabel("progress.grep"));
         applyNestedGrepStyleSettings(doc);
 
         // パネル上の並び順を配列順に揃える（既存スタイルも含む） /
         // Reorder styles in the panel (including existing ones)
-        progress.step(LABELS.progressReorder[L]);
+        progress.step(getLabel("progress.reorder"));
         reorderParagraphStyles(doc);
         reorderCharacterStyles(doc);
 
@@ -990,6 +1021,6 @@
     // 全処理を 1 つのアンドゥ単位にまとめて実行 /
     // Run everything as a single undo step
     app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined,
-        UndoModes.ENTIRE_SCRIPT, LABELS.undoStep[L]);
+        UndoModes.ENTIRE_SCRIPT, getLabel("undo.registerStyles"));
 
 })();
