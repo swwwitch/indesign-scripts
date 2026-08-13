@@ -4,13 +4,13 @@
 
 ### 概要
 
-同じテキストが同じ段落スタイルで繰り返すとき、親見出しの階層を見ながら末尾に連番を付けます。
+同じテキストが同じ段落スタイルで繰り返すとき、末尾に連番を付けます。直近の親見出しごとに重複を判定し、選択範囲・ストーリー・ドキュメントから適用範囲を選べます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Appends sequential numbers to paragraphs that repeat with the same text and paragraph style, grouped by the heading hierarchy above them.
+Appends sequential numbers to text that repeats with the same paragraph style. Duplicates are grouped by the nearest parent heading, and the scope can be a selection, a story, or the whole document.
 
 See the README for details.
 
@@ -154,6 +154,7 @@ function setupRow(group, alignment, spacing) {
             target: { ja: "対象", en: "Target" }
         },
         radio: {
+            selection: { ja: "選択範囲", en: "Selection" },
             story: { ja: "ストーリー", en: "Story" },
             document: { ja: "ドキュメント", en: "Document" },
             fullWidth: { ja: "全角", en: "Full-width" },
@@ -179,6 +180,10 @@ function setupRow(group, alignment, spacing) {
             noSelection: {
                 ja: "テキストが選択されていません。ドキュメント全体を対象にします。",
                 en: "Nothing is selected. The entire document will be processed."
+            },
+            noRange: {
+                ja: "選択範囲がありません。ストーリー全体を対象にします。",
+                en: "No text range is selected. The entire story will be processed."
             },
             notStory: {
                 ja: "選択したオブジェクトはストーリーとして認識できません。ドキュメント全体を対象にします。",
@@ -206,7 +211,6 @@ function setupRow(group, alignment, spacing) {
         if (node == null) return labelKey;
         return (node[currentLanguage] != null) ? node[currentLanguage] : node.en;
     }
-
 
     // =========================================
     // ヘルパー / Helpers
@@ -315,7 +319,6 @@ function setupRow(group, alignment, spacing) {
         }
     }
 
-
     // =========================================
     // 段落の走査 / Paragraph scanning
     // =========================================
@@ -397,19 +400,22 @@ function setupRow(group, alignment, spacing) {
      * @param {function} handler 一致した段落に対する処理（引数: 段落, 識別キー）
      * @returns {void}
      */
-    function eachMatchedParagraph(stories, keyMap, handler) {
-        for (var i = 0; i < stories.length; i++) {
-            var story = stories[i];
-            var scanned = scanStory(story);
+    function eachMatchedParagraph(scopes, keyMap, handler) {
+        for (var i = 0; i < scopes.length; i++) {
+            var scope = scopes[i];
+            /* 範囲を絞る場合も走査はストーリー全体で行う。手前の見出しを見ないと親が変わってしまう
+               / Always scan the whole story: skipping earlier headings would change the parent */
+            var scanned = scanStory(scope.story);
             for (var j = 0; j < scanned.length; j++) {
                 if (!(scanned[j].key in keyMap)) continue;
                 /* 付与も削除も段落数を変えないので、走査時の段落番号をそのまま使える
                    / Neither handler changes the paragraph count, so scanned indexes stay valid */
-                handler(story.paragraphs[scanned[j].index], scanned[j].key);
+                var paragraph = scope.story.paragraphs[scanned[j].index];
+                if (!isInScope(paragraph, scope)) continue;
+                handler(paragraph, scanned[j].key);
             }
         }
     }
-
 
     // =========================================
     // 解析 / Analysis
@@ -459,18 +465,50 @@ function setupRow(group, alignment, spacing) {
         return numberingTargets;
     }
 
+    /* 対象範囲の指定 / Scope of the target range */
+    var SCOPE_SELECTION = "selection";
+    var SCOPE_STORY = "story";
+    var SCOPE_DOCUMENT = "document";
+
     /**
-     * 対象範囲に応じて処理するストーリーを求める
-     * @param {boolean} useSelection 選択中のストーリーだけを対象にするか
-     * @param {Stories} allStories ドキュメント内の全ストーリー
-     * @returns {Array<Story>} 対象のストーリー
+     * ストーリーを丸ごと対象にする範囲へ変換する
+     * @param {Array<Story>|Stories} stories 対象のストーリー
+     * @returns {Array<object>} 範囲を絞らない対象範囲の一覧
      */
-    function resolveTargetStories(useSelection, allStories) {
-        if (!useSelection) return allStories;
+    function toWholeStoryScopes(stories) {
+        var scopes = [];
+        for (var i = 0; i < stories.length; i++) {
+            scopes.push({ story: stories[i], fromOffset: null, toOffset: null });
+        }
+        return scopes;
+    }
+
+    /**
+     * 段落が対象範囲に含まれるかを判定する
+     * @param {Paragraph} paragraph 対象の段落
+     * @param {object} scope 対象範囲 { fromOffset, toOffset }
+     * @returns {boolean} 含まれるなら true
+     */
+    function isInScope(paragraph, scope) {
+        if (scope.fromOffset === null) return true;
+        /* 段落の一部でも選択範囲にかかっていれば対象にする / A partial overlap is enough */
+        var paraStart = paragraph.characters[0].index;
+        var paraEnd = paragraph.characters[-1].index;
+        return paraEnd >= scope.fromOffset && paraStart <= scope.toOffset;
+    }
+
+    /**
+     * 対象範囲に応じて処理するストーリーと文字位置を求める
+     * @param {string} scopeMode SCOPE_SELECTION / SCOPE_STORY / SCOPE_DOCUMENT のいずれか
+     * @param {Stories} allStories ドキュメント内の全ストーリー
+     * @returns {Array<object>} 対象範囲 { story, fromOffset, toOffset } の一覧
+     */
+    function resolveTargetScopes(scopeMode, allStories) {
+        if (scopeMode === SCOPE_DOCUMENT) return toWholeStoryScopes(allStories);
 
         if (app.selection.length === 0) {
             alert(getLabel("alert.noSelection"));
-            return allStories;
+            return toWholeStoryScopes(allStories);
         }
         var selectionItem = app.selection[0];
         var parentStory = null;
@@ -479,12 +517,24 @@ function setupRow(group, alignment, spacing) {
         } else if (selectionItem.parent && selectionItem.parent.hasOwnProperty("parentStory")) {
             parentStory = selectionItem.parent.parentStory;
         }
-        if (parentStory) return [parentStory];
+        if (!parentStory) {
+            alert(getLabel("alert.notStory"));
+            return toWholeStoryScopes(allStories);
+        }
+        if (scopeMode === SCOPE_STORY) return toWholeStoryScopes([parentStory]);
 
-        alert(getLabel("alert.notStory"));
-        return allStories;
+        /* 選択範囲：選択した文字の範囲だけに絞る / Selection: narrow down to the selected characters */
+        var selectedChars = selectionItem.hasOwnProperty("characters") ? selectionItem.characters : null;
+        if (!selectedChars || selectedChars.length === 0) {
+            alert(getLabel("alert.noRange"));
+            return toWholeStoryScopes([parentStory]);
+        }
+        return [{
+            story: parentStory,
+            fromOffset: selectedChars[0].index,
+            toOffset: selectedChars[-1].index
+        }];
     }
-
 
     // =========================================
     // ダイアログ / Dialog
@@ -582,8 +632,8 @@ function setupRow(group, alignment, spacing) {
 
         var targetPanel = optionColumn.add("panel", undefined, getLabel("panel.target"));
         setupPanel(targetPanel, 6);
-        targetPanel.orientation = "row";
         targetPanel.alignChildren = ["left", "top"];
+        var selectionRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.selection"));
         var storyRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.story"));
         targetPanel.add("radiobutton", undefined, getLabel("radio.document"));
         storyRadio.value = true;
@@ -619,11 +669,14 @@ function setupRow(group, alignment, spacing) {
         }
 
         /**
-         * 現在の対象範囲に応じたストーリーを求める
-         * @returns {Array<Story>} 対象のストーリー
+         * 現在の対象範囲に応じた処理対象を求める
+         * @returns {Array<object>} 対象範囲 { story, fromOffset, toOffset } の一覧
          */
-        function getTargetStories() {
-            return resolveTargetStories(storyRadio.value, allStories);
+        function getTargetScopes() {
+            var scopeMode = SCOPE_DOCUMENT;
+            if (selectionRadio.value) scopeMode = SCOPE_SELECTION;
+            else if (storyRadio.value) scopeMode = SCOPE_STORY;
+            return resolveTargetScopes(scopeMode, allStories);
         }
 
         /**
@@ -635,36 +688,39 @@ function setupRow(group, alignment, spacing) {
             return { left: "（", right: "）" };
         }
 
-        /* ボタン行は3カラム（左：削除／中央：スペーサー／右：キャンセル・追加）
-           / Button row in three columns (left: delete, center: spacer, right: cancel and add) */
-        var buttonGroup = dialogWindow.add("group");
-        setupRow(buttonGroup, "fill", 8);
-        buttonGroup.alignChildren = ["left", "center"];
+        /* ボタン行（横並び）/ Button row (horizontal layout) */
+        var btnRowGroup = dialogWindow.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = BUTTON_ROW_MARGINS;
+        btnRowGroup.alignment = ["fill", "bottom"];
 
-        var leftButtonGroup = buttonGroup.add("group");
-        setupRow(leftButtonGroup, "left", 8);
-        var deleteBtn = leftButtonGroup.add("button", undefined, getLabel("button.deleteItem"));
+        /* 左側グループ / Left-side button group */
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var deleteBtn = btnLeftGroup.add("button", undefined, getLabel("button.deleteItem"));
 
-        /* 余白を中央に集めて左右を両端へ寄せる / Absorb the slack so both sides sit at the edges */
-        var spacerGroup = buttonGroup.add("group");
-        spacerGroup.alignment = ["fill", "center"];
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = BUTTON_ROW_SPACER_MIN_WIDTH;
 
-        var rightButtonGroup = buttonGroup.add("group");
-        setupRow(rightButtonGroup, "right", 8);
+        /* 右側グループ / Right-side button group */
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
         /* ラベルが "OK" / "Cancel" でないと既定の割り当てが効かないので name を明示
            / Labels other than "OK" / "Cancel" need an explicit name */
-        rightButtonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        rightButtonGroup.add("button", undefined, getLabel("button.apply"), { name: "ok" });
+        btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel("button.apply"), { name: "ok" });
 
         /* 選択テキストから既存ナンバリングを削除（undoは1ステップ）/ Remove numbering from selected text (single undo) */
         deleteBtn.onClick = function () {
-            var targetStories = getTargetStories();
+            var targetScopes = getTargetScopes();
             var selectedKeyMap = getSelectedKeys();
             /* リストが古くなるので、書き換える前にダイアログを閉じる / Close first: the list goes stale once text changes */
             dialogWindow.close(2);
 
             app.doScript(function () {
-                eachMatchedParagraph(targetStories, selectedKeyMap, removeExistingNumbering);
+                eachMatchedParagraph(targetScopes, selectedKeyMap, removeExistingNumbering);
             }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "Remove Paragraph Numbering");
             alert(getLabel("alert.removed"));
         };
@@ -672,11 +728,10 @@ function setupRow(group, alignment, spacing) {
         return {
             window: dialogWindow,
             getSelectedKeys: getSelectedKeys,
-            getTargetStories: getTargetStories,
+            getTargetScopes: getTargetScopes,
             getBrackets: getBrackets
         };
     }
-
 
     // =========================================
     // メイン処理 / Main
@@ -703,9 +758,9 @@ function setupRow(group, alignment, spacing) {
      * @param {object} brackets 使用する括弧 { left, right }
      * @returns {void}
      */
-    function applyNumbering(stories, keyMap, brackets) {
+    function applyNumbering(scopes, keyMap, brackets) {
         var counterByKey = {};
-        eachMatchedParagraph(stories, keyMap, function (paragraph, key) {
+        eachMatchedParagraph(scopes, keyMap, function (paragraph, key) {
             removeExistingNumbering(paragraph);
             var counter = (counterByKey[key] || 0) + 1;
             counterByKey[key] = counter;
@@ -733,12 +788,12 @@ function setupRow(group, alignment, spacing) {
         var dialog = buildDialog(numberingTargets, allStories);
         if (dialog.window.show() != 1) return;
 
-        var targetStories = dialog.getTargetStories();
+        var targetScopes = dialog.getTargetScopes();
         var selectedKeyMap = dialog.getSelectedKeys();
         var brackets = dialog.getBrackets();
 
         app.doScript(function () {
-            applyNumbering(targetStories, selectedKeyMap, brackets);
+            applyNumbering(targetScopes, selectedKeyMap, brackets);
         }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, "Append Paragraph Numbering");
     }
 
