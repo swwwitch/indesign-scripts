@@ -2,6 +2,8 @@
 
 Appends sequential numbering when the same text repeats within the same paragraph style, grouping duplicates by the nearest parent heading.
 
+![Dialog with paragraph styles and scope on the left, and the list of repeated text on the right](../png/ss-1154-1016-144-20260813-223137.png)
+
 ## Features
 
 - Lists the repeated text by descending occurrence count, with multi-select to pick the targets
