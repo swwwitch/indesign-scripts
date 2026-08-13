@@ -11,15 +11,16 @@
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AddPagesUsingCurrentMaster";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/AddPagesUsingCurrentMaster.md
 // README (English)
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/AddPagesUsingCurrentMaster.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2d1a76097a39"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -44,28 +45,28 @@ var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel 
 
 /**
  * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
+ * @param {Window} targetWindow 対象ウィンドウ
  * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
  * @returns {void}
  */
-function setupWindow(win, spacing) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
 
 /**
  * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
+ * @param {Group} targetGroup 対象グループ
  * @param {string} [alignment] 配置。省略時は "left"
  * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
  * @returns {void}
  */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupRow(targetGroup, alignment, spacing) {
+    targetGroup.orientation = "row";
+    targetGroup.alignment = alignment || "left";
+    targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 // =========================================
@@ -87,13 +88,9 @@ var LABELS = {
         title: { ja: "ページを挿入", en: "Insert Pages" }
     },
     field: {
-        pageCount: { ja: "挿入するページ数", en: "Number of pages to insert" }
-    },
-    page: {
-        current: { ja: "現在のページ", en: "Current page" }
-    },
-    master: {
-        current: { ja: "親（マスター）", en: "Parent page" }
+        currentPage:    { ja: "現在のページ", en: "Current page" },
+        appliedMaster:  { ja: "親（マスター）", en: "Parent page" },
+        pageCount:      { ja: "挿入するページ数", en: "Number of pages to insert" }
     },
     button: {
         ok:     { ja: "OK", en: "OK" },
@@ -107,7 +104,15 @@ var LABELS = {
     },
     alert: {
         invalidNumber: { ja: "1以上の数値を入力してください。", en: "Please enter a number greater than 0." },
-        noDocument:    { ja: "ドキュメントが開いていません。", en: "No document is open." }
+        noDocument:    { ja: "ドキュメントが開いていません。", en: "No document is open." },
+        noLayoutWindow: {
+            ja: "レイアウトウィンドウがアクティブではありません。ドキュメントのページを表示してから実行してください。",
+            en: "No layout window is active. Switch to a document layout view and try again."
+        },
+        masterPageActive: {
+            ja: "親（マスター）ページが表示されています。ドキュメントのページを表示してから実行してください。",
+            en: "A parent (master) page is displayed. Switch to a document page and try again."
+        }
     }
 };
 
@@ -117,13 +122,13 @@ var LABELS = {
  * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
  */
 function getLabel(labelKey) {
-    var node = LABELS;
+    var labelNode = LABELS;
     var keyParts = labelKey.split(".");
     for (var i = 0; i < keyParts.length; i++) {
-        node = node[keyParts[i]];
-        if (!node) return labelKey;
+        labelNode = labelNode[keyParts[i]];
+        if (!labelNode) return labelKey;
     }
-    return node[currentLanguage] || node.en || labelKey;
+    return labelNode[currentLanguage] || labelNode.en || labelKey;
 }
 
 /**
@@ -136,29 +141,81 @@ function getLabelWithColon(labelKey) {
 }
 
 // =========================================
+// 実行前のチェック / Preconditions
+// =========================================
+
+/**
+ * レイアウトウィンドウがアクティブかどうかを判定する
+ * @returns {boolean} レイアウトウィンドウなら true
+ */
+function isLayoutWindowActive() {
+    try {
+        return (app.activeWindow.constructor.name === "LayoutWindow");
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * 指定ページが親（マスター）ページかどうかを判定する
+ * @param {Page} targetPage 判定するページ
+ * @returns {boolean} 親ページなら true
+ */
+function isMasterPage(targetPage) {
+    try {
+        return (targetPage.parent instanceof MasterSpread);
+    } catch (e) {
+        return false;
+    }
+}
+
+// =========================================
 // ダイアログ / Dialog
 // =========================================
 
 /**
- * 見出しラベル群の幅を最大値に揃える
- * @param {Array<StaticText>} labelControls 幅を揃える StaticText の配列
+ * 全角数字を半角に変換する
+ * @param {string} inputText 変換する文字列
+ * @returns {string} 全角数字を半角に置き換えた文字列
+ */
+function toHalfWidthDigits(inputText) {
+    return String(inputText).replace(/[０-９]/g, function (fullWidthDigit) {
+        return String.fromCharCode(fullWidthDigit.charCodeAt(0) - 0xFEE0);
+    });
+}
+
+/**
+ * 入力文字列を挿入ページ数として解釈する
+ * @param {string} inputText 入力欄の文字列
+ * @returns {number} 1以上の整数。解釈できない場合は 0
+ */
+function parsePageCount(inputText) {
+    var normalizedText = toHalfWidthDigits(inputText).replace(/^\s+|\s+$/g, "");
+    if (!/^[0-9]+$/.test(normalizedText)) return 0;
+    var parsedCount = parseInt(normalizedText, 10);
+    return (parsedCount > 0) ? parsedCount : 0;
+}
+
+/**
+ * 各行の左側ラベルの幅を最大値に揃える
+ * @param {Array<StaticText>} rowLabelControls 幅を揃える StaticText の配列
  * @returns {void}
  */
-function alignLabelWidths(labelControls) {
-    var maxWidth = 0;
-    for (var i = 0; i < labelControls.length; i++) {
-        var labelWidth = labelControls[i].preferredSize.width;
-        if (labelWidth > maxWidth) maxWidth = labelWidth;
+function alignLabelWidths(rowLabelControls) {
+    var maxLabelWidth = 0;
+    for (var i = 0; i < rowLabelControls.length; i++) {
+        var labelWidth = rowLabelControls[i].preferredSize.width;
+        if (labelWidth > maxLabelWidth) maxLabelWidth = labelWidth;
     }
-    for (var j = 0; j < labelControls.length; j++) {
-        labelControls[j].preferredSize.width = maxWidth;
+    for (var j = 0; j < rowLabelControls.length; j++) {
+        rowLabelControls[j].preferredSize.width = maxLabelWidth;
     }
 }
 
 /**
  * 挿入ページ数を尋ねるダイアログを表示する
  * @param {number} defaultPageCount 入力欄の初期値
- * @returns {{pageCount: number, appliedMaster: MasterSpread}|null} 入力結果。キャンセル時は null
+ * @returns {{pageCount: number, insertAfterPage: Page, appliedMaster: MasterSpread}|null} 入力結果。キャンセル時は null
  */
 function showPageCountDialog(defaultPageCount) {
     var pageInsertDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
@@ -168,25 +225,25 @@ function showPageCountDialog(defaultPageCount) {
     var currentPage          = app.activeWindow.activePage;
     var currentAppliedMaster = currentPage.appliedMaster;
 
-    var headingLabels = [];
+    var rowLabelControls = [];
 
     /* 現在のページ表示行 / Row showing the current page */
     var currentPageRow = pageInsertDialog.add("group");
     setupRow(currentPageRow, "left", 4);
     currentPageRow.alignChildren = ["left", "center"];
 
-    var currentPageLabel = currentPageRow.add("statictext", undefined, getLabelWithColon("page.current"));
-    headingLabels.push(currentPageLabel);
+    var currentPageLabel = currentPageRow.add("statictext", undefined, getLabelWithColon("field.currentPage"));
+    rowLabelControls.push(currentPageLabel);
     currentPageRow.add("statictext", undefined, currentPage.name);
 
     /* 親ページ名表示行 / Row showing the applied parent page */
-    var masterNameRow = pageInsertDialog.add("group");
-    setupRow(masterNameRow, "left", 4);
-    masterNameRow.alignChildren = ["left", "center"];
+    var appliedMasterRow = pageInsertDialog.add("group");
+    setupRow(appliedMasterRow, "left", 4);
+    appliedMasterRow.alignChildren = ["left", "center"];
 
-    var masterNameLabel = masterNameRow.add("statictext", undefined, getLabelWithColon("master.current"));
-    headingLabels.push(masterNameLabel);
-    masterNameRow.add("statictext", undefined, currentAppliedMaster ? currentAppliedMaster.name : "-");
+    var appliedMasterLabel = appliedMasterRow.add("statictext", undefined, getLabelWithColon("field.appliedMaster"));
+    rowLabelControls.push(appliedMasterLabel);
+    appliedMasterRow.add("statictext", undefined, currentAppliedMaster ? currentAppliedMaster.name : "-");
 
     /* ページ数入力行 / Row for the page-count field */
     var pageCountRow = pageInsertDialog.add("group");
@@ -194,29 +251,31 @@ function showPageCountDialog(defaultPageCount) {
     pageCountRow.alignChildren = ["left", "center"];
 
     var pageCountLabel = pageCountRow.add("statictext", undefined, getLabelWithColon("field.pageCount"));
-    headingLabels.push(pageCountLabel);
+    rowLabelControls.push(pageCountLabel);
     var pageCountInput = pageCountRow.add("edittext", undefined, defaultPageCount.toString());
     pageCountInput.characters = 5;
     pageCountInput.active = true;
     pageCountInput.helpTip = getLabel("tooltip.insertAfter");
     pageCountLabel.helpTip = getLabel("tooltip.insertAfter");
 
-    alignLabelWidths(headingLabels);
+    alignLabelWidths(rowLabelControls);
 
     /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
     var dialogButtonRow = pageInsertDialog.add("group");
     setupRow(dialogButtonRow, "center", 8);
     dialogButtonRow.margins = [0, 10, 0, 0];
-    var cancelButton = dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    var okButton     = dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    /* キャンセルは name: "cancel" の既定動作（クリック・ESC で閉じる）に任せる / Cancel relies on the built-in behavior of name: "cancel" */
+    dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    var okButton = dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-    var dialogResult = null;
+    var pageInsertSettings = null;
 
     okButton.onClick = function () {
-        var enteredPageCount = parseInt(pageCountInput.text, 10);
-        if (!isNaN(enteredPageCount) && enteredPageCount > 0) {
-            dialogResult = {
+        var enteredPageCount = parsePageCount(pageCountInput.text);
+        if (enteredPageCount > 0) {
+            pageInsertSettings = {
                 pageCount: enteredPageCount,
+                insertAfterPage: currentPage,
                 appliedMaster: currentAppliedMaster
             };
             pageInsertDialog.close();
@@ -225,12 +284,8 @@ function showPageCountDialog(defaultPageCount) {
         }
     };
 
-    cancelButton.onClick = function () {
-        pageInsertDialog.close();
-    };
-
     pageInsertDialog.show();
-    return dialogResult;
+    return pageInsertSettings;
 }
 
 // =========================================
@@ -247,22 +302,35 @@ function insertPagesAfterCurrentPage() {
         return;
     }
 
-    var dialogResult = showPageCountDialog(DEFAULT_PAGE_COUNT);
-    if (!dialogResult) return; /* キャンセル時は何もしない / Do nothing when cancelled */
+    /* 挿入位置はアクティブなレイアウトウィンドウのページから決まる / The insertion point comes from the active layout window */
+    if (!isLayoutWindowActive()) {
+        alert(getLabel("alert.noLayoutWindow"));
+        return;
+    }
 
-    var pageCount     = dialogResult.pageCount;
-    var appliedMaster = dialogResult.appliedMaster;
+    /* 親ページは document.pages のメンバーではないため挿入位置に使えない / A parent page is not a member of document.pages */
+    if (isMasterPage(app.activeWindow.activePage)) {
+        alert(getLabel("alert.masterPageActive"));
+        return;
+    }
+
+    var pageInsertSettings = showPageCountDialog(DEFAULT_PAGE_COUNT);
+    if (!pageInsertSettings) return; /* キャンセル時は何もしない / Do nothing when cancelled */
+
+    var pageCount     = pageInsertSettings.pageCount;
+    var appliedMaster = pageInsertSettings.appliedMaster;
 
     /* 一括 undo になるよう doScript でラップ / Wrap in doScript so the whole insertion is a single undo step */
     app.doScript(function () {
-        var activeDoc  = app.activeDocument;
-        var insertAfterPage = app.activeWindow.activePage;
+        var activeDocument  = app.activeDocument;
+        var insertAfterPage = pageInsertSettings.insertAfterPage;
 
         /* ドキュメント基準で追加し、スプレッドへ正しく流し込む / Add at document level so pages reflow into proper spreads */
         for (var i = 0; i < pageCount; i++) {
-            var newPage = activeDoc.pages.add(LocationOptions.AFTER, insertAfterPage);
-            if (appliedMaster) newPage.appliedMaster = appliedMaster;
-            insertAfterPage = newPage;
+            var insertedPage = activeDocument.pages.add(LocationOptions.AFTER, insertAfterPage);
+            /* 現在のページが［なし］なら挿入したページも［なし］にそろえる / Match [None] as well, not just a named parent */
+            insertedPage.appliedMaster = appliedMaster ? appliedMaster : NothingEnum.nothing;
+            insertAfterPage = insertedPage;
         }
     }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.insertPages"));
 }

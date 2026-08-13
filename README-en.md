@@ -13,7 +13,7 @@ By default, InDesign’s “Insert Pages” dialog does not reference the master
 
 This script refers to the master (parent) page of the currently selected page and inserts the specified number of pages directly after the current page.
 
-https://github.com/swwwitch/indesign-scripts/blob/c580906e01ba767b8c08feba7b35deb693ab3a94/jsx/AddPagesUsingCurrentMaster.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/AddPagesUsingCurrentMaster.jsx
 
 <img alt="" src="png/ss-420-332-72-20250626-135739.png" width="50%" />
 

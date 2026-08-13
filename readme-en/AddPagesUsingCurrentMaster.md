@@ -25,10 +25,10 @@ Inserts a given number of pages right after the current page, carrying over the 
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/AddPagesUsingCurrentMaster.jsx` |
-| Version | v1.2.1 |
+| Version | v1.2.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-06-26 |
-| Last updated | 2026-06-30 |
+| Last updated | 2026-08-14 |
 
 ## License
 

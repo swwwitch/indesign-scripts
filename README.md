@@ -17,7 +17,7 @@
 
 このスクリプトでは、選択しているページのマスター（親ページ）を参照し、ダイアログボックス指定したページ数だけ現在のページの後に挿入します。
 
-https://github.com/swwwitch/indesign-scripts/blob/c580906e01ba767b8c08feba7b35deb693ab3a94/jsx/AddPagesUsingCurrentMaster.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/AddPagesUsingCurrentMaster.jsx
 
 <img alt="" src="png/ss-420-332-72-20250626-135739.png" width="50%" />
 
