@@ -41,7 +41,7 @@ https://github.com/swwwitch/indesign-scripts/blob/f5c7232f370334665f40ac548002ff
 
 ![](png/ss-860-722-72-20250630-045123.png)
 
-https://github.com/swwwitch/indesign-scripts/blob/509d5929089edb0523461ea2f49b262469fd9a84/jsx/AppendParagraphNumbering.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/AppendParagraphNumbering.jsx
 
 #### アップデート
 
