@@ -1,5 +1,13 @@
 # IdKeepOptionNextColumn
 
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdKeepOptionNextColumn.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdKeepOptionNextColumn.jsx)
+
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdKeepOptionNextColumn.md)
+
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/README.md)
+
+---
+
 選択した段落の「段落の開始位置」を「次の段（フレーム）」に設定します。
 
 ## 主な機能

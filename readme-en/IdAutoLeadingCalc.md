@@ -1,5 +1,13 @@
 # IdAutoLeadingCalc
 
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoLeadingCalc.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdAutoLeadingCalc.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAutoLeadingCalc.md)
+
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/README-en.md)
+
+---
+
 Back-calculates the leading percentage from each paragraph's absolute leading and point size, then switches the paragraph to Auto leading.
 
 ## Features

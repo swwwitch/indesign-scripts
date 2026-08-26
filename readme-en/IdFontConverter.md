@@ -1,5 +1,13 @@
 # IdFontConverter
 
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdFontConverter.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/font/IdFontConverter.jsx)
+
+[![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFontConverter.md)
+
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/README-en.md)
+
+---
+
 Switches font variants (character set, P, UD, N, NT, weight) in bulk across a selection, story, spread or the whole document.
 
 ## Features

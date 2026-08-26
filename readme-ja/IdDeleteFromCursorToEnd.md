@@ -1,0 +1,44 @@
+# IdDeleteFromCursorToEnd
+
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdDeleteFromCursorToEnd.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdDeleteFromCursorToEnd.jsx)
+
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteFromCursorToEnd.md)
+
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/README.md)
+
+---
+
+カーソル位置からその段落の末尾までをまとめて削除します。段落末尾の記号の直前では、その記号 1 文字だけを削除します。
+
+## 主な機能
+
+- セル内ではセル境界を越えない
+- カーソル直後が「。！？,.、，．」で、それが段落末尾ならその 1 文字だけを削除
+- 削除範囲の末尾が「。」なら残す（`KEEP_TRAILING_MARU` で切替）
+- カーソルの直前が「。」ならその「。」も削除対象に含める
+- 既定では cut で削除し、削除した文字列をクリップボードへ入れる（`COPY_TO_CLIPBOARD` で切替）
+
+## 使い方
+
+1. テキストフレーム内にカーソルを置く
+2. スクリプトを実行する
+
+## 制限事項・メモ
+
+- 末尾の改行（段落区切り）は「最後の文字」とみなさず、手前を末尾として扱います。
+- 1 回の取り消しでまとめて戻せます。
+
+## スクリプト情報
+
+| 項目 | 内容 |
+| --- | --- |
+| ファイル | `jsx/text/IdDeleteFromCursorToEnd.jsx` |
+| バージョン | v1.2.1 |
+| 作者 | Masahiro Takano (@swwwitch) |
+| 初回リリース | 2026-06-27 |
+| 最終更新 | 2026-07-05 |
+| 紹介記事 | https://note.com/dtp_tranist/n/nf0b1e27e1f81 |
+
+## ライセンス
+
+MIT License — <http://opensource.org/licenses/mit-license.php>

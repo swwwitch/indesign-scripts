@@ -17,7 +17,7 @@
 
 このスクリプトでは、選択しているページのマスター（親ページ）を参照し、ダイアログボックス指定したページ数だけ現在のページの後に挿入します。
 
-https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/AddPagesUsingCurrentMaster.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAddPagesUsingCurrentMaster.jsx
 
 <img alt="" src="png/ss-420-332-72-20250626-135739.png" width="50%" />
 
@@ -31,7 +31,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/AddPagesUsingCur
 2. ドキュメントページならマスターへジャンプ
 3. マスターページなら元のドキュメントページに戻る
 
-https://github.com/swwwitch/indesign-scripts/blob/f5c7232f370334665f40ac548002ffc17d141fea/jsx/SwitchToMasterOrDocument.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSwitchToMasterOrDocument.jsx
 
 ## 段落スタイル
 
@@ -41,7 +41,7 @@ https://github.com/swwwitch/indesign-scripts/blob/f5c7232f370334665f40ac548002ff
 
 ![](png/ss-860-722-72-20250630-045123.png)
 
-https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/AppendParagraphNumbering.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagraphNumbering.jsx
 
 #### アップデート
 

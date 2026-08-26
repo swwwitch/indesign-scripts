@@ -13,7 +13,7 @@ By default, InDesign’s “Insert Pages” dialog does not reference the master
 
 This script refers to the master (parent) page of the currently selected page and inserts the specified number of pages directly after the current page.
 
-https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/AddPagesUsingCurrentMaster.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAddPagesUsingCurrentMaster.jsx
 
 <img alt="" src="png/ss-420-332-72-20250626-135739.png" width="50%" />
 
@@ -36,7 +36,7 @@ This script allows you to easily toggle between a document page and its applied 
 - The document property 'label' is temporarily used to store the original page name.
 - Inspired by the idea from: https://creativepro.com/files/kahrel/indesign/go_to_master.html
 
-https://github.com/swwwitch/indesign-scripts/blob/f5c7232f370334665f40ac548002ffc17d141fea/jsx/SwitchToMasterOrDocument.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSwitchToMasterOrDocument.jsx
 
 
 ## Paragraph styles
@@ -45,4 +45,4 @@ When the same text is repeated with the same paragraph style, this script append
 
 ![](png/ss-860-722-72-20250630-045123.png)
 
-https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/AppendParagraphNumbering.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagraphNumbering.jsx
