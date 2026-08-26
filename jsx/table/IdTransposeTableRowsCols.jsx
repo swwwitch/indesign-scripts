@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdTransposeTableRowsCols.jsx
- *
- * 選択した表の行と列を入れ替えます。ヘッダー行の扱いとセル結合の処理方法をダイアログで選べます。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択した表の行と列を入れ替えます。ヘッダー行の扱いとセル結合の処理方法をダイアログで選べます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Transposes the rows and columns of the selected table. The dialog picks how header rows and merged cells are handled.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

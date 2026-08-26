@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdTableBorderFill.jsx
- *
- * 選択した表セルの罫線を、適用範囲・線幅・カラー・濃淡を指定しながらプレビュー付きで調整します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択した表セルの罫線を、適用範囲・線幅・カラー・濃淡を指定しながらプレビュー付きで調整します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Adjusts the strokes of the selected table cells with a live preview, choosing the target range, stroke weight, color and tint.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

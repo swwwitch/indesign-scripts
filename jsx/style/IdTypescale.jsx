@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdTypescale.jsx
- *
- * 基準サイズとスケール倍率からタイプスケールを組み立て、本文・見出し・キャプションの段落スタイルへ一括適用します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+基準サイズとスケール倍率からタイプスケールを組み立て、本文・見出し・キャプションの段落スタイルへ一括適用します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Builds a type scale from a base size and a scale ratio, then applies it to the body, heading and caption paragraph styles at once.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

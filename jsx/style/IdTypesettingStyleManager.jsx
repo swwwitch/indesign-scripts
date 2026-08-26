@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdTypesettingStyleManager.jsx
- *
- * 段落スタイルの文字組版設定（禁則・文字組み・グリッド揃え・ハイフネーションなど）をダイアログでまとめて設定します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+段落スタイルの文字組版設定（禁則・文字組み・グリッド揃え・ハイフネーションなど）をダイアログでまとめて設定します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Configures the composition settings of paragraph styles (kinsoku, mojikumi, grid alignment, hyphenation and more) from a single dialog.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

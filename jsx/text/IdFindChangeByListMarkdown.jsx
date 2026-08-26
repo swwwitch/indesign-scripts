@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdFindChangeByListMarkdown.jsx
- *
- * Markdown 記法をまとめて検索・置換し、対応する段落スタイルと文字スタイルを適用します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+Markdown 記法をまとめて検索・置換し、対応する段落スタイルと文字スタイルを適用します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Runs a batch find/change over Markdown notation and applies the matching paragraph and character styles.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

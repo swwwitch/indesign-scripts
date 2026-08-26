@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdCreateFrameFromSelectedText.jsx
- *
- * 選択したテキストのサイズを基準に、インライン（アンカー付き）またはページ上へグラフィックフレームを作成します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択したテキストのサイズを基準に、インライン（アンカー付き）またはページ上へグラフィックフレームを作成します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Creates a graphic frame sized from the selected text, either inline (anchored) or placed on the page.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

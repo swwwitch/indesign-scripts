@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdAddPagesUsingCurrentMaster.jsx
- *
- * 現在のページに適用されている親（マスター）ページを引き継いだまま、指定した枚数のページを直後に挿入します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+現在のページに適用されている親（マスター）ページを引き継いだまま、指定した枚数のページを直後に挿入します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Inserts the requested number of pages right after the current page, keeping the parent (master) page that the current page uses.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

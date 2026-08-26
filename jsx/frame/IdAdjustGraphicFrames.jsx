@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdAdjustGraphicFrames.jsx
- *
- * テキストにアンカーされたグラフィックフレームを集め、フレーム幅・フレームサイズ・画像の縮尺率をまとめて調整します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+テキストにアンカーされたグラフィックフレームを集め、フレーム幅・フレームサイズ・画像の縮尺率をまとめて調整します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Collects graphic frames anchored in text and adjusts their frame width, frame size and image scale together.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdLayoutGridBuilder.jsx
- *
- * アクティブページに版面・タイトルエリア・フレーム・列行グリッド・区切り線などを、プレビューを見ながら一括作成します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+アクティブページに版面・タイトルエリア・フレーム・列行グリッド・区切り線などを、プレビューを見ながら一括作成します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Builds the text area, title area, frames, column and row grids and separator rules on the active page in one pass, with a live preview.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

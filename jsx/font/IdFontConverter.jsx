@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdFontConverter.jsx
- *
- * フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて切り替え、選択範囲やドキュメント全体へ適用します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて切り替え、選択範囲やドキュメント全体へ適用します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Switches font variants (character set, P, UD, N, NT and weight) in one pass and applies them to the selection or to the whole document.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdSetSameParaStyleSpacing.jsx
- *
- * 段落スタイルの「同一スタイル間の段落間隔」を、スタイル定義そのものに対して設定します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+段落スタイルの「同一スタイル間の段落間隔」を、スタイル定義そのものに対して設定します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Sets "space between paragraphs using same style" on the paragraph style definition itself.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

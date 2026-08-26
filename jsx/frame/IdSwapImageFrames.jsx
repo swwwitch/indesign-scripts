@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdSwapImageFrames.jsx
- *
- * 選択した画像入りフレームを、リンク画像だけ／フレーム位置ごとのいずれかの方法で順送りに入れ替えます。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択した画像入りフレームを、リンク画像だけ／フレーム位置ごとのいずれかの方法で順送りに入れ替えます。
+
+詳細は README を参照してください。
+
+### Overview
+
+Rotates the selected image frames through each other, swapping either the linked images only or the frames along with their positions.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

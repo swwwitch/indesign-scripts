@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdSplitParagraph.jsx
- *
- * 選択したテキストフレーム内の各段落を、元の位置と幅を保ったまま独立したテキストフレームへ分割します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択したテキストフレーム内の各段落を、元の位置と幅を保ったまま独立したテキストフレームへ分割します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Splits each paragraph in the selected text frame into its own text frame, keeping the original position and width.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

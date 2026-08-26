@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdTableColumnWidthAdjuster.jsx
- *
- * 選択したセルや表の列幅を、列ごとの個別指定または一括入力でまとめて調整します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択したセルや表の列幅を、列ごとの個別指定または一括入力でまとめて調整します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Adjusts the column widths of the selected cells or table, either per column or with a single value applied to all.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info
@@ -152,6 +161,9 @@ function setupRow(group, alignment, spacing) {
 			negativeCharCount:   { ja: "文字数には 0 以上の数値を入力してください", en: "Character count must be 0 or greater." },
 			negativeInset:       { ja: "左右の余白には 0 以上の数値を入力してください", en: "Left/right inset must be 0 or greater." },
 			insetTooLarge:       { ja: "左右の余白が大きすぎます。内容幅が 0 以下になります", en: "Left/right inset is too large. Content width would become 0 or less." }
+		},
+		undo: {
+			adjustColumnWidths: { ja: "列幅の調整", en: "Adjust Column Widths" }
 		}
 	};
 
@@ -235,7 +247,10 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {void}
 	 */
 	function main() {
-		app.doScript("adjustColumnWidths()", ScriptLanguage.JAVASCRIPT, [], UndoModes.fastEntireScript);
+		/* 文字列で渡すとグローバルスコープで評価され IIFE 内の関数を見つけられないため関数で渡す
+		   / Pass a function: a string would be evaluated in the global scope and could not see functions inside the IIFE */
+		app.doScript(adjustColumnWidths, ScriptLanguage.JAVASCRIPT, undefined,
+			UndoModes.ENTIRE_SCRIPT, getLabel("undo.adjustColumnWidths"));
 	}
 
 	/**

@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdAutoParagraphStyleGeneratorV2.jsx
- *
- * ［基本段落］などスタイル未設定の段落をフォント・サイズ・行送りごとにまとめ、段落スタイルを自動生成して適用します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+［基本段落］などスタイル未設定の段落をフォント・サイズ・行送りごとにまとめ、段落スタイルを自動生成して適用します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Groups unstyled paragraphs such as [Basic Paragraph] by font, size and leading, then generates and applies paragraph styles for them.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

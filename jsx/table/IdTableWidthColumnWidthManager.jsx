@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdTableWidthColumnWidthManager.jsx
- *
- * 選択位置から対象の表を特定し、表全体の幅と列の幅をプレビュー付きでまとめて調整します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択位置から対象の表を特定し、表全体の幅と列の幅をプレビュー付きでまとめて調整します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Finds the target table from the current selection and adjusts the overall table width and the column widths together, with a live preview.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

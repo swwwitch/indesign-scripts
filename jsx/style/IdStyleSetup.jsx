@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdStyleSetup.jsx
- *
- * 段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイルまでを一括で登録します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイルまでを一括で登録します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Registers paragraph and character styles together with their groups, inheritance and GREP styles in one pass.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

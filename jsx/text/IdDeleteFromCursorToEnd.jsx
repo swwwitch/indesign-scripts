@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdDeleteFromCursorToEnd.jsx
- *
- * カーソル位置からその段落の末尾までをまとめて削除します。段落末尾の記号の直前では、その記号 1 文字だけを削除します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+カーソル位置からその段落の末尾までをまとめて削除します。段落末尾の記号の直前では、その記号 1 文字だけを削除します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Deletes everything from the cursor to the end of its paragraph. Right before a trailing symbol, only that single character is removed.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

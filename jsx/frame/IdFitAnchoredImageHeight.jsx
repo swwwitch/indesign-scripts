@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdFitAnchoredImageHeight.jsx
- *
- * インラインアンカーされた画像フレームの高さを、同じ段落の文字サイズに合わせて縦横比を保ったまま調整します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+インラインアンカーされた画像フレームの高さを、同じ段落の文字サイズに合わせて縦横比を保ったまま調整します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Resizes an inline anchored image frame to the font size of its paragraph while keeping the aspect ratio.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

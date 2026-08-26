@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdResetHorizontalVerticalScale.jsx
- *
- * ドキュメント内すべてのストーリー（表セル・入れ子の表を含む）を走査し、文字の水平・垂直比率を 100% に戻します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+ドキュメント内すべてのストーリー（表セル・入れ子の表を含む）を走査し、文字の水平・垂直比率を 100% に戻します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Walks every story in the document, including table cells and nested tables, and resets the horizontal and vertical character scale to 100%.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

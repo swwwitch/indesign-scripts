@@ -2,11 +2,20 @@
 #targetengine "SmartBorderBuilderEngine"
 
 /*
- * IdSmartBorderBuilder.jsx
- *
- * 選択した表セルに対して、モード・線幅・カラー・濃淡を指定しながら罫線をプレビュー付きで描画・消去します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択した表セルに対して、モード・線幅・カラー・濃淡を指定しながら罫線をプレビュー付きで描画・消去します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Draws and clears strokes on the selected table cells with a live preview, choosing the mode, stroke weight, color and tint.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

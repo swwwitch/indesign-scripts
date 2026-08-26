@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdScriptRunner.jsx
- *
- * 任意の ExtendScript ファイル（.jsx / .jsxbin / .js）をダイアログで選んで実行するランチャーです。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+任意の ExtendScript ファイル（.jsx / .jsxbin / .js）をダイアログで選んで実行するランチャーです。
+
+詳細は README を参照してください。
+
+### Overview
+
+A launcher that runs any ExtendScript file (.jsx / .jsxbin / .js) chosen from a dialog.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

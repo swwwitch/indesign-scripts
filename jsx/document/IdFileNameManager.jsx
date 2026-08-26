@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdFileNameManager.jsx
- *
- * アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・日付・連番・バージョンのセグメント単位で編集し、リネーム／別名保存／コピー保存を行います。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・日付・連番・バージョンのセグメント単位で編集し、リネーム／別名保存／コピー保存を行います。
+
+詳細は README を参照してください。
+
+### Overview
+
+Edits the active document's file name segment by segment - base, subtext, status, date, sequence number and version - then renames it, saves it under a new name, or saves a copy.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

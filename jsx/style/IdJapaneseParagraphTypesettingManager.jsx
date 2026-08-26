@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdJapaneseParagraphTypesettingManager.jsx
- *
- * 段落スタイルの日本語組版設定（禁則処理セット・禁則調整方式・文字組みアキ量・コンポーザー）をマトリックス UI で確認・一括適用します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+段落スタイルの日本語組版設定（禁則処理セット・禁則調整方式・文字組みアキ量・コンポーザー）をマトリックス UI で確認・一括適用します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Reviews and batch-applies the Japanese composition settings of paragraph styles (kinsoku set, kinsoku adjustment, mojikumi and composer) through a matrix UI.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info

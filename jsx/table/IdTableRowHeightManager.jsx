@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdTableRowHeightManager.jsx
- *
- * 選択した表の行の高さを、範囲（選択範囲／ストーリー／ドキュメント）と対象行を指定しながらプレビュー付きで設定します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+選択した表の行の高さを、範囲（選択範囲／ストーリー／ドキュメント）と対象行を指定しながらプレビュー付きで設定します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Sets the row heights of the selected table with a live preview, choosing the scope (selection, story or document) and which rows to target.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info
