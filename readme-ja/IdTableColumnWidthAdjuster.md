@@ -1,4 +1,4 @@
-# IdTableColumnWidthAdjuster
+# 表の列幅をまとめて調整
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdTableColumnWidthAdjuster.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTableColumnWidthAdjuster.jsx)
 

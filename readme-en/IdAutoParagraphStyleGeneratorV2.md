@@ -1,6 +1,6 @@
-# IdAutoParagraphStyleGeneratorV2
+# Generate paragraph styles from formatting (alternate version)
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoParagraphStyleGeneratorV2.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdAutoParagraphStyleGeneratorV2.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoParagraphStyleGeneratorV2.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdAutoParagraphStyleGeneratorV2.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAutoParagraphStyleGeneratorV2.md)
 
@@ -30,7 +30,7 @@ An alternate build of IdAutoParagraphStyleGenerator with the same behaviour: it 
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdAutoParagraphStyleGeneratorV2.jsx` |
+| File | `jsx/style/IdAutoParagraphStyleGeneratorV2.jsx` |
 | Version | v3.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-02-13 |

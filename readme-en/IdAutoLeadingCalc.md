@@ -1,4 +1,4 @@
-# IdAutoLeadingCalc
+# Convert fixed leading to auto leading
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoLeadingCalc.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdAutoLeadingCalc.jsx)
 

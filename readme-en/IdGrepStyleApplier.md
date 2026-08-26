@@ -1,4 +1,4 @@
-# IdGrepStyleApplier
+# Apply and manage GREP styles on paragraph styles
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdGrepStyleApplier.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdGrepStyleApplier.jsx)
 

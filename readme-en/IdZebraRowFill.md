@@ -1,4 +1,4 @@
-# IdZebraRowFill
+# Apply alternating row shading to a table
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdZebraRowFill.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdZebraRowFill.jsx)
 

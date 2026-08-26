@@ -1,4 +1,4 @@
-# IdResetHorizontalVerticalScale
+# 文字の水平・垂直比率を 100% に戻す
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdResetHorizontalVerticalScale.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdResetHorizontalVerticalScale.jsx)
 

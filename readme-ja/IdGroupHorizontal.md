@@ -1,4 +1,4 @@
-# IdGroupHorizontal
+# 縦位置の近いオブジェクトを行ごとにグループ化
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdGroupHorizontal.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/group/IdGroupHorizontal.jsx)
 

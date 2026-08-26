@@ -1,4 +1,4 @@
-# IdTableRowHeightManager
+# Set table row heights with a preview
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdTableRowHeightManager.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTableRowHeightManager.jsx)
 

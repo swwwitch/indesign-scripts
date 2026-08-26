@@ -1,4 +1,4 @@
-# IdTableColumnEqualizer
+# Fit the table width to its text frame
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdTableColumnEqualizer.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTableColumnEqualizer.jsx)
 

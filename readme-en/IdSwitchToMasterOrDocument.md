@@ -1,6 +1,6 @@
-# IdSwitchToMasterOrDocument
+# Switch between the parent page and the document page
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdSwitchToMasterOrDocument.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSwitchToMasterOrDocument.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdSwitchToMasterOrDocument.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdSwitchToMasterOrDocument.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSwitchToMasterOrDocument.md)
 
@@ -30,7 +30,7 @@ Detects whether the active page is a parent (master) page or a document page and
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdSwitchToMasterOrDocument.jsx` |
+| File | `jsx/page/IdSwitchToMasterOrDocument.jsx` |
 | Version | v1.0.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-07-02 |

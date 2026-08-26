@@ -1,4 +1,4 @@
-# IdKeepOptionNextColumn
+# Start the paragraph in the next column
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdKeepOptionNextColumn.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdKeepOptionNextColumn.jsx)
 

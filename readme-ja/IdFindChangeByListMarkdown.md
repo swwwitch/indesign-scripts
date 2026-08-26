@@ -1,6 +1,6 @@
-# IdFindChangeByListMarkdown
+# Markdown 記法を検索・置換してスタイルを適用
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdFindChangeByListMarkdown.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdFindChangeByListMarkdown.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdFindChangeByListMarkdown.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdFindChangeByListMarkdown.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFindChangeByListMarkdown.md)
 
@@ -32,7 +32,7 @@ Markdown 記法をまとめて検索・置換し、対応する段落スタイ�
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdFindChangeByListMarkdown.jsx` |
+| ファイル | `jsx/text/IdFindChangeByListMarkdown.jsx` |
 | バージョン | v1.0.1 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-03-17 |

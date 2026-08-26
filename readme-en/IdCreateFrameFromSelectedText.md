@@ -1,6 +1,6 @@
-# IdCreateFrameFromSelectedText
+# Create a graphic frame sized to the selected text
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdCreateFrameFromSelectedText.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdCreateFrameFromSelectedText.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdCreateFrameFromSelectedText.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdCreateFrameFromSelectedText.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCreateFrameFromSelectedText.md)
 
@@ -32,7 +32,7 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdCreateFrameFromSelectedText.jsx` |
+| File | `jsx/frame/IdCreateFrameFromSelectedText.jsx` |
 | Version | v2.6 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-17 |

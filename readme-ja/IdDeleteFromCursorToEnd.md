@@ -1,4 +1,4 @@
-# IdDeleteFromCursorToEnd
+# カーソル位置から段落末尾までを削除
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdDeleteFromCursorToEnd.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdDeleteFromCursorToEnd.jsx)
 

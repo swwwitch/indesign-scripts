@@ -31,7 +31,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAddPagesUsingC
 2. ドキュメントページならマスターへジャンプ
 3. マスターページなら元のドキュメントページに戻る
 
-https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSwitchToMasterOrDocument.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdSwitchToMasterOrDocument.jsx
 
 ## 段落スタイル
 

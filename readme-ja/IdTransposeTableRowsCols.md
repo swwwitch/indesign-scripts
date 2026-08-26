@@ -1,6 +1,6 @@
-# IdTransposeTableRowsCols
+# 表の行と列を入れ替え
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdTransposeTableRowsCols.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdTransposeTableRowsCols.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdTransposeTableRowsCols.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTransposeTableRowsCols.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTransposeTableRowsCols.md)
 
@@ -33,7 +33,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdTransposeTableRowsCols.jsx` |
+| ファイル | `jsx/table/IdTransposeTableRowsCols.jsx` |
 | バージョン | v1.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2025-11-25 |

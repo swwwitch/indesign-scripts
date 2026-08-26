@@ -1,6 +1,6 @@
-# IdParagraphShadingMatchRule
+# 段落背景色の高さに合わせた境界線スペーサーを設定
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdParagraphShadingMatchRule.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdParagraphShadingMatchRule.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdParagraphShadingMatchRule.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdParagraphShadingMatchRule.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphShadingMatchRule.md)
 
@@ -30,7 +30,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdParagraphShadingMatchRule.jsx` |
+| ファイル | `jsx/style/IdParagraphShadingMatchRule.jsx` |
 | バージョン | v1.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-04-12 |

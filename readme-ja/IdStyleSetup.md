@@ -1,4 +1,4 @@
-# IdStyleSetup
+# 段落スタイル・文字スタイルを一括登録
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdStyleSetup.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdStyleSetup.jsx)
 

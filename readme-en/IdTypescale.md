@@ -1,4 +1,4 @@
-# IdTypescale
+# Apply a type scale to paragraph styles
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdTypescale.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdTypescale.jsx)
 

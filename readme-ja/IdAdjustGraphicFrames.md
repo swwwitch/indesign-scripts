@@ -1,4 +1,4 @@
-# IdAdjustGraphicFrames
+# アンカー付きグラフィックフレームの幅・サイズ・縮尺を一括調整
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdAdjustGraphicFrames.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdAdjustGraphicFrames.jsx)
 

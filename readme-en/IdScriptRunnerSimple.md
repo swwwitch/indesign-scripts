@@ -1,4 +1,4 @@
-# IdScriptRunnerSimple
+# Pick and run an ExtendScript file (minimal)
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdScriptRunnerSimple.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/runner/IdScriptRunnerSimple.jsx)
 

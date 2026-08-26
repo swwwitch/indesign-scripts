@@ -1,4 +1,4 @@
-# IdZebraRowFill
+# 表の行に交互の塗り（縞模様）を適用
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdZebraRowFill.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdZebraRowFill.jsx)
 

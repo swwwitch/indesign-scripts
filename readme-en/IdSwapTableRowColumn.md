@@ -1,4 +1,4 @@
-# IdSwapTableRowColumn
+# Transpose table rows and columns
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdSwapTableRowColumn.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdSwapTableRowColumn.jsx)
 

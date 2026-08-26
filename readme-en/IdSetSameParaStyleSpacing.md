@@ -1,4 +1,4 @@
-# IdSetSameParaStyleSpacing
+# Set the space between paragraphs of the same style
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdSetSameParaStyleSpacing.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdSetSameParaStyleSpacing.jsx)
 

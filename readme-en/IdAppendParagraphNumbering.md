@@ -1,4 +1,4 @@
-# IdAppendParagraphNumbering
+# Number repeated text in the same paragraph style
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdAppendParagraphNumbering.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagraphNumbering.jsx)
 

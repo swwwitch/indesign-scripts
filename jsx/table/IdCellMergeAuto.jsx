@@ -4,13 +4,13 @@
 
 ### 概要
 
-選択した表について、内容が同じ隣接セルを水平方向・垂直方向に自動で結合します。
+選択した表について、内容が同じ隣接セルを自動で結合します。結合する方向（水平・垂直・両方向）と、対象（表全体・選択セルのみ）をダイアログで選べます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Merges adjacent cells with identical contents in the selected table, horizontally and vertically.
+Merges adjacent cells with identical contents in the selected table. The dialog picks the merge direction (horizontal, vertical, or both) and the scope (the whole table or only the selected cells).
 
 See the README for details.
 
@@ -210,30 +210,48 @@ function setupRow(targetGroup, alignment, spacing) {
     }
 
     /**
+     * 選択オブジェクトから表のセルを集める
+     * @param {object} selectionItem 選択オブジェクト
+     * @returns {Array.<Cell>} 選択されているセルの配列
+     */
+    function collectSelectedCells(selectionItem) {
+        if (selectionItem.constructor.name === "Cell") return [selectionItem];
+
+        var collectedCells = [];
+
+        if (selectionItem.hasOwnProperty("cells")) {
+            for (var i = 0; i < selectionItem.cells.length; i++) {
+                collectedCells.push(selectionItem.cells[i]);
+            }
+        } else if (selectionItem.parent && selectionItem.parent.constructor.name === "Cell") {
+            collectedCells.push(selectionItem.parent);
+        }
+
+        return collectedCells;
+    }
+
+    /**
      * 選択セルを囲む矩形範囲を求める
-     * @param {Table} targetTable 対象の表
      * @returns {{rowStart: number, rowEnd: number, colStart: number, colEnd: number}|null} 矩形範囲。選択がなければ null
      */
-    function getSelectedCellRange(targetTable) {
-        var tableCells = targetTable.cells;
-
+    function getSelectedCellRange() {
         var minRow = Number.MAX_VALUE;
         var maxRow = -1;
         var minCol = Number.MAX_VALUE;
         var maxCol = -1;
 
-        for (var i = 0; i < tableCells.length; i++) {
-            var targetCell = tableCells[i];
-            if (!targetCell || !targetCell.isValid) continue;
+        for (var i = 0; i < app.selection.length; i++) {
+            var selectedCells = collectSelectedCells(app.selection[i]);
 
-            /* selected を持たないセルは常に false になるので安全に判定できる
-               / Cells without a selected property simply evaluate to false */
-            if (!targetCell.selected) continue;
+            for (var j = 0; j < selectedCells.length; j++) {
+                var targetCell = selectedCells[j];
+                if (!targetCell || !targetCell.isValid) continue;
 
-            minRow = Math.min(minRow, targetCell.row.index);
-            maxRow = Math.max(maxRow, targetCell.row.index);
-            minCol = Math.min(minCol, targetCell.column.index);
-            maxCol = Math.max(maxCol, targetCell.column.index);
+                minRow = Math.min(minRow, targetCell.parentRow.index);
+                maxRow = Math.max(maxRow, targetCell.parentRow.index);
+                minCol = Math.min(minCol, targetCell.parentColumn.index);
+                maxCol = Math.max(maxCol, targetCell.parentColumn.index);
+            }
         }
 
         if (maxRow < 0) return null;
@@ -252,7 +270,7 @@ function setupRow(targetGroup, alignment, spacing) {
      * @returns {number} 水平方向なら列インデックス、垂直方向なら行インデックス
      */
     function getCrossIndex(targetCell, isHorizontal) {
-        return isHorizontal ? targetCell.column.index : targetCell.row.index;
+        return isHorizontal ? targetCell.parentColumn.index : targetCell.parentRow.index;
     }
 
     /**
@@ -287,9 +305,15 @@ function setupRow(targetGroup, alignment, spacing) {
                 var headCell = lineCells[cellIndex];
                 var nextCell = lineCells[cellIndex + 1];
 
-                if (!headCell || !headCell.isValid || !nextCell || !nextCell.isValid ||
-                    getCrossIndex(headCell, isHorizontal) < cellStart ||
-                    getCrossIndex(nextCell, isHorizontal) > cellEnd) {
+                if (!headCell || !headCell.isValid || !nextCell || !nextCell.isValid) {
+                    cellIndex++;
+                    continue;
+                }
+
+                /* 表全体のときは範囲を見に行かない / Skip the bounds lookup when the whole table is the target */
+                if (cellRange &&
+                    (getCrossIndex(headCell, isHorizontal) < cellStart ||
+                     getCrossIndex(nextCell, isHorizontal) > cellEnd)) {
                     cellIndex++;
                     continue;
                 }
@@ -414,7 +438,7 @@ function setupRow(targetGroup, alignment, spacing) {
         /* 対象範囲。null なら表全体 / The target range; null means the whole table */
         var cellRange = null;
         if (dialogResult.useSelectionOnly) {
-            cellRange = getSelectedCellRange(targetTable);
+            cellRange = getSelectedCellRange();
             if (!cellRange) {
                 alert(getLabel(LABELS.alert.noCellRange));
                 return;

@@ -1,6 +1,6 @@
-# IdSwitchToMasterOrDocument
+# 親ページとドキュメントページを切り替え
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdSwitchToMasterOrDocument.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSwitchToMasterOrDocument.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdSwitchToMasterOrDocument.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdSwitchToMasterOrDocument.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSwitchToMasterOrDocument.md)
 
@@ -30,7 +30,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdSwitchToMasterOrDocument.jsx` |
+| ファイル | `jsx/page/IdSwitchToMasterOrDocument.jsx` |
 | バージョン | v1.0.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2025-07-02 |

@@ -1,4 +1,4 @@
-# IdKeepOptionNextColumn
+# 段落の開始位置を「次の段」に設定
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdKeepOptionNextColumn.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdKeepOptionNextColumn.jsx)
 

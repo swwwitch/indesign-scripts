@@ -1,4 +1,4 @@
-# IdAddPagesUsingCurrentMaster
+# 現在の親ページを引き継いでページを挿入
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdAddPagesUsingCurrentMaster.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAddPagesUsingCurrentMaster.jsx)
 

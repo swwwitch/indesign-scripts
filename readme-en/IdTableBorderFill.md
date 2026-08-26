@@ -1,6 +1,6 @@
-# IdTableBorderFill
+# Adjust table borders with a preview
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdTableBorderFill.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdTableBorderFill.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdTableBorderFill.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTableBorderFill.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableBorderFill.md)
 
@@ -33,7 +33,7 @@ Adjusts table-cell borders with a live preview, letting you set the scope, weigh
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdTableBorderFill.jsx` |
+| File | `jsx/table/IdTableBorderFill.jsx` |
 | Version | v1.5.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-11 |

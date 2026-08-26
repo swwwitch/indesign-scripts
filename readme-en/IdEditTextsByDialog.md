@@ -1,6 +1,6 @@
-# IdEditTextsByDialog
+# Edit text in a dialog, then replace or insert
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdEditTextsByDialog.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdEditTextsByDialog.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdEditTextsByDialog.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdEditTextsByDialog.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdEditTextsByDialog.md)
 
@@ -32,7 +32,7 @@ Edits text in a multi-line dialog, then replaces the selection, inserts at the c
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdEditTextsByDialog.jsx` |
+| File | `jsx/text/IdEditTextsByDialog.jsx` |
 | Version | v0.1.3 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-05-28 |

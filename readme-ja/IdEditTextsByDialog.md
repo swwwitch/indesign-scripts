@@ -1,6 +1,6 @@
-# IdEditTextsByDialog
+# ダイアログでテキストを編集して置換・挿入
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdEditTextsByDialog.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdEditTextsByDialog.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdEditTextsByDialog.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdEditTextsByDialog.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdEditTextsByDialog.md)
 
@@ -32,7 +32,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdEditTextsByDialog.jsx` |
+| ファイル | `jsx/text/IdEditTextsByDialog.jsx` |
 | バージョン | v0.1.3 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2025-05-28 |

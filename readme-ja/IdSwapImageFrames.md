@@ -1,6 +1,6 @@
-# IdSwapImageFrames
+# 画像入りフレームを順送りに入れ替え
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdSwapImageFrames.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSwapImageFrames.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdSwapImageFrames.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdSwapImageFrames.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSwapImageFrames.md)
 
@@ -33,7 +33,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdSwapImageFrames.jsx` |
+| ファイル | `jsx/frame/IdSwapImageFrames.jsx` |
 | バージョン | v1.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-03-28 |

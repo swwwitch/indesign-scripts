@@ -1,4 +1,4 @@
-# IdSmartGroup
+# 近接するオブジェクトを行・列単位でグループ化
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdSmartGroup.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/group/IdSmartGroup.jsx)
 

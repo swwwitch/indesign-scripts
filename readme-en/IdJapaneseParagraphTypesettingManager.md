@@ -1,4 +1,4 @@
-# IdJapaneseParagraphTypesettingManager
+# Apply Japanese composition settings from a matrix
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdJapaneseParagraphTypesettingManager.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdJapaneseParagraphTypesettingManager.jsx)
 

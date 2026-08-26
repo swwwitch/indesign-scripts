@@ -1,6 +1,6 @@
-# IdTableBorderFill
+# 表の罫線をプレビュー付きで調整
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdTableBorderFill.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdTableBorderFill.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdTableBorderFill.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTableBorderFill.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableBorderFill.md)
 
@@ -33,7 +33,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdTableBorderFill.jsx` |
+| ファイル | `jsx/table/IdTableBorderFill.jsx` |
 | バージョン | v1.5.1 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-04-11 |

@@ -1,4 +1,4 @@
-# IdNestedStyleSetup
+# Apply and manage GREP styles on paragraph styles
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdNestedStyleSetup.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdNestedStyleSetup.jsx)
 

@@ -1,6 +1,6 @@
-# IdParagraphShadingMatchRule
+# Add an invisible rule sized to the paragraph shading
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdParagraphShadingMatchRule.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdParagraphShadingMatchRule.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdParagraphShadingMatchRule.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdParagraphShadingMatchRule.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphShadingMatchRule.md)
 
@@ -30,7 +30,7 @@ Sets an invisible paragraph rule above on each selected paragraph, sized to matc
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdParagraphShadingMatchRule.jsx` |
+| File | `jsx/style/IdParagraphShadingMatchRule.jsx` |
 | Version | v1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-12 |

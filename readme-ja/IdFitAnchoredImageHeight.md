@@ -1,4 +1,4 @@
-# IdFitAnchoredImageHeight
+# アンカー画像の高さを文字サイズに合わせる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdFitAnchoredImageHeight.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdFitAnchoredImageHeight.jsx)
 

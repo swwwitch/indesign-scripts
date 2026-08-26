@@ -1,4 +1,4 @@
-# IdDeleteFromCursorToEnd
+# Delete from the cursor to the end of the paragraph
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdDeleteFromCursorToEnd.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdDeleteFromCursorToEnd.jsx)
 

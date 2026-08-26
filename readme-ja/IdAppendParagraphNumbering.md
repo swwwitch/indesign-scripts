@@ -1,4 +1,4 @@
-# IdAppendParagraphNumbering
+# 同じ段落スタイルで繰り返すテキストに連番を付ける
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdAppendParagraphNumbering.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagraphNumbering.jsx)
 

@@ -1,6 +1,6 @@
-# IdAutoParagraphStyleGeneratorV2
+# 書式の組み合わせから段落スタイルを自動生成（別バージョン）
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoParagraphStyleGeneratorV2.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdAutoParagraphStyleGeneratorV2.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoParagraphStyleGeneratorV2.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdAutoParagraphStyleGeneratorV2.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAutoParagraphStyleGeneratorV2.md)
 
@@ -30,7 +30,7 @@ IdAutoParagraphStyleGenerator の別バージョンです。処理内容は同�
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdAutoParagraphStyleGeneratorV2.jsx` |
+| ファイル | `jsx/style/IdAutoParagraphStyleGeneratorV2.jsx` |
 | バージョン | v3.1 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-02-13 |

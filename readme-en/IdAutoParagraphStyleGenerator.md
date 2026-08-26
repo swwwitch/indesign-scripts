@@ -1,6 +1,6 @@
-# IdAutoParagraphStyleGenerator
+# Generate paragraph styles from formatting
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoParagraphStyleGenerator.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdAutoParagraphStyleGenerator.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoParagraphStyleGenerator.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdAutoParagraphStyleGenerator.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAutoParagraphStyleGenerator.md)
 
@@ -32,7 +32,7 @@ Groups unstyled paragraphs (Basic Paragraph and friends) by font, size and leadi
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdAutoParagraphStyleGenerator.jsx` |
+| File | `jsx/style/IdAutoParagraphStyleGenerator.jsx` |
 | Version | v3.4 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-02-13 |

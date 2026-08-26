@@ -1,4 +1,4 @@
-# IdStyleSetup
+# Register paragraph and character styles in bulk
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdStyleSetup.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdStyleSetup.jsx)
 

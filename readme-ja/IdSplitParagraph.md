@@ -1,6 +1,6 @@
-# IdSplitParagraph
+# 段落ごとに独立したテキストフレームへ分割
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdSplitParagraph.js-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSplitParagraph.js)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdSplitParagraph.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdSplitParagraph.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSplitParagraph.md)
 
@@ -33,7 +33,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdSplitParagraph.jsx` |
+| ファイル | `jsx/text/IdSplitParagraph.jsx` |
 | バージョン | v1.1.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-03-16 |

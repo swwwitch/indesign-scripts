@@ -1,6 +1,6 @@
-# IdSplitParagraph
+# Split each paragraph into its own text frame
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdSplitParagraph.js-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSplitParagraph.js)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdSplitParagraph.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdSplitParagraph.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSplitParagraph.md)
 
@@ -33,7 +33,7 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdSplitParagraph.jsx` |
+| File | `jsx/text/IdSplitParagraph.jsx` |
 | Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-16 |

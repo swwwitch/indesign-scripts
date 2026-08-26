@@ -36,7 +36,7 @@ This script allows you to easily toggle between a document page and its applied 
 - The document property 'label' is temporarily used to store the original page name.
 - Inspired by the idea from: https://creativepro.com/files/kahrel/indesign/go_to_master.html
 
-https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSwitchToMasterOrDocument.jsx
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdSwitchToMasterOrDocument.jsx
 
 
 ## Paragraph styles

@@ -1,6 +1,6 @@
-# IdSwapImageFrames
+# Rotate images between the selected frames
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdSwapImageFrames.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdSwapImageFrames.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdSwapImageFrames.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdSwapImageFrames.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSwapImageFrames.md)
 
@@ -33,7 +33,7 @@ Rotates the contents or positions of the selected image frames, either by swappi
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdSwapImageFrames.jsx` |
+| File | `jsx/frame/IdSwapImageFrames.jsx` |
 | Version | v1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-28 |

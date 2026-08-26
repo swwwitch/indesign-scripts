@@ -1,4 +1,4 @@
-# IdSetSameParaStyleSpacing
+# 同一スタイル間の段落間隔をスタイル定義に設定
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdSetSameParaStyleSpacing.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdSetSameParaStyleSpacing.jsx)
 

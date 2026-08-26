@@ -1,4 +1,4 @@
-# IdTypeScaleStyleApplier
+# Apply a type scale to paragraph styles (body, headings, lists, tables)
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdTypeScaleStyleApplier.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdTypeScaleStyleApplier.jsx)
 

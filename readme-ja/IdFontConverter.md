@@ -1,4 +1,4 @@
-# IdFontConverter
+# フォントの種別・ウエイトをまとめて切り替え
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdFontConverter.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/font/IdFontConverter.jsx)
 

@@ -1,4 +1,4 @@
-# IdNestedStyleSetup
+# 段落スタイルの正規表現スタイルを適用・管理
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdNestedStyleSetup.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdNestedStyleSetup.jsx)
 

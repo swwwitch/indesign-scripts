@@ -1,4 +1,4 @@
-# IdTableWidthColumnWidthManager
+# Adjust the table width and the column widths together
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdTableWidthColumnWidthManager.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTableWidthColumnWidthManager.jsx)
 

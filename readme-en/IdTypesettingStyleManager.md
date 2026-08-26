@@ -1,4 +1,4 @@
-# IdTypesettingStyleManager
+# Configure composition settings for paragraph styles
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdTypesettingStyleManager.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdTypesettingStyleManager.jsx)
 

@@ -1,6 +1,6 @@
-# IdCreateFrameFromSelectedText
+# 選択テキストのサイズでグラフィックフレームを作成
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdCreateFrameFromSelectedText.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdCreateFrameFromSelectedText.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdCreateFrameFromSelectedText.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdCreateFrameFromSelectedText.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCreateFrameFromSelectedText.md)
 
@@ -32,7 +32,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdCreateFrameFromSelectedText.jsx` |
+| ファイル | `jsx/frame/IdCreateFrameFromSelectedText.jsx` |
 | バージョン | v2.6 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-03-17 |

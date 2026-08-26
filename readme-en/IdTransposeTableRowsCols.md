@@ -1,6 +1,6 @@
-# IdTransposeTableRowsCols
+# Transpose table rows and columns
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdTransposeTableRowsCols.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdTransposeTableRowsCols.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdTransposeTableRowsCols.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTransposeTableRowsCols.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTransposeTableRowsCols.md)
 
@@ -33,7 +33,7 @@ Transposes the rows and columns of the selected table, with dialog options for h
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdTransposeTableRowsCols.jsx` |
+| File | `jsx/table/IdTransposeTableRowsCols.jsx` |
 | Version | v1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-11-25 |

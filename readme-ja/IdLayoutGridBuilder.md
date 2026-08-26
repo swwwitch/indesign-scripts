@@ -1,6 +1,6 @@
-# IdLayoutGridBuilder
+# 版面・グリッド・区切り線をプレビュー付きで作成
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdLayoutGridBuilder.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdLayoutGridBuilder.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdLayoutGridBuilder.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdLayoutGridBuilder.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdLayoutGridBuilder.md)
 
@@ -34,7 +34,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/IdLayoutGridBuilder.jsx` |
+| ファイル | `jsx/page/IdLayoutGridBuilder.jsx` |
 | バージョン | v0.2.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-03-13 |

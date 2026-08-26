@@ -1,4 +1,4 @@
-# IdTableRowHeightManager
+# 表の行の高さをプレビュー付きで設定
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdTableRowHeightManager.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTableRowHeightManager.jsx)
 

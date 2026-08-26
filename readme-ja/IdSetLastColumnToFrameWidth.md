@@ -1,4 +1,4 @@
-# IdSetLastColumnToFrameWidth
+# 最終列を伸縮させて表幅をフレーム幅に合わせる
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdSetLastColumnToFrameWidth.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdSetLastColumnToFrameWidth.jsx)
 

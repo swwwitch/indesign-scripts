@@ -1,4 +1,4 @@
-# IdFileNameManager
+# ファイル名をセグメント単位で編集してリネーム・保存
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdFileNameManager.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdFileNameManager.jsx)
 

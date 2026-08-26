@@ -1,4 +1,4 @@
-# IdCellUnmerge
+# 表の結合セルを解除
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdCellUnmerge.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdCellUnmerge.jsx)
 

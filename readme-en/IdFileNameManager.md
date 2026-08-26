@@ -1,4 +1,4 @@
-# IdFileNameManager
+# Edit the file name by segment, then rename or save
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdFileNameManager.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdFileNameManager.jsx)
 

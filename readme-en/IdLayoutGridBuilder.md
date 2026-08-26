@@ -1,6 +1,6 @@
-# IdLayoutGridBuilder
+# Build a page grid with a live preview
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdLayoutGridBuilder.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/IdLayoutGridBuilder.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdLayoutGridBuilder.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdLayoutGridBuilder.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdLayoutGridBuilder.md)
 
@@ -34,7 +34,7 @@ Builds a content area, title area, frames, a column/row grid and dividers on the
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/IdLayoutGridBuilder.jsx` |
+| File | `jsx/page/IdLayoutGridBuilder.jsx` |
 | Version | v0.2.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-13 |

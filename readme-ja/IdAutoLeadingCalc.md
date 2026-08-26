@@ -1,4 +1,4 @@
-# IdAutoLeadingCalc
+# 行送りを自動行送り（％指定）に切り替える
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdAutoLeadingCalc.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdAutoLeadingCalc.jsx)
 

@@ -1,4 +1,4 @@
-# IdFitAnchoredImageHeight
+# Fit anchored image height to the text size
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-IdFitAnchoredImageHeight.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdFitAnchoredImageHeight.jsx)
 
