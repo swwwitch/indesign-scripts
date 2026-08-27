@@ -15,6 +15,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 - Typing in the keyword field filters both the folder list and the file name list instantly (space-separated terms are AND-matched)
 - Matching ignores case, full-width vs. half-width, hiragana vs. katakana, and voiced/small kana differences
 - Words that appear often in the filtered results become one-click keyword buttons automatically
+- A clear (×) button next to the keyword field empties it in one click, and is dimmed while the field is empty
 - "Include subdirectories" switches between the folders directly under the target folder and the whole tree
 - "Full path" switches the target folder display between the full path and a `~`-abbreviated one
 - Preferences let you change the target folder and the keyword button rules (occurrences and number of keywords)
@@ -43,6 +44,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | `option` + double-click a file name | Reveal it in the Finder instead of running it |
 | Double-click a folder | Open that folder in the Finder |
 | `option` + keyword button | Append the word to the current keyword instead of replacing it (AND search) |
+| Click the × in the keyword field | Clear the keyword and drop the filter |
 
 ## Notes and limitations
 
@@ -58,10 +60,16 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Item | Value |
 | --- | --- |
 | File | `jsx/misc/IdScriptLauncher.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-08-26 |
-| Last updated | 2026-08-26 |
+| Last updated | 2026-08-27 |
+| Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
+
+## Update history
+
+- v1.0.1 (2026-08-27): Added a clear (×) button to the keyword field
+- v1.0.0 (2026-08-26): Initial release
 
 ## License
 
