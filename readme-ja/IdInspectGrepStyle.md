@@ -1,6 +1,6 @@
 # 正規表現スタイルの設定を一覧・書き出し
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdInspectGrepStyle.js-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdInspectGrepStyle.js)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdInspectGrepStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdInspectGrepStyle.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInspectGrepStyle.md)
 
@@ -31,7 +31,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/style/IdInspectGrepStyle.js` |
+| ファイル | `jsx/style/IdInspectGrepStyle.jsx` |
 | バージョン | v1.0.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-05-04 |

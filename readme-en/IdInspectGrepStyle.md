@@ -1,6 +1,6 @@
 # List and export GREP style settings
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdInspectGrepStyle.js-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdInspectGrepStyle.js)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdInspectGrepStyle.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdInspectGrepStyle.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInspectGrepStyle.md)
 
@@ -31,7 +31,7 @@ Lists the GREP styles defined on the document's paragraph styles and exports the
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/style/IdInspectGrepStyle.js` |
+| File | `jsx/style/IdInspectGrepStyle.jsx` |
 | Version | v1.0.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-04 |

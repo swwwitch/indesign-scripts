@@ -1,11 +1,20 @@
 #target indesign
 
 /*
- * IdInspectGrepStyle.jsx
- *
- * ドキュメント内の段落スタイルに設定された正規表現スタイル（GREP スタイル）を一覧表示し、テキストへ書き出します。
- * 詳細は README を参照してください。
- */
+
+### 概要
+
+ドキュメント内の段落スタイルに設定された正規表現スタイル（GREPスタイル）を一覧表示し、テキストファイルへ書き出します。
+
+詳細は README を参照してください。
+
+### Overview
+
+Lists the GREP styles defined in the paragraph styles of a document and exports them to a text file.
+
+See the README for details.
+
+*/
 
 // =========================================
 // 基本情報 / Basic info
@@ -14,7 +23,7 @@ var SCRIPT_NAME     = "IdInspectGrepStyle";           /* スクリプト名 / sc
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-04";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-05-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInspectGrepStyle.md
@@ -118,7 +127,7 @@ function setupRow(group, alignment, spacing) {
             exportText: { ja: "テキストに書き出し…", en: "Export to Text..." },
             close:      { ja: "閉じる", en: "Close" }
         },
-        export: {
+        exportText: {
             sectionAll:               { ja: "■ 一覧", en: "■ List" },
             sectionUniqueExpressions: { ja: "■ 正規表現一覧（重複なし・{count}件）", en: "■ GREP Expressions (unique: {count})" },
             filePrefix:               { ja: "正規表現スタイル一覧", en: "GREPStyleInspector" },
@@ -384,7 +393,7 @@ function setupRow(group, alignment, spacing) {
             return;
         }
 
-        alert(getLabel("export.complete") + "\n\n" + exportFile.fsName);
+        alert(getLabel("exportText.complete") + "\n\n" + exportFile.fsName);
 
         try {
             exportFile.execute();
@@ -399,14 +408,14 @@ function setupRow(group, alignment, spacing) {
      * @returns {Array<string>} 書き出す行
      */
     function buildExportLines(grepStyleRows) {
-        var exportLines = [getLabel("export.sectionAll"), getLabel("column.paragraphStyle") + "\t" + getLabel("column.characterStyle") + "\t" + getLabel("column.grepExpression")];
+        var exportLines = [getLabel("exportText.sectionAll"), getLabel("column.paragraphStyle") + "\t" + getLabel("column.characterStyle") + "\t" + getLabel("column.grepExpression")];
         for (var exportRowIndex = 0; exportRowIndex < grepStyleRows.length; exportRowIndex++) {
             exportLines.push(grepStyleRows[exportRowIndex].join("\t"));
         }
 
         var uniqueExpressions = getUniqueExpressions(grepStyleRows);
         exportLines.push("");
-        exportLines.push(getLabel("export.sectionUniqueExpressions").replace("{count}", uniqueExpressions.length));
+        exportLines.push(getLabel("exportText.sectionUniqueExpressions").replace("{count}", uniqueExpressions.length));
         for (var uniqueExpressionIndex = 0; uniqueExpressionIndex < uniqueExpressions.length; uniqueExpressionIndex++) {
             exportLines.push(uniqueExpressions[uniqueExpressionIndex]);
         }
@@ -461,7 +470,7 @@ function setupRow(group, alignment, spacing) {
      */
     function createExportFile(activeDocument) {
         var documentName = sanitizeFileName(activeDocument.name.replace(/\.indd$/i, ""));
-        var fileName = getLabel("export.filePrefix") + "-" + documentName + "-" + createTimestamp() + ".txt";
+        var fileName = getLabel("exportText.filePrefix") + "-" + documentName + "-" + createTimestamp() + ".txt";
         return File(Folder.desktop + "/" + encodeURI(fileName));
     }
 
