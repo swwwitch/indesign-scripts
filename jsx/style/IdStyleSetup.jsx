@@ -5,12 +5,14 @@
 ### 概要
 
 段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイルまでを一括で登録します。
+既定では既存の同名スタイルには手を触れず、新規作成したスタイルにだけ属性を適用します。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Registers paragraph and character styles together with their groups, inheritance and GREP styles in one pass.
+Existing same-named styles are left untouched by default; attributes are applied only to newly created ones.
 
 See the README for details.
 
@@ -20,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdStyleSetup";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-01";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdStyleSetup.md
@@ -38,12 +40,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfe87ec253780"; /* 紹�
 // UIレイアウトの共通設定 / Shared UI layout
 // ==============================
 
-/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+/* ウィンドウの余白と間隔 / Window margins and spacing */
 var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
 
 /**
  * ウィンドウの共通設定を適用する
@@ -56,33 +55,6 @@ function setupWindow(win, spacing) {
     win.alignChildren = "fill";
     win.margins = WINDOW_MARGINS;
     win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-}
-
-/**
- * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
- * @returns {void}
- */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/**
- * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
- * @param {string} [alignment] 配置。省略時は "left"
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
- * @returns {void}
- */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 (function () {
@@ -142,7 +114,7 @@ function setupRow(group, alignment, spacing) {
 
     /**
      * ドット区切りキーでラベルを取得する
-     * @param {string} labelKey 例: "dialog.title"
+     * @param {string} labelKey 例: "progress.title"
      * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
      */
     function getLabel(labelKey) {
@@ -351,8 +323,9 @@ function setupRow(group, alignment, spacing) {
         // =========================================
         // 個別スタイルの属性適用 / Style-specific property settings
         // =========================================
-        // ※ 既存スタイルへの上書きは OVERWRITE_EXISTING_STYLES（shouldApplyAttributesTo* がガード）。basedOn は常に設定。
-        //   Guarded by OVERWRITE_EXISTING_STYLES (overwrite). basedOn is always set.
+        // ※ 属性・basedOn とも既存スタイルへの適用は OVERWRITE_EXISTING_STYLES 次第（shouldApplyAttributesTo* がガード）/
+        //   Both attributes and basedOn are applied to existing styles only when OVERWRITE_EXISTING_STYLES is on
+        //   (guarded by shouldApplyAttributesTo*).
 
         /**
          * 基準スタイルへ共通の組版設定を適用する
@@ -366,7 +339,7 @@ function setupRow(group, alignment, spacing) {
             if (shouldApplyAttributesToParagraphStyle(baseGroup, "body-text")) {
                 var bodyTextStyle = baseGroup.paragraphStyles.itemByName("body-text");
                 if (bodyTextStyle.isValid) {
-                    bodyTextStyle.kerningMethod = "和文等幅";
+                    setKerningMethodByNames(bodyTextStyle, KERNING_METHOD_MOJIKUMI_NAMES);
                     bodyTextStyle.justification = Justification.LEFT_JUSTIFIED;
                     bodyTextStyle.keepLinesTogether = true;
                     bodyTextStyle.keepAllLinesTogether = true;
@@ -377,7 +350,7 @@ function setupRow(group, alignment, spacing) {
             if (shouldApplyAttributesToParagraphStyle(baseGroup, "heading")) {
                 var headingStyle = baseGroup.paragraphStyles.itemByName("heading");
                 if (headingStyle.isValid) {
-                    headingStyle.kerningMethod = "メトリクス";
+                    setKerningMethodByNames(headingStyle, KERNING_METHOD_METRICS_NAMES);
                     headingStyle.justification = Justification.LEFT_ALIGN;
                     headingStyle.keepWithNext = 2;
                     headingStyle.keepLinesTogether = true;
@@ -416,7 +389,6 @@ function setupRow(group, alignment, spacing) {
                 shouldApplyAttributesToParagraphStyle(baseGroup, "body-text")) {
                 bodyTextStyle.basedOn = baseStyle;
             }
-            if (!bodyTextStyle.isValid) return;
 
             // heading を base-regex 基準に（h1〜h6 から継承させるための中間スタイル）/
             // heading → base-regex (intermediate style inherited by h1–h6)
@@ -427,12 +399,14 @@ function setupRow(group, alignment, spacing) {
             }
 
             // p / ul-li / ol-li / p.caption → body-text
-            var basedOnBaseStyleNames = ["p", "ul-li", "ol-li", "p.caption"];
-            for (var basedOnIndex = 0; basedOnIndex < basedOnBaseStyleNames.length; basedOnIndex++) {
-                var basedOnStyleName = basedOnBaseStyleNames[basedOnIndex];
-                if (!shouldApplyAttributesToParagraphStyle(doc, basedOnStyleName)) continue;
-                var basedOnTargetStyle = doc.paragraphStyles.itemByName(basedOnStyleName);
-                if (basedOnTargetStyle.isValid) basedOnTargetStyle.basedOn = bodyTextStyle;
+            if (bodyTextStyle.isValid) {
+                var basedOnBaseStyleNames = ["p", "ul-li", "ol-li", "p.caption"];
+                for (var basedOnIndex = 0; basedOnIndex < basedOnBaseStyleNames.length; basedOnIndex++) {
+                    var basedOnStyleName = basedOnBaseStyleNames[basedOnIndex];
+                    if (!shouldApplyAttributesToParagraphStyle(doc, basedOnStyleName)) continue;
+                    var basedOnTargetStyle = doc.paragraphStyles.itemByName(basedOnStyleName);
+                    if (basedOnTargetStyle.isValid) basedOnTargetStyle.basedOn = bodyTextStyle;
+                }
             }
 
             // h1〜h6 → heading
@@ -654,7 +628,7 @@ function setupRow(group, alignment, spacing) {
          * @param {object} targetObject 設定先のオブジェクト
          * @param {Array<string>} candidateNames 試すプロパティ名
          * @param {*} value 設定する値
-         * @returns {boolean} 設定できたら true
+         * @returns {string|null} 設定できたプロパティ名。どれも無ければ null
          */
         function setOptionalProperty(targetObject, candidateNames, value) {
             var availableProperties = targetObject.reflect.properties;
@@ -674,7 +648,7 @@ function setupRow(group, alignment, spacing) {
          * 名前から文字スタイルを取得する
          * @param {Document} doc 対象ドキュメント
          * @param {string} styleName 文字スタイル名
-         * @returns {CharacterStyle|null} 文字スタイル。見つからない場合は null
+         * @returns {object|null} { style: 文字スタイル, container: 所属コンテナ }。見つからない場合は null
          */
         function resolveCharacterStyle(doc, styleName) {
             var rootStyle = doc.characterStyles.itemByName(styleName);
@@ -755,6 +729,29 @@ function setupRow(group, alignment, spacing) {
         var ENGLISH_USA_LANGUAGE_NAMES = ["English: USA", "英語：米国"];
         var NO_LANGUAGE_NAMES = ["[No Language]", "[言語なし]", "[なし]"];
 
+        /* カーニング方式は UI 言語で表示名が変わるため候補を順に試す /
+           Kerning method names are localized, so try the candidates in order */
+        var KERNING_METHOD_MOJIKUMI_NAMES = ["和文等幅", "Japanese Mojikumi"];
+        var KERNING_METHOD_METRICS_NAMES  = ["メトリクス", "Metrics"];
+
+        /**
+         * 候補名からカーニング方式を設定する
+         * @param {ParagraphStyle} paragraphStyle 対象の段落スタイル
+         * @param {Array<string>} kerningMethodNames カーニング方式名の候補
+         * @returns {boolean} 設定できたら true
+         */
+        function setKerningMethodByNames(paragraphStyle, kerningMethodNames) {
+            for (var kerningMethodIndex = 0; kerningMethodIndex < kerningMethodNames.length; kerningMethodIndex++) {
+                try {
+                    paragraphStyle.kerningMethod = kerningMethodNames[kerningMethodIndex];
+                    return true;
+                } catch (e) {
+                    // この環境には無い表示名。次の候補を試す / Not available in this locale; try the next candidate
+                }
+            }
+            return false;
+        }
+
         /**
          * lang-US スタイルに英語（米国）を設定する
          * @param {Document} doc 対象ドキュメント
@@ -804,20 +801,29 @@ function setupRow(group, alignment, spacing) {
          * @returns {void}
          */
         function applyAllStyleAttributes(doc) {
+            // 先に継承関係（basedOn）を確定させてから属性を適用する。逆順だと、親と同値の代入が
+            //   override として残らず、後から張った basedOn の継承値で打ち消されることがある
+            //   （例: p の分離禁止 OFF が body-text の ON に戻る）/
+            // Set inheritance (basedOn) first, then attributes: assigning a value equal to the parent's
+            //   may not register as an override, so a basedOn applied afterwards can undo it
+            //   (e.g. p's keep options going back to body-text's ON).
+            // ※ applyTableCellSettings は関数内で basedOn → 属性の順になっているため、この並びのままでよい /
+            //   applyTableCellSettings already does basedOn → attributes internally, so it stays put.
+            applyBaseStyleBasedOn(doc);
+            applyTocSubheadingBasedOn(doc);
+            applyCharacterStyleBasedOn(doc, "highlighter", "strong-bold");
+            applyCharacterStyleBasedOn(doc, "code-strong", "code-normal");
+            applyCharacterStyleBasedOn(doc, "li-label", "strong-bold");
+
             applyBaseGroupStyleSettings(doc);
             applyNextStyleSettings(doc);
             applyKeepTogetherSettings(doc);
             applyListSettings(doc);
             applyImageParagraphSettings(doc);
-            applyBaseStyleBasedOn(doc);
             applyTableCellSettings(doc);
-            applyTocSubheadingBasedOn(doc);
             applyTocLeafOverrides(doc);
             applyInlineGraphicSpacing(doc);
             applyLinkSettings(doc);
-            applyCharacterStyleBasedOn(doc, "highlighter", "strong-bold");
-            applyCharacterStyleBasedOn(doc, "code-strong", "code-normal");
-            applyCharacterStyleBasedOn(doc, "li-label", "strong-bold");
             applyNoBreakSettings(doc);
             applyLangUSLanguageSetting(doc);
             applyCodeNormalLanguageSetting(doc);
