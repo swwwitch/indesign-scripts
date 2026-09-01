@@ -22,7 +22,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdStyleSetup";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-01";                   /* 更新日 / last updated */
@@ -191,7 +191,7 @@ function setupWindow(win, spacing) {
         var paragraphStyleNames = [
             "h1", "h2", "h3", "h4", "h5", "h6",
             "ul-li", "ol-li",
-            "p", "p.caption", "p.code", "p.img"
+            "p", "p.caption", "p.code", "p.img", "p.table"
         ];
 
         var characterStyleNames = [
@@ -407,6 +407,14 @@ function setupWindow(win, spacing) {
                     var basedOnTargetStyle = doc.paragraphStyles.itemByName(basedOnStyleName);
                     if (basedOnTargetStyle.isValid) basedOnTargetStyle.basedOn = bodyTextStyle;
                 }
+            }
+
+            // p.table → p
+            var bodyParagraphStyle = doc.paragraphStyles.itemByName("p");
+            if (bodyParagraphStyle.isValid &&
+                shouldApplyAttributesToParagraphStyle(doc, "p.table")) {
+                var tableParagraphStyle = doc.paragraphStyles.itemByName("p.table");
+                if (tableParagraphStyle.isValid) tableParagraphStyle.basedOn = bodyParagraphStyle;
             }
 
             // h1〜h6 → heading

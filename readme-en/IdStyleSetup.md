@@ -35,13 +35,17 @@ Registers paragraph and character styles, their groups, inheritance and GREP sty
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdStyleSetup.jsx` |
-| Version | v1.3.2 |
+| Version | v1.3.3 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-03 |
 | Last updated | 2026-09-01 |
 | Article | https://note.com/dtp_tranist/n/nfe87ec253780 |
 
 ## Update history
+
+### v1.3.3 (2026-09-01)
+
+- Added the `p.table` paragraph style for tables, based on `p`
 
 ### v1.3.2 (2026-09-01)
 
