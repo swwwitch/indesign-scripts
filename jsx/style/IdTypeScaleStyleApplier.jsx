@@ -29,6 +29,7 @@ var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last update
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTypeScaleStyleApplier.md
 // README (English)
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypeScaleStyleApplier.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f9b0666db66"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -47,7 +48,7 @@ var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between co
 /**
  * ウィンドウの共通設定を適用する
  * @param {Window} win 対象ウィンドウ
- * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @param {number} spacing 要素間隔。省略時は WINDOW_SPACING
  * @returns {void}
  */
 function setupWindow(win, spacing) {
@@ -60,7 +61,7 @@ function setupWindow(win, spacing) {
 /**
  * パネルの共通設定を適用する
  * @param {Panel} panel 対象パネル
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @param {number} spacing 要素間隔。省略時は PANEL_SPACING
  * @returns {void}
  */
 function setupPanel(panel, spacing) {
@@ -69,19 +70,6 @@ function setupPanel(panel, spacing) {
     panel.alignment = "fill";
     panel.margins = PANEL_MARGINS;
     panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/**
- * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
- * @param {string} [alignment] 配置。省略時は "left"
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
- * @returns {void}
- */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 // =========================================
@@ -160,10 +148,6 @@ var LABELS = {
             ja: "フォント情報を読み込んでいます…",
             en: "Loading font information..."
         },
-        buildingCache: {
-            ja: "キャッシュを作成しています。（初回は時間がかかります）",
-            en: "Building cache (first run may take longer)"
-        },
         preparingDialog: {
             ja: "ダイアログを準備しています…",
             en: "Preparing dialog..."
@@ -196,8 +180,6 @@ var LABELS = {
         fontStyle: { ja: "スタイル", en: "Style" },
         bodyLeading: { ja: "行送り", en: "Leading Ratio (Body)" },
         headingLeading: { ja: "行送り", en: "Leading Ratio (Headings)" },
-        spaceBefore: { ja: "段落前のアキ", en: "Space Before" },
-        spaceAfter: { ja: "段落後のアキ", en: "Space After" },
         kerning: { ja: "カーニング", en: "Kerning Method" },
         scaleMethod: { ja: "スケール方式", en: "Scale Method" },
         headingLevels: { ja: "見出しレベル数", en: "Heading Levels" },
@@ -331,6 +313,7 @@ function createProgressPalette(message) {
  * 進捗パレットのメッセージを更新する
  * @param {Window} palette 対象のパレット
  * @param {string} message 表示するメッセージ
+ * @param {number} value 進捗バーの値（0〜100）
  * @returns {void}
  */
 function updateProgressPalette(palette, message, value) {
@@ -373,7 +356,7 @@ var UNIT_POINT_CONVERTERS = [
 
 /**
  * 単位の列挙値を数値として取得する
- * @param {MeasurementUnits} unit 対象の単位
+ * @param {MeasurementUnits} unitName 対象の単位
  * @returns {number} 単位を表す数値
  */
 function getMeasurementUnitValue(unitName) {
@@ -401,6 +384,7 @@ function getTextSizeUnit() {
 
 /**
  * 単位の表示記号を返す
+ * @param {MeasurementUnits} unit 対象の単位
  * @returns {string} 単位の記号
  */
 function unitSymbol(unit) {
@@ -415,6 +399,7 @@ function unitSymbol(unit) {
 /**
  * 現在の単位の数値をポイントへ換算する
  * @param {number} value 現在の単位での数値
+ * @param {MeasurementUnits} unit 対象の単位
  * @returns {number} ポイント値
  */
 function toPoints(value, unit) {
@@ -429,7 +414,8 @@ function toPoints(value, unit) {
 
 /**
  * ポイント値を現在の単位へ換算する
- * @param {number} value ポイント値
+ * @param {number} valueInPoints ポイント値
+ * @param {MeasurementUnits} unit 対象の単位
  * @returns {number} 現在の単位での数値
  */
 function fromPoints(valueInPoints, unit) {
@@ -462,6 +448,7 @@ function getFontCacheFile() {
 
 /**
  * ディスクからフォント一覧キャッシュを読み込む
+ * @param {number} currentFontCount 現在のフォント数。キャッシュの有効判定に使う
  * @returns {object|null} キャッシュ。読み込めない場合は null
  */
 function loadFontCache(currentFontCount) {
@@ -502,7 +489,9 @@ function loadFontCache(currentFontCount) {
 
 /**
  * フォント一覧をキャッシュとして書き出す
- * @param {object} fontInfo 保存するフォント情報
+ * @param {number} fontCount 保存時のフォント数
+ * @param {Array<string>} families フォントファミリー名の配列
+ * @param {object} fontMap ファミリー名をキーにしたスタイル名の配列
  * @returns {void}
  */
 function saveFontCache(fontCount, families, fontMap) {
@@ -559,13 +548,34 @@ var WEIGHT_REGULAR_SINGLES = [
     "headline", "text", "low", "micro", "extra compressed", "semi expanded", "semiexpanded"
 ];
 
+/* 用語 → ランクの照合テーブル。長い用語を先に照合したいので長さの降順に並べ、
+   正規表現もここで 1 度だけ作る（フォント数ぶん呼ばれるため、都度の生成は避ける）
+   / Term-to-rank table, longest first; the regexes are built once */
+var WEIGHT_TERM_PATTERNS = (function () {
+    var terms = [];
+    for (var groupIndex = 0; groupIndex < WEIGHT_GROUPS.length; groupIndex++) {
+        for (var termIndex = 0; termIndex < WEIGHT_GROUPS[groupIndex].length; termIndex++) {
+            terms.push({ term: WEIGHT_GROUPS[groupIndex][termIndex], index: groupIndex });
+        }
+    }
+    terms.sort(function (a, b) { return b.term.length - a.term.length; });
+    for (var patternIndex = 0; patternIndex < terms.length; patternIndex++) {
+        terms[patternIndex].pattern = new RegExp(
+            "\\b" + terms[patternIndex].term.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&") + "\\b"
+        );
+    }
+    return terms;
+})();
+
 /**
  * フォントスタイル名から太さの基準ランクを求める
- * @param {string} styleName フォントスタイル名
+ * @param {string} style 小文字化・正規化済みのフォントスタイル名
+ * @param {string} family フォントファミリー名
  * @returns {number} 基準ランク
  */
 function getStyleWeightBaseRank(style, family) {
-    var familyLower = (family || "").toLowerCase();
+    /* 空白を除いてから判定する（"Helvetica Neue" → "helveticaneue"）/ Strip spaces before matching */
+    var familyLower = (family || "").toLowerCase().replace(/\s+/g, "");
     var words = style.split(/\s+/);
 
     var wMatch = style.match(/^w(\d)$/);
@@ -598,17 +608,10 @@ function getStyleWeightBaseRank(style, family) {
         }
     }
 
-    var allTerms = [];
-    for (var gi = 0; gi < WEIGHT_GROUPS.length; gi++) {
-        for (var ti = 0; ti < WEIGHT_GROUPS[gi].length; ti++) {
-            allTerms.push({ term: WEIGHT_GROUPS[gi][ti], index: gi });
+    for (var patternIndex = 0; patternIndex < WEIGHT_TERM_PATTERNS.length; patternIndex++) {
+        if (WEIGHT_TERM_PATTERNS[patternIndex].pattern.test(style)) {
+            return 1000 + WEIGHT_TERM_PATTERNS[patternIndex].index;
         }
-    }
-    allTerms.sort(function (a, b) { return b.term.length - a.term.length; });
-    for (var aIndex = 0; aIndex < allTerms.length; aIndex++) {
-        var term = allTerms[aIndex].term;
-        var pattern = new RegExp("\\b" + term.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&") + "\\b");
-        if (pattern.test(style)) return 1000 + allTerms[aIndex].index;
     }
 
     return 1000 + WEIGHT_REGULAR_INDEX;
@@ -617,6 +620,7 @@ function getStyleWeightBaseRank(style, family) {
 /**
  * フォントスタイル名から並べ替え用の太さランクを求める
  * @param {string} styleName フォントスタイル名
+ * @param {string} familyName フォントファミリー名
  * @returns {number} 太さランク
  */
 function getStyleWeightRank(styleName, familyName) {
@@ -664,6 +668,9 @@ function getStyleWeightRank(styleName, familyName) {
     if (flags.hasUltraCondensed) offset += 600;
     if (flags.hasExtraCondensed) offset += 700;
     if (flags.hasSemiCondensed) offset += 850;
+    /* hasSemiCondensed をここにも含めるのは、1 語の "semicondensed"（hasCondensed が立たない）を
+       2 語の "semi condensed"（hasCondensed も立つ）と同じランクに揃えるため。二重加算ではない
+       / semiCondensed is listed here so the one-word and two-word spellings land on the same rank */
     if (flags.hasCondensed || flags.hasCn || flags.hasWide || flags.hasSemiCondensed || flags.hasExtraCompressed) offset += 900;
     if (flags.hasHeadline) offset += 1000;
     if (flags.hasText) offset += 1100;
@@ -707,7 +714,8 @@ function getStyleWeightRank(styleName, familyName) {
     // 段落スタイル "p" → "Normal" の本文サイズを表示単位で返す（無ければ null）
     /**
      * 本文スタイルの基準サイズを取得する
-     * @param {Document} doc 対象ドキュメント
+     * @param {Document} targetDocument 対象ドキュメント
+     * @param {MeasurementUnits} unit 表示単位
      * @returns {number|null} 基準サイズ。取得できない場合は null
      */
     function getBodyStyleBaseSize(targetDocument, unit) {
@@ -726,6 +734,10 @@ function getStyleWeightRank(styleName, familyName) {
     var typescaleSettings = showTypescaleDialog(targetDocument, defaultBaseSize, DEFAULT_RATIO, DEFAULT_LEVEL_COUNT, unit);
 
     if (typescaleSettings !== null) {
+        // ライブプレビューは doScript の外でスタイルを直接書き換えているため、
+        // そのままだと doScript のステップを取り消してもプレビュー時の値が残る。
+        // 最終適用の前に起動時の状態へ戻し、doScript の 1 ステップで起動時 → 適用後にする
+        restoreParagraphStyleProps(targetDocument, typescaleSettings.originalStyleProps, _previewModifiedStyles);
         // OK 時の最終適用は 1 つの undo ステップにまとめる（Edit > 取り消し で一括に戻せる）
         app.doScript(function () {
             applyTypescaleSettings(targetDocument, typescaleSettings, false, unit);
@@ -734,11 +746,12 @@ function getStyleWeightRank(styleName, familyName) {
 
     /**
      * 基準サイズとスケール倍率から各レベルのサイズを計算する
-     * @param {number} baseSize 基準サイズ
+     * @param {number} base 基準サイズ（本文）
      * @param {number} ratio スケール倍率
      * @param {number} levelCount 見出しレベル数
-     * @param {number} roundDigits 丸め桁数
-     * @returns {Array<number>} 各レベルのサイズ
+     * @param {Array<number>} [multipliers] レベルごとの倍率。省略時は ratio の累乗で算出
+     * @param {number} [captionMultiplier] キャプションの倍率
+     * @returns {object} headingSizes・base・caption を持つオブジェクト
      */
     function computeSizes(base, ratio, levelCount, multipliers, captionMultiplier) {
         /* 本文サイズを基準に、タイプスケールで見出しとキャプションのサイズを算出 / Calculate heading and caption sizes from the body size using the type scale */
@@ -760,7 +773,10 @@ function getStyleWeightRank(styleName, familyName) {
 
     /**
      * 確定したタイプスケール設定を段落スタイルへ適用する
-     * @param {object} settings ダイアログで確定した設定
+     * @param {Document} targetDocument 対象ドキュメント
+     * @param {object} typescaleSettings ダイアログで確定した設定
+     * @param {boolean} silent スタイル未検出時に警告を出さないなら true
+     * @param {MeasurementUnits} unit 表示単位
      * @returns {void}
      */
     function applyTypescaleSettings(targetDocument, typescaleSettings, silent, unit) {
@@ -780,46 +796,94 @@ function getStyleWeightRank(styleName, familyName) {
             : DEFAULT_BODY_SPACE_BEFORE_PERCENT;
         /**
          * 1 つの段落スタイルへサイズ・行送り・アキなどを適用する
-         * @param {ParagraphStyle} paragraphStyle 対象の段落スタイル
-         * @param {object} styleSettings 適用する設定
+         * @param {object} rowSettings 適用する行の設定
+         * @param {string} rowSettings.styleName 対象の段落スタイル名
+         * @param {number} rowSettings.sizeInUnit 表示単位での文字サイズ
+         * @param {number} rowSettings.leadingMult 文字サイズに対する行送りの倍率
+         * @param {boolean} rowSettings.isHeading 見出しなら true
+         * @param {string} [rowSettings.fontFamilyName] フォントファミリー名
+         * @param {string} [rowSettings.fontStyleName] フォントスタイル名
+         * @param {number} [rowSettings.sizeOverride] 表示単位での文字サイズの個別指定
+         * @param {number} [rowSettings.spaceBeforeOverride] 表示単位での段落前アキの個別指定
+         * @param {number} [rowSettings.spaceAfterOverride] 表示単位での段落後アキの個別指定
          * @returns {void}
          */
-        function applyParagraphStyleSettings(styleName, sizeInUnit, leadingMult, isHeading, fontFamilyName, fontStyleName, sizeOverrideInUnit, spaceBeforeOverrideInUnit, spaceAfterOverrideInUnit) {
+        function applyParagraphStyleSettings(rowSettings) {
+            var styleName = rowSettings.styleName;
             if (!styleName) return;
-            var effectiveSize = (typeof sizeOverrideInUnit === "number") ? sizeOverrideInUnit : sizeInUnit;
-            var rounded = roundTo(effectiveSize, typescaleSettings.roundDigits);
-            var sizePt = toPoints(rounded, unit);
-            var leadingPt = (typeof leadingMult === "number") ? sizePt * leadingMult : null;
-            var spaceBeforePercent = isHeading ? headingSpaceBeforePercent : bodySpaceBeforePercent;
-            var spaceAfterPercent = isHeading ? headingSpaceAfterPercent : bodySpaceAfterPercent;
-            var spaceBeforePt;
-            if (typeof spaceBeforeOverrideInUnit === "number") {
-                spaceBeforePt = toPoints(roundTo(spaceBeforeOverrideInUnit, typescaleSettings.roundDigits), unit);
-            } else {
-                spaceBeforePt = sizePt * spaceBeforePercent / 100;
-            }
-            var spaceAfterPt;
-            if (typeof spaceAfterOverrideInUnit === "number") {
-                spaceAfterPt = toPoints(roundTo(spaceAfterOverrideInUnit, typescaleSettings.roundDigits), unit);
-            } else {
-                spaceAfterPt = sizePt * spaceAfterPercent / 100;
-            }
+            var isHeading = !!rowSettings.isHeading;
+            var roundDigits = typescaleSettings.roundDigits;
+
+            var effectiveSize = (typeof rowSettings.sizeOverride === "number") ? rowSettings.sizeOverride : rowSettings.sizeInUnit;
+            var sizePt = toPoints(roundTo(effectiveSize, roundDigits), unit);
+
+            /* 段落前後のアキ：個別指定があればその値、なければ文字サイズに対する割合
+               / Space before/after: the per-row override if given, otherwise a ratio of the size */
+            var spaceBeforePt = (typeof rowSettings.spaceBeforeOverride === "number")
+                ? toPoints(roundTo(rowSettings.spaceBeforeOverride, roundDigits), unit)
+                : sizePt * (isHeading ? headingSpaceBeforePercent : bodySpaceBeforePercent) / 100;
+            var spaceAfterPt = (typeof rowSettings.spaceAfterOverride === "number")
+                ? toPoints(roundTo(rowSettings.spaceAfterOverride, roundDigits), unit)
+                : sizePt * (isHeading ? headingSpaceAfterPercent : bodySpaceAfterPercent) / 100;
+
             // フォントファミリー＋スタイルで解決。未指定時はファミリー内の推奨スタイルを使用
             var fontToUse = null;
-            if (fontFamilyName) {
-                fontToUse = fontStyleName ? findFontByFamilyAndStyle(fontFamilyName, fontStyleName) : findFontInFamily(fontFamilyName);
+            if (rowSettings.fontFamilyName) {
+                fontToUse = rowSettings.fontStyleName
+                    ? findFontByFamilyAndStyle(rowSettings.fontFamilyName, rowSettings.fontStyleName)
+                    : findFontInFamily(rowSettings.fontFamilyName);
             }
-            var kerningMethod = isHeading ? typescaleSettings.headingKerningMethod : typescaleSettings.bodyKerningMethod;
-            var originalProps = (typescaleSettings.originalStyleProps && typescaleSettings.originalStyleProps[styleName]) || null;
-            setParagraphStyleProps(targetDocument, styleName, sizePt, fontToUse, leadingPt, spaceAfterPt, spaceBeforePt, kerningMethod, isHeading, silent, !!typescaleSettings.sizeOnly, originalProps);
+
+            setParagraphStyleProps(targetDocument, styleName, {
+                size: sizePt,
+                font: fontToUse,
+                leading: (typeof rowSettings.leadingMult === "number") ? sizePt * rowSettings.leadingMult : null,
+                spaceBefore: spaceBeforePt,
+                spaceAfter: spaceAfterPt,
+                kerningMethod: isHeading ? typescaleSettings.headingKerningMethod : typescaleSettings.bodyKerningMethod,
+                isHeading: isHeading,
+                silent: silent,
+                sizeOnly: !!typescaleSettings.sizeOnly,
+                originalProps: (typescaleSettings.originalStyleProps && typescaleSettings.originalStyleProps[styleName]) || null
+            });
         }
-        applyParagraphStyleSettings(typescaleSettings.baseStyleName, computedSizes.base, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.baseFontStyleName, typescaleSettings.baseSizeOverride, typescaleSettings.baseSpaceBeforeOverride, typescaleSettings.baseSpaceAfterOverride);
-        applyParagraphStyleSettings(typescaleSettings.captionStyleName, computedSizes.caption, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, typescaleSettings.captionFontStyleName, typescaleSettings.captionSizeOverride, typescaleSettings.captionSpaceBeforeOverride, typescaleSettings.captionSpaceAfterOverride);
+        applyParagraphStyleSettings({
+            styleName: typescaleSettings.baseStyleName,
+            sizeInUnit: computedSizes.base,
+            leadingMult: typescaleSettings.bodyLeading,
+            isHeading: false,
+            fontFamilyName: typescaleSettings.fontFamily,
+            fontStyleName: typescaleSettings.baseFontStyleName,
+            sizeOverride: typescaleSettings.baseSizeOverride,
+            spaceBeforeOverride: typescaleSettings.baseSpaceBeforeOverride,
+            spaceAfterOverride: typescaleSettings.baseSpaceAfterOverride
+        });
+        applyParagraphStyleSettings({
+            styleName: typescaleSettings.captionStyleName,
+            sizeInUnit: computedSizes.caption,
+            leadingMult: typescaleSettings.bodyLeading,
+            isHeading: false,
+            fontFamilyName: typescaleSettings.fontFamily,
+            fontStyleName: typescaleSettings.captionFontStyleName,
+            sizeOverride: typescaleSettings.captionSizeOverride,
+            spaceBeforeOverride: typescaleSettings.captionSpaceBeforeOverride,
+            spaceAfterOverride: typescaleSettings.captionSpaceAfterOverride
+        });
         // 本文派生行（リスト・テーブル）: 文字サイズは基準（本文）×係数。行送り・カーニング・フォントは本文と同じ
         var bodyDerivedRows = typescaleSettings.bodyDerivedRows || [];
         for (var bodyRowIndex = 0; bodyRowIndex < bodyDerivedRows.length; bodyRowIndex++) {
             var bodyDerivedRow = bodyDerivedRows[bodyRowIndex];
-            applyParagraphStyleSettings(bodyDerivedRow.styleName, computedSizes.base * bodyDerivedRow.sizeFactor, typescaleSettings.bodyLeading, false, typescaleSettings.fontFamily, bodyDerivedRow.fontStyleName, bodyDerivedRow.sizeOverride, bodyDerivedRow.spaceBeforeOverride, bodyDerivedRow.spaceAfterOverride);
+            applyParagraphStyleSettings({
+                styleName: bodyDerivedRow.styleName,
+                sizeInUnit: computedSizes.base * bodyDerivedRow.sizeFactor,
+                leadingMult: typescaleSettings.bodyLeading,
+                isHeading: false,
+                fontFamilyName: typescaleSettings.fontFamily,
+                fontStyleName: bodyDerivedRow.fontStyleName,
+                sizeOverride: bodyDerivedRow.sizeOverride,
+                spaceBeforeOverride: bodyDerivedRow.spaceBeforeOverride,
+                spaceAfterOverride: bodyDerivedRow.spaceAfterOverride
+            });
         }
         for (var levelNumber = 1; levelNumber <= typescaleSettings.levelCount; levelNumber++) {
             var levelStyleName = typescaleSettings.levelStyleNames && typescaleSettings.levelStyleNames[levelNumber - 1];
@@ -827,14 +891,24 @@ function getStyleWeightRank(styleName, familyName) {
             var levelSizeOverride = typescaleSettings.levelSizeOverrides ? typescaleSettings.levelSizeOverrides[levelNumber - 1] : null;
             var levelSpaceBeforeOverride = typescaleSettings.levelSpaceBeforeOverrides ? typescaleSettings.levelSpaceBeforeOverrides[levelNumber - 1] : null;
             var levelSpaceAfterOverride = typescaleSettings.levelSpaceAfterOverrides ? typescaleSettings.levelSpaceAfterOverrides[levelNumber - 1] : null;
-            applyParagraphStyleSettings(levelStyleName, computedSizes.headingSizes[levelNumber - 1], typescaleSettings.headingLeading, true, typescaleSettings.headingFontFamily, fontStyleName, levelSizeOverride, levelSpaceBeforeOverride, levelSpaceAfterOverride);
+            applyParagraphStyleSettings({
+                styleName: levelStyleName,
+                sizeInUnit: computedSizes.headingSizes[levelNumber - 1],
+                leadingMult: typescaleSettings.headingLeading,
+                isHeading: true,
+                fontFamilyName: typescaleSettings.headingFontFamily,
+                fontStyleName: fontStyleName,
+                sizeOverride: levelSizeOverride,
+                spaceBeforeOverride: levelSpaceBeforeOverride,
+                spaceAfterOverride: levelSpaceAfterOverride
+            });
         }
     }
 
     /**
      * 指定桁数で丸める
-     * @param {number} value 対象の数値
-     * @param {number} digits 小数点以下の桁数
+     * @param {number} num 対象の数値
+     * @param {number} places 小数点以下の桁数
      * @returns {number} 丸めた数値
      */
     function roundTo(num, places) {
@@ -844,7 +918,7 @@ function getStyleWeightRank(styleName, familyName) {
 
     /**
      * 配列に値が含まれるかを判定する
-     * @param {Array} list 対象の配列
+     * @param {Array} array 対象の配列
      * @param {*} value 探す値
      * @returns {boolean} 含まれていれば true
      */
@@ -857,7 +931,7 @@ function getStyleWeightRank(styleName, familyName) {
 
     /**
      * ドキュメント内の段落スタイル名を集める
-     * @param {Document} doc 対象ドキュメント
+     * @param {Document} targetDocument 対象ドキュメント
      * @returns {Array<string>} 段落スタイル名の配列
      */
     function getParagraphStyleNames(targetDocument) {
@@ -948,7 +1022,7 @@ function getStyleWeightRank(styleName, familyName) {
 
     /**
      * ファミリー内で優先して選ぶスタイル名を求める
-     * @param {string} familyName フォントファミリー名
+     * @param {string} styleNames フォントファミリー名
      * @returns {string} スタイル名
      */
     function getPreferredFontStyleName(styleNames) {
@@ -1055,7 +1129,7 @@ function getStyleWeightRank(styleName, familyName) {
 
     /**
      * 表示名でドロップダウンの項目を選択する
-     * @param {DropDownList} dropdown 対象のドロップダウン
+     * @param {DropDownList} dropdownList 対象のドロップダウン
      * @param {string} text 選択したい項目名
      * @returns {boolean} 選択できたら true
      */
@@ -1072,7 +1146,7 @@ function getStyleWeightRank(styleName, familyName) {
 
     /**
      * ドロップダウンで選択中の表示名を取得する
-     * @param {DropDownList} dropdown 対象のドロップダウン
+     * @param {DropDownList} dropdownList 対象のドロップダウン
      * @returns {string} 選択中の表示名
      */
     function getDropdownText(dropdownList) {
@@ -1081,7 +1155,11 @@ function getStyleWeightRank(styleName, familyName) {
 
     /**
      * タイプスケール設定ダイアログを表示する
-     * @param {Document} doc 対象ドキュメント
+     * @param {Document} targetDocument 対象ドキュメント
+     * @param {number} defaultBase 基準サイズの初期値
+     * @param {number} defaultRatio スケール倍率の初期値
+     * @param {number} defaultLevelCount 見出しレベル数の初期値
+     * @param {MeasurementUnits} unit 表示単位
      * @returns {object|null} 設定内容。キャンセル時は null
      */
     function showTypescaleDialog(targetDocument, defaultBase, defaultRatio, defaultLevelCount, unit) {
@@ -1127,7 +1205,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * ラベル付きの行グループを追加する
-         * @param {object} parent 追加先のコンテナ
+         * @param {object} panel 追加先のコンテナ
          * @param {string} labelText ラベルの文字列
          * @param {number} labelWidth ラベルの幅（px）
          * @returns {Group} 追加したグループ
@@ -1143,7 +1221,7 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * 入力欄に上下キーでの増減操作を追加する
          * @param {EditText} editText 対象の入力欄
-         * @param {function} onAfterChange 値の変更後に呼ぶ処理
+         * @param {function} onValueChange 値の変更後に呼ぶ処理
          * @returns {void}
          */
         function changeValueByArrowKey(editText, onValueChange) {
@@ -1233,7 +1311,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * カーニング方式の値でドロップダウンを選択する
-         * @param {DropDownList} dropdown 対象のドロップダウン
+         * @param {DropDownList} dropdownList 対象のドロップダウン
          * @param {string} value 選択したい値
          * @returns {void}
          */
@@ -1251,7 +1329,6 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * 本文設定パネルを組み立てる
          * @param {object} parent 追加先のコンテナ
-         * @param {Array<string>} fontOptions フォントの選択肢
          * @param {number} labelWidth ラベルの幅（px）
          * @returns {object} パネル内のコントロール
          */
@@ -1291,7 +1368,6 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * 見出し設定パネルを組み立てる
          * @param {object} parent 追加先のコンテナ
-         * @param {Array<string>} fontOptions フォントの選択肢
          * @param {number} labelWidth ラベルの幅（px）
          * @returns {object} パネル内のコントロール
          */
@@ -1333,7 +1409,6 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * 本文・見出しをまとめたテキスト設定パネルを組み立てる
          * @param {Window} dialog 対象のダイアログ
-         * @param {Array<string>} fontOptions フォントの選択肢
          * @returns {object} パネル内のコントロール
          */
         function createTextSettingsPanel(dialog) {
@@ -1474,7 +1549,6 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * プレビューパネルを組み立てる
          * @param {Window} dialog 対象のダイアログ
-         * @param {Array<string>} fontOptions フォントの選択肢
          * @returns {object} パネル内のコントロール
          */
         function createPreviewPanel(dialog) {
@@ -1505,7 +1579,7 @@ function getStyleWeightRank(styleName, familyName) {
 
             /**
              * 候補名を順に試してドロップダウンを選択する
-             * @param {DropDownList} dropdown 対象のドロップダウン
+             * @param {DropDownList} dropdownList 対象のドロップダウン
              * @param {Array<string>} candidates 候補となる項目名
              * @returns {boolean} 選択できたら true
              */
@@ -1533,8 +1607,9 @@ function getStyleWeightRank(styleName, familyName) {
             /**
              * プレビューの 1 行を組み立てる
              * @param {object} parent 追加先のコンテナ
-             * @param {string} rowLabel 行のラベル
-             * @param {Array<string>} fontOptions フォントの選択肢
+             * @param {string} label 行ラベル
+             * @param {string|Array<string>} defaultStyleNames 既定で選ぶ段落スタイル名の候補
+             * @param {boolean} isHeading 見出し行なら true
              * @returns {object} 行のコントロール
              */
             function createPreviewRow(parent, label, defaultStyleNames, isHeading) {
@@ -1639,8 +1714,6 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * タイプスケールダイアログ全体を組み立てる
-         * @param {Document} doc 対象ドキュメント
-         * @param {Array<string>} fontOptions フォントの選択肢
          * @returns {object} ダイアログとコントロール
          */
         function createTypescaleDialog() {
@@ -1696,7 +1769,7 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * 正の数値として解釈する
          * @param {string} text 入力文字列
-         * @param {number} fallback 解釈できない場合の値
+         * @param {number} fallbackValue 解釈できない場合の値
          * @returns {number} 数値
          */
         function parsePositiveNumber(text, fallbackValue) {
@@ -1707,7 +1780,7 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * 0 以上の数値として解釈する
          * @param {string} text 入力文字列
-         * @param {number} fallback 解釈できない場合の値
+         * @param {number} fallbackValue 解釈できない場合の値
          * @returns {number} 数値
          */
         function parseNonNegativeNumber(text, fallbackValue) {
@@ -1718,7 +1791,7 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * パーセント入力を倍率として解釈する
          * @param {string} text 入力文字列
-         * @param {number} fallback 解釈できない場合の倍率
+         * @param {number} fallbackValue 解釈できない場合の倍率
          * @returns {number} 倍率
          */
         function parsePositivePercentMultiplier(text, fallbackValue) {
@@ -1728,8 +1801,10 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * ラジオボタン群で選択中の値を取得する
-         * @param {Array<RadioButton>} radios ラジオボタンの配列
-         * @param {Array<string>} values 対応する値
+         * @param {Array} radioButtons 対象のラジオボタン
+         * @param {Array} options 対応する選択肢
+         * @param {string} [valueKey] 選択肢から取り出すキー。省略時は選択肢そのもの
+         * @param {*} fallbackValue どれも選ばれていない場合の値
          * @returns {string|null} 選択中の値
          */
         function getSelectedRadioValue(radioButtons, options, valueKey, fallbackValue) {
@@ -1743,8 +1818,10 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * ドロップダウンで選択中の値を取得する
-         * @param {DropDownList} dropdown 対象のドロップダウン
-         * @param {Array<string>} values 対応する値
+         * @param {DropDownList} dropdownList 対象のドロップダウン
+         * @param {Array} options 対応する選択肢
+         * @param {string} [valueKey] 選択肢から取り出すキー。省略時は選択肢そのもの
+         * @param {*} fallbackValue 未選択の場合の値
          * @returns {string|null} 選択中の値
          */
         function getSelectedDropdownOptionValue(dropdownList, options, valueKey, fallbackValue) {
@@ -1754,6 +1831,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 現在のスケール倍率を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} スケール倍率
          */
         function getCurrentScaleRatio(dialogUi) {
@@ -1764,6 +1842,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 現在選択中のスケールプリセットを取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {string} プリセットを表す識別子
          */
         function getCurrentScaleOption(dialogUi) {
@@ -1773,6 +1852,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 現在の見出しレベル数を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 見出しレベル数
          */
         function getCurrentLevelCount(dialogUi) {
@@ -1785,6 +1865,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 現在のサイズ丸め桁数を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 丸め桁数
          */
         function getCurrentRoundDigits(dialogUi) {
@@ -1793,6 +1874,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 本文で選択中のフォントファミリーを取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {string} フォントファミリー名
          */
         function getSelectedFontFamily(dialogUi) {
@@ -1803,6 +1885,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しで選択中のフォントファミリーを取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {string} フォントファミリー名
          */
         function getSelectedHeadingFontFamily(dialogUi) {
@@ -1823,6 +1906,8 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しで選択中のフォントスタイル名を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
+         * @param {object} previewRow 対象のプレビュー行
          * @returns {string} フォントスタイル名
          */
         function getHeadingFontStyleName(dialogUi, previewRow) {
@@ -1832,6 +1917,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 本文の行送り倍率を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 行送り倍率
          */
         function getBodyLeadingMultiplier(dialogUi) {
@@ -1840,6 +1926,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しの行送り倍率を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 行送り倍率
          */
         function getHeadingLeadingMultiplier(dialogUi) {
@@ -1848,6 +1935,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 本文のカーニング方式を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {string} カーニング方式
          */
         function getBodyKerningMethod(dialogUi) {
@@ -1856,6 +1944,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しのカーニング方式を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {string} カーニング方式
          */
         function getHeadingKerningMethod(dialogUi) {
@@ -1864,6 +1953,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 本文の段落前アキ（%）を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 段落前のアキ（%）
          */
         function getBodySpaceBeforePercent(dialogUi) {
@@ -1872,6 +1962,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 本文の段落後アキ（%）を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 段落後のアキ（%）
          */
         function getBodySpaceAfterPercent(dialogUi) {
@@ -1880,6 +1971,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しの段落前アキ（%）を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 段落前のアキ（%）
          */
         function getHeadingSpaceBeforePercent(dialogUi) {
@@ -1888,6 +1980,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しの段落後アキ（%）を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 段落後のアキ（%）
          */
         function getHeadingSpaceAfterPercent(dialogUi) {
@@ -1896,6 +1989,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 入力されている基準サイズを取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {number} 基準サイズ
          */
         function getBaseSize(dialogUi) {
@@ -1904,7 +1998,8 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 行送りの表示用文字列を作る
-         * @param {number} value 行送りの値
+         * @param {number} value 対象の数値
+         * @param {number} roundDigits 小数点以下の桁数
          * @returns {string} 表示する文字列
          */
         function formatLeadingValue(value, roundDigits) {
@@ -1914,7 +2009,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しレベルに対応する段落スタイル名を返す
-         * @param {number} levelCount 見出しレベル数
+         * @param {number} dialogUi 見出しレベル数
          * @returns {Array<string>} 段落スタイル名の配列
          */
         function getLevelStyleNames(dialogUi) {
@@ -1927,7 +2022,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * フォントスタイルのドロップダウンから値を取得する
-         * @param {DropDownList} dropdown 対象のドロップダウン
+         * @param {DropDownList} dropdownList 対象のドロップダウン
          * @returns {string} フォントスタイル名
          */
         function getFontStyleDropdownValue(dropdownList) {
@@ -1938,7 +2033,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * プレビュー行の有効／無効を切り替える
-         * @param {object} row 対象の行
+         * @param {object} previewRow 対象の行
          * @param {boolean} enabled 有効にするなら true
          * @returns {void}
          */
@@ -1953,6 +2048,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * プレビューの全行を取得する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {Array<object>} プレビュー行の配列
          */
         function getAllPreviewRows(dialogUi) {
@@ -1970,7 +2066,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * ドロップダウンの項目を入れ替える
-         * @param {DropDownList} dropdown 対象のドロップダウン
+         * @param {DropDownList} dropdownList 対象のドロップダウン
          * @param {Array<string>} items 新しい項目
          * @returns {void}
          */
@@ -1992,7 +2088,8 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * プレビュー各行のフォントスタイルをまとめて選択する
-         * @param {string} styleName 選択するスタイル名
+         * @param {object} dialogUi ダイアログのコントロール一式
+         * @param {string} styleName 選択したいフォントスタイル名
          * @returns {void}
          */
         function selectAllPreviewFontStyleDropdowns(dialogUi, styleName) {
@@ -2004,6 +2101,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * テキスト設定のフォントスタイルをプレビューへ反映する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function syncPreviewFontStylesFromTextSettings(dialogUi) {
@@ -2014,6 +2112,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しのフォントスタイルをプレビューへ反映する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function syncHeadingPreviewFontStylesFromTextSettings(dialogUi) {
@@ -2029,6 +2128,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 「サイズのみ」設定に応じて列のディム表示を切り替える
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function syncSizeOnlyColumnDimming(dialogUi) {
@@ -2046,6 +2146,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * フォント指定モードに応じてコントロールの有効／無効を切り替える
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function syncFontSelectionEnabled(dialogUi) {
@@ -2079,6 +2180,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 本文のフォントスタイル候補を更新する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function updateFontStyleDropdowns(dialogUi) {
@@ -2106,6 +2208,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しのフォントスタイル候補を更新する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function updateHeadingFontStyleDropdowns(dialogUi) {
@@ -2140,6 +2243,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 見出しレベルごとのフォントスタイル名を集める
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {Array<string>} フォントスタイル名の配列
          */
         function getHeadingLevelFontStyleNames(dialogUi) {
@@ -2152,6 +2256,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * プレビューで上書きされたサイズを集める
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {object} レベルごとのサイズ
          */
         function collectLevelSizeOverrides(dialogUi) {
@@ -2164,6 +2269,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * プレビューで上書きされた段落前アキを集める
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {object} レベルごとの段落前アキ
          */
         function collectLevelSpaceBeforeOverrides(dialogUi) {
@@ -2176,6 +2282,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * プレビューで上書きされた段落後アキを集める
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {object} レベルごとの段落後アキ
          */
         function collectLevelSpaceAfterOverrides(dialogUi) {
@@ -2189,6 +2296,7 @@ function getStyleWeightRank(styleName, familyName) {
         // 本文派生行（リスト・テーブル）の適用情報を収集する
         /**
          * 本文サイズから派生する行（リスト・表など）の設定を集める
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {Array<object>} 派生行の設定
          */
         function collectBodyDerivedRows(dialogUi) {
@@ -2209,6 +2317,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * ダイアログの入力内容を設定オブジェクトにまとめる
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {object} 適用に使う設定
          */
         function collectTypescaleSettings(dialogUi) {
@@ -2256,6 +2365,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * 現在の設定でプレビューを描き直す
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function updateTypescalePreview(dialogUi) {
@@ -2359,7 +2469,7 @@ function getStyleWeightRank(styleName, familyName) {
          * 選択があればオーバーライドを消去する
          * @returns {void}
          */
-        function clearOverridesIfActive(dialogUi) {
+        function clearOverridesIfActive() {
             clearTextOverridesInSelection();
             try { app.menuActions.itemByID(8489).invoke(); } catch (e) { }
             try { app.redraw(); } catch (e2) { }
@@ -2367,17 +2477,19 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * フォント変更後にプレビューを更新する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function refreshPreviewAfterFontChange(dialogUi) {
-            clearOverridesIfActive(dialogUi);
+            clearOverridesIfActive();
             updateTypescalePreview(dialogUi);
         }
 
         // 「フォント、スタイルを含める」: 停止中のフォント・スタイル指定を有効化する
         // （フォント自体は起動時に読み込み済みなので、ここではモードの切り替えと有効化のみ）
         /**
-         * フォント情報を読み込み、選択肢へ反映する
+         * 停止中のフォント・スタイル指定を有効にし、プレビューへ反映する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function includeFontsAndStyles(dialogUi) {
@@ -2408,7 +2520,8 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * フォント指定モードを切り替える
-         * @param {string} mode "same" / "separate" / "none"
+         * @param {object} dialogUi ダイアログのコントロール一式
+         * @param {string} mode "same" / "separate" / "disable" のいずれか
          * @returns {void}
          */
         function setFontOptionMode(dialogUi, mode) {
@@ -2419,6 +2532,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * スケールプリセットに合わせて見出しレベルの選択を揃える
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function syncLevelRadiosWithScaleOption(dialogUi) {
@@ -2439,6 +2553,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * プレビューの上書き入力をすべて消去する
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function clearAllPreviewOverrides(dialogUi) {
@@ -2463,7 +2578,8 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * プレビューの入力欄に上下キーでの増減操作を追加する
          * @param {EditText} editText 対象の入力欄
-         * @param {function} onAfterChange 値の変更後に呼ぶ処理
+         * @param {boolean} allowZero 0 を許可するなら true
+         * @param {function} applyValue 変更後の値を適用する処理
          * @returns {void}
          */
         function changePreviewValueByArrowKey(editText, allowZero, applyValue) {
@@ -2502,7 +2618,9 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * プレビューのセル編集にイベントを結び付ける
-         * @param {EditText} editText 対象の入力欄
+         * @param {object} dialogUi ダイアログのコントロール一式
+         * @param {object} previewRow 対象のプレビュー行
+         * @param {function} [sizeCallback] 文字サイズ変更時の処理。省略時は行の個別指定を更新する
          * @returns {void}
          */
         function bindPreviewCellEdit(dialogUi, previewRow, sizeCallback) {
@@ -2537,6 +2655,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         /**
          * ダイアログ全体のイベントを結び付ける
+         * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
         function bindTypescaleDialogEvents(dialogUi) {
@@ -2667,7 +2786,7 @@ function getStyleWeightRank(styleName, familyName) {
         // モーダルダイアログを表示する直前にパレットを閉じる（モーダル表示中は表示しない）
         closeProgressPalette(loadingPalette);
         var dialogResult = dialogUi.dialog.show();
-        clearOverridesIfActive(dialogUi);
+        clearOverridesIfActive();
 
         if (dialogResult !== 1) {
             // キャンセル：ライブプレビューで書き換えた段落スタイルを起動時の状態へ戻す
@@ -2686,7 +2805,7 @@ function getStyleWeightRank(styleName, familyName) {
     /**
      * スタイル名に応じた「同じスタイルの段落間隔」を決める
      * @param {string} styleName 段落スタイル名
-     * @param {number} spaceBefore 段落前のアキ
+     * @param {number} spaceBeforePt 段落前のアキ
      * @returns {number|null} 設定する間隔。変更しない場合は null
      */
     function resolveSameStyleSpacing(styleName, spaceBeforePt) {
@@ -2697,13 +2816,60 @@ function getStyleWeightRank(styleName, familyName) {
         return null;
     }
 
+    /* 控えた値を段落スタイルへ書き戻す。プロパティごとに設定できない場合があるので個別に握りつぶす
+       / Write a snapshot back to a style; each property is guarded because some may be read-only */
     /**
-     * 段落スタイルへ各プロパティを適用する
-     * @param {ParagraphStyle} paragraphStyle 対象の段落スタイル
-     * @param {object} props 適用するプロパティ
+     * 控えておいた値を段落スタイルへ書き戻す
+     * @param {ParagraphStyle} style 対象の段落スタイル
+     * @param {object} snapshot 控えたプロパティ
+     * @param {boolean} includePointSize 文字サイズも戻すなら true
      * @returns {void}
      */
-    function setParagraphStyleProps(targetDocument, styleName, size, font, leading, spaceAfter, spaceBefore, kerningMethod, isHeading, silent, sizeOnly, originalProps) {
+    function assignSnapshotToStyle(style, snapshot, includePointSize) {
+        if (!style || !snapshot) return;
+        if (includePointSize && typeof snapshot.pointSize !== "undefined") {
+            try { style.pointSize = snapshot.pointSize; } catch (ePS) { }
+        }
+        if (snapshot.appliedFont) { try { style.appliedFont = snapshot.appliedFont; } catch (eF) { } }
+        if (snapshot.fontStyle) { try { style.fontStyle = snapshot.fontStyle; } catch (eFS) { } }
+        if (typeof snapshot.leading !== "undefined") { try { style.leading = snapshot.leading; } catch (eL) { } }
+        if (typeof snapshot.spaceBefore !== "undefined") { try { style.spaceBefore = snapshot.spaceBefore; } catch (eSB) { } }
+        if (typeof snapshot.spaceAfter !== "undefined") { try { style.spaceAfter = snapshot.spaceAfter; } catch (eSA) { } }
+        if (typeof snapshot.kerningMethod !== "undefined") { try { style.kerningMethod = snapshot.kerningMethod; } catch (eK) { } }
+        if (typeof snapshot.justification !== "undefined") { try { style.justification = snapshot.justification; } catch (eJ) { } }
+        if (typeof snapshot.sameParaStyleSpacing !== "undefined") {
+            try { style.sameParaStyleSpacing = snapshot.sameParaStyleSpacing; } catch (eSSS) { }
+        }
+    }
+
+    /**
+     * 段落スタイルへ各プロパティを適用する
+     * @param {Document} targetDocument 対象ドキュメント
+     * @param {string} styleName 対象の段落スタイル名
+     * @param {object} styleProps 適用するプロパティ
+     * @param {number} styleProps.size 文字サイズ（pt）
+     * @param {Font} [styleProps.font] 適用するフォント
+     * @param {number} [styleProps.leading] 行送り（pt）
+     * @param {number} [styleProps.spaceBefore] 段落前のアキ（pt）
+     * @param {number} [styleProps.spaceAfter] 段落後のアキ（pt）
+     * @param {string} [styleProps.kerningMethod] カーニング方式
+     * @param {boolean} styleProps.isHeading 見出しなら true
+     * @param {boolean} styleProps.silent スタイル未検出時に警告を出さないなら true
+     * @param {boolean} styleProps.sizeOnly 文字サイズだけを更新するなら true
+     * @param {object} [styleProps.originalProps] ダイアログ起動時に控えた値
+     * @returns {boolean} 適用できたら true
+     */
+    function setParagraphStyleProps(targetDocument, styleName, styleProps) {
+        var size = styleProps.size;
+        var font = styleProps.font;
+        var leading = styleProps.leading;
+        var spaceBefore = styleProps.spaceBefore;
+        var spaceAfter = styleProps.spaceAfter;
+        var kerningMethod = styleProps.kerningMethod;
+        var isHeading = styleProps.isHeading;
+        var silent = styleProps.silent;
+        var originalProps = styleProps.originalProps;
+
         var style = findParagraphStyle(targetDocument, styleName);
         if (style === null) {
             if (!silent) alert(formatLabel("error.missingStyle", styleName));
@@ -2715,34 +2881,9 @@ function getStyleWeightRank(styleName, familyName) {
         // 書き換えるスタイルを記録（キャンセル時にこのスタイルだけ起動時状態へ戻す）
         _previewModifiedStyles[styleName] = true;
         // サイズのみモード: サイズだけを更新し、その他はダイアログ起動時の値に戻す
-        if (sizeOnly) {
+        if (styleProps.sizeOnly) {
             style.pointSize = size;
-            if (originalProps) {
-                if (originalProps.appliedFont) {
-                    try { style.appliedFont = originalProps.appliedFont; } catch (eRF) { }
-                }
-                if (originalProps.fontStyle) {
-                    try { style.fontStyle = originalProps.fontStyle; } catch (eRFS) { }
-                }
-                if (typeof originalProps.leading !== "undefined") {
-                    try { style.leading = originalProps.leading; } catch (eRL) { }
-                }
-                if (typeof originalProps.spaceBefore !== "undefined") {
-                    try { style.spaceBefore = originalProps.spaceBefore; } catch (eRSB) { }
-                }
-                if (typeof originalProps.spaceAfter !== "undefined") {
-                    try { style.spaceAfter = originalProps.spaceAfter; } catch (eRSA) { }
-                }
-                if (typeof originalProps.kerningMethod !== "undefined") {
-                    try { style.kerningMethod = originalProps.kerningMethod; } catch (eRK) { }
-                }
-                if (typeof originalProps.justification !== "undefined") {
-                    try { style.justification = originalProps.justification; } catch (eRJ) { }
-                }
-                if (typeof originalProps.sameParaStyleSpacing !== "undefined") {
-                    try { style.sameParaStyleSpacing = originalProps.sameParaStyleSpacing; } catch (eRSSS) { }
-                }
-            }
+            assignSnapshotToStyle(style, originalProps, false);
             return true;
         }
         // 環境差異に対応するため、複数パターンでフォントを設定（fullName → object → name）
@@ -2809,9 +2950,9 @@ function getStyleWeightRank(styleName, familyName) {
 
     // 「サイズのみ」復元・キャンセル復元用に、ダイアログ起動時点の段落スタイルのプロパティを記録する
     /**
-     * 段落スタイルの現在値を控える
-     * @param {ParagraphStyle} paragraphStyle 対象の段落スタイル
-     * @returns {object} 控えたプロパティ
+     * すべての段落スタイルの現在値を控える
+     * @param {Document} targetDocument 対象ドキュメント
+     * @returns {object} 段落スタイル名をキーにしたプロパティの控え
      */
     function snapshotParagraphStyleProps(targetDocument) {
         var snapshot = {};
@@ -2835,9 +2976,10 @@ function getStyleWeightRank(styleName, familyName) {
 
     // キャンセル時：プレビューで書き換えたスタイルだけを起動時の状態へ戻す
     /**
-     * 控えておいた段落スタイルのプロパティを戻す
-     * @param {ParagraphStyle} paragraphStyle 対象の段落スタイル
-     * @param {object} snapshot 控えたプロパティ
+     * 書き換えた段落スタイルを控えておいた値に戻す
+     * @param {Document} targetDocument 対象ドキュメント
+     * @param {object} originalStyleProps 控えたプロパティ。段落スタイル名がキー
+     * @param {object} modifiedStyleNames 書き換えた段落スタイル名の集合
      * @returns {void}
      */
     function restoreParagraphStyleProps(targetDocument, originalStyleProps, modifiedStyleNames) {
@@ -2848,39 +2990,51 @@ function getStyleWeightRank(styleName, familyName) {
             if (!snap) continue;
             var style = findParagraphStyle(targetDocument, styleName);
             if (style === null) continue;
-            if (typeof snap.pointSize !== "undefined") { try { style.pointSize = snap.pointSize; } catch (eRPS) { } }
-            if (snap.appliedFont) { try { style.appliedFont = snap.appliedFont; } catch (eRF) { } }
-            if (snap.fontStyle) { try { style.fontStyle = snap.fontStyle; } catch (eRFS) { } }
-            if (typeof snap.leading !== "undefined") { try { style.leading = snap.leading; } catch (eRL) { } }
-            if (typeof snap.spaceBefore !== "undefined") { try { style.spaceBefore = snap.spaceBefore; } catch (eRSB) { } }
-            if (typeof snap.spaceAfter !== "undefined") { try { style.spaceAfter = snap.spaceAfter; } catch (eRSA) { } }
-            if (typeof snap.kerningMethod !== "undefined") { try { style.kerningMethod = snap.kerningMethod; } catch (eRK) { } }
-            if (typeof snap.justification !== "undefined") { try { style.justification = snap.justification; } catch (eRJ) { } }
-            if (typeof snap.sameParaStyleSpacing !== "undefined") { try { style.sameParaStyleSpacing = snap.sameParaStyleSpacing; } catch (eRSSS) { } }
+            assignSnapshotToStyle(style, snap, true);
         }
+    }
+
+    /* 段落スタイル名 → スタイルの対応表。ライブプレビューは 1 キーストロークごとに
+       行数ぶんスタイルを引くため、allParagraphStyles の走査を毎回行わずキャッシュする。
+       ダイアログはモーダルで、表示中にスタイルが増減することはない
+       / Cached name-to-style table; the live preview looks styles up on every keystroke */
+    var _paragraphStyleMap = null;
+
+    /**
+     * 段落スタイル名から段落スタイルを引くための対応表を返す
+     * @param {Document} targetDocument 対象ドキュメント
+     * @returns {object} スタイル名をキーにした対応表
+     */
+    function getParagraphStyleMap(targetDocument) {
+        if (_paragraphStyleMap !== null) return _paragraphStyleMap;
+        var map = {};
+        var styles = targetDocument.allParagraphStyles;
+        for (var styleIndex = 0; styleIndex < styles.length; styleIndex++) {
+            var style = styles[styleIndex];
+            /* 同名スタイルが複数ある場合は最初のものを採用（従来の探索と同じ）
+               / Keep the first match when names collide, as the previous scan did */
+            if (!map.hasOwnProperty(style.name)) map[style.name] = style;
+        }
+        _paragraphStyleMap = map;
+        return map;
     }
 
     /**
      * 名前から段落スタイルを探す
-     * @param {Document} doc 対象ドキュメント
+     * @param {Document} targetDocument 対象ドキュメント
      * @param {string} styleName 段落スタイル名
      * @returns {ParagraphStyle|null} 段落スタイル。見つからない場合は null
      */
     function findParagraphStyle(targetDocument, styleName) {
-        var styles = targetDocument.allParagraphStyles;
-        for (var styleIndex = 0; styleIndex < styles.length; styleIndex++) {
-            if (styles[styleIndex].name === styleName) {
-                return styles[styleIndex];
-            }
-        }
-        return null;
+        var map = getParagraphStyleMap(targetDocument);
+        return map.hasOwnProperty(styleName) ? map[styleName] : null;
     }
 
     // ルート／組み込みスタイルかどうか（名前が "[" で始まる：[基本段落] / [Basic Paragraph] / [段落スタイルなし] など）
     /**
-     * ルート直下の段落スタイルかどうかを判定する
-     * @param {ParagraphStyle} paragraphStyle 対象の段落スタイル
-     * @returns {boolean} ルート直下なら true
+     * 組み込みスタイル（名前が [ で始まる）かどうかを判定する
+     * @param {ParagraphStyle} style 対象の段落スタイル
+     * @returns {boolean} 組み込みスタイルなら true
      */
     function isRootParagraphStyle(style) {
         try {

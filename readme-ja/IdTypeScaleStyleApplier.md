@@ -39,6 +39,7 @@
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-05-05 |
 | 最終更新 | 2026-06-30 |
+| 紹介記事 | https://note.com/dtp_tranist/n/n4f9b0666db66 |
 
 ## ライセンス
 

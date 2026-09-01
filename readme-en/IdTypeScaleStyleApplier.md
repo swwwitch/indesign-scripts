@@ -39,6 +39,7 @@ Builds a type scale from a base size and ratio, then applies it to the body, hea
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-05 |
 | Last updated | 2026-06-30 |
+| Article | https://note.com/dtp_tranist/n/n4f9b0666db66 |
 
 ## License
 
