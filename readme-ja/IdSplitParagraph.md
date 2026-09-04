@@ -38,10 +38,10 @@
 | 項目 | 内容 |
 | --- | --- |
 | ファイル | `jsx/text/IdSplitParagraph.jsx` |
-| バージョン | v1.1.0 |
+| バージョン | v1.1.1 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-03-16 |
-| 最終更新 | 2026-06-30 |
+| 最終更新 | 2026-09-04 |
 | 紹介記事 | https://note.com/dtp_tranist/n/n8793ea71526b |
 
 ## ライセンス

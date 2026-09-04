@@ -38,10 +38,10 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdSplitParagraph.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-16 |
-| Last updated | 2026-06-30 |
+| Last updated | 2026-09-04 |
 | Article | https://note.com/dtp_tranist/n/n8793ea71526b |
 
 ## License
