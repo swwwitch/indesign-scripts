@@ -4,13 +4,15 @@
 
 ### 概要
 
-選択したテキストフレーム内の各段落を、元の位置と幅を保ったまま独立したテキストフレームへ分割します。
+選択したテキストフレーム内の各段落を、元の位置と幅（縦組みは高さ）を保ったまま独立したテキストフレームへ分割します。
+縦組みにも対応しています。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Splits each paragraph in the selected text frame into its own text frame, keeping the original position and width.
+Splits each paragraph in the selected text frame into its own text frame, keeping the original position and width (height for vertical text).
+Vertical text frames are supported as well.
 
 See the README for details.
 
@@ -29,6 +31,7 @@ var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last update
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSplitParagraph.md
 // README (English)
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSplitParagraph.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8793ea71526b"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -39,7 +42,7 @@ var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last update
 // ユーザー設定 / User settings
 // =========================================
 
-/* フレームを広げる 1 回あたりの量（pt）/ Height growth per step (pt) */
+/* フレームを広げる 1 回あたりの量（横組みは下、縦組みは左）/ Growth per step (downward for horizontal, leftward for vertical) */
 var FRAME_GROW_STEP_PT = 12;
 
 /* オーバーセット解消の最大試行回数 / Max iterations to resolve overset */
@@ -114,16 +117,16 @@ var currentLanguage = getCurrentLang();
 
 var LABELS = {
     dialog: {
-        overflowTitle: { ja: "オーバーセットテキストの確認", en: "Overset Text Detected" }
+        oversetTitle: { ja: "オーバーセットテキストの確認", en: "Overset Text Detected" }
     },
     message: {
-        overflowPrompt: {
+        oversetPrompt: {
             ja: "オーバーセットテキストがあります。処理方法を選択してください。",
             en: "The text frame contains overset text. Choose how to proceed."
         }
     },
     panel: {
-        overflowOption: { ja: "処理方法", en: "How to proceed" }
+        oversetHandling: { ja: "処理方法", en: "How to proceed" }
     },
     radio: {
         expandFrame:   { ja: "フレームを拡張して解消する", en: "Expand frame to resolve" },
@@ -152,9 +155,21 @@ var LABELS = {
             ja: "テキストフレームを1つだけ選択して実行してください。",
             en: "Select exactly one text frame before running."
         },
-        overflowFail: {
+        oversetFail: {
             ja: "オーバーセットテキストを解消できなかったため中断しました。",
             en: "Could not resolve overset text. Process cancelled."
+        },
+        threadedFrame: {
+            ja: "連結されたテキストフレームには対応していません。連結を解除してから実行してください。",
+            en: "Threaded text frames are not supported. Unthread the frame before running."
+        },
+        noParagraph: {
+            ja: "分割できる段落がないため、何も変更していません。",
+            en: "No paragraph to split. Nothing was changed."
+        },
+        unsupportedParent: {
+            ja: "アンカー付きフレームや、ほかのオブジェクトの内側にあるフレームには対応していません。",
+            en: "Anchored frames and frames nested inside another object are not supported."
         }
     },
     undo: {
@@ -164,16 +179,16 @@ var LABELS = {
 
 /**
  * ドット区切りキーでラベルを取得する
- * @param {string} labelKey 例: "dialog.overflowTitle"
+ * @param {string} labelKey 例: "dialog.oversetTitle"
  * @returns {string} 現在の言語のラベル文字列
  */
 function getLabel(labelKey) {
     var keyParts = labelKey.split(".");
-    var node = LABELS;
+    var labelNode = LABELS;
     for (var i = 0; i < keyParts.length; i++) {
-        node = node[keyParts[i]];
+        labelNode = labelNode[keyParts[i]];
     }
-    return node[currentLanguage];
+    return labelNode[currentLanguage];
 }
 
 // =========================================
@@ -195,22 +210,37 @@ if (!sourceFrame || sourceFrame.constructor.name !== "TextFrame") {
     return;
 }
 
+/* 連結フレームは元テキストが残るため対象外 / Threaded frames are excluded: the original text would survive in the thread */
+if (sourceFrame.parentStory.textContainers.length > 1) {
+    alert(getLabel("error.threadedFrame"));
+    return;
+}
+
+/* 分割後のフレームを追加できる親か（アンカー付きフレームの親は Character で追加できない）
+   / Parents that can hold the new frames (an anchored frame's parent is a Character and cannot) */
+var FRAME_CONTAINER_TYPES = { Spread: true, MasterSpread: true, Page: true, Layer: true, Group: true };
+if (!FRAME_CONTAINER_TYPES[String(sourceFrame.parent.constructor.name)]) {
+    alert(getLabel("error.unsupportedParent"));
+    return;
+}
+
 // =========================================
 // 元フレーム情報 / Source frame info
 // =========================================
-var parentContainer = sourceFrame.parent;
+var sourceParent = sourceFrame.parent;
+
+/* 縦組みかどうか / Whether the story runs vertically */
+var isVerticalStory = (sourceFrame.parentStory.storyPreferences.storyOrientation === StoryHorizontalOrVertical.VERTICAL);
 
 /* 元フレームの座標 [上, 左, 下, 右] / Original frame bounds [top, left, bottom, right] */
 var sourceBounds = sourceFrame.geometricBounds;
-var sourceLeft   = sourceBounds[1];
-var sourceRight  = sourceBounds[3];
 
 // =========================================
 // 補助関数 / Helpers
 // =========================================
 
 /**
- * オーバーセットが解消するまでフレーム高さを少しずつ広げる
+ * オーバーセットが解消するまでフレームを少しずつ広げる（横組みは下、縦組みは左）
  * @param {TextFrame} targetFrame 対象のテキストフレーム
  * @param {number} maxIterations 最大試行回数
  * @returns {void}
@@ -218,9 +248,26 @@ var sourceRight  = sourceBounds[3];
 function growFrameUntilFits(targetFrame, maxIterations) {
     var iterationCount = 0;
     while (targetFrame.overflows && iterationCount < maxIterations) {
-        var bounds = targetFrame.geometricBounds;
-        targetFrame.geometricBounds = [bounds[0], bounds[1], bounds[2] + FRAME_GROW_STEP_PT, bounds[3]];
+        var currentBounds = targetFrame.geometricBounds;
+        /* 横組みは下辺を、縦組みは左辺を伸ばす / Extend the bottom edge for horizontal text, the left edge for vertical */
+        targetFrame.geometricBounds = isVerticalStory
+            ? [currentBounds[0], currentBounds[1] - FRAME_GROW_STEP_PT, currentBounds[2], currentBounds[3]]
+            : [currentBounds[0], currentBounds[1], currentBounds[2] + FRAME_GROW_STEP_PT, currentBounds[3]];
         iterationCount++;
+    }
+}
+
+/**
+ * 段落の複製で生じた末尾の空段落と改行を取り除く
+ * @param {TextFrame} targetFrame 対象のテキストフレーム
+ * @returns {void}
+ */
+function removeTrailingBreak(targetFrame) {
+    if (targetFrame.paragraphs.length > 1) {
+        targetFrame.paragraphs.item(-1).remove();
+    }
+    if (targetFrame.characters.length > 0 && targetFrame.characters.item(-1).contents === "\r") {
+        targetFrame.characters.item(-1).remove();
     }
 }
 
@@ -232,30 +279,30 @@ function growFrameUntilFits(targetFrame, maxIterations) {
  * オーバーセットテキストの処理方法をダイアログで確認する
  * @returns {string} "expand" / "ignore" / "cancel"
  */
-function askOverflowHandling() {
-    var overflowDialog = new Window("dialog", getLabel("dialog.overflowTitle") + " " + SCRIPT_VERSION);
-    setupWindow(overflowDialog, 10);
+function askOversetHandling() {
+    var oversetDialog = new Window("dialog", getLabel("dialog.oversetTitle") + " " + SCRIPT_VERSION);
+    setupWindow(oversetDialog, 10);
 
-    overflowDialog.add("statictext", undefined, getLabel("message.overflowPrompt"));
+    oversetDialog.add("statictext", undefined, getLabel("message.oversetPrompt"));
 
     /* 処理方法の選択パネル / Panel for choosing the handling method */
-    var overflowOptionPanel = overflowDialog.add("panel", undefined, getLabel("panel.overflowOption"));
-    setupPanel(overflowOptionPanel, 6);
-    overflowOptionPanel.alignChildren = ["left", "top"];
+    var oversetHandlingPanel = oversetDialog.add("panel", undefined, getLabel("panel.oversetHandling"));
+    setupPanel(oversetHandlingPanel, 6);
+    oversetHandlingPanel.alignChildren = ["left", "top"];
 
-    var expandFrameRadio   = overflowOptionPanel.add("radiobutton", undefined, getLabel("radio.expandFrame"));
-    var ignoreOversetRadio = overflowOptionPanel.add("radiobutton", undefined, getLabel("radio.ignoreOverset"));
+    var expandFrameRadio   = oversetHandlingPanel.add("radiobutton", undefined, getLabel("radio.expandFrame"));
+    var ignoreOversetRadio = oversetHandlingPanel.add("radiobutton", undefined, getLabel("radio.ignoreOverset"));
     expandFrameRadio.helpTip   = getLabel("tooltip.expandFrame");
     ignoreOversetRadio.helpTip = getLabel("tooltip.ignoreOverset");
     expandFrameRadio.value = true;
 
     /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
-    var dialogButtonRow = overflowDialog.add("group");
-    setupRow(dialogButtonRow, "right", 8);
-    dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    var btnRowGroup = oversetDialog.add("group");
+    setupRow(btnRowGroup, "right", 8);
+    btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-    if (overflowDialog.show() !== 1) return "cancel";
+    if (oversetDialog.show() !== 1) return "cancel";
     return expandFrameRadio.value ? "expand" : "ignore";
 }
 
@@ -266,65 +313,73 @@ function askOverflowHandling() {
 /**
  * 1 段落を独立したテキストフレームに分割して配置する
  * @param {Paragraph} paragraph 分割元の段落
- * @returns {void}
+ * @returns {boolean} フレームを作成したら true
  */
 function createFrameForParagraph(paragraph) {
     /* 空行・行なしの段落はスキップ（仕様）/ Skip blank or line-less paragraphs (by design) */
-    if (paragraph.contents.replace(/\s/g, "") === "" || paragraph.lines.length === 0) return;
+    if (paragraph.contents.replace(/\s/g, "") === "" || paragraph.lines.length === 0) return false;
 
-    /* 元テキストの正確な Y 座標（ベースライン）/ Exact original Y (baseline) */
-    var sourceBaselineY = paragraph.lines[0].baseline;
+    /* 元テキストの正確なベースライン位置（横組みは Y、縦組みは X）/ Exact original baseline position (Y for horizontal, X for vertical) */
+    var sourceBaseline = paragraph.lines[0].baseline;
 
     /* 設定とサイズ・位置を引き継いだ新しいフレームを作成 / Create a new frame inheriting preferences, size, and position */
-    var newFrame = parentContainer.textFrames.add();
-    newFrame.textFramePreferences.properties = sourceFrame.textFramePreferences.properties;
-    newFrame.geometricBounds = sourceBounds;
+    var paragraphFrame = sourceParent.textFrames.add();
+    paragraphFrame.textFramePreferences.properties = sourceFrame.textFramePreferences.properties;
+    paragraphFrame.geometricBounds = sourceBounds;
 
-    paragraph.duplicate(LocationOptions.AT_BEGINNING, newFrame.insertionPoints.item(0));
-
-    /* 余分な空段落や改行を削除 / Remove the extra trailing paragraph and return character */
-    if (newFrame.paragraphs.length > 1) {
-        newFrame.paragraphs.item(-1).remove();
-    }
-    if (newFrame.characters.length > 0 && newFrame.characters.item(-1).contents === "\r") {
-        newFrame.characters.item(-1).remove();
-    }
+    paragraph.duplicate(LocationOptions.AT_BEGINNING, paragraphFrame.insertionPoints.item(0));
+    removeTrailingBreak(paragraphFrame);
 
     /* いったんコンテンツに合わせる（高さと幅が縮む）/ Fit to content (height and width shrink) */
-    newFrame.fit(FitOptions.FRAME_TO_CONTENT);
+    paragraphFrame.fit(FitOptions.FRAME_TO_CONTENT);
 
     /* 行が消えたフレームは破棄 / Discard the frame if it ends up with no lines */
-    if (newFrame.lines.length === 0) {
-        newFrame.remove();
-        return;
+    if (paragraphFrame.lines.length === 0) {
+        paragraphFrame.remove();
+        return false;
     }
 
-    /* Y はズレを補正し、X は元フレーム幅へ戻す / Correct Y by the offset, restore X to the original width */
-    var dy = sourceBaselineY - newFrame.lines[0].baseline;
-    var fittedBounds = newFrame.geometricBounds;
-    newFrame.geometricBounds = [fittedBounds[0] + dy, sourceLeft, fittedBounds[2] + dy, sourceRight];
+    /* 流れ方向はベースラインのズレを補正し、直交方向は元フレームの位置へ戻す
+       / Correct the flow axis by the baseline offset, restore the cross axis to the source frame */
+    var baselineDelta = sourceBaseline - paragraphFrame.lines[0].baseline;
+    var fittedBounds = paragraphFrame.geometricBounds;
+    paragraphFrame.geometricBounds = isVerticalStory
+        ? [sourceBounds[0], fittedBounds[1] + baselineDelta, sourceBounds[2], fittedBounds[3] + baselineDelta]
+        : [fittedBounds[0] + baselineDelta, sourceBounds[1], fittedBounds[2] + baselineDelta, sourceBounds[3]];
 
-    /* 幅復元で再改行され、高さ不足になるケースを救済 / Rescue height shortage caused by reflow after the width is restored */
-    growFrameUntilFits(newFrame, MAX_REFLOW_ITERATIONS);
+    /* 幅（縦組みは高さ）を戻した際の再改行で不足するケースを救済 / Rescue the shortage caused by reflow after the cross axis is restored */
+    growFrameUntilFits(paragraphFrame, MAX_REFLOW_ITERATIONS);
+    return true;
 }
 
 /**
  * 選択フレーム内の全段落を独立したフレームへ分割する
- * @returns {string} "ok" または "overflowFail"
+ * @returns {string} "ok" / "oversetFail" / "noParagraph"
  */
 function splitParagraphsIntoFrames() {
+    /* 中断時に元フレームを戻すための座標 / Bounds used to restore the source frame when aborting */
+    var originalBounds = sourceBounds;
+
     /* 「拡張」選択時はオーバーセットを解消してから座標を再取得 / On "expand", clear overset then re-read bounds */
-    if (overflowChoice === "expand") {
+    if (oversetChoice === "expand") {
         growFrameUntilFits(sourceFrame, MAX_GROW_ITERATIONS);
-        if (sourceFrame.overflows) return "overflowFail";
+        if (sourceFrame.overflows) {
+            sourceFrame.geometricBounds = originalBounds;
+            return "oversetFail";
+        }
         sourceBounds = sourceFrame.geometricBounds;
-        sourceLeft   = sourceBounds[1];
-        sourceRight  = sourceBounds[3];
     }
 
     var paragraphList = sourceFrame.paragraphs.everyItem().getElements();
+    var createdCount = 0;
     for (var i = 0; i < paragraphList.length; i++) {
-        createFrameForParagraph(paragraphList[i]);
+        if (createFrameForParagraph(paragraphList[i])) createdCount++;
+    }
+
+    /* 1 つも作れなかったときは元フレームを残す / Keep the source frame when nothing was created */
+    if (createdCount === 0) {
+        sourceFrame.geometricBounds = originalBounds;
+        return "noParagraph";
     }
 
     sourceFrame.remove();
@@ -336,14 +391,14 @@ function splitParagraphsIntoFrames() {
 // =========================================
 
 /* オーバーセットがあれば先に処理方法を確認（ダイアログは取り消し対象外）/ Ask first if overset (the dialog stays outside undo) */
-var overflowChoice = "none";
+var oversetChoice = "none";
 if (sourceFrame.overflows) {
-    overflowChoice = askOverflowHandling();
-    if (overflowChoice === "cancel") return;
+    oversetChoice = askOversetHandling();
+    if (oversetChoice === "cancel") return;
 }
 
 /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
-var resultStatus = app.doScript(
+var splitResult = app.doScript(
     splitParagraphsIntoFrames,
     ScriptLanguage.JAVASCRIPT,
     undefined,
@@ -351,8 +406,10 @@ var resultStatus = app.doScript(
     getLabel("undo.splitParagraphs")
 );
 
-if (resultStatus === "overflowFail") {
-    alert(getLabel("error.overflowFail"));
+if (splitResult === "oversetFail") {
+    alert(getLabel("error.oversetFail"));
+} else if (splitResult === "noParagraph") {
+    alert(getLabel("error.noParagraph"));
 }
 
 })();

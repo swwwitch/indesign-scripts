@@ -8,13 +8,14 @@
 
 ---
 
-Splits each paragraph in the selected text frame into its own text frame, keeping the original position and width.
+Splits each paragraph in the selected text frame into its own text frame, keeping the original position and width (height for vertical text). Vertical text frames are supported as well.
 
 ## Features
 
-- Corrects the Y position from the original paragraph baseline
-- Keeps the original left/right coordinates so the width is preserved
+- Places each frame on the original paragraph baseline (vertically for horizontal text, horizontally for vertical text)
+- Keeps the original width (height for vertical text)
 - Inherits the text frame preferences
+- Supports vertical text frames (overset is resolved by growing the frame leftward)
 - When overset text exists, offers Expand to resolve or Run anyway
 
 ## Usage
@@ -25,8 +26,11 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 
 ## Notes and limitations
 
-- Empty paragraphs are excluded from the output.
+- Threaded text frames, anchored frames, and frames nested inside another object are not supported; the script reports this and stops.
+- Rotated frames are out of scope (the split uses the unrotated bounding box).
+- Empty paragraphs are excluded from the output. When no paragraph can be split, the source frame is left untouched.
 - Choosing Run anyway means hidden overset text is not output.
+- If the overset text cannot be resolved, the frame is restored to its original size and the run is cancelled.
 - The whole operation reverts in a single undo.
 
 ## Script info
@@ -38,6 +42,7 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-16 |
 | Last updated | 2026-06-30 |
+| Article | https://note.com/dtp_tranist/n/n8793ea71526b |
 
 ## License
 
