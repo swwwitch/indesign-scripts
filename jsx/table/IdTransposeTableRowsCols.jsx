@@ -20,21 +20,24 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTransposeTableRowsCols";     /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-25";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-11-25";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-07";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTransposeTableRowsCols.md
 // README (English)
 // https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTransposeTableRowsCols.md
-
-// Original idea
-// Table Transpose v1.0 by Iain Anderson
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc6dbdb3af6a1"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
+
+/**
+ * @discussion Table Transpose (modified for robustness)
+ * Original: Table Transpose v1.0 by Iain Anderson
+ */
 
 (function () {
 
@@ -61,42 +64,43 @@ var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel 
 
 /**
  * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
+ * @param {Window} targetWindow 対象ウィンドウ
  * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
  * @returns {void}
  */
-function setupWindow(win, spacing) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
 
 /**
  * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
+ * @param {Panel} targetPanel 対象パネル
  * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
  * @returns {void}
  */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 /**
  * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
- * @param {string} [alignment] 配置。省略時は "left"
+ * @param {Group} targetGroup 対象グループ
+ * @param {string} [alignment] 横方向の配置。省略時は "left"
  * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
  * @returns {void}
  */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupRow(targetGroup, alignment, spacing) {
+    targetGroup.orientation = "row";
+    targetGroup.alignment = [alignment || "left", "center"];  /* 横と天地を対で / Pair horizontal with vertical */
+    targetGroup.alignChildren = ["left", "center"];           /* 親の fill 継承を打ち消す / Cancel the inherited fill */
+    targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 // =========================================
@@ -108,14 +112,10 @@ function setupRow(group, alignment, spacing) {
  * @returns {string} "ja" または "en"
  */
 function getCurrentLang() {
-    var isJapanese = false;
     try {
-        if (app.locale === Locale.JAPANESE) isJapanese = true;
+        if (app.locale === Locale.JAPANESE) return "ja";
     } catch (e) {}
-    try {
-        if (!isJapanese && String($.locale).indexOf("ja") === 0) isJapanese = true;
-    } catch (e) {}
-    return isJapanese ? "ja" : "en";
+    return (String($.locale).indexOf("ja") === 0) ? "ja" : "en";
 }
 
 var currentLang = getCurrentLang();
@@ -269,10 +269,10 @@ function showTransposeDialog(tableHasHeader, tableHasMerge) {
     }
 
     /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
-    var dialogButtonRow = transposeDialog.add("group");
-    setupRow(dialogButtonRow, "right", 8);
-    dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    var btnRowGroup = transposeDialog.add("group");
+    setupRow(btnRowGroup, "right", 8);
+    btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    btnRowGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
     if (transposeDialog.show() !== 1) return null;
 
@@ -285,6 +285,25 @@ function showTransposeDialog(tableHasHeader, tableHasMerge) {
 // =========================================
 // 転置処理 / Transpose
 // =========================================
+
+/**
+ * 2 つのオブジェクトの同名プロパティを入れ替える
+ * @param {object} objectA 入れ替え元のオブジェクト
+ * @param {object} objectB 入れ替え先のオブジェクト
+ * @param {string[]} propertyNames 入れ替えるプロパティ名
+ * @returns {void}
+ */
+function swapProperties(objectA, objectB, propertyNames) {
+    for (var i = 0; i < propertyNames.length; i++) {
+        var propertyName = propertyNames[i];
+        /* 対応していないプロパティは飛ばす / Skip properties the object does not support */
+        try {
+            var valueBuffer = objectA[propertyName];
+            objectA[propertyName] = objectB[propertyName];
+            objectB[propertyName] = valueBuffer;
+        } catch (e) {}
+    }
+}
 
 /**
  * 2 つのセルの内容と書式を入れ替える
@@ -302,14 +321,11 @@ function swapCells(cellA, cellB) {
     var paragraphB = getFirstParagraph(cellB);
 
     if (paragraphA && paragraphB) {
-        /* 文字サイズ / Point size */
-        try {
-            var pointSizeBuffer = paragraphA.pointSize;
-            paragraphA.pointSize = paragraphB.pointSize;
-            paragraphB.pointSize = pointSizeBuffer;
-        } catch (e) {}
+        /* 文字サイズと文字色 / Point size and text fill color */
+        swapProperties(paragraphA, paragraphB, ["pointSize", "fillColor"]);
 
-        /* フォントとフォントスタイル / Font and font style */
+        /* フォントとフォントスタイルは対で入れ替える（先にフォントを変えるとスタイルが変わるため）
+           / Font and style are swapped as a pair (changing the font first can reset the style) */
         try {
             var fontBuffer      = paragraphA.appliedFont;
             var fontStyleBuffer = paragraphA.fontStyle;
@@ -318,27 +334,112 @@ function swapCells(cellA, cellB) {
             paragraphB.appliedFont = fontBuffer;
             paragraphB.fontStyle   = fontStyleBuffer;
         } catch (e) {}
-
-        /* 文字色 / Text fill color */
-        try {
-            var textFillBuffer = paragraphA.fillColor;
-            paragraphA.fillColor = paragraphB.fillColor;
-            paragraphB.fillColor = textFillBuffer;
-        } catch (e) {}
     }
 
-    /* セルの塗り色 / Cell fill color */
-    try {
-        var cellFillBuffer = cellA.fillColor;
-        cellA.fillColor = cellB.fillColor;
-        cellB.fillColor = cellFillBuffer;
-    } catch (e) {}
+    /* セルの塗り色とティント / Cell fill color and tint */
+    swapProperties(cellA, cellB, ["fillColor", "fillTint"]);
+}
 
-    /* セルのティント / Cell fill tint */
+/**
+ * 転置しやすいよう、いったん表を正方形に揃える
+ * @param {Table} targetTable 対象の表
+ * @returns {{paddedAxis: string, originalSize: number}} 足した軸（"columns" / "rows" / "none"）と、その軸の元のサイズ
+ */
+function padTableToSquare(targetTable) {
+    var rowCount    = targetTable.rows.length;
+    var columnCount = targetTable.columnCount;
+
+    if (rowCount > columnCount) {
+        for (var addedColumn = columnCount; addedColumn < rowCount; addedColumn++) {
+            targetTable.columns.add(LocationOptions.atEnd);
+        }
+        return { paddedAxis: "columns", originalSize: columnCount };
+    }
+
+    if (rowCount < columnCount) {
+        for (var addedRow = rowCount; addedRow < columnCount; addedRow++) {
+            targetTable.rows.add(LocationOptions.atEnd);
+        }
+        return { paddedAxis: "rows", originalSize: rowCount };
+    }
+
+    return { paddedAxis: "none", originalSize: rowCount };
+}
+
+/**
+ * 空セルに代替文字を入れて段落を1つ確保する
+ * @param {Table} targetTable 対象の表
+ * @returns {void}
+ */
+function fillEmptyCells(targetTable) {
+    var tableCells = targetTable.cells;
+    for (var i = 0; i < tableCells.length; i++) {
+        try {
+            if (tableCells[i].contents === "") tableCells[i].contents = EMPTY_CELL_PLACEHOLDER;
+        } catch (e) {}
+    }
+}
+
+/**
+ * 正方形に揃えた表の上三角と下三角を入れ替える
+ * @param {Table} targetTable 正方形に揃えた表
+ * @returns {void}
+ */
+function swapTriangles(targetTable) {
+    var rowCount    = targetTable.rows.length;
+    var columnCount = targetTable.columnCount;
+
+    for (var row = 0; row < rowCount; row++) {
+        for (var col = row + 1; col < columnCount; col++) {
+            var upperIndex = col + (row * columnCount);
+            var lowerIndex = row + (col * columnCount);
+            swapCells(targetTable.cells.item(upperIndex), targetTable.cells.item(lowerIndex));
+        }
+    }
+}
+
+/**
+ * 正方形にするため増やした行・列を取り除く
+ * @param {Table} targetTable 対象の表
+ * @param {string} paddedAxis padTableToSquare が返した軸
+ * @param {number} originalSize 残すサイズ
+ * @returns {void}
+ */
+function removePadding(targetTable, paddedAxis, originalSize) {
+    /* 列を足した表は転置後に行が余る（その逆も同じ）/ Padding columns leaves surplus rows after transposing, and vice versa */
+    if (paddedAxis === "columns") {
+        while (targetTable.rows.length > originalSize) {
+            try {
+                targetTable.rows.lastItem().remove();
+            } catch (e) {
+                break;
+            }
+        }
+    } else if (paddedAxis === "rows") {
+        while (targetTable.columnCount > originalSize) {
+            try {
+                targetTable.columns.lastItem().remove();
+            } catch (e) {
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * ヘッダー／フッター行を元の設定に近い形で復元する
+ * @param {Table} targetTable 対象の表
+ * @param {number} headerRowCount 元のヘッダー行数
+ * @param {number} footerRowCount 元のフッター行数
+ * @returns {void}
+ */
+function restoreHeaderFooterRows(targetTable, headerRowCount, footerRowCount) {
     try {
-        var fillTintBuffer = cellA.fillTint;
-        cellA.fillTint = cellB.fillTint;
-        cellB.fillTint = fillTintBuffer;
+        var totalRowCount  = targetTable.rows.length;
+        var newHeaderCount = Math.min(headerRowCount, totalRowCount);
+        var newFooterCount = Math.min(footerRowCount, Math.max(0, totalRowCount - newHeaderCount));
+        targetTable.headerRowCount = newHeaderCount;
+        targetTable.footerRowCount = newFooterCount;
     } catch (e) {}
 }
 
@@ -363,74 +464,11 @@ function transposeTable(targetTable, includeHeader, mergeMode) {
         }
     }
 
-    var rowCount    = targetTable.rows.length;
-    var columnCount = targetTable.columnCount;
-    var originalSize = 0;
-    var paddedAxis   = "none"; /* "columns" / "rows" / "none" */
-
-    /* 転置しやすいよう、いったん正方形に揃える / Pad the table to a square so it can be transposed in place */
-    if (rowCount > columnCount) {
-        for (var addedColumn = columnCount; addedColumn < rowCount; addedColumn++) {
-            targetTable.columns.add(LocationOptions.atEnd);
-        }
-        originalSize = columnCount;
-        paddedAxis   = "columns";
-    } else if (rowCount < columnCount) {
-        for (var addedRow = rowCount; addedRow < columnCount; addedRow++) {
-            targetTable.rows.add(LocationOptions.atEnd);
-        }
-        originalSize = rowCount;
-        paddedAxis   = "rows";
-    }
-
-    rowCount    = targetTable.rows.length;
-    columnCount = targetTable.columnCount;
-
-    /* 空セルに段落を1つ確保する / Ensure every cell has at least one paragraph */
-    var totalCellCount = rowCount * columnCount;
-    for (var i = 0; i < totalCellCount; i++) {
-        try {
-            var currentCell = targetTable.cells.item(i);
-            if (currentCell.contents === "") currentCell.contents = EMPTY_CELL_PLACEHOLDER;
-        } catch (e) {}
-    }
-
-    /* 上三角と下三角を入れ替える / Swap the upper and lower triangles */
-    for (var row = 0; row < rowCount; row++) {
-        for (var col = row + 1; col < columnCount; col++) {
-            var upperIndex = col + (row * columnCount);
-            var lowerIndex = row + (col * columnCount);
-            swapCells(targetTable.cells.item(upperIndex), targetTable.cells.item(lowerIndex));
-        }
-    }
-
-    /* 正方形にするため増やした行・列を戻す / Remove the rows or columns added for padding */
-    if (paddedAxis === "columns") {
-        while (targetTable.rows.length > originalSize) {
-            try {
-                targetTable.rows.lastItem().remove();
-            } catch (e) {
-                break;
-            }
-        }
-    } else if (paddedAxis === "rows") {
-        while (targetTable.columnCount > originalSize) {
-            try {
-                targetTable.columns.lastItem().remove();
-            } catch (e) {
-                break;
-            }
-        }
-    }
-
-    /* ヘッダー／フッター行を元の設定に近い形で復元 / Restore header and footer rows as closely as possible */
-    try {
-        var totalRowCount  = targetTable.rows.length;
-        var newHeaderCount = Math.min(originalHeaderRowCount, totalRowCount);
-        var newFooterCount = Math.min(originalFooterRowCount, Math.max(0, totalRowCount - newHeaderCount));
-        targetTable.headerRowCount = newHeaderCount;
-        targetTable.footerRowCount = newFooterCount;
-    } catch (e) {}
+    var padding = padTableToSquare(targetTable);
+    fillEmptyCells(targetTable);
+    swapTriangles(targetTable);
+    removePadding(targetTable, padding.paddedAxis, padding.originalSize);
+    restoreHeaderFooterRows(targetTable, originalHeaderRowCount, originalFooterRowCount);
 
     return "ok";
 }

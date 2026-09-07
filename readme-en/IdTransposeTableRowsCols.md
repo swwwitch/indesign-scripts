@@ -27,17 +27,31 @@ Transposes the rows and columns of the selected table, with dialog options for h
 
 - When the table has neither header rows nor merged cells the dialog is skipped.
 - Rows or columns are temporarily added to square the table, then removed afterwards.
-- Based on Table Transpose v1.0 by Iain Anderson.
+
+## Original
+
+Table Transpose (modified for robustness)
+
+Original: Table Transpose v1.0 by Iain Anderson
 
 ## Script info
 
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTransposeTableRowsCols.jsx` |
-| Version | v1.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-11-25 |
-| Last updated | 2025-11-25 |
+| Last updated | 2026-09-07 |
+| Article | https://note.com/dtp_tranist/n/nc6dbdb3af6a1 |
+
+## Changelog
+
+### v1.0.1 (2026-09-07)
+
+- Added a link to the article
+- Tidied the header, naming and JSDoc to match the house rules (no behavior change)
+- Factored out the cell-format swap and split the transpose into padding, triangle swapping and trimming steps
 
 ## License
 
