@@ -53,6 +53,7 @@
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-09-09 |
 | 最終更新 | 2026-09-09 |
+| 紹介記事 | https://note.com/dtp_tranist/n/n3a0d4c0dacdb |
 
 ## 更新履歴
 

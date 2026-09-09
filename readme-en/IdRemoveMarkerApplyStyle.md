@@ -53,6 +53,7 @@ Applies a paragraph style and a character style to paragraphs carrying a leading
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-09 |
 | Last updated | 2026-09-09 |
+| Article | https://note.com/dtp_tranist/n/n3a0d4c0dacdb |
 
 ## Change log
 
