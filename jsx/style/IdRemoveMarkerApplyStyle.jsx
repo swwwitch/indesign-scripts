@@ -4,13 +4,13 @@
 
 ### 概要
 
-行頭の目印（Markdown の見出し・箇条書き・番号リストなど）を手がかりに段落スタイルと文字スタイルを適用し、その目印を削除します。目印は検索対象から自動判別して候補に並べられます。
+行頭の目印（Markdown の見出し・箇条書き・番号リストなど）を手がかりに段落スタイルと文字スタイルを適用し、その目印を後ろに続くスペースごと削除します。目印は検索対象から自動判別でき、対象箇所の件数を確かめてから実行できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Applies a paragraph style and a character style to paragraphs carrying a leading marker — Markdown headings, bullets, numbered lists and the like — then deletes the marker. Markers are detected from the search target and offered as a list.
+Applies a paragraph style and a character style to paragraphs carrying a leading marker — Markdown headings, bullets, numbered lists and the like — then deletes the marker together with the spaces that follow it. Markers can be detected from the search target, and the number of matches is shown before the run.
 
 See the README for details.
 
@@ -20,10 +20,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdRemoveMarkerApplyStyle";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                        /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)"; /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-09";                  /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-09";                  /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-10";                  /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdRemoveMarkerApplyStyle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerApplyStyle.md"; /* README (English) */
@@ -83,17 +83,18 @@ for (var patternIndex = 0; patternIndex < NUMBERED_LIST_PATTERNS.length; pattern
 var MIN_REPEAT_COUNT = 2;
 
 /* Markdown の見出しマーカー（# 〜 ######） / Markdown heading markers */
-var HEADING_MARKER_PATTERN = /^#{1,6} ?$/;
+var HEADING_MARKER_PATTERN = /^#{1,6}[ \t　]*$/;
 var MAX_HEADING_LEVEL = 6;
 
-/* 見出しマーカーの後ろの区切り（無くてもよい） / Separator after a heading marker (optional) */
-var HEADING_SEPARATOR_PATTERN = "[ 　\\t]?";
+/* 目印に続く区切り（見つかれば一緒に削除する） / Separator after the marker (deleted together) */
+/* 半角スペース・全角スペース・タブ。連続していてもまとめて削除し、無くてもよい /
+   Spaces, full-width spaces and tabs: all of them are deleted, and none is fine too */
+var TRAILING_SEPARATOR_PATTERN = "[ 　\\t]*";
 
 /* 見出しレベルに対応する段落スタイル名（先に見つかったものを使う） / Paragraph style names per heading level */
 var HEADING_STYLE_NAME_FORMATS = ["h%1", "H%1", "heading %1", "Heading %1"];
 
 /* 検索オプション（前回の「検索/置換」の設定を引き継がない） / Find options (never inherited) */
-var FIND_CASE_SENSITIVE         = true;  /* 大文字と小文字を区別 / case sensitive */
 var FIND_WIDTH_SENSITIVE        = true;  /* 半角と全角を区別（＃ と # を分ける） / width sensitive */
 var FIND_KANA_SENSITIVE         = true;  /* ひらがなとカタカナを区別 / kana sensitive */
 var FIND_INCLUDE_FOOTNOTES      = true;  /* 脚注を含む / include footnotes */
@@ -119,11 +120,13 @@ var WINDOW_MARGINS = 16;               /* ウィンドウ外周の余白 / windo
 var WINDOW_SPACING = 12;               /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 8;                /* パネル内の要素間隔 / panel spacing */
+var RADIO_SPACING  = 4;                /* ラジオボタンの間隔 / radio button spacing */
 
 /* 行の寸法 / Row metrics */
 var LABEL_WIDTH        = 110; /* ラベル・ラジオボタンの幅 / label & radio button width */
 var SEARCH_TEXT_LENGTH = 16;  /* 検索文字列入力欄の文字数 / search field length */
 var BUTTON_WIDTH       = 90;  /* ダイアログボタンの幅 / dialog button width */
+var COUNT_WIDTH        = 60;  /* 対象箇所の数値の幅 / match count width */
 
 /**
  * ウィンドウの共通設定を適用する
@@ -178,15 +181,16 @@ var currentLang = getCurrentLang();
 
 var LABELS = {
     dialog: {
-        title: { ja: "検索文字列を削除して段落スタイルを適用", en: "Apply Paragraph Style and Delete Marker" }
+        title: { ja: "目印を削除してスタイルを適用", en: "Delete Markers and Apply Styles" }
     },
     panel: {
         searchText: { ja: "検索文字列", en: "Find What" },
-        style:      { ja: "置換スタイル", en: "Styles to Apply" },
-        options:    { ja: "オプション", en: "Options" }
+        style:      { ja: "適用するスタイル", en: "Styles to Apply" },
+        scope:      { ja: "検索対象", en: "Search In" },
+        markdown:   { ja: "Markdown", en: "Markdown" }
     },
     marker: {
-        detected:        { ja: "%1（%2箇所）", en: "%1 (%2)" },
+        detected:        { ja: "%1（%2箇所）", en: "%1 (%2 found)" },
         numberedDot:     { ja: "1. 2. 3.", en: "1. 2. 3." },
         numberedParen:   { ja: "1) 2) 3)", en: "1) 2) 3)" },
         kanjiParen:      { ja: "（一）（二）（三）", en: "(1) (2) (3) in kanji" },
@@ -202,9 +206,9 @@ var LABELS = {
     field: {
         paragraphStyle: { ja: "段落スタイル", en: "Paragraph style" },
         characterStyle: { ja: "文字スタイル", en: "Character style" },
-        scope:          { ja: "検索対象", en: "Search" },
-        matchLevel:     { ja: "Markdown のレベルを合わせる", en: "Match the paragraph style to the level" },
-        applyAllLevels: { ja: "Markdown の連続適用（見出し）", en: "Apply every Markdown heading level" }
+        matchCount:     { ja: "対象箇所", en: "Matches" },
+        matchLevel:     { ja: "見出しレベルに合わせる", en: "Match the heading level" },
+        applyAllLevels: { ja: "連続適用（見出しのみ）", en: "Apply every Markdown heading level" }
     },
     option: {
         none: { ja: "（なし）", en: "(None)" }
@@ -214,13 +218,36 @@ var LABELS = {
         ok:     { ja: "OK", en: "OK" }
     },
     tooltip: {
-        searchText:     { ja: "削除したい目印の文字列を入力します。例：###", en: "Enter the marker text to delete, for example ###." },
-        auto:           { ja: "検索対象の行頭に繰り返し現れる記号（Markdown 記法を含む）を多い順に並べます。検索対象を変えると再判定します。", en: "Lists the line-head markers that repeat in the search target, most frequent first. Changing the search target runs the detection again." },
+        searchText: {
+            ja: "削除したい目印の文字列を入力します。例：###\n同じ文字が続く並びの一部には一致しません。「##」は「###」に一致しません。\n目印に続くスペースやタブも一緒に削除します。",
+            en: "Enter the marker text to delete, for example ###.\nIt never matches part of a longer run of the same character, so ## does not match ###.\nSpaces and tabs after the marker are deleted with it."
+        },
+        auto: {
+            ja: "検索対象の行頭に繰り返し現れる記号（Markdown 記法を含む）を多い順に並べます。検索対象を変えると再判定します。非表示・ロックされたレイヤーのテキストは数えません。",
+            en: "Lists the line-head markers that repeat in the search target, most frequent first. Changing the search target runs the detection again. Text on hidden or locked layers is not counted."
+        },
+        matchCount: {
+            ja: "現在の設定で見つかる件数です。「自動判別」は段落数、「文字列を指定」は削除する箇所の数を表示します。非表示・ロックされたレイヤーのテキストは数えません。",
+            en: "The number of matches for the current settings: paragraphs when a marker is detected automatically, markers to delete when the text is entered by hand. Text on hidden or locked layers is not counted."
+        },
         paragraphStyle: { ja: "目印が見つかった段落に適用する段落スタイルです。", en: "The paragraph style applied to paragraphs that contain the marker." },
         characterStyle: { ja: "（なし）以外を選ぶと、その段落全体に文字スタイルを適用します。", en: "Anything other than (None) applies a character style to the whole paragraph." },
-        scope:          { ja: "「ストーリー」は、テキストの選択またはカーソル位置が必要です。", en: "Story needs a text selection or the cursor placed in a story." },
+        scope: {
+            allDocuments: {
+                ja: "開いているドキュメントすべてが対象です。スタイルの一覧はアクティブドキュメントのものなので、同名のスタイルが無いドキュメントは飛ばします。",
+                en: "Every open document is searched. The style lists come from the active document, so a document without a style of the same name is skipped."
+            },
+            document: {
+                ja: "アクティブドキュメント全体が対象です。",
+                en: "The whole active document is searched."
+            },
+            story: {
+                ja: "テキストの選択、またはカーソルを置いたストーリーが対象です。未選択のまま実行すると対象が見つかりません。",
+                en: "The story that holds the selection or the cursor is searched. Without one there is no search target."
+            }
+        },
         matchLevel:     { ja: "### を選ぶと h3／heading 3 の段落スタイルを自動で選びます。選び直しても構いません。", en: "Selecting ### picks the paragraph style named h3 / heading 3. You can still change it by hand." },
-        applyAllLevels: { ja: "見出し # 〜 ###### の6レベルをまとめて処理し、各レベルに h1／heading 1 …… の段落スタイルを割り当てます。検索文字列と置換スタイルの設定は使いません。対応するスタイルが無いレベルは飛ばします。", en: "Processes all six heading levels (# through ######) in one run, applying h1 / heading 1 and so on. The Find What and Styles panels are not used. Levels without a matching style are skipped." },
+        applyAllLevels: { ja: "見出し # 〜 ###### の6レベルをまとめて処理し、各レベルに h1／heading 1 …… の段落スタイルを割り当てます。検索文字列と適用するスタイルの設定は使いません。対応するスタイルが無いレベルは飛ばします。", en: "Processes all six heading levels (# through ######) in one run, applying h1 / heading 1 and so on. The Find What and Styles panels are not used. Levels without a matching style are skipped." },
         cancel:         { ja: "何も変更せずに閉じます。", en: "Close without making any changes." },
         ok:             { ja: "目印を削除してスタイルを適用します。", en: "Delete the markers and apply the styles." }
     },
@@ -234,12 +261,12 @@ var LABELS = {
         noTarget:   { ja: "検索対象が見つかりません。\nテキストを選択するか、カーソルを配置してください。", en: "No search target found.\nSelect text or place the cursor in a story." }
     },
     result: {
-        processed: { ja: "%1箇所を処理しました。", en: "Processed %1 location(s)." },
+        processed: { ja: "%1箇所の目印を削除しました。", en: "Deleted %1 marker(s)." },
         skipped:   { ja: "段落スタイルが見つからないため、次のドキュメントはスキップしました。", en: "Skipped these documents because the paragraph style was not found." },
         partial:   { ja: "文字スタイルが見つからないため、次のドキュメントは段落スタイルだけ適用しました。", en: "Applied only the paragraph style in these documents because the character style was not found." }
     },
     undo: {
-        apply: { ja: "検索文字列を削除して段落スタイルを適用", en: "Apply Paragraph Style and Delete Marker" }
+        apply: { ja: "目印を削除してスタイルを適用", en: "Delete Markers and Apply Styles" }
     }
 };
 
@@ -319,26 +346,59 @@ function getStyleNames(styleCollection, includeNoneOption) {
  * GREP 検索用に正規表現の特殊文字をエスケープする
  * @param {string} plainText エスケープする文字列
  * @returns {string} エスケープした文字列
+ * @description エスケープの対象は GREP と JavaScript の正規表現で共通なので、件数の集計にも使う
  */
 function escapeGrepText(plainText) {
     return plainText.replace(/([\\^$.|?*+()\[\]{}])/g, "\\$1");
 }
 
 /**
- * 行頭の目印を GREP パターンに組み立てる
+ * 末尾の区切り（半角／全角スペース・タブ）を落とす
+ * @param {string} text 対象の文字列
+ * @returns {string} 末尾の区切りを落とした文字列
+ * @description 区切りは目印と一緒に一致範囲で拾うので、パターンに含めない
+ */
+function trimTrailingSeparators(text) {
+    return text.replace(/[ \t　]+$/, "");
+}
+
+/**
+ * 目印の直後に同じ記号が続くときは一致させない先読みを組み立てる
  * @param {string} markerText 目印の文字列
+ * @returns {string} 先読みのパターン
+ * @description これが無いと "#" が "## 見出し" の1文字目に一致してしまう
+ */
+function buildRunGuard(markerText) {
+    return "(?!" + escapeGrepText(markerText.charAt(markerText.length - 1)) + ")";
+}
+
+/**
+ * 行頭の目印を GREP パターンに組み立てる
+ * @param {string} markerText 目印の文字列（区切りを含まない記号そのもの）
  * @returns {string} 行頭に固定した GREP パターン
- * @description 区切りが無い目印は、同じ記号が続く場合に一致しないよう先読みで止める。
- *              これが無いと "#" が "## 見出し" の1文字目に一致してしまう
+ * @description 続く区切り（スペース・タブ）は一致範囲に含めて、目印と一緒に削除する
  */
 function buildLineHeadGrep(markerText) {
-    var grepPattern = "^" + escapeGrepText(markerText);
+    return "^" + escapeGrepText(markerText) + buildRunGuard(markerText) +
+        TRAILING_SEPARATOR_PATTERN;
+}
 
-    if (/[ \t　]$/.test(markerText)) return grepPattern;
+/**
+ * 検索文字列にぴったり一致する GREP パターンを組み立てる
+ * @param {string} searchText 検索文字列
+ * @returns {string} GREP パターン
+ * @description 前後を後読み・先読みで止めることで、同じ文字が続く並びの一部には一致させない。
+ *              これが無いと "##" が "### 見出し" の先頭2文字に一致してしまう。
+ *              続く区切り（スペース・タブ）は一致範囲に含めて、目印と一緒に削除する
+ */
+function buildExactGrep(searchText) {
+    var markerText = trimTrailingSeparators(searchText);
 
-    var lastCharacter = markerText.charAt(markerText.length - 1);
+    if (markerText === "") return escapeGrepText(searchText);
 
-    return grepPattern + "(?!" + escapeGrepText(lastCharacter) + ")";
+    return "(?<!" + escapeGrepText(markerText.charAt(0)) + ")" +
+        escapeGrepText(markerText) + buildRunGuard(markerText) +
+        TRAILING_SEPARATOR_PATTERN;
 }
 
 /**
@@ -348,13 +408,13 @@ function buildLineHeadGrep(markerText) {
  * @returns {string} 繰り返した文字列
  */
 function repeatCharacter(character, repeatCount) {
-    var repeated = "";
+    var repeatedText = "";
 
     for (var i = 0; i < repeatCount; i++) {
-        repeated += character;
+        repeatedText += character;
     }
 
-    return repeated;
+    return repeatedText;
 }
 
 /**
@@ -369,17 +429,32 @@ function getHeadingLevel(markerText) {
 }
 
 /**
+ * 見出しレベルに対応する段落スタイル名の候補を作る
+ * @param {number} headingLevel 見出しレベル（1〜6）
+ * @returns {array} スタイル名の配列（先に見つかったものを使う順）
+ */
+function getHeadingStyleNames(headingLevel) {
+    var headingStyleNames = [];
+
+    for (var i = 0; i < HEADING_STYLE_NAME_FORMATS.length; i++) {
+        headingStyleNames.push(formatLabel(HEADING_STYLE_NAME_FORMATS[i], [headingLevel]));
+    }
+
+    return headingStyleNames;
+}
+
+/**
  * 見出しレベルに対応する段落スタイルをドロップダウンから探す
  * @param {DropDownList} styleDropdown 段落スタイルのドロップダウン
  * @param {number} headingLevel 見出しレベル（1〜6）
  * @returns {number} 見つかった項目のインデックス。無い場合は -1
  */
 function findHeadingStyleIndex(styleDropdown, headingLevel) {
-    for (var i = 0; i < HEADING_STYLE_NAME_FORMATS.length; i++) {
-        var headingStyleName = formatLabel(HEADING_STYLE_NAME_FORMATS[i], [headingLevel]);
+    var headingStyleNames = getHeadingStyleNames(headingLevel);
 
+    for (var i = 0; i < headingStyleNames.length; i++) {
         for (var j = 0; j < styleDropdown.items.length; j++) {
-            if (styleDropdown.items[j].text === headingStyleName) return j;
+            if (styleDropdown.items[j].text === headingStyleNames[i]) return j;
         }
     }
 
@@ -393,11 +468,10 @@ function findHeadingStyleIndex(styleDropdown, headingLevel) {
  * @returns {ParagraphStyle} 見つかった段落スタイル。無い場合は null
  */
 function findHeadingStyle(targetDoc, headingLevel) {
-    var paragraphStyles = targetDoc.allParagraphStyles;
+    var headingStyleNames = getHeadingStyleNames(headingLevel);
 
-    for (var i = 0; i < HEADING_STYLE_NAME_FORMATS.length; i++) {
-        var headingStyle = findStyleByName(paragraphStyles,
-            formatLabel(HEADING_STYLE_NAME_FORMATS[i], [headingLevel]));
+    for (var i = 0; i < headingStyleNames.length; i++) {
+        var headingStyle = findStyleByName(targetDoc.allParagraphStyles, headingStyleNames[i]);
 
         if (headingStyle) return headingStyle;
     }
@@ -413,8 +487,8 @@ function findHeadingStyle(targetDoc, headingLevel) {
  * @param {number} headingLevel 見出しレベル（1〜6）。段落スタイル名を使う場合は 0
  * @returns {object} { paragraphStyle: ParagraphStyle, characterStyle: CharacterStyle,
  *                     missingCharacterStyle: string }。
- *                   段落スタイルが無い場合は { skip: true, missing: string }。
- *                   missing が null のときは報告せずに飛ばす
+ *                   段落スタイルが無い場合は { skip: true, missingParagraphStyle: string }。
+ *                   missingParagraphStyle が null のときは報告せずに飛ばす
  */
 function resolveStyles(targetDoc, paragraphStyleName, characterStyleName, headingLevel) {
     var paragraphStyle;
@@ -422,10 +496,10 @@ function resolveStyles(targetDoc, paragraphStyleName, characterStyleName, headin
     if (headingLevel > 0) {
         /* その書類に無いレベルは報告せずに飛ばす / A level the document does not define is skipped quietly */
         paragraphStyle = findHeadingStyle(targetDoc, headingLevel);
-        if (!paragraphStyle) return { skip: true, missing: null };
+        if (!paragraphStyle) return { skip: true, missingParagraphStyle: null };
     } else {
         paragraphStyle = findStyleByName(targetDoc.allParagraphStyles, paragraphStyleName);
-        if (!paragraphStyle) return { skip: true, missing: paragraphStyleName };
+        if (!paragraphStyle) return { skip: true, missingParagraphStyle: paragraphStyleName };
     }
 
     var characterStyle = null;
@@ -448,26 +522,21 @@ function resolveStyles(targetDoc, paragraphStyleName, characterStyleName, headin
 /**
  * 実行する検索の一覧を作る
  * @param {object} dialogSettings ダイアログの設定
- * @returns {array} { searchText: string, useGrep: boolean, headingLevel: number } の配列
+ * @returns {array} { searchText: string, headingLevel: number } の配列
  */
 function buildSearchPlans(dialogSettings) {
     if (!dialogSettings.applyAllLevels) {
-        return [{
-            searchText: dialogSettings.searchText,
-            useGrep: dialogSettings.useGrep,
-            headingLevel: 0
-        }];
+        return [{ searchText: dialogSettings.searchText, headingLevel: 0 }];
     }
 
     var searchPlans = [];
 
-    /* 先読みでレベルを確定し、後ろの区切り（半角／全角スペース・タブ）は有無どちらも拾う /
-       A lookahead pins the level, and the separator after it is optional */
+    /* 先読みでレベルを確定し、後ろの区切り（半角／全角スペース・タブ）は続くだけまとめて拾う /
+       A lookahead pins the level, and every separator after it is picked up */
     for (var headingLevel = MAX_HEADING_LEVEL; headingLevel >= 1; headingLevel--) {
         searchPlans.push({
             searchText: "^" + repeatCharacter("#", headingLevel) +
-                "(?!#)" + HEADING_SEPARATOR_PATTERN,
-            useGrep: true,
+                "(?!#)" + TRAILING_SEPARATOR_PATTERN,
             headingLevel: headingLevel
         });
     }
@@ -476,17 +545,17 @@ function buildSearchPlans(dialogSettings) {
 }
 
 /**
- * スキップしたドキュメントを重複なく記録する
- * @param {array} skippedDocuments 記録先の配列
- * @param {string} skippedEntry 「ドキュメント名: スタイル名」の文字列
+ * 見つからなかったスタイルを書類ごとに重複なく記録する
+ * @param {array} documentNotes 記録先の配列
+ * @param {string} documentNote 「ドキュメント名: スタイル名」の文字列
  * @returns {void}
  */
-function addSkippedDocument(skippedDocuments, skippedEntry) {
-    for (var i = 0; i < skippedDocuments.length; i++) {
-        if (skippedDocuments[i] === skippedEntry) return;
+function addDocumentNote(documentNotes, documentNote) {
+    for (var i = 0; i < documentNotes.length; i++) {
+        if (documentNotes[i] === documentNote) return;
     }
 
-    skippedDocuments.push(skippedEntry);
+    documentNotes.push(documentNote);
 }
 
 /**
@@ -520,6 +589,19 @@ function addRowLabel(parentGroup, labelKey) {
     rowLabel.preferredSize.width = LABEL_WIDTH;
     rowLabel.justify = "right";
     return rowLabel;
+}
+
+/**
+ * 選ばれているラジオボタンの位置を取得する
+ * @param {array} radioButtons ラジオボタンの配列
+ * @returns {number} 選ばれている位置。無い場合は 0
+ */
+function getSelectedRadioIndex(radioButtons) {
+    for (var i = 0; i < radioButtons.length; i++) {
+        if (radioButtons[i].value) return i;
+    }
+
+    return 0;
 }
 
 /**
@@ -566,30 +648,114 @@ function getSearchTargets(searchScope, activeDoc) {
 }
 
 /**
- * 検索範囲に含まれる段落を取得する
- * @param {object} searchRange 検索対象（Document / Story）
- * @returns {array} 段落の配列
+ * ストーリーが検索対象になるかを判定する
+ * @param {Story} story 対象のストーリー
+ * @returns {boolean} 検索対象なら true
+ * @description 検索オプションに合わせ、非表示レイヤー・ロックされたレイヤーだけに
+ *              置かれているストーリーは対象外にする。件数の判定を実際の検索とそろえるため。
+ *              フレームを持たないストーリーは対象に含める
  */
-function getParagraphsInRange(searchRange) {
-    /* Story はそのまま段落を持つ / A Story exposes paragraphs directly */
-    if (!(searchRange instanceof Document)) {
-        return searchRange.paragraphs.everyItem().getElements();
+function isSearchableStory(story) {
+    var textContainers = story.textContainers;
+
+    if (!textContainers || textContainers.length === 0) return true;
+
+    for (var i = 0; i < textContainers.length; i++) {
+        var itemLayer = textContainers[i].itemLayer;
+
+        if ((FIND_INCLUDE_HIDDEN_LAYERS || itemLayer.visible) &&
+            (FIND_INCLUDE_LOCKED_LAYERS || !itemLayer.locked)) return true;
     }
 
-    /* Document はストーリーごとにたどる / A Document is walked story by story */
-    var paragraphs = [];
+    return false;
+}
 
-    for (var i = 0; i < searchRange.stories.length; i++) {
-        paragraphs = paragraphs.concat(
-            searchRange.stories[i].paragraphs.everyItem().getElements());
+/**
+ * everyItem() の戻り値を配列に正規化する（要素が1件のときスカラーで返るため）
+ * @param {*} everyItemValue everyItem() で取得した値
+ * @returns {array} 正規化した配列
+ */
+function toArray(everyItemValue) {
+    return (everyItemValue instanceof Array) ? everyItemValue : [everyItemValue];
+}
+
+/**
+ * 検索範囲に含まれる段落の文字列を取得する
+ * @param {object} searchRange 検索対象（Document / Story）
+ * @returns {array} 段落の文字列の配列
+ */
+function getParagraphTexts(searchRange) {
+    /* Story はそのまま段落を持つ。Document はストーリーごとにたどる /
+       A Story exposes paragraphs directly, a Document is walked story by story */
+    var stories = (searchRange instanceof Document) ?
+        searchRange.stories.everyItem().getElements() : [searchRange];
+
+    var paragraphTexts = [];
+
+    for (var i = 0; i < stories.length; i++) {
+        if (!isSearchableStory(stories[i])) continue;
+
+        paragraphTexts = paragraphTexts.concat(
+            toArray(stories[i].paragraphs.everyItem().contents));
     }
 
-    return paragraphs;
+    return paragraphTexts;
+}
+
+/**
+ * 検索対象に含まれる段落の文字列をまとめて取得する
+ * @param {array} searchTargets 検索対象の配列
+ * @returns {array} 段落の文字列の配列
+ */
+function getParagraphTextsInTargets(searchTargets) {
+    var paragraphTexts = [];
+
+    for (var i = 0; i < searchTargets.length; i++) {
+        paragraphTexts = paragraphTexts.concat(
+            getParagraphTexts(searchTargets[i].searchRange));
+    }
+
+    return paragraphTexts;
+}
+
+/**
+ * 検索文字列に該当する箇所を数える
+ * @param {array} paragraphTexts 段落の文字列の配列
+ * @param {string} searchText 検索文字列
+ * @returns {number} 該当箇所の数
+ * @description モーダルダイアログの表示中は findGrep() を使えないので、段落の文字列を直接数える。
+ *              ExtendScript の正規表現には後読みが無いため、直前の1文字だけ自分で見る
+ */
+function countMatches(paragraphTexts, searchText) {
+    var markerText = trimTrailingSeparators(searchText);
+
+    if (markerText === "") return 0;
+
+    var firstCharacter = markerText.charAt(0);
+    var matchPattern = new RegExp(escapeGrepText(markerText) + buildRunGuard(markerText), "g");
+    var matchCount = 0;
+
+    for (var i = 0; i < paragraphTexts.length; i++) {
+        var paragraphText = paragraphTexts[i];
+        var matchResult;
+
+        matchPattern.lastIndex = 0;
+
+        while ((matchResult = matchPattern.exec(paragraphText)) !== null) {
+            /* 同じ文字が続く並びの一部は数えない / Skip a match inside a longer run */
+            if (matchResult.index === 0 ||
+                paragraphText.charAt(matchResult.index - 1) !== firstCharacter) {
+                matchCount++;
+            }
+        }
+    }
+
+    return matchCount;
 }
 
 /**
  * 検索オプションを既定値にそろえる
- * @param {object} findChangeOptions findChangeTextOptions / findChangeGrepOptions
+ * @param {object} findChangeOptions findChangeGrepOptions
  * @returns {void}
  */
 function applyFindChangeOptions(findChangeOptions) {
@@ -603,28 +769,22 @@ function applyFindChangeOptions(findChangeOptions) {
 }
 
 /**
- * 検索条件を初期化する（テキスト検索・GREP 検索の両方）
+ * 検索条件と検索オプションを初期化する
  * @returns {void}
+ * @description 前回の「検索/置換」の設定を引き継がないよう、実行の前後でそろえ直す
  */
 function resetFindPreferences() {
-    app.findTextPreferences = NothingEnum.nothing;
-    app.changeTextPreferences = NothingEnum.nothing;
     app.findGrepPreferences = NothingEnum.nothing;
     app.changeGrepPreferences = NothingEnum.nothing;
 
-    applyFindChangeOptions(app.findChangeTextOptions);
     applyFindChangeOptions(app.findChangeGrepOptions);
-
-    /* テキスト検索だけが持つオプション / Options that only text search has */
-    app.findChangeTextOptions.caseSensitive = FIND_CASE_SENSITIVE;
-    app.findChangeTextOptions.wholeWord = false;
 }
 
 /**
  * 段落の行頭にある目印を判定する
  * @param {string} paragraphText 段落の文字列
- * @returns {object} { key: string, markerText: string, searchText: string, useGrep: boolean,
- *                     labelKey: string }。目印がない場合は null
+ * @returns {object} { key: string, markerText: string, searchText: string, labelKey: string }。
+ *                   目印がない場合は null
  * @description 行頭記号の searchText は行頭（^）に固定した GREP。段落の途中にある同じ記号は拾わない。
  *              太字（**文字列**）だけは囲みなので、行頭に固定せず ** そのものを削除する
  */
@@ -636,19 +796,21 @@ function matchLineHeadMarker(paragraphText) {
             key: NUMBERED_LIST_PATTERNS[i].labelKey,
             markerText: "",
             searchText: NUMBERED_LIST_PATTERNS[i].pattern,
-            useGrep: true,
             labelKey: NUMBERED_LIST_PATTERNS[i].labelKey
         };
     }
 
-    var matched = LINE_HEAD_MARKER_PATTERN.exec(paragraphText);
+    var matchResult = LINE_HEAD_MARKER_PATTERN.exec(paragraphText);
 
-    if (matched && !EXCLUDED_LINE_HEAD_PATTERN.test(matched[0])) {
+    /* 区切りを含まない記号そのものを目印にする（"## " と "##" を同じものとして数える） /
+       The marker is the symbol run itself, so "## " and "##" count as one */
+    if (matchResult && !EXCLUDED_LINE_HEAD_PATTERN.test(matchResult[1])) {
+        var lineHeadMarker = matchResult[1];
+
         return {
-            key: matched[0],
-            markerText: matched[0],
-            searchText: buildLineHeadGrep(matched[0]),
-            useGrep: true,
+            key: lineHeadMarker,
+            markerText: lineHeadMarker,
+            searchText: buildLineHeadGrep(lineHeadMarker),
             labelKey: null
         };
     }
@@ -660,7 +822,6 @@ function matchLineHeadMarker(paragraphText) {
             key: "marker.bold",
             markerText: "",
             searchText: BOLD_SEARCH_TEXT,
-            useGrep: true,
             labelKey: "marker.bold"
         };
     }
@@ -669,37 +830,33 @@ function matchLineHeadMarker(paragraphText) {
 }
 
 /**
- * 検索対象を調べ、行頭に繰り返し現れる記号を多い順に集める
- * @param {array} searchTargets 検索対象の配列
- * @returns {array} { markerText: string, searchText: string, useGrep: boolean,
- *                   labelKey: string, count: number } の配列
+ * 段落の文字列を調べ、行頭に繰り返し現れる記号を多い順に集める
+ * @param {array} paragraphTexts 段落の文字列の配列
+ * @returns {array} { markerText: string, searchText: string, labelKey: string, count: number }
+ *                  の配列
  */
-function detectLineHeadMarkers(searchTargets) {
+function detectLineHeadMarkers(paragraphTexts) {
     var markerEntries = {};
 
-    for (var i = 0; i < searchTargets.length; i++) {
-        var paragraphs = getParagraphsInRange(searchTargets[i].searchRange);
+    for (var i = 0; i < paragraphTexts.length; i++) {
+        var markerEntry = matchLineHeadMarker(paragraphTexts[i]);
+        if (!markerEntry) continue;
 
-        for (var j = 0; j < paragraphs.length; j++) {
-            var entry = matchLineHeadMarker(paragraphs[j].contents);
-            if (!entry) continue;
-
-            if (markerEntries[entry.key]) {
-                markerEntries[entry.key].count++;
-            } else {
-                entry.count = 1;
-                markerEntries[entry.key] = entry;
-            }
+        if (markerEntries[markerEntry.key]) {
+            markerEntries[markerEntry.key].count++;
+        } else {
+            markerEntry.count = 1;
+            markerEntries[markerEntry.key] = markerEntry;
         }
     }
 
     var detectedMarkers = [];
 
-    for (var key in markerEntries) {
-        if (!markerEntries.hasOwnProperty(key)) continue;
-        if (markerEntries[key].count < MIN_REPEAT_COUNT) continue;
+    for (var markerKey in markerEntries) {
+        if (!markerEntries.hasOwnProperty(markerKey)) continue;
+        if (markerEntries[markerKey].count < MIN_REPEAT_COUNT) continue;
 
-        detectedMarkers.push(markerEntries[key]);
+        detectedMarkers.push(markerEntries[markerKey]);
     }
 
     /* 多い順、同数なら長い記号を先に（### を # より先に） / Most frequent first, longer marker wins a tie */
@@ -716,11 +873,10 @@ function detectLineHeadMarkers(searchTargets) {
  * @param {object} searchRange 検索対象（Document / Story）
  * @param {ParagraphStyle} paragraphStyle 適用する段落スタイル
  * @param {CharacterStyle} characterStyle 適用する文字スタイル。適用しない場合は null
- * @param {boolean} useGrep GREP 検索を使うかどうか
  * @returns {number} 処理した箇所数
  */
-function applyStylesAndRemoveMarker(searchRange, paragraphStyle, characterStyle, useGrep) {
-    var foundTexts = useGrep ? searchRange.findGrep() : searchRange.findText();
+function applyStylesAndRemoveMarker(searchRange, paragraphStyle, characterStyle) {
+    var foundTexts = searchRange.findGrep();
     var appliedCount = 0;
 
     /* 後ろから処理 / Process from the end */
@@ -749,18 +905,12 @@ function applyStylesAndRemoveMarker(searchRange, paragraphStyle, characterStyle,
 }
 
 /**
- * ダイアログを表示して設定を取得する
- * @param {Document} activeDoc アクティブドキュメント
- * @returns {object} { searchText: string, useGrep: boolean, applyAllLevels: boolean,
- *                     paragraphStyleName: string, characterStyleName: string,
- *                     searchScope: number }。キャンセル時は null
- * @description 「自動判別」の候補は検索対象を変えるたびに取り直す
+ * 検索文字列パネルを作る
+ * @param {Window} dialog 追加先のダイアログ
+ * @returns {object} { panel: Panel, modeRadios: array, searchTextField: EditText,
+ *                     detectedMarkerDropdown: DropDownList, matchCountValue: StaticText }
  */
-function showDialog(activeDoc) {
-    var dialog = new Window("dialog", getLabel("dialog.title"));
-    setupWindow(dialog);
-
-    /* 検索文字列パネル / Find What panel */
+function addSearchPanel(dialog) {
     var searchPanel = dialog.add("panel", undefined, getLabel("panel.searchText"));
     setupPanel(searchPanel);
 
@@ -772,6 +922,7 @@ function showDialog(activeDoc) {
     searchTextField.characters = SEARCH_TEXT_LENGTH;
     searchTextField.alignment = ["fill", "center"];
     searchTextField.helpTip = getLabel("tooltip.searchText");
+    textModeRadio.helpTip = getLabel("tooltip.searchText");
 
     var autoModeRow = searchPanel.add("group");
     setupRow(autoModeRow);
@@ -782,13 +933,37 @@ function showDialog(activeDoc) {
     detectedMarkerDropdown.alignment = ["fill", "center"];
     detectedMarkerDropdown.helpTip = getLabel("tooltip.auto");
 
-    /* 置換スタイルパネル / Styles panel */
+    var matchCountRow = searchPanel.add("group");
+    setupRow(matchCountRow);
+    addRowLabel(matchCountRow, "field.matchCount").helpTip = getLabel("tooltip.matchCount");
+    var matchCountValue = matchCountRow.add("statictext", undefined, "0");
+    matchCountValue.preferredSize.width = COUNT_WIDTH;
+    matchCountValue.helpTip = getLabel("tooltip.matchCount");
+
+    return {
+        panel: searchPanel,
+        modeRadios: [textModeRadio, autoModeRadio],
+        searchTextField: searchTextField,
+        detectedMarkerDropdown: detectedMarkerDropdown,
+        matchCountValue: matchCountValue
+    };
+}
+
+/**
+ * スタイルパネルを作る
+ * @param {Window} dialog 追加先のダイアログ
+ * @param {Document} activeDoc アクティブドキュメント
+ * @returns {object} { panel: Panel, paragraphStyleDropdown: DropDownList,
+ *                     characterStyleDropdown: DropDownList }
+ */
+function addStylePanel(dialog, activeDoc) {
     var stylePanel = dialog.add("panel", undefined, getLabel("panel.style"));
     setupPanel(stylePanel);
 
     var paragraphStyleRow = stylePanel.add("group");
     setupRow(paragraphStyleRow);
-    addRowLabel(paragraphStyleRow, "field.paragraphStyle");
+    addRowLabel(paragraphStyleRow, "field.paragraphStyle").helpTip =
+        getLabel("tooltip.paragraphStyle");
     var paragraphStyleDropdown = paragraphStyleRow.add(
         "dropdownlist", undefined, getStyleNames(activeDoc.allParagraphStyles, false));
     paragraphStyleDropdown.selection = 0;
@@ -797,44 +972,80 @@ function showDialog(activeDoc) {
 
     var characterStyleRow = stylePanel.add("group");
     setupRow(characterStyleRow);
-    addRowLabel(characterStyleRow, "field.characterStyle");
+    addRowLabel(characterStyleRow, "field.characterStyle").helpTip =
+        getLabel("tooltip.characterStyle");
     var characterStyleDropdown = characterStyleRow.add(
         "dropdownlist", undefined, getStyleNames(activeDoc.allCharacterStyles, true));
     characterStyleDropdown.selection = 0;
     characterStyleDropdown.alignment = ["fill", "center"];
     characterStyleDropdown.helpTip = getLabel("tooltip.characterStyle");
 
-    /* オプションパネル / Options panel */
-    var optionsPanel = dialog.add("panel", undefined, getLabel("panel.options"));
-    setupPanel(optionsPanel);
+    return {
+        panel: stylePanel,
+        paragraphStyleDropdown: paragraphStyleDropdown,
+        characterStyleDropdown: characterStyleDropdown
+    };
+}
 
-    var scopeRow = optionsPanel.add("group");
-    setupRow(scopeRow);
-    addRowLabel(scopeRow, "field.scope");
-    var searchScopeDropdown = scopeRow.add("dropdownlist", undefined, [
-        getLabel("scope.allDocuments"),
-        getLabel("scope.document"),
-        getLabel("scope.story")
-    ]);
-    searchScopeDropdown.selection = DEFAULT_SCOPE;
-    searchScopeDropdown.alignment = ["fill", "center"];
-    searchScopeDropdown.helpTip = getLabel("tooltip.scope");
+/**
+ * 検索対象パネルを作る（縦並びのラジオボタン）
+ * @param {Window} dialog 追加先のダイアログ
+ * @returns {array} SCOPE_* の並び順に対応するラジオボタンの配列
+ */
+function addScopePanel(dialog) {
+    var scopePanel = dialog.add("panel", undefined, getLabel("panel.scope"));
+    setupPanel(scopePanel);
+    scopePanel.spacing = RADIO_SPACING;
 
-    var matchLevelRow = optionsPanel.add("group");
+    var scopeLabelKeys = ["scope.allDocuments", "scope.document", "scope.story"];
+    var searchScopeRadios = [];
+
+    for (var i = 0; i < scopeLabelKeys.length; i++) {
+        var scopeRadio = scopePanel.add("radiobutton", undefined, getLabel(scopeLabelKeys[i]));
+        scopeRadio.helpTip = getLabel("tooltip." + scopeLabelKeys[i]);
+        searchScopeRadios.push(scopeRadio);
+    }
+
+    searchScopeRadios[DEFAULT_SCOPE].value = true;
+
+    return searchScopeRadios;
+}
+
+/**
+ * Markdown パネルを作る
+ * @param {Window} dialog 追加先のダイアログ
+ * @returns {object} { matchLevelCheckbox: Checkbox, applyAllLevelsCheckbox: Checkbox }
+ */
+function addMarkdownPanel(dialog) {
+    var markdownPanel = dialog.add("panel", undefined, getLabel("panel.markdown"));
+    setupPanel(markdownPanel);
+
+    var matchLevelRow = markdownPanel.add("group");
     setupRow(matchLevelRow);
     var matchLevelCheckbox =
         matchLevelRow.add("checkbox", undefined, getLabel("field.matchLevel"));
     matchLevelCheckbox.value = DEFAULT_MATCH_LEVEL;
     matchLevelCheckbox.helpTip = getLabel("tooltip.matchLevel");
 
-    var applyAllLevelsRow = optionsPanel.add("group");
+    var applyAllLevelsRow = markdownPanel.add("group");
     setupRow(applyAllLevelsRow);
     var applyAllLevelsCheckbox =
         applyAllLevelsRow.add("checkbox", undefined, getLabel("field.applyAllLevels"));
     applyAllLevelsCheckbox.value = DEFAULT_APPLY_ALL_LEVELS;
     applyAllLevelsCheckbox.helpTip = getLabel("tooltip.applyAllLevels");
 
-    /* ボタンエリア / Button row */
+    return {
+        matchLevelCheckbox: matchLevelCheckbox,
+        applyAllLevelsCheckbox: applyAllLevelsCheckbox
+    };
+}
+
+/**
+ * ボタンエリアを作る
+ * @param {Window} dialog 追加先のダイアログ
+ * @returns {object} { btnOk: Button, btnCancel: Button }
+ */
+function addButtonRow(dialog) {
     var btnRowGroup = dialog.add("group");
     btnRowGroup.orientation = "row";
     btnRowGroup.alignment = ["fill", "bottom"];
@@ -854,9 +1065,130 @@ function showDialog(activeDoc) {
     btnCancel.helpTip = getLabel("tooltip.cancel");
     btnOk.helpTip = getLabel("tooltip.ok");
 
-    var searchModeRadios = [textModeRadio, autoModeRadio];
+    return { btnOk: btnOk, btnCancel: btnCancel };
+}
+
+/**
+ * ダイアログを表示して設定を取得する
+ * @param {Document} activeDoc アクティブドキュメント
+ * @returns {object} { searchText: string, applyAllLevels: boolean,
+ *                     paragraphStyleName: string, characterStyleName: string,
+ *                     searchScope: number }。キャンセル時は null
+ * @description 「自動判別」の候補と対象箇所は、検索対象を変えるたびに取り直す
+ */
+function showDialog(activeDoc) {
+    var dialog = new Window("dialog", getLabel("dialog.title"));
+    setupWindow(dialog);
+
+    var searchControls = addSearchPanel(dialog);
+    var styleControls = addStylePanel(dialog, activeDoc);
+    var searchScopeRadios = addScopePanel(dialog);
+    var markdownControls = addMarkdownPanel(dialog);
+    var dialogButtons = addButtonRow(dialog);
+
+    var searchModeRadios = searchControls.modeRadios;
+    var searchTextField = searchControls.searchTextField;
+    var detectedMarkerDropdown = searchControls.detectedMarkerDropdown;
+    var matchCountValue = searchControls.matchCountValue;
+    var paragraphStyleDropdown = styleControls.paragraphStyleDropdown;
+    var characterStyleDropdown = styleControls.characterStyleDropdown;
+    var matchLevelCheckbox = markdownControls.matchLevelCheckbox;
+    var applyAllLevelsCheckbox = markdownControls.applyAllLevelsCheckbox;
+    var btnOk = dialogButtons.btnOk;
+
     var detectedMarkers = [];
     var detectedMarkerCache = {};
+    var paragraphTextCache = {};
+
+    /**
+     * 現在選ばれている指定方法を取得する
+     * @returns {number} SEARCH_MODE_* のいずれか
+     */
+    function getSelectedSearchMode() {
+        return getSelectedRadioIndex(searchModeRadios);
+    }
+
+    /**
+     * 現在の検索対象に含まれる段落の文字列を取得する
+     * @returns {array} 段落の文字列の配列
+     * @description 同じ検索対象を選び直したときは走査し直さない。
+     *              自動判別と対象箇所の集計で同じ結果を使い回す
+     */
+    function getCurrentParagraphTexts() {
+        var searchScope = getSelectedRadioIndex(searchScopeRadios);
+
+        if (!paragraphTextCache[searchScope]) {
+            paragraphTextCache[searchScope] = getParagraphTextsInTargets(
+                getSearchTargets(searchScope, activeDoc));
+        }
+
+        return paragraphTextCache[searchScope];
+    }
+
+    /**
+     * 現在選ばれている目印の文字列を取得する（GREP に組み立てる前の記号そのまま）
+     * @returns {string} 目印の文字列。取得できない場合は空文字列
+     */
+    function getCurrentMarkerText() {
+        if (getSelectedSearchMode() !== SEARCH_MODE_AUTO) return searchTextField.text;
+
+        return detectedMarkerDropdown.selection ?
+            detectedMarkers[detectedMarkerDropdown.selection.index].markerText :
+            "";
+    }
+
+    /**
+     * 対象箇所の表示を更新する
+     * @returns {void}
+     * @description 自動判別は判別時に数えた段落数をそのまま出し、
+     *              文字列を指定したときは入力のたびに数え直す
+     */
+    function updateMatchCount() {
+        if (getSelectedSearchMode() === SEARCH_MODE_AUTO) {
+            matchCountValue.text = detectedMarkerDropdown.selection ?
+                detectedMarkers[detectedMarkerDropdown.selection.index].count + "" :
+                "0";
+            return;
+        }
+
+        matchCountValue.text =
+            countMatches(getCurrentParagraphTexts(), searchTextField.text) + "";
+    }
+
+    /**
+     * 見出しマーカーの選択に合わせて、Markdown パネルの状態を更新する
+     * @returns {void}
+     */
+    function updateHeadingOptions() {
+        var headingLevel = getHeadingLevel(getCurrentMarkerText());
+        var isHeadingMarker = (headingLevel > 0);
+
+        /* 見出しマーカー以外を選んでいる間は両方とも使えない。チェック状態は残す /
+           Both options need a heading marker; the checked state is kept as it is */
+        var applyAllLevels = isHeadingMarker && applyAllLevelsCheckbox.value;
+
+        applyAllLevelsCheckbox.enabled = isHeadingMarker;
+
+        /* 連続適用中は検索文字列もスタイルもレベルごとに決まるので、両パネルを使わない /
+           While applying every level both panels are unused */
+        searchControls.panel.enabled = !applyAllLevels;
+        styleControls.panel.enabled = !applyAllLevels;
+        matchLevelCheckbox.enabled = isHeadingMarker && !applyAllLevels;
+
+        if (!matchLevelCheckbox.enabled || !matchLevelCheckbox.value) return;
+
+        var styleIndex = findHeadingStyleIndex(paragraphStyleDropdown, headingLevel);
+        if (styleIndex >= 0) paragraphStyleDropdown.selection = styleIndex;
+    }
+
+    /**
+     * 目印の選び直しに合わせて、Markdown パネルと対象箇所を更新する
+     * @returns {void}
+     */
+    function refreshMarkerSelection() {
+        updateHeadingOptions();
+        updateMatchCount();
+    }
 
     /**
      * 選ばれた指定方法に合わせて、ラジオボタンと入力欄の状態をそろえる
@@ -875,56 +1207,7 @@ function showDialog(activeDoc) {
             (detectedMarkers.length > 0) :
             (searchTextField.text !== "");
 
-        updateHeadingOptions();
-    }
-
-    /**
-     * 現在選ばれている目印の文字列を取得する（GREP に組み立てる前の記号そのまま）
-     * @returns {string} 目印の文字列。取得できない場合は空文字列
-     */
-    function getCurrentMarkerText() {
-        if (getSelectedSearchMode() !== SEARCH_MODE_AUTO) return searchTextField.text;
-
-        return detectedMarkerDropdown.selection ?
-            detectedMarkers[detectedMarkerDropdown.selection.index].markerText :
-            "";
-    }
-
-    /**
-     * 見出しマーカーの選択に合わせて、Markdown 関連のオプションを更新する
-     * @returns {void}
-     */
-    function updateHeadingOptions() {
-        var headingLevel = getHeadingLevel(getCurrentMarkerText());
-        var isHeadingMarker = (headingLevel > 0);
-
-        /* 見出しマーカー以外を選んでいる間は両方とも使えない。チェック状態は残す /
-           Both options need a heading marker; the checked state is kept as it is */
-        var applyAllLevels = isHeadingMarker && applyAllLevelsCheckbox.value;
-
-        applyAllLevelsCheckbox.enabled = isHeadingMarker;
-
-        /* 連続適用中は検索文字列もスタイルもレベルごとに決まるので、両パネルを使わない /
-           While applying every level both panels are unused */
-        searchPanel.enabled = !applyAllLevels;
-        stylePanel.enabled = !applyAllLevels;
-        matchLevelCheckbox.enabled = isHeadingMarker && !applyAllLevels;
-
-        if (!matchLevelCheckbox.enabled || !matchLevelCheckbox.value) return;
-
-        var styleIndex = findHeadingStyleIndex(paragraphStyleDropdown, headingLevel);
-        if (styleIndex >= 0) paragraphStyleDropdown.selection = styleIndex;
-    }
-
-    /**
-     * 現在選ばれている指定方法を取得する
-     * @returns {number} SEARCH_MODE_* のいずれか
-     */
-    function getSelectedSearchMode() {
-        for (var i = 0; i < searchModeRadios.length; i++) {
-            if (searchModeRadios[i].value) return i;
-        }
-        return SEARCH_MODE_TEXT;
+        refreshMarkerSelection();
     }
 
     /**
@@ -932,12 +1215,12 @@ function showDialog(activeDoc) {
      * @returns {void}
      */
     function refreshDetectedMarkers() {
-        var searchScope = searchScopeDropdown.selection.index;
+        var searchScope = getSelectedRadioIndex(searchScopeRadios);
 
-        /* 同じ検索対象を選び直したときは走査し直さない / Reuse the result for a scope already scanned */
+        /* 同じ検索対象を選び直したときは判別し直さない / Reuse the result for a scope already scanned */
         if (!detectedMarkerCache[searchScope]) {
-            detectedMarkerCache[searchScope] = detectLineHeadMarkers(
-                getSearchTargets(searchScope, activeDoc));
+            detectedMarkerCache[searchScope] =
+                detectLineHeadMarkers(getCurrentParagraphTexts());
         }
 
         detectedMarkers = detectedMarkerCache[searchScope];
@@ -950,7 +1233,7 @@ function showDialog(activeDoc) {
         }
         detectedMarkerDropdown.selection = (detectedMarkers.length > 0) ? 0 : null;
 
-        autoModeRadio.enabled = (detectedMarkers.length > 0);
+        searchModeRadios[SEARCH_MODE_AUTO].enabled = (detectedMarkers.length > 0);
 
         /* 候補が無くなったら文字列指定に戻す / Fall back to manual entry when nothing was detected */
         var searchMode = getSelectedSearchMode();
@@ -960,13 +1243,20 @@ function showDialog(activeDoc) {
         selectSearchMode(searchMode);
     }
 
-    textModeRadio.onClick = function () { selectSearchMode(SEARCH_MODE_TEXT); };
-    autoModeRadio.onClick = function () { selectSearchMode(SEARCH_MODE_AUTO); };
+    searchModeRadios[SEARCH_MODE_TEXT].onClick = function () {
+        selectSearchMode(SEARCH_MODE_TEXT);
+    };
+    searchModeRadios[SEARCH_MODE_AUTO].onClick = function () {
+        selectSearchMode(SEARCH_MODE_AUTO);
+    };
     searchTextField.onChanging = function () { selectSearchMode(getSelectedSearchMode()); };
-    detectedMarkerDropdown.onChange = updateHeadingOptions;
+    detectedMarkerDropdown.onChange = refreshMarkerSelection;
     matchLevelCheckbox.onClick = updateHeadingOptions;
     applyAllLevelsCheckbox.onClick = updateHeadingOptions;
-    searchScopeDropdown.onChange = refreshDetectedMarkers;
+
+    for (var i = 0; i < searchScopeRadios.length; i++) {
+        searchScopeRadios[i].onClick = refreshDetectedMarkers;
+    }
 
     selectSearchMode(DEFAULT_SEARCH_MODE);
     refreshDetectedMarkers();
@@ -975,7 +1265,7 @@ function showDialog(activeDoc) {
 
     var selectedMarker = (getSelectedSearchMode() === SEARCH_MODE_AUTO) ?
         detectedMarkers[detectedMarkerDropdown.selection.index] :
-        { searchText: searchTextField.text, useGrep: false };
+        { searchText: buildExactGrep(searchTextField.text) };
 
     var applyAllLevels = applyAllLevelsCheckbox.enabled && applyAllLevelsCheckbox.value;
 
@@ -986,12 +1276,100 @@ function showDialog(activeDoc) {
 
     return {
         searchText: selectedMarker.searchText,
-        useGrep: selectedMarker.useGrep,
         applyAllLevels: applyAllLevels,
         paragraphStyleName: paragraphStyleDropdown.selection.text,
         characterStyleName: characterStyleName,
-        searchScope: searchScopeDropdown.selection.index
+        searchScope: getSelectedRadioIndex(searchScopeRadios)
     };
+}
+
+// =========================================
+// 実行 / Run
+// =========================================
+
+/**
+ * ひとつの検索を検索対象ぶん実行する
+ * @param {object} searchPlan { searchText: string, headingLevel: number }
+ * @param {array} searchTargets 検索対象の配列
+ * @param {object} dialogSettings ダイアログの設定
+ * @param {object} runResult 結果の記録先
+ * @returns {void}
+ */
+function runSearchPlan(searchPlan, searchTargets, dialogSettings, runResult) {
+    /* 検索条件を初期化 / Reset the find preferences */
+    resetFindPreferences();
+    app.findGrepPreferences.findWhat = searchPlan.searchText;
+
+    for (var i = 0; i < searchTargets.length; i++) {
+        var targetDoc = searchTargets[i].doc;
+        var resolvedStyles = resolveStyles(
+            targetDoc,
+            dialogSettings.paragraphStyleName,
+            dialogSettings.characterStyleName,
+            searchPlan.headingLevel);
+
+        /* 段落スタイルを持たないドキュメントはスキップ / Skip documents without the paragraph style */
+        if (resolvedStyles.skip) {
+            if (resolvedStyles.missingParagraphStyle) {
+                addDocumentNote(runResult.skippedDocumentNotes,
+                    targetDoc.name + ": " + resolvedStyles.missingParagraphStyle);
+            }
+            continue;
+        }
+
+        if (resolvedStyles.missingCharacterStyle) {
+            addDocumentNote(runResult.partialDocumentNotes,
+                targetDoc.name + ": " + resolvedStyles.missingCharacterStyle);
+        }
+
+        runResult.processedCount += applyStylesAndRemoveMarker(
+            searchTargets[i].searchRange,
+            resolvedStyles.paragraphStyle,
+            resolvedStyles.characterStyle);
+    }
+}
+
+/**
+ * 検索の一覧を順に実行する
+ * @param {array} searchPlans 検索の一覧
+ * @param {array} searchTargets 検索対象の配列
+ * @param {object} dialogSettings ダイアログの設定
+ * @returns {object} { processedCount: number, skippedDocumentNotes: array,
+ *                     partialDocumentNotes: array }
+ */
+function runSearchPlans(searchPlans, searchTargets, dialogSettings) {
+    var runResult = {
+        processedCount: 0,
+        skippedDocumentNotes: [],
+        partialDocumentNotes: []
+    };
+
+    for (var i = 0; i < searchPlans.length; i++) {
+        runSearchPlan(searchPlans[i], searchTargets, dialogSettings, runResult);
+    }
+
+    return runResult;
+}
+
+/**
+ * 完了メッセージを組み立てる
+ * @param {object} runResult 実行結果
+ * @returns {string} 表示するメッセージ
+ */
+function buildResultMessage(runResult) {
+    var resultMessage = formatLabel(getLabel("result.processed"), [runResult.processedCount]);
+
+    if (runResult.partialDocumentNotes.length > 0) {
+        resultMessage += "\n\n" + getLabel("result.partial") +
+            "\n" + runResult.partialDocumentNotes.join("\n");
+    }
+
+    if (runResult.skippedDocumentNotes.length > 0) {
+        resultMessage += "\n\n" + getLabel("result.skipped") +
+            "\n" + runResult.skippedDocumentNotes.join("\n");
+    }
+
+    return resultMessage;
 }
 
 // =========================================
@@ -1004,80 +1382,27 @@ function showDialog(activeDoc) {
         return;
     }
 
-    var doc = app.activeDocument;
+    var activeDoc = app.activeDocument;
 
-    var dialogSettings = showDialog(doc);
+    var dialogSettings = showDialog(activeDoc);
     if (!dialogSettings) return;
 
-    var searchTargets = getSearchTargets(dialogSettings.searchScope, doc);
+    var searchTargets = getSearchTargets(dialogSettings.searchScope, activeDoc);
     if (searchTargets.length === 0) {
         alert(getLabel("error.noTarget"));
         return;
     }
 
     var searchPlans = buildSearchPlans(dialogSettings);
-    var processedCount = 0;
-    var skippedDocuments = [];
-    var partialDocuments = [];
+    var runResult = null;
 
     /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
     app.doScript(function () {
-        for (var planIndex = 0; planIndex < searchPlans.length; planIndex++) {
-            var searchPlan = searchPlans[planIndex];
-
-            /* 検索条件を初期化 / Reset the find preferences */
-            resetFindPreferences();
-
-            if (searchPlan.useGrep) {
-                app.findGrepPreferences.findWhat = searchPlan.searchText;
-            } else {
-                app.findTextPreferences.findWhat = searchPlan.searchText;
-            }
-
-            for (var i = 0; i < searchTargets.length; i++) {
-                var resolvedStyles = resolveStyles(
-                    searchTargets[i].doc,
-                    dialogSettings.paragraphStyleName,
-                    dialogSettings.characterStyleName,
-                    searchPlan.headingLevel);
-
-                /* 段落スタイルを持たないドキュメントはスキップ / Skip documents without the paragraph style */
-                if (resolvedStyles.skip) {
-                    if (resolvedStyles.missing) {
-                        addSkippedDocument(skippedDocuments,
-                            searchTargets[i].doc.name + ": " + resolvedStyles.missing);
-                    }
-                    continue;
-                }
-
-                if (resolvedStyles.missingCharacterStyle) {
-                    addSkippedDocument(partialDocuments,
-                        searchTargets[i].doc.name + ": " + resolvedStyles.missingCharacterStyle);
-                }
-
-                processedCount += applyStylesAndRemoveMarker(
-                    searchTargets[i].searchRange,
-                    resolvedStyles.paragraphStyle,
-                    resolvedStyles.characterStyle,
-                    searchPlan.useGrep);
-            }
-        }
+        runResult = runSearchPlans(searchPlans, searchTargets, dialogSettings);
     }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.apply"));
 
     /* 検索条件をクリア / Clear the find preferences */
     resetFindPreferences();
 
-    var resultMessage = formatLabel(getLabel("result.processed"), [processedCount]);
-
-    if (partialDocuments.length > 0) {
-        resultMessage += "\n\n" + getLabel("result.partial") +
-            "\n" + partialDocuments.join("\n");
-    }
-
-    if (skippedDocuments.length > 0) {
-        resultMessage += "\n\n" + getLabel("result.skipped") +
-            "\n" + skippedDocuments.join("\n");
-    }
-
-    alert(resultMessage);
+    alert(buildResultMessage(runResult));
 })();
