@@ -20,7 +20,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdRemoveMarkerApplyStyle";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)"; /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-09";                  /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-10";                  /* 更新日 / last updated */
@@ -45,6 +45,7 @@ var DEFAULT_SEARCH_MODE      = SEARCH_MODE_TEXT;
 var DEFAULT_SEARCH_TEXT      = "###";
 var DEFAULT_MATCH_LEVEL      = true;  /* 見出しレベルに合わせて段落スタイルを選ぶ / match the style to the level */
 var DEFAULT_APPLY_ALL_LEVELS = false; /* 見出しを連続適用する / apply every heading level */
+var DEFAULT_USE_GREP         = false; /* 検索文字列を GREP として扱う / treat the search text as GREP */
 
 /* 自動判別で拾う行頭記号 / Line-head markers picked up by auto detection */
 /* 半角記号に加え、箇条書きに使う約物と全角記号を含める / ASCII symbols plus Japanese bullets and full-width symbols */
@@ -97,8 +98,8 @@ var HEADING_STYLE_NAME_FORMATS = ["h%1", "H%1", "heading %1", "Heading %1"];
 /* 検索オプション（前回の「検索/置換」の設定を引き継がない） / Find options (never inherited) */
 var FIND_WIDTH_SENSITIVE        = true;  /* 半角と全角を区別（＃ と # を分ける） / width sensitive */
 var FIND_KANA_SENSITIVE         = true;  /* ひらがなとカタカナを区別 / kana sensitive */
-var FIND_INCLUDE_FOOTNOTES      = true;  /* 脚注を含む / include footnotes */
-var FIND_INCLUDE_MASTER_PAGES   = true;  /* マスターページを含む / include master pages */
+var FIND_INCLUDE_FOOTNOTES      = false; /* 脚注を含む / include footnotes */
+var FIND_INCLUDE_MASTER_PAGES   = false; /* マスターページを含む / include master pages */
 var FIND_INCLUDE_HIDDEN_LAYERS  = false; /* 非表示レイヤーを含む / include hidden layers */
 var FIND_INCLUDE_LOCKED_LAYERS  = false; /* ロックされたレイヤーを含む / include locked layers */
 var FIND_INCLUDE_LOCKED_STORIES = false; /* ロックされたストーリーを含む / include locked stories */
@@ -206,7 +207,9 @@ var LABELS = {
     field: {
         paragraphStyle: { ja: "段落スタイル", en: "Paragraph style" },
         characterStyle: { ja: "文字スタイル", en: "Character style" },
+        useGrep:        { ja: "正規表現（GREP）で検索", en: "Search with GREP" },
         matchCount:     { ja: "対象箇所", en: "Matches" },
+        matchUnknown:   { ja: "—", en: "—" },
         matchLevel:     { ja: "見出しレベルに合わせる", en: "Match the heading level" },
         applyAllLevels: { ja: "連続適用（見出しのみ）", en: "Apply every Markdown heading level" }
     },
@@ -219,8 +222,12 @@ var LABELS = {
     },
     tooltip: {
         searchText: {
-            ja: "削除したい目印の文字列を入力します。例：###\n同じ文字が続く並びの一部には一致しません。「##」は「###」に一致しません。\n目印に続くスペースやタブも一緒に削除します。",
-            en: "Enter the marker text to delete, for example ###.\nIt never matches part of a longer run of the same character, so ## does not match ###.\nSpaces and tabs after the marker are deleted with it."
+            ja: "削除したい目印の文字列を入力します。例：###\n同じ文字が続く並びの一部には一致しません。「##」は「###」に一致しません。\n目印に続くスペースやタブも一緒に削除します。\n「正規表現（GREP）で検索」がオンのときは、いずれも当てはまりません。",
+            en: "Enter the marker text to delete, for example ###.\nIt never matches part of a longer run of the same character, so ## does not match ###.\nSpaces and tabs after the marker are deleted with it.\nNone of this applies while Search with GREP is on."
+        },
+        useGrep: {
+            ja: "入力した文字列を GREP（正規表現）としてそのまま検索します。オフのときは記号も文字として扱い、同じ文字が続く並びの一部には一致しません。\n後読み（?<! …）や段落の区切り（\\r）を含むパターンは対象箇所を数えられないので「—」と表示します。\n「#*」「^」のように長さ0で一致した箇所は、段落スタイルだけが広がらないように読み飛ばします。",
+            en: "Searches with the entered text as a GREP pattern. While it is off the symbols are matched literally and never match part of a longer run.\nA pattern with a lookbehind, (?<! …), or one touching the paragraph mark (\\r) cannot be counted, so the match count shows —.\nA zero-length match, from a pattern such as #* or ^, is skipped so that it cannot spread the paragraph style."
         },
         auto: {
             ja: "検索対象の行頭に繰り返し現れる記号（Markdown 記法を含む）を多い順に並べます。検索対象を変えると再判定します。非表示・ロックされたレイヤーのテキストは数えません。",
@@ -258,7 +265,11 @@ var LABELS = {
     },
     error: {
         noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        noTarget:   { ja: "検索対象が見つかりません。\nテキストを選択するか、カーソルを配置してください。", en: "No search target found.\nSelect text or place the cursor in a story." }
+        noTarget:   { ja: "検索対象が見つかりません。\nテキストを選択するか、カーソルを配置してください。", en: "No search target found.\nSelect text or place the cursor in a story." },
+        searchFailed: {
+            ja: "検索を実行できませんでした。検索文字列（GREP）を見直してください。",
+            en: "The search could not be run. Check the search text (GREP)."
+        }
     },
     result: {
         processed: { ja: "%1箇所の目印を削除しました。", en: "Deleted %1 marker(s)." },
@@ -399,6 +410,17 @@ function buildExactGrep(searchText) {
     return "(?<!" + escapeGrepText(markerText.charAt(0)) + ")" +
         escapeGrepText(markerText) + buildRunGuard(markerText) +
         TRAILING_SEPARATOR_PATTERN;
+}
+
+/**
+ * 検索文字列から GREP パターンを組み立てる
+ * @param {string} searchText 入力された検索文字列
+ * @param {boolean} useGrep 入力をそのまま GREP として扱うかどうか
+ * @returns {string} GREP パターン
+ * @description GREP として扱うときはエスケープも前後の止めも付けず、入力をそのまま渡す
+ */
+function buildSearchGrep(searchText, useGrep) {
+    return useGrep ? searchText : buildExactGrep(searchText);
 }
 
 /**
@@ -671,6 +693,38 @@ function isSearchableStory(story) {
 }
 
 /**
+ * マスタースプレッド上のストーリーかどうかを判定する
+ * @param {Story} story 対象のストーリー
+ * @returns {boolean} マスタースプレッド上なら true
+ */
+function isMasterSpreadStory(story) {
+    var textContainers = story.textContainers;
+
+    if (!textContainers || textContainers.length === 0) return false;
+
+    return isOnMasterSpread(textContainers[0]);
+}
+
+/**
+ * マスタースプレッド上のオブジェクトかどうかを判定する
+ * @param {object} pageItem 対象のページアイテム
+ * @returns {boolean} マスタースプレッド上なら true
+ * @description グループの中に置かれていることもあるので、親をたどって判定する
+ */
+function isOnMasterSpread(pageItem) {
+    var ancestor = pageItem;
+
+    while (ancestor && ancestor.parent) {
+        ancestor = ancestor.parent;
+
+        if (ancestor instanceof MasterSpread) return true;
+        if (ancestor instanceof Spread || ancestor instanceof Document) return false;
+    }
+
+    return false;
+}
+
+/**
  * everyItem() の戻り値を配列に正規化する（要素が1件のときスカラーで返るため）
  * @param {*} everyItemValue everyItem() で取得した値
  * @returns {array} 正規化した配列
@@ -687,12 +741,19 @@ function toArray(everyItemValue) {
 function getParagraphTexts(searchRange) {
     /* Story はそのまま段落を持つ。Document はストーリーごとにたどる /
        A Story exposes paragraphs directly, a Document is walked story by story */
-    var stories = (searchRange instanceof Document) ?
+    var isDocumentRange = (searchRange instanceof Document);
+    var stories = isDocumentRange ?
         searchRange.stories.everyItem().getElements() : [searchRange];
 
     var paragraphTexts = [];
 
     for (var i = 0; i < stories.length; i++) {
+        /* ドキュメント全体の検索は検索オプションに合わせてマスターページを除く。
+           ストーリー指定でマスターページを選んだときは、そのまま数える /
+           A document-wide search follows the find option; a story picked by hand is always counted */
+        if (isDocumentRange && !FIND_INCLUDE_MASTER_PAGES &&
+            isMasterSpreadStory(stories[i])) continue;
+
         if (!isSearchableStory(stories[i])) continue;
 
         paragraphTexts = paragraphTexts.concat(
@@ -719,14 +780,40 @@ function getParagraphTextsInTargets(searchTargets) {
 }
 
 /**
+ * GREP パターンを ExtendScript の正規表現にする
+ * @param {string} searchPattern GREP パターン
+ * @returns {RegExp} 正規表現。評価できないパターンは null
+ */
+function toGrepRegExp(searchPattern) {
+    try {
+        return new RegExp(searchPattern, "g");
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * 段落の文字列を照合できる形にそろえる
+ * @param {string} paragraphText 段落の文字列
+ * @returns {string} 末尾の改行を外した文字列
+ * @description 表を含む段落は contents が配列で返る。末尾の改行を外して "$" を段落の終わりに合わせる
+ */
+function toPlainParagraphText(paragraphText) {
+    return String(paragraphText).replace(/[\r\n]+$/, "");
+}
+
+/**
  * 検索文字列に該当する箇所を数える
  * @param {array} paragraphTexts 段落の文字列の配列
  * @param {string} searchText 検索文字列
- * @returns {number} 該当箇所の数
+ * @param {boolean} useGrep 入力をそのまま GREP として扱うかどうか
+ * @returns {number} 該当箇所の数。数えられないパターンは -1
  * @description モーダルダイアログの表示中は findGrep() を使えないので、段落の文字列を直接数える。
  *              ExtendScript の正規表現には後読みが無いため、直前の1文字だけ自分で見る
  */
-function countMatches(paragraphTexts, searchText) {
+function countMatches(paragraphTexts, searchText, useGrep) {
+    if (useGrep) return countGrepMatches(paragraphTexts, searchText);
+
     var markerText = trimTrailingSeparators(searchText);
 
     if (markerText === "") return 0;
@@ -736,7 +823,7 @@ function countMatches(paragraphTexts, searchText) {
     var matchCount = 0;
 
     for (var i = 0; i < paragraphTexts.length; i++) {
-        var paragraphText = paragraphTexts[i];
+        var paragraphText = toPlainParagraphText(paragraphTexts[i]);
         var matchResult;
 
         matchPattern.lastIndex = 0;
@@ -747,6 +834,43 @@ function countMatches(paragraphTexts, searchText) {
                 paragraphText.charAt(matchResult.index - 1) !== firstCharacter) {
                 matchCount++;
             }
+        }
+    }
+
+    return matchCount;
+}
+
+/**
+ * GREP パターンに該当する箇所を数える
+ * @param {array} paragraphTexts 段落の文字列の配列
+ * @param {string} searchPattern GREP パターン
+ * @returns {number} 該当箇所の数。ExtendScript で評価できないパターンは -1
+ * @description ExtendScript の正規表現は後読みなどを解釈できないので、
+ *              評価できないパターンは件数を出さずに -1 を返す
+ */
+function countGrepMatches(paragraphTexts, searchPattern) {
+    if (searchPattern === "") return 0;
+
+    /* 段落の区切りに触れるパターンは、段落ごとに数える方法では数えられない /
+       A pattern touching the paragraph mark cannot be counted paragraph by paragraph */
+    if (/\\[rn]|[\r\n]/.test(searchPattern)) return -1;
+
+    var matchPattern = toGrepRegExp(searchPattern);
+    if (!matchPattern) return -1;
+
+    var matchCount = 0;
+
+    for (var i = 0; i < paragraphTexts.length; i++) {
+        var paragraphText = toPlainParagraphText(paragraphTexts[i]);
+        var matchResult;
+
+        matchPattern.lastIndex = 0;
+
+        while ((matchResult = matchPattern.exec(paragraphText)) !== null) {
+            matchCount++;
+
+            /* 空文字列に一致したときは自力で進めないと止まらない / An empty match never advances on its own */
+            if (matchResult.index === matchPattern.lastIndex) matchPattern.lastIndex++;
         }
     }
 
@@ -884,6 +1008,10 @@ function applyStylesAndRemoveMarker(searchRange, paragraphStyle, characterStyle)
         try {
             var foundText = foundTexts[i];
 
+            /* 長さ0の一致は目印ではないので、段落スタイルを広げない /
+               A zero-length match is not a marker, so the style must not spread */
+            if (foundText.characters.length === 0) continue;
+
             /* 検索文字列を含む段落にスタイルを適用 / Apply the styles to the paragraph */
             var targetParagraph = foundText.paragraphs[0];
             targetParagraph.appliedParagraphStyle = paragraphStyle;
@@ -924,6 +1052,14 @@ function addSearchPanel(dialog) {
     searchTextField.helpTip = getLabel("tooltip.searchText");
     textModeRadio.helpTip = getLabel("tooltip.searchText");
 
+    var grepModeRow = searchPanel.add("group");
+    setupRow(grepModeRow);
+    /* 検索文字列の入力欄に合わせて字下げする / Indent to line up with the search field */
+    grepModeRow.add("statictext", undefined, "").preferredSize.width = LABEL_WIDTH;
+    var useGrepCheckbox = grepModeRow.add("checkbox", undefined, getLabel("field.useGrep"));
+    useGrepCheckbox.value = DEFAULT_USE_GREP;
+    useGrepCheckbox.helpTip = getLabel("tooltip.useGrep");
+
     var autoModeRow = searchPanel.add("group");
     setupRow(autoModeRow);
     var autoModeRadio = autoModeRow.add("radiobutton", undefined, getLabel("mode.auto"));
@@ -944,6 +1080,7 @@ function addSearchPanel(dialog) {
         panel: searchPanel,
         modeRadios: [textModeRadio, autoModeRadio],
         searchTextField: searchTextField,
+        useGrepCheckbox: useGrepCheckbox,
         detectedMarkerDropdown: detectedMarkerDropdown,
         matchCountValue: matchCountValue
     };
@@ -1088,6 +1225,7 @@ function showDialog(activeDoc) {
 
     var searchModeRadios = searchControls.modeRadios;
     var searchTextField = searchControls.searchTextField;
+    var useGrepCheckbox = searchControls.useGrepCheckbox;
     var detectedMarkerDropdown = searchControls.detectedMarkerDropdown;
     var matchCountValue = searchControls.matchCountValue;
     var paragraphStyleDropdown = styleControls.paragraphStyleDropdown;
@@ -1097,6 +1235,7 @@ function showDialog(activeDoc) {
     var btnOk = dialogButtons.btnOk;
 
     var detectedMarkers = [];
+    var currentMatchCount = 0;
     var detectedMarkerCache = {};
     var paragraphTextCache = {};
 
@@ -1130,7 +1269,11 @@ function showDialog(activeDoc) {
      * @returns {string} 目印の文字列。取得できない場合は空文字列
      */
     function getCurrentMarkerText() {
-        if (getSelectedSearchMode() !== SEARCH_MODE_AUTO) return searchTextField.text;
+        if (getSelectedSearchMode() !== SEARCH_MODE_AUTO) {
+            /* GREP は目印そのものではないので、見出しマーカーとしては読まない /
+               A GREP pattern is not the marker itself, so it is never read as a heading marker */
+            return useGrepCheckbox.value ? "" : searchTextField.text;
+        }
 
         return detectedMarkerDropdown.selection ?
             detectedMarkers[detectedMarkerDropdown.selection.index].markerText :
@@ -1145,14 +1288,20 @@ function showDialog(activeDoc) {
      */
     function updateMatchCount() {
         if (getSelectedSearchMode() === SEARCH_MODE_AUTO) {
-            matchCountValue.text = detectedMarkerDropdown.selection ?
-                detectedMarkers[detectedMarkerDropdown.selection.index].count + "" :
-                "0";
+            currentMatchCount = detectedMarkerDropdown.selection ?
+                detectedMarkers[detectedMarkerDropdown.selection.index].count :
+                0;
+            matchCountValue.text = currentMatchCount + "";
             return;
         }
 
-        matchCountValue.text =
-            countMatches(getCurrentParagraphTexts(), searchTextField.text) + "";
+        currentMatchCount = countMatches(
+            getCurrentParagraphTexts(), searchTextField.text, useGrepCheckbox.value);
+
+        /* 数えられないパターンは件数を出さない / A pattern that cannot be evaluated shows no count */
+        matchCountValue.text = (currentMatchCount < 0) ?
+            getLabel("field.matchUnknown") :
+            currentMatchCount + "";
     }
 
     /**
@@ -1191,6 +1340,22 @@ function showDialog(activeDoc) {
     }
 
     /**
+     * 「文字列を指定」の入力で実行できるかどうかを判定する
+     * @returns {boolean} 実行できるなら true
+     * @description 該当箇所が無いまま実行すると、区切りだけの検索文字列（スペースなど）が
+     *              検索対象すべてのスペースを削除してしまうので、0件では実行させない
+     */
+    function canRunSearchText() {
+        if (searchTextField.text === "") return false;
+
+        /* GREP は InDesign 側の解釈のほうが広いので、数えられなくても実行させる /
+           InDesign reads a GREP query more broadly than ExtendScript, so an uncountable pattern still runs */
+        if (useGrepCheckbox.value) return true;
+
+        return currentMatchCount > 0;
+    }
+
+    /**
      * 選ばれた指定方法に合わせて、ラジオボタンと入力欄の状態をそろえる
      * @param {number} searchMode SEARCH_MODE_* のいずれか
      * @returns {void}
@@ -1201,13 +1366,18 @@ function showDialog(activeDoc) {
         }
 
         searchTextField.enabled = (searchMode === SEARCH_MODE_TEXT);
+
+        /* 自動判別の候補はもともと GREP なので、文字列を指定したときだけ使う /
+           Detected markers are GREP already, so the option belongs to manual entry */
+        useGrepCheckbox.enabled = (searchMode === SEARCH_MODE_TEXT);
         detectedMarkerDropdown.enabled =
             (searchMode === SEARCH_MODE_AUTO) && (detectedMarkers.length > 0);
+        refreshMarkerSelection();
+
+        /* 件数を数え直したあとに判定する / Decide once the count has been refreshed */
         btnOk.enabled = (searchMode === SEARCH_MODE_AUTO) ?
             (detectedMarkers.length > 0) :
-            (searchTextField.text !== "");
-
-        refreshMarkerSelection();
+            canRunSearchText();
     }
 
     /**
@@ -1250,6 +1420,7 @@ function showDialog(activeDoc) {
         selectSearchMode(SEARCH_MODE_AUTO);
     };
     searchTextField.onChanging = function () { selectSearchMode(getSelectedSearchMode()); };
+    useGrepCheckbox.onClick = function () { selectSearchMode(getSelectedSearchMode()); };
     detectedMarkerDropdown.onChange = refreshMarkerSelection;
     matchLevelCheckbox.onClick = updateHeadingOptions;
     applyAllLevelsCheckbox.onClick = updateHeadingOptions;
@@ -1265,7 +1436,7 @@ function showDialog(activeDoc) {
 
     var selectedMarker = (getSelectedSearchMode() === SEARCH_MODE_AUTO) ?
         detectedMarkers[detectedMarkerDropdown.selection.index] :
-        { searchText: buildExactGrep(searchTextField.text) };
+        { searchText: buildSearchGrep(searchTextField.text, useGrepCheckbox.value) };
 
     var applyAllLevels = applyAllLevelsCheckbox.enabled && applyAllLevelsCheckbox.value;
 
@@ -1334,21 +1505,14 @@ function runSearchPlan(searchPlan, searchTargets, dialogSettings, runResult) {
  * @param {array} searchPlans 検索の一覧
  * @param {array} searchTargets 検索対象の配列
  * @param {object} dialogSettings ダイアログの設定
- * @returns {object} { processedCount: number, skippedDocumentNotes: array,
- *                     partialDocumentNotes: array }
+ * @param {object} runResult 結果の記録先
+ * @returns {void}
+ * @description 途中で落ちても結果を残せるように、記録先は呼び出し側で用意する
  */
-function runSearchPlans(searchPlans, searchTargets, dialogSettings) {
-    var runResult = {
-        processedCount: 0,
-        skippedDocumentNotes: [],
-        partialDocumentNotes: []
-    };
-
+function runSearchPlans(searchPlans, searchTargets, dialogSettings, runResult) {
     for (var i = 0; i < searchPlans.length; i++) {
         runSearchPlan(searchPlans[i], searchTargets, dialogSettings, runResult);
     }
-
-    return runResult;
 }
 
 /**
@@ -1394,15 +1558,33 @@ function buildResultMessage(runResult) {
     }
 
     var searchPlans = buildSearchPlans(dialogSettings);
-    var runResult = null;
+    var runResult = {
+        processedCount: 0,
+        skippedDocumentNotes: [],
+        partialDocumentNotes: []
+    };
+    var runError = null;
 
     /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
-    app.doScript(function () {
-        runResult = runSearchPlans(searchPlans, searchTargets, dialogSettings);
-    }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.apply"));
+    try {
+        app.doScript(function () {
+            runSearchPlans(searchPlans, searchTargets, dialogSettings, runResult);
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.apply"));
+    } catch (e) {
+        /* GREP の書き方に無理があると findGrep() で落ちる / An impossible GREP query throws in findGrep() */
+        runError = e;
+    }
 
-    /* 検索条件をクリア / Clear the find preferences */
+    /* 途中で落ちても検索条件は残さない / The find preferences are cleared even after a failure */
     resetFindPreferences();
+
+    if (runError) {
+        /* 途中まで処理していたら、その結果も添える / A partial run is reported together with the error */
+        alert(getLabel("error.searchFailed") +
+            (runError.message ? "\n\n" + runError.message : "") +
+            (runResult.processedCount > 0 ? "\n\n" + buildResultMessage(runResult) : ""));
+        return;
+    }
 
     alert(buildResultMessage(runResult));
 })();

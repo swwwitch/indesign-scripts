@@ -41,8 +41,8 @@ var DEFAULT_SEARCH_TEXT = "###";
 /* 検索オプション（前回の「検索/置換」の設定を引き継がない） / Find options (never inherited) */
 var FIND_WIDTH_SENSITIVE        = true;  /* 半角と全角を区別（＃ と # を分ける） / width sensitive */
 var FIND_KANA_SENSITIVE         = true;  /* ひらがなとカタカナを区別 / kana sensitive */
-var FIND_INCLUDE_FOOTNOTES      = true;  /* 脚注を含む / include footnotes */
-var FIND_INCLUDE_MASTER_PAGES   = true;  /* マスターページを含む / include master pages */
+var FIND_INCLUDE_FOOTNOTES      = false; /* 脚注を含む / include footnotes */
+var FIND_INCLUDE_MASTER_PAGES   = false; /* マスターページを含む / include master pages */
 var FIND_INCLUDE_HIDDEN_LAYERS  = false; /* 非表示レイヤーを含む / include hidden layers */
 var FIND_INCLUDE_LOCKED_LAYERS  = false; /* ロックされたレイヤーを含む / include locked layers */
 var FIND_INCLUDE_LOCKED_STORIES = false; /* ロックされたストーリーを含む / include locked stories */
@@ -407,17 +407,56 @@ function isSearchableStory(story) {
 }
 
 /**
+ * マスタースプレッド上のストーリーかどうかを判定する
+ * @param {Story} story 対象のストーリー
+ * @returns {boolean} マスタースプレッド上なら true
+ */
+function isMasterSpreadStory(story) {
+    var textContainers = story.textContainers;
+
+    if (!textContainers || textContainers.length === 0) return false;
+
+    return isOnMasterSpread(textContainers[0]);
+}
+
+/**
+ * マスタースプレッド上のオブジェクトかどうかを判定する
+ * @param {object} pageItem 対象のページアイテム
+ * @returns {boolean} マスタースプレッド上なら true
+ * @description グループの中に置かれていることもあるので、親をたどって判定する
+ */
+function isOnMasterSpread(pageItem) {
+    var ancestor = pageItem;
+
+    while (ancestor && ancestor.parent) {
+        ancestor = ancestor.parent;
+
+        if (ancestor instanceof MasterSpread) return true;
+        if (ancestor instanceof Spread || ancestor instanceof Document) return false;
+    }
+
+    return false;
+}
+
+/**
  * 検索範囲に含まれる段落の文字列を取得する
  * @param {object} searchRange 検索対象（Document / Story）
  * @returns {array} 段落の文字列の配列
  */
 function getParagraphTexts(searchRange) {
-    var stories = (searchRange instanceof Document) ?
+    var isDocumentRange = (searchRange instanceof Document);
+    var stories = isDocumentRange ?
         searchRange.stories.everyItem().getElements() : [searchRange];
 
     var paragraphTexts = [];
 
     for (var i = 0; i < stories.length; i++) {
+        /* ドキュメント全体の検索は検索オプションに合わせてマスターページを除く。
+           ストーリー指定でマスターページを選んだときは、そのまま数える /
+           A document-wide search follows the find option; a story picked by hand is always counted */
+        if (isDocumentRange && !FIND_INCLUDE_MASTER_PAGES &&
+            isMasterSpreadStory(stories[i])) continue;
+
         if (!isSearchableStory(stories[i])) continue;
 
         paragraphTexts = paragraphTexts.concat(

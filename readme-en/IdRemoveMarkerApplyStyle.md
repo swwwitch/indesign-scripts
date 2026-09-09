@@ -17,6 +17,7 @@ Applies a paragraph style and a character style to paragraphs carrying a leading
 - Line-head symbols picked up: `#` `*` `-` `>` `+` `~` `=` `|` `_` `` ` `` plus the Japanese bullets `●` `○` `◎` `◆` `◇` `■` `□` `▲` `△` `▼` `▽` `★` `☆` `・` `※` and the full-width `＊` `＃` `－` `＋` `＞`
 - Numbered lists cover `1.` `1)` `（一）` `一.` `一、` `一）`, searched with GREP because the number changes. Kanji numerals include 十, 百 and 千
 - Bold `**text**` is treated as an enclosing marker, and both `**` are deleted
+- Search with GREP passes the text entered by hand straight to the GREP query; while it is off the symbols are matched literally
 - The styles are applied to each paragraph that carries the marker, and the marker itself is removed together with the spaces, full-width spaces and tabs that follow it
 - The Matches row in the Find What panel shows how many matches the current settings find, recounted as you type or change the search target, with text on hidden or locked layers left out
 - Match the heading level picks the style named `h3` / `heading 3` for the selected heading level (on by default)
@@ -36,6 +37,13 @@ Applies a paragraph style and a character style to paragraphs carrying a leading
 
 - A marker chosen by automatic detection is searched at the line head (GREP `^`), so the same symbol in the middle of a paragraph is left alone. Bold `**` is the exception, since it encloses the text rather than starting the line.
 - Text entered by hand is not anchored to the line head, but it never matches part of a longer run of the same character: `##` does not match `### Heading`.
+- With Search with GREP on, the text entered by hand goes to the GREP query as it stands: no line-head anchor, no guard against a longer run of the same character, and no deletion of the separator that follows.
+- While GREP is on the Markdown panel (Match the heading level / Apply every heading level) is unavailable, since a pattern is not the marker itself and no heading level can be inferred from it.
+- Zero-length matches — the positions `#*`, `^` or `\b` land on — are skipped, so they cannot spread the paragraph style without deleting a marker.
+- With text entered by hand, OK stays disabled while Matches is 0. This keeps a field holding nothing but a space from deleting every space in the search target.
+- Patterns that ExtendScript cannot evaluate, or reads differently — a lookbehind `(?<! …)`, the paragraph mark `\r`, `[[:alpha:]]` and so on — make Matches disagree with the real search. The ones that cannot be counted show `—`.
+- A GREP spanning a paragraph boundary (`.+\r` and the like) styles only the first paragraph and merges the two.
+- When the pattern cannot be searched at all, the run stops with an error message and leaves no find query behind.
 - Spaces, full-width spaces and tabs after the marker are deleted with it, however many there are. A line without any separator (`##Heading`) is handled too.
 - The heading style is looked up as `h3`, then `H3`, then `heading 3`, then `Heading 3`, and the first match is used.
 - While applying every heading level, the Find What and Styles to Apply panels are dimmed and their settings — the character style included — are not used.
@@ -43,7 +51,7 @@ Applies a paragraph style and a character style to paragraphs carrying a leading
 - The story scope needs a text selection or the cursor placed in a story; without one there is no search target and the run stops.
 - With all open documents the style lists come from the active document. Documents without a paragraph style of the same name are skipped and reported by name.
 - Undo is per document. After a run over all open documents, undo in each document separately.
-- Find options (width sensitive, kana sensitive, include footnotes and master pages, and so on) are set by the script, so the last Find/Change settings are never inherited. Every search is a GREP search, which is always case sensitive.
+- Find options (width sensitive, kana sensitive, footnotes and master pages left out, and so on) are set by the script, so the last Find/Change settings are never inherited. Every search is a GREP search, which is always case sensitive.
 - Hidden layers, locked layers and locked stories are outside the search, and the detection counts leave out the text on hidden and locked layers as well.
 - Counts come in two kinds. The detection list, and Matches while a detected marker is selected, are paragraph counts: `##Heading` and `## Heading` are the same marker, and a paragraph with two bold spans still counts as one. Matches for text entered by hand, and the completion message, count the markers to delete, so each bold span adds two.
 - The character style is applied to the whole paragraph that carries the marker, not to the enclosed text alone.
@@ -53,13 +61,29 @@ Applies a paragraph style and a character style to paragraphs carrying a leading
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdRemoveMarkerApplyStyle.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-09 |
 | Last updated | 2026-09-10 |
 | Article | https://note.com/dtp_tranist/n/n3a0d4c0dacdb |
 
 ## Change log
+
+### v1.1.1 (2026-09-10)
+
+Behaviour
+
+- Footnotes and master pages are now left out of the search by default
+- Text on master spreads is left out of the Matches count as well, to match the search
+- A failed search now stops with an error message — carrying the partial result when there is one — and clears the find preferences
+- Zero-length matches are skipped, so they can no longer spread the paragraph style
+
+Dialog
+
+- A Search with GREP checkbox was added to the Find What panel: with it on, the text entered by hand is passed to the GREP query unescaped (it does not apply to automatic detection)
+- Matches now shows `—` for a pattern that cannot be counted
+- OK stays disabled while Matches is 0 for text entered by hand
+- The Markdown panel is unavailable while GREP is on
 
 ### v1.1.0 (2026-09-10)
 
