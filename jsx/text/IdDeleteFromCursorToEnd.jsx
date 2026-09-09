@@ -25,10 +25,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-05";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteFromCursorToEnd.md
-// README (English)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteFromCursorToEnd.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteFromCursorToEnd.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteFromCursorToEnd.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf0b1e27e1f81"; /* 紹介記事 / article URL */
 
 // Released under the MIT license

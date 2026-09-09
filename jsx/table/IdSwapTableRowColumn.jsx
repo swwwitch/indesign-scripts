@@ -25,10 +25,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-04-17";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSwapTableRowColumn.md
-// README (English)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSwapTableRowColumn.md
+var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSwapTableRowColumn.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSwapTableRowColumn.md"; /* README (English) */
 
 // Original idea
 // Table Transpose v1.0 by Iain Anderson

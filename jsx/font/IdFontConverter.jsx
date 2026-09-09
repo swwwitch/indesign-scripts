@@ -25,10 +25,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-17";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFontConverter.md
-// README (English)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFontConverter.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFontConverter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFontConverter.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n261c771b4b41"; /* 紹介記事 / article URL */
 
 // Original idea

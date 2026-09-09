@@ -8,14 +8,16 @@
 
 ---
 
-Rotates the contents or positions of the selected image frames, either by swapping linked images or by swapping the frames themselves.
+Rotates the selected image frames, moving either the linked images alone or the frames together with their positions.
 
 ## Features
 
-- Swap linked images removes each existing graphic and re-places the linked images in rotating order
-- Swap frames keeps every frame's content and rotates only the positions
-- Choose the fit after placing (fill or fit proportionally) and the position anchor (top left or centre)
-- The order follows the visible layout: top to bottom, then left to right
+- Move the images only removes each existing graphic and re-places the linked images in rotating order
+- Move the frames keeps every frame's content and rotates only the positions
+- Choose the fit after placing (Fill Frame Proportionally or Fit Content Proportionally) and the alignment reference (top left or centre)
+- The order follows the visible layout: top to bottom, then left to right. Each item moves to the next frame, and the last one wraps around to the first
+- Every option carries a tooltip describing what it does
+- The whole run is a single undo step (Cmd+Z)
 
 ## Usage
 
@@ -25,19 +27,32 @@ Rotates the contents or positions of the selected image frames, either by swappi
 
 ## Notes and limitations
 
-- A frame selected more than once is processed only once.
-- Swap linked images assumes each frame holds a single primary graphic.
-- If removal, placement or fitting fails the run is cancelled and an error is shown.
+- A frame is processed only once, even when it is selected twice or selected together with the graphic inside it.
+- Move the images only assumes each frame holds a single primary graphic. Frames whose graphic has no link (embedded images, for example) cannot be processed.
+- Move the frames never resizes a frame. With frames of different sizes the result depends on the anchor you pick (top left or centre).
+- If removal, placement or fitting fails, the run stops at that point and an error is shown. Whatever has already been swapped can be reverted with undo.
 
 ## Script info
 
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdSwapImageFrames.jsx` |
-| Version | v1.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-28 |
-| Last updated | 2026-03-28 |
+| Last updated | 2026-09-09 |
+| Article | https://note.com/dtp_tranist/n/n6dee03ae96e2 |
+
+## Change log
+
+### v1.0.1 (2026-09-09)
+
+- Reworded the dialog so it reads as a rotation rather than a two-way swap, and aligned the fit options with the standard InDesign terms
+- Error messages now state that the run stopped partway and can be reverted with undo
+- Added tooltips to every radio button and panel
+- Simplified frame detection when a placed graphic itself is selected: any child of an image frame now resolves to that frame, regardless of its type
+- Added the link to the introductory article
+- Internal cleanup (consistent naming, shared rotation helper, tidier error handling)
 
 ## License
 

@@ -26,10 +26,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-11";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-04-17";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSmartBorderBuilder.md
-// README (English)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSmartBorderBuilder.md
+var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSmartBorderBuilder.md"; /* README（日本語） */
+var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSmartBorderBuilder.md"; /* README (English) */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

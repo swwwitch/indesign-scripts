@@ -25,10 +25,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-11-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-07";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTransposeTableRowsCols.md
-// README (English)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTransposeTableRowsCols.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTransposeTableRowsCols.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTransposeTableRowsCols.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc6dbdb3af6a1"; /* 紹介記事 / article URL */
 
 // Released under the MIT license

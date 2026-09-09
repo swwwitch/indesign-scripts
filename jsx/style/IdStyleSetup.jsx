@@ -27,10 +27,8 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-01";                   /* 更新日 / last updated */
 
-// README (Japanese)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdStyleSetup.md
-// README (English)
-// https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdStyleSetup.md
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdStyleSetup.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdStyleSetup.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfe87ec253780"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
