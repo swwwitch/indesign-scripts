@@ -5,12 +5,14 @@
 ### 概要
 
 アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・日付・連番・バージョンのセグメント単位で編集し、リネーム／別名保存／コピー保存を行います。
+保存形式は常に InDesign 形式（.indd）なので、.indd 以外の書類では「別名で保存」だけが使えます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Edits the active document's file name segment by segment - base, subtext, status, date, sequence number and version - then renames it, saves it under a new name, or saves a copy.
+The output is always InDesign format (.indd), so only "Save As" is available for a non-.indd document.
 
 See the README for details.
 
@@ -20,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdFileNameManager";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-05-29";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-12";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFileNameManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFileNameManager.md"; /* README (English) */
@@ -40,12 +42,11 @@ var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / win
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
 
 /**
  * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
- * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * @param {Window} win 対象のウィンドウ
+ * @param {number} spacing 要素間隔（省略時は WINDOW_SPACING）
  * @returns {void}
  */
 function setupWindow(win, spacing) {
@@ -57,22 +58,16 @@ function setupWindow(win, spacing) {
 
 /**
  * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @param {Panel} panel 対象のパネル
+ * @param {number} spacing 要素間隔（省略時は PANEL_SPACING）
  * @returns {void}
  */
-
-/**
- * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
- * @param {string} [alignment] 配置。省略時は "left"
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
- * @returns {void}
- */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
     (function () {
@@ -86,7 +81,7 @@ function setupRow(group, alignment, spacing) {
         // バージョン / Version
         // =========================================
 
-        var SCRIPT_VERSION = "v1.3.1";
+        var SCRIPT_VERSION = "v1.3.2";
 
         // =========================================
         // ユーザー設定 / User Settings
@@ -194,8 +189,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ステータス表記の区切り文字かどうかを判定する
-         * @param {string} character 判定する文字
-         * @returns {boolean} 区切り文字なら true
+         * @param {object} item STATUS_ITEMS の要素
+         * @returns {boolean} 区切り線なら true
          */
         function isStatusDivider(item) {
             return item && item.ja === '---';
@@ -276,6 +271,10 @@ function setupRow(group, alignment, spacing) {
                 rename: {
                     ja: "新しい名前で保存したあと、元ファイルをゴミ箱に移します（実質的にリネーム）。元ファイルを参照している他のドキュメント（配置 .ai／InDesign のリンクなど）はリンク切れになります。",
                     en: "Saves with the new name, then moves the original to the Trash (effectively a rename). Documents that reference the original file (placed .ai or InDesign links) will lose the link."
+                },
+                nonNativeUnsupported: {
+                    ja: "保存されるのは InDesign 形式（.indd）だけなので、.indd 以外の書類ではリネーム・コピーを使えません。「別名で保存」を使ってください。",
+                    en: "Only InDesign (.indd) is written, so Rename and Save a Copy are unavailable for a non-.indd document. Use \"Save As\" instead."
                 },
                 saveAs: {
                     ja: "新しい名前で保存します。元ファイルは残り、作業中のドキュメントが新ファイルに切り替わります。",
@@ -364,8 +363,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ドット区切りキーでラベルを取得する
-         * @param {string} path 例: "dialog.title"
-         * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
+         * @param {string} path ドット記法のキー（例 'dialog.title'）
+         * @returns {string} 現在の言語のラベル（未定義ならキーをそのまま）
          */
         function getLabel(path) {
             var parts = String(path).split('.');
@@ -379,11 +378,11 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
-         * @param {string} path 例: "label.separator"
-         * @returns {string} コロンを付与したラベル文字列
+         * @param {string} path ドット記法のキー
+         * @returns {string} コロンを付けたラベル
          */
         function getLabelWithColon(path) {
-            return L(path) + (currentLanguage === 'ja' ? '：' : ':');
+            return getLabel(path) + (currentLanguage === 'ja' ? '：' : ':');
         }
 
         // =========================================
@@ -391,12 +390,13 @@ function setupRow(group, alignment, spacing) {
         // =========================================
 
         var VERSION_TOKEN_RE = /^[vV]\d+$/;   // v123 / V123
+        var VERSION_TOKEN_SOURCE = '[vV]';     // 採番パターンを組み立てるときの v 部分
 
         /**
          * 月日として妥当な組み合わせかを判定する
-         * @param {number} month 月
-         * @param {number} day 日
-         * @returns {boolean} 妥当なら true
+         * @param {string} monthStr 月（数値でも可）
+         * @param {string} dayStr 日（数値でも可）
+         * @returns {boolean} 月日として妥当なら true
          */
         function isValidMonthDay(monthStr, dayStr) {
             var m = parseInt(monthStr, 10);
@@ -406,8 +406,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 日付セグメントとして解釈できる文字列かを判定する
-         * @param {string} token 判定する文字列
-         * @returns {boolean} 日付なら true
+         * @param {string} token 判定するトークン
+         * @returns {boolean} 日付トークンなら true
          */
         function isDateToken(token) {
             var s = String(token);
@@ -418,8 +418,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * バージョンセグメントとして解釈できる文字列かを判定する
-         * @param {string} token 判定する文字列
-         * @returns {boolean} バージョンなら true
+         * @param {string} token 判定するトークン
+         * @returns {boolean} バージョントークンなら true
          */
         function isVersionToken(token) {
             return VERSION_TOKEN_RE.test(String(token));
@@ -427,8 +427,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ステータスセグメントとして解釈できるかを判定する
-         * @param {string} token 判定する文字列
-         * @returns {string|null} ステータス名。該当しない場合は null
+         * @param {string} token 判定するトークン
+         * @returns {string} 一致したステータス値（無ければ空文字）
          */
         function matchStatusToken(token) {
             var s = String(token).toLowerCase();
@@ -441,8 +441,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ファイル名をセグメントの配列へ分解する
-         * @param {string} fileName 分解するファイル名
-         * @returns {Array<object>} セグメントの配列
+         * @param {string} name 拡張子を除いたファイル名
+         * @returns {array} {kind, value, sep} を要素とするセグメント配列
          */
         function parseFileName(name) {
             var split = String(name).split(/([-_])/); // ["handout","-","Adobe","-","20260422"]
@@ -523,8 +523,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 分断されたテキストセグメントをつなぎ直す
-         * @param {Array<object>} segments セグメントの配列
-         * @returns {Array<object>} 統合後のセグメント
+         * @param {array} segments セグメント配列
+         * @returns {array} text をまとめたセグメント配列
          */
         function mergeFragmentedText(segments) {
             var firstText = -1, lastText = -1;
@@ -548,8 +548,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 既存のファイル名からセグメントの並び順を推定する
-         * @param {Array<object>} segments セグメントの配列
-         * @returns {Array<string>} セグメント種別の並び
+         * @param {array} segments セグメント配列
+         * @returns {array} 出現順の並び（SEGMENT_ORDER の kind）
          */
         function deriveOrderFromSegments(segments) {
             var kindToOrder = {
@@ -573,9 +573,9 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 指定した種別の最初のセグメント値を取得する
-         * @param {Array<object>} segments セグメントの配列
-         * @param {string} kind セグメントの種別
-         * @returns {string} セグメントの値。なければ空文字
+         * @param {array} segments セグメント配列
+         * @param {string} kind 取得する kind
+         * @returns {string} 最初に見つかった値（無ければ空文字）
          */
         function getFirstSegmentValue(segments, kind) {
             for (var i = 0; i < segments.length; i++) {
@@ -586,9 +586,9 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 左側をゼロ埋めして桁を揃える
-         * @param {*} value 対象の値
-         * @param {number} length 揃える桁数
-         * @returns {string} ゼロ埋めした文字列
+         * @param {string} str 対象の文字列
+         * @param {number} width 必要な桁数
+         * @returns {string} 0 で左詰めした文字列
          */
         function padLeft(str, width) {
             while (str.length < width) str = '0' + str;
@@ -597,8 +597,9 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 今日の日付からタイムスタンプ文字列を作る
-         * @param {string} format 日付の書式
-         * @returns {string} タイムスタンプ
+         * @param {string} sep 年月日の間に挟む文字（省略可）
+         * @param {boolean} withTime true なら末尾に "-HHMM" を付ける
+         * @returns {string} 今日の日付文字列
          */
         function todayTimestamp(sep, withTime) {
             sep = sep || '';
@@ -612,26 +613,22 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * バージョン番号を 1 つ繰り上げる
-         * @param {string} versionText 現在のバージョン表記
-         * @returns {string} 繰り上げ後の表記
+         * @param {string} currentBaseName 拡張子を除いた現在のファイル名
+         * @returns {string} v 番号を 1 つ繰り上げたファイル名
          */
         function bumpVersionInPlace(currentBaseName) {
-            var match = String(currentBaseName).match(/([vV])(\d+)/);
-            if (match) {
-                var letter = match[1];
-                var digits = match[2];
-                var nextNum = parseInt(digits, 10) + 1;
-                var newDigits = padLeft(String(nextNum), digits.length);
-                return currentBaseName.replace(/([vV])\d+/, letter + newDigits);
-            }
-            return currentBaseName + '-v2';
+            var parts = extractNumberedParts(currentBaseName, VERSION_TOKEN_SOURCE);
+            if (!parts) return currentBaseName + '-v2';
+            var nextNum = parseInt(parts.digits, 10) + 1;
+            var newDigits = padLeft(String(nextNum), parts.digits.length);
+            return parts.prefix + parts.token + newDigits + parts.suffix;
         }
 
         /**
          * バージョン番号を指定の書式へ整形する
-         * @param {number} versionNumber バージョン番号
-         * @param {string} format バージョンの書式
-         * @returns {string} 整形した文字列
+         * @param {string} originalVersion 元のバージョン文字列（無ければ空）
+         * @param {string} mode 桁数モード（'padded' / 'paddedWide' / それ以外）
+         * @returns {string} 繰り上げたバージョン文字列
          */
         function formatVersion(originalVersion, mode) {
             var match = String(originalVersion || '').match(/^([vV])(\d+)$/);
@@ -648,136 +645,135 @@ function setupRow(group, alignment, spacing) {
             return letter + String(nextNum);
         }
 
+        /* ダイアログ表示中はフォルダーの内容が変わらない前提で、ファイル名一覧を 1 度だけ列挙して使い回す。
+           採番は 1 打鍵ごとに走るため、毎回 getFiles() すると数千ファイルのフォルダーで目に見えて重くなる */
+        var folderFileNamesCache = {};
+
         /**
-         * バージョン表記を接頭辞と数値へ分解する
-         * @param {string} versionText バージョン表記
-         * @returns {object|null} 分解結果。該当しない場合は null
+         * フォルダー内のファイル名一覧を返す（同じフォルダーの 2 回目以降はキャッシュを返す）
+         * @param {Folder} folder 走査するフォルダー
+         * @returns {array} % デコード済みのファイル名の配列
          */
-        function extractVersionParts(baseName) {
-            var m = String(baseName).match(/^(.*?)([vV])(\d+)(.*)$/);
-            if (!m) return null;
-            return { prefix: m[1], letter: m[2], digits: m[3], suffix: m[4] };
+        function getFolderFileNames(folder) {
+            if (!folder) return [];
+            var key = folder.fsName;
+            if (folderFileNamesCache[key]) return folderFileNamesCache[key];
+            var files;
+            try { files = folder.getFiles(); } catch (e) { return []; }
+            var names = [];
+            for (var i = 0; i < files.length; i++) {
+                if (!(files[i] instanceof File)) continue;
+                names.push(decodePercentEncoded(files[i].name));
+            }
+            folderFileNamesCache[key] = names;
+            return names;
         }
 
         /**
-         * 連番表記を接頭辞と数値へ分解する
-         * @param {string} pageText 連番表記
-         * @returns {object|null} 分解結果。該当しない場合は null
+         * フォルダー列挙のキャッシュを破棄する。ダイアログを閉じたあと、実保存前に呼んで
+         * 表示中に増えたファイルを採番に反映させる
+         * @returns {void}
          */
-        function extractPageParts(baseName, prefix) {
-            var p = String(prefix || '');
-            if (!p) return null;
-            var re = new RegExp('^(.*?)(' + escapeRegExp(p) + ')(\\d+)(.*)$', 'i');
+        function resetFolderFileNamesCache() {
+            folderFileNamesCache = {};
+        }
+
+        /**
+         * baseName 内の最初の「{tokenSource}+数字」セグメントを抽出する。マッチしなければ null。
+         * 区切り（- _ .）か文字列端に挟まれたものだけを対象にするため、"rev1-catalog-v02" では
+         * "rev1" ではなく "v02" を拾う（部分文字列で拾うと無関係な語が繰り上がる）
+         * @param {string} baseName 拡張子を除いたファイル名
+         * @param {string} tokenSource 数字の直前に来るトークンの正規表現ソース（"[vV]" など）
+         * @returns {object} {prefix, token, digits, suffix}（マッチしなければ null）
+         */
+        function extractNumberedParts(baseName, tokenSource) {
+            var re = new RegExp('^(|.*?[-_.])(' + tokenSource + ')(\\d+)(?=$|[-_.])(.*)$', 'i');
             var m = String(baseName).match(re);
             if (!m) return null;
-            return { prefix: m[1], digits: m[3], suffix: m[4] };
+            return { prefix: m[1], token: m[2], digits: m[3], suffix: m[4] };
         }
 
         /**
          * 正規表現で特別な意味を持つ文字をエスケープする
-         * @param {string} text 対象の文字列
-         * @returns {string} エスケープした文字列
+         * @param {string} s エスケープする文字列
+         * @returns {string} 正規表現で安全に使える文字列
          */
         function escapeRegExp(s) {
             return String(s).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         }
 
         /**
-         * 同じフォルダ内で使われている最大のバージョン番号を探す
-         * @param {Folder} folder 対象のフォルダ
+         * baseName と同じ prefix / suffix を持つファイルを folder から探し、最大の番号を返す
          * @param {string} baseName 照合するベース名
-         * @returns {number} 最大のバージョン番号
+         * @param {Folder} folder 走査するフォルダー
+         * @param {string} ext 拡張子（".indd" など）
+         * @param {string} tokenSource 数字の直前に来るトークンの正規表現ソース
+         * @returns {number} 最大の番号（見つからなければ null）
          */
-        function findMaxVersionInFolder(baseName, folder, ext) {
+        function findMaxNumberedInFolder(baseName, folder, ext, tokenSource) {
             if (!folder) return null;
-            var parts = extractVersionParts(baseName);
+            var parts = extractNumberedParts(baseName, tokenSource);
             if (!parts) return null;
             var re = new RegExp(
-                '^' + escapeRegExp(parts.prefix) + '[vV](\\d+)'
+                '^' + escapeRegExp(parts.prefix) + '(?:' + tokenSource + ')(\\d+)'
                 + escapeRegExp(parts.suffix) + escapeRegExp(ext) + '$',
                 'i'
             );
-            var files;
-            try { files = folder.getFiles(); } catch (e) { return null; }
+            var names = getFolderFileNames(folder);
             var maxNum = -1;
-            for (var i = 0; i < files.length; i++) {
-                if (!(files[i] instanceof File)) continue;
-                var fname = decodePercentEncoded(files[i].name);
-                var fm = fname.match(re);
-                if (!fm) continue;
-                var num = parseInt(fm[1], 10);
+            for (var i = 0; i < names.length; i++) {
+                var m = names[i].match(re);
+                if (!m) continue;
+                var num = parseInt(m[1], 10);
                 if (num > maxNum) maxNum = num;
             }
             return maxNum >= 0 ? maxNum : null;
         }
 
         /**
-         * 重複しない次のバージョン付きファイル名を求める
-         * @param {Folder} folder 対象のフォルダ
-         * @param {string} fileName 元のファイル名
-         * @returns {string} 次に使えるファイル名
+         * baseName 内の番号を、親フォルダー内の同パターンの最大番号 +1 に置き換える。
+         * 無い、または +1 が現在値以下のときは baseName のまま返す。桁数は維持
+         * @param {string} baseName 拡張子を除いたファイル名
+         * @param {Folder} folder 走査するフォルダー
+         * @param {string} ext 拡張子
+         * @param {string} tokenSource 数字の直前に来るトークンの正規表現ソース
+         * @returns {string} 衝突しない番号に置き換えたファイル名
          */
-        function nextAvailableVersionName(baseName, folder, ext) {
-            var maxNum = findMaxVersionInFolder(baseName, folder, ext);
+        function nextAvailableNumberedName(baseName, folder, ext, tokenSource) {
+            var maxNum = findMaxNumberedInFolder(baseName, folder, ext, tokenSource);
             if (maxNum === null) return baseName;
-            var parts = extractVersionParts(baseName);
+            var parts = extractNumberedParts(baseName, tokenSource);
             if (!parts) return baseName;
             var current = parseInt(parts.digits, 10);
             var target = maxNum + 1;
             if (target <= current) return baseName;
             var width = Math.max(parts.digits.length, String(target).length);
-            return parts.prefix + parts.letter + padLeft(String(target), width) + parts.suffix;
+            return parts.prefix + parts.token + padLeft(String(target), width) + parts.suffix;
         }
 
         /**
-         * 同じフォルダ内で使われている最大の連番を探す
-         * @param {Folder} folder 対象のフォルダ
-         * @param {string} baseName 照合するベース名
-         * @returns {number} 最大の連番
+         * v 番号を親フォルダー内の最大値 +1 に繰り上げる
+         * @param {string} baseName 拡張子を除いたファイル名
+         * @param {Folder} folder 走査するフォルダー
+         * @param {string} ext 拡張子
+         * @returns {string} 衝突しない v 番号に置き換えたファイル名
          */
-        function findMaxPageInFolder(baseName, folder, ext, prefix) {
-            if (!folder) return null;
-            var p = String(prefix || '');
-            if (!p) return null;
-            var parts = extractPageParts(baseName, p);
-            if (!parts) return null;
-            var re = new RegExp(
-                '^' + escapeRegExp(parts.prefix) + escapeRegExp(p) + '(\\d+)'
-                + escapeRegExp(parts.suffix) + escapeRegExp(ext) + '$',
-                'i'
-            );
-            var files;
-            try { files = folder.getFiles(); } catch (e) { return null; }
-            var maxNum = -1;
-            for (var i = 0; i < files.length; i++) {
-                if (!(files[i] instanceof File)) continue;
-                var fname = decodePercentEncoded(files[i].name);
-                var fm = fname.match(re);
-                if (!fm) continue;
-                var num = parseInt(fm[1], 10);
-                if (num > maxNum) maxNum = num;
-            }
-            return maxNum >= 0 ? maxNum : null;
+        function nextAvailableVersionName(baseName, folder, ext) {
+            return nextAvailableNumberedName(baseName, folder, ext, VERSION_TOKEN_SOURCE);
         }
 
         /**
-         * 重複しない次の連番付きファイル名を求める
-         * @param {Folder} folder 対象のフォルダ
-         * @param {string} fileName 元のファイル名
-         * @returns {string} 次に使えるファイル名
+         * 連番を親フォルダー内の最大値 +1 に繰り上げる
+         * @param {string} baseName 拡張子を除いたファイル名
+         * @param {Folder} folder 走査するフォルダー
+         * @param {string} ext 拡張子
+         * @param {string} prefix 連番のプレフィックス（空なら何もしない）
+         * @returns {string} 衝突しない連番に置き換えたファイル名
          */
         function nextAvailablePageName(baseName, folder, ext, prefix) {
             var p = String(prefix || '');
             if (!p) return baseName;
-            var maxNum = findMaxPageInFolder(baseName, folder, ext, p);
-            if (maxNum === null) return baseName;
-            var parts = extractPageParts(baseName, p);
-            if (!parts) return baseName;
-            var current = parseInt(parts.digits, 10);
-            var target = maxNum + 1;
-            if (target <= current) return baseName;
-            var width = Math.max(parts.digits.length, String(target).length);
-            return parts.prefix + p + padLeft(String(target), width) + parts.suffix;
+            return nextAvailableNumberedName(baseName, folder, ext, escapeRegExp(p));
         }
 
         /* Windows 予約名（拡張子の有無を問わず使用不可）。一致したら末尾に "_" を足してエスケープ
@@ -792,8 +788,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * Windows の予約語にあたる名前を安全な形へ変える
-         * @param {string} fileName 対象のファイル名
-         * @returns {string} 安全なファイル名
+         * @param {string} baseName 拡張子を除いたファイル名
+         * @returns {string} 予約名なら "_" を足した名前
          */
         function escapeWindowsReserved(baseName) {
             var key = String(baseName).toUpperCase();
@@ -801,9 +797,69 @@ function setupRow(group, alignment, spacing) {
         }
 
         /**
+         * 連番プレフィックスにも本体と同じ整形を掛ける。ベース名は整形後の文字列で照合されるため、
+         * 生の入力（"page " など）のままだとパターンが一致せず採番が空振りする。
+         * 区切りの圧縮（collapseAndTrimSeparators）は末尾の区切りを落としてしまうので掛けない
+         * @param {string} prefix 連番のプレフィックス
+         * @param {object} uiState UI の状態
+         * @returns {string} 整形後のプレフィックス
+         */
+        function transformPagePrefix(prefix, uiState) {
+            var text = String(prefix || '');
+            if (!text) return text;
+            if (FEATURE_NFC && uiState.nfc === 'combine') text = normalizeNFC(text);
+            if (FEATURE_HALFWIDTH_KANA && uiState.halfwidthKana === 'convert'
+                && (uiState.clean === 'dash' || uiState.clean === 'underscore')) {
+                text = convertHalfwidthKana(text);
+            }
+            if (FEATURE_TRANSLITERATE) text = transliterate(text, uiState.translit);
+            if (FEATURE_CLEAN) text = cleanFilenameChars(text, uiState.clean);
+            return text;
+        }
+
+        /**
+         * ベース名に整形と採番をまとめて適用する。
+         * プレビューと実保存の両方がこの 1 本を通ることで、ダイアログの表示と
+         * 実際に書き出される名前がずれないようにしている
+         * @param {string} baseName 整形前のベース名（拡張子なし）
+         * @param {object} uiState UI の状態
+         * @param {Folder} folder 採番で走査するフォルダー
+         * @param {string} ext 拡張子（".indd"）
+         * @returns {string} 整形・採番済みのベース名
+         */
+        function applyNameTransforms(baseName, uiState, folder, ext) {
+            var name = baseName;
+            if (FEATURE_NFC && uiState.nfc === 'combine') {
+                name = normalizeNFC(name);
+            }
+            // 半角カナ → 全角カナ（clean が '-' / '_' のときだけ）。translit より先に行う
+            if (FEATURE_HALFWIDTH_KANA && uiState.halfwidthKana === 'convert'
+                && (uiState.clean === 'dash' || uiState.clean === 'underscore')) {
+                name = convertHalfwidthKana(name);
+            }
+            // translit はクリーンより先に行う（㈱→株 などを残すため）
+            if (FEATURE_TRANSLITERATE) {
+                name = transliterate(name, uiState.translit);
+            }
+            if (FEATURE_CLEAN) {
+                name = cleanFilenameChars(name, uiState.clean);
+            }
+            name = collapseAndTrimSeparators(name, uiState.separator);
+            // 採番は整形後の名前で行う。フォルダー内の既存ファイル名は整形済みで保存されているため、
+            // clean / translit / 区切り統一のあとに走らせないと prefix/suffix が一致せず最大値を取りこぼす
+            if (uiState.version === 'short' || uiState.version === 'padded' || uiState.version === 'paddedWide') {
+                name = nextAvailableVersionName(name, folder, ext);
+            }
+            if (uiState.pageEnable === 'yes') {
+                name = nextAvailablePageName(name, folder, ext, transformPagePrefix(uiState.pagePrefix, uiState));
+            }
+            return escapeWindowsReserved(name);
+        }
+
+        /**
          * パーセントエンコードされた文字列を復号する
-         * @param {string} text 対象の文字列
-         * @returns {string} 復号した文字列
+         * @param {string} str 対象の文字列
+         * @returns {string} デコードした文字列（失敗時は元の文字列）
          */
         function decodePercentEncoded(str) {
             str = String(str);
@@ -817,7 +873,7 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ファイル名から拡張子を取り除く
-         * @param {string} fileName 対象のファイル名
+         * @param {string} name 対象のファイル名
          * @returns {string} 拡張子を除いた名前
          */
         function stripExtension(name) {
@@ -826,9 +882,49 @@ function setupRow(group, alignment, spacing) {
         }
 
         /**
+         * パス比較用に畳んだキーを返す（% デコード + 濁点の NFC 結合 + 小文字化）。
+         * macOS は大文字小文字を区別せず、ディスク上の日本語名は NFD で保持されるため、
+         * 生の文字列比較では同じファイルを別ファイルと誤判定する
+         * @param {string} path 対象のパス
+         * @returns {string} 比較用に畳んだパス
+         */
+        function foldPathForCompare(path) {
+            return normalizeNFC(decodePercentEncoded(String(path))).toLowerCase();
+        }
+
+        /**
+         * 2 つのパスが同じファイルの綴り違い（大文字小文字 / 濁点の合成違い）かを判定する
+         * @param {string} pathA 比較するパス
+         * @param {string} pathB 比較するパス
+         * @returns {boolean} 同じファイルを指していれば true
+         */
+        function isSamePathSpelling(pathA, pathB) {
+            if (!pathA || !pathB) return false;
+            if (pathA === pathB) return true;
+            return foldPathForCompare(pathA) === foldPathForCompare(pathB);
+        }
+
+        /**
+         * ファイルの更新日時をミリ秒で返す
+         * @param {string} path 対象のパス
+         * @returns {number} 更新日時（存在しない・読めない場合は null）
+         */
+        function fileModifiedTime(path) {
+            if (!path) return null;
+            var file = File(path);
+            if (!file.exists) return null;
+            try {
+                return file.modified ? file.modified.getTime() : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        /**
          * 連続する区切り記号をまとめ、前後の区切りを取り除く
-         * @param {string} fileName 対象のファイル名
-         * @returns {string} 整えたファイル名
+         * @param {string} str 対象の文字列
+         * @param {string} sep 最終的な区切り文字（'-' / '_' / ''）
+         * @returns {string} 整えた文字列
          */
         function collapseAndTrimSeparators(str, sep) {
             var s = String(str);
@@ -846,8 +942,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * UTF-8 でのバイト数を数える
-         * @param {string} text 対象の文字列
-         * @returns {number} バイト数
+         * @param {string} str 対象の文字列
+         * @returns {number} UTF-8 でのバイト長
          */
         function byteLengthUTF8(str) {
             var s = String(str);
@@ -864,8 +960,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ファイル名に使えない文字を置き換える
-         * @param {string} fileName 元のファイル名
-         * @returns {string} 安全なファイル名
+         * @param {string} str 対象の文字列
+         * @returns {string} ファイル名に使える文字列
          */
         function sanitizeFilename(str) {
             var trimmed = String(str).replace(/^\s+|\s+$/g, '');
@@ -875,8 +971,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 文字列を NFC 正規化する
-         * @param {string} text 対象の文字列
-         * @returns {string} 正規化した文字列
+         * @param {string} str 対象の文字列
+         * @returns {string} 濁点・半濁点を結合した文字列
          */
         function normalizeNFC(str) {
             return String(str).replace(/(.)([゙゚])/g, function (_, base, mark) {
@@ -901,8 +997,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ファイル名にそのまま使える文字かを判定する
-         * @param {string} character 判定する文字
-         * @returns {boolean} 使えるなら true
+         * @param {number} code 判定する文字コード
+         * @returns {boolean} 標準的な文字なら true
          */
         function isStandardFilenameChar(code) {
             // OS 禁止文字: \ 5C / 2F : 3A * 2A ? 3F " 22 < 3C > 3E | 7C
@@ -925,8 +1021,9 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ファイル名に不向きな文字を置き換える
-         * @param {string} fileName 対象のファイル名
-         * @returns {string} 整えたファイル名
+         * @param {string} str 対象の文字列
+         * @param {string} mode 処理モード（'remove' / 'dash' / 'underscore'）
+         * @returns {string} 整えた文字列
          */
         function cleanFilenameChars(str, mode) {
             var replacement = (mode === 'dash') ? '-' : (mode === 'underscore') ? '_' : '';
@@ -984,8 +1081,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 半角カナを全角カナへ変換する
-         * @param {string} text 対象の文字列
-         * @returns {string} 変換した文字列
+         * @param {string} str 対象の文字列
+         * @returns {string} 半角カナを全角にした文字列
          */
         function convertHalfwidthKana(str) {
             var s = String(str);
@@ -1021,8 +1118,9 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 丸数字や法人略記などを ASCII 表記へ置き換える
-         * @param {string} text 対象の文字列
-         * @returns {string} 置き換えた文字列
+         * @param {string} str 対象の文字列
+         * @param {string} mode 処理モード（'remove' / 'convert' / それ以外）
+         * @returns {string} 変換後の文字列
          */
         function transliterate(str, mode) {
             if (mode === 'keep') return String(str);
@@ -1042,7 +1140,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 保存先フォルダをユーザーに選ばせる
-         * @returns {Folder|null} 選択したフォルダ。キャンセル時は null
+         * @param {string} promptLabel ダイアログに表示する説明
+         * @returns {File} 選択されたファイル（キャンセル時は null）
          */
         function pickInddDestination(promptLabel) {
             var chosen = File.saveDialog(promptLabel, '*.indd');
@@ -1064,7 +1163,7 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 保存しておいた設定を読み込む
-         * @returns {object} 読み込んだ設定
+         * @returns {object} 保存されていた設定（無ければ空オブジェクト）
          */
         function loadPrefs() {
             var file = getPrefsFile();
@@ -1104,7 +1203,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * アクティブドキュメントのファイル情報を集める
-         * @returns {object|null} ファイル情報。取得できない場合は null
+         * @param {Document} doc 対象のドキュメント
+         * @returns {object} ファイル名・パス・親フォルダー名などの情報
          */
         function gatherDocumentInfo(doc) {
             var fullName = doc.fullName;
@@ -1129,8 +1229,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 保存先フォルダを確定する（未保存なら選択させる）
-         * @param {object} documentInfo ファイル情報
-         * @returns {Folder|null} 保存先フォルダ。決まらない場合は null
+         * @param {Folder} folder 既に判明しているフォルダー（無ければ null）
+         * @returns {Folder} 保存先フォルダー（キャンセル時は null）
          */
         function ensureTargetFolder(folder) {
             if (folder) return folder;
@@ -1139,19 +1239,34 @@ function setupRow(group, alignment, spacing) {
         }
 
         /**
+         * 書類が InDesign ネイティブ（.indd）かどうかを判定する。
+         * 保存されるのは常に .indd なので、.indd 以外の書類でリネームすると形式変換したうえで
+         * 原本を失う。コピーも元ファイルのバイトコピーなので中身と拡張子が食い違う。
+         * 未保存なら失う原本が無いので許可する
+         * @param {object} documentInfo gatherDocumentInfo が返すファイル情報
+         * @returns {boolean} .indd（または未保存）なら true
+         */
+        function isNativeDocument(documentInfo) {
+            if (!documentInfo.fsPath) return true;
+            return /\.indd$/i.test(documentInfo.currentName);
+        }
+
+        /**
          * 同名ファイルがある場合に上書きの可否を確認する
-         * @param {File} targetFile 保存先のファイル
+         * @param {File} destFile 保存先のファイル
+         * @param {string} originalFsPath 元ファイルのパス
          * @returns {boolean} 続行してよければ true
          */
         function confirmOverwriteIfExists(destFile, originalFsPath) {
             if (!destFile.exists) return true;
-            if (destFile.fsName === originalFsPath) return true;
+            // 大文字小文字・濁点の合成違いだけのリネームは自分自身への上書きなので確認しない
+            if (isSamePathSpelling(destFile.fsName, originalFsPath)) return true;
             return confirm(getLabel('message.confirmOverwrite') + '\n\n' + destFile.fsName);
         }
 
         /**
          * ファイルをゴミ箱へ移動する
-         * @param {File} targetFile 対象のファイル
+         * @param {File} file 移動するファイル
          * @returns {boolean} 移動できたら true
          */
         function moveToTrash(file) {
@@ -1179,46 +1294,62 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * リネーム時に元ファイルを削除する
-         * @param {File} originalFile 元のファイル
+         * @param {string} originalFsPath 元ファイルのパス
+         * @param {string} destFsPath 保存先のパス
+         * @param {number} modifiedBeforeSave 保存前の元ファイルの更新日時（ミリ秒、無ければ null）
          * @returns {void}
          */
-        function removeOriginalFile(originalFsPath, destFsPath) {
-            if (!originalFsPath || originalFsPath === destFsPath) return;
+        function removeOriginalFile(originalFsPath, destFsPath, modifiedBeforeSave) {
+            if (!originalFsPath || isSamePathSpelling(originalFsPath, destFsPath)) return;
             var file = File(originalFsPath);
             if (!file.exists) return;
+            // 綴り違いを取りこぼしても保存したてのファイルを消さないための最終防衛線。
+            // 直前の保存は保存先しか触らないので、元ファイルの更新日時が動いていたら
+            // それは保存先と同一実体（大文字小文字・NFD/NFC 違いのパス）である
+            var modifiedNow = fileModifiedTime(originalFsPath);
+            if (modifiedBeforeSave !== null && modifiedNow !== null && modifiedNow !== modifiedBeforeSave) return;
             if (FEATURE_USE_TRASH && moveToTrash(file)) return;
             try { file.remove(); } catch (e) { /* 削除できない場合は黙って継続 */ }
         }
 
         /**
          * 選択したモードでリネーム・別名保存・コピー保存を実行する
-         * @param {string} mode 動作モード
-         * @param {File} targetFile 保存先のファイル
-         * @param {object} documentInfo ファイル情報
-         * @returns {boolean} 成功したら true
+         * @param {Document} doc 対象のドキュメント
+         * @param {File} destFile 保存先のファイル
+         * @param {string} mode 動作モード（'rename' / 'saveAs' / 'copy'）
+         * @param {string} originalFsPath 元ファイルのパス（未保存なら null）
+         * @returns {void}
          */
         function executeOutput(doc, destFile, mode, originalFsPath) {
             if (mode === 'copy' && originalFsPath) {
                 // 現在の変更を元ファイルへ保存してから、物理ファイルとしてコピー
                 if (!doc.saved) doc.save();
                 var originalFile = File(originalFsPath);
-                if (!originalFile.exists || !originalFile.copy(destFile)) {
+                if (!originalFile.exists) {
+                    throw new Error(getLabel('message.saveFailed') + '\n' + destFile.fsName);
+                }
+                // File.copy() は既存ファイルを上書きしない。上書きは確認済みなので先に取り除く
+                if (destFile.exists && !destFile.remove()) {
+                    throw new Error(getLabel('message.saveFailed') + '\n' + destFile.fsName);
+                }
+                if (!originalFile.copy(destFile)) {
                     throw new Error(getLabel('message.saveFailed') + '\n' + destFile.fsName);
                 }
                 return;
             }
             // rename / saveAs / 未保存ドキュメントの copy: 新名で保存
+            var modifiedBeforeSave = fileModifiedTime(originalFsPath);
             doc.save(destFile);
             if (mode === 'rename') {
-                removeOriginalFile(originalFsPath, destFile.fsName);
+                removeOriginalFile(originalFsPath, destFile.fsName, modifiedBeforeSave);
             }
         }
 
         /**
          * UI の状態とセグメントから最終的なファイル名を組み立てる
+         * @param {array} segments セグメント配列
          * @param {object} uiState UI の状態
-         * @param {Array<object>} segments セグメントの配列
-         * @returns {string} 最終的なファイル名
+         * @returns {string} 拡張子を除いた最終ファイル名
          */
         function buildFinalName(segments, uiState) {
             // 区切り記号: 明示選択があればそれを、無ければ元のファイル名で優勢な区切りを使う
@@ -1231,10 +1362,8 @@ function setupRow(group, alignment, spacing) {
 
             /**
              * セグメント種別ごとに出力する値を決める
-             * @param {string} kind セグメントの種別
-             * @param {object} uiState UI の状態
-             * @param {Array<object>} segments セグメントの配列
-             * @returns {string} 出力する値
+             * @param {string} kind セグメントの kind
+             * @returns {string} その kind の値（空文字なら出力しない）
              */
             function valueForKind(kind) {
                 if (kind === 'base') {
@@ -1294,8 +1423,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ファイル名で最も多く使われている区切り記号を求める
-         * @param {string} fileName 対象のファイル名
-         * @returns {string} 区切り記号
+         * @param {array} segments セグメント配列
+         * @returns {string} 優勢な区切り文字
          */
         function dominantSeparator(segments) {
             var dashes = 0, underscores = 0;
@@ -1313,8 +1442,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * セグメントの並び替えパネルを組み立てる
-         * @param {Window} dialog 対象のダイアログ
-         * @param {object} prefs 保存しておいた設定
+         * @param {Group} parent 追加先のコンテナ
+         * @param {boolean} currentOrderAvailable 「現在のファイル名に準じる」を選べるか
          * @returns {object} パネル内のコントロール
          */
         function buildSortPanel(parent, currentOrderAvailable) {
@@ -1336,17 +1465,20 @@ function setupRow(group, alignment, spacing) {
             var sortButton = customRow.add('button', undefined, getLabel('button.sort'));
             // 並び順の初期値は prefs を見ず、常に「現在のファイル名に準じる」（不可なら「標準順」）に固定
             var initialSort = currentOrderAvailable ? 'current' : 'off';
-            sortOffRadio.value = (initialSort === 'off');
-            sortCurrentRadio.value = (initialSort === 'current');
-            sortOnRadio.value = (initialSort === 'on');
-            sortButton.enabled = (initialSort === 'on');
             /**
-             * 並び替えボタンの有効／無効を切り替える
+             * 3 つのラジオのうち 1 つだけを選択状態にする。
+             * 「カスタム順」だけが customRow の中にいるため、ScriptUI の自動排他
+             * （同じ親コンテナ内でのみ働く）が 3 つ揃っては効かない
+             * @param {string} mode 選択する並び順（'off' / 'current' / 'on'）
              * @returns {void}
              */
-            function syncSortButtonEnabled() {
-                sortButton.enabled = sortOnRadio.value;
+            function selectSortMode(mode) {
+                sortOffRadio.value = (mode === 'off');
+                sortCurrentRadio.value = (mode === 'current');
+                sortOnRadio.value = (mode === 'on');
+                sortButton.enabled = (mode === 'on');
             }
+            selectSortMode(initialSort);
             // onClick は呼び出し側で wire（refreshPreviews と組み合わせるため）
             return {
                 panel: panel,
@@ -1361,14 +1493,13 @@ function setupRow(group, alignment, spacing) {
                     return 'off';
                 },
                 isSortOn: function () { return sortOnRadio.value; },
-                syncSortButtonEnabled: syncSortButtonEnabled
+                selectSortMode: selectSortMode
             };
         }
 
         /**
          * 動作モード（リネーム／別名保存／コピー）のパネルを組み立てる
-         * @param {Window} dialog 対象のダイアログ
-         * @param {object} prefs 保存しておいた設定
+         * @param {Group} parent 追加先のコンテナ
          * @returns {object} パネル内のコントロール
          */
         function buildOpModePanel(parent) {
@@ -1389,19 +1520,23 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 動作モードのパネルを組み立てる
-         * @param {Window} dialog 対象のダイアログ
-         * @param {object} prefs 保存しておいた設定
+         * @param {Group} parent 追加先のコンテナ
+         * @param {boolean} isNative 書類が .indd ネイティブか
          * @returns {object} パネル内のコントロール
          */
-        function buildModePanel(parent) {
+        function buildModePanel(parent, isNative) {
             var panel = parent.add('panel', undefined, getLabel('panel.mode'));
             setupPanel(panel);
             var renameRadio = panel.add('radiobutton', undefined, getLabel('radio.rename'));
-            renameRadio.helpTip = getLabel('tip.rename');
+            // .indd 以外の書類は保存が形式変換になるため、元ファイルを消すリネームは選ばせない
+            renameRadio.enabled = !!isNative;
+            renameRadio.helpTip = isNative ? getLabel('tip.rename') : getLabel('tip.nonNativeUnsupported');
             var saveAsRadio = panel.add('radiobutton', undefined, getLabel('radio.saveAs'));
             saveAsRadio.helpTip = getLabel('tip.saveAs');
             var saveCopyRadio = panel.add('radiobutton', undefined, getLabel('radio.saveCopy'));
-            saveCopyRadio.helpTip = getLabel('tip.saveCopy');
+            // コピーは元ファイルのバイトコピーなので、.indd 以外だと中身と拡張子が食い違う
+            saveCopyRadio.enabled = !!isNative;
+            saveCopyRadio.helpTip = isNative ? getLabel('tip.saveCopy') : getLabel('tip.nonNativeUnsupported');
             // 初期選択は常に「別名で保存」
             renameRadio.value = false;
             saveAsRadio.value = true;
@@ -1422,9 +1557,9 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ファイル名のパネルを組み立てる
-         * @param {Window} dialog 対象のダイアログ
-         * @param {string} currentName 現在のファイル名
-         * @returns {object} パネル内のコントロール
+         * @param {Group} parent 追加先のコンテナ
+         * @param {string} currentName 現在のファイル名（拡張子込み）
+         * @returns {object} パネル内のコントロールとラベル参照
          */
         function buildFilenamePanel(parent, currentName) {
             var panel = parent.add('panel', undefined, getLabel('panel.filename'));
@@ -1440,8 +1575,8 @@ function setupRow(group, alignment, spacing) {
             var finalNameLabel = finalNameRow.add('statictext', undefined, getLabelWithColon('label.finalName'), { justify: 'right' });
             // 「変更後：」は statictext のためレイアウト後にサイズ固定。
             // 現在のファイル名と「入力フィールド + 余白」の大きい方を確保しておく
-            var finalNameValue = finalNameRow.add('statictext', undefined, currentName + '.indd');
-            var currentNameWidth = panel.graphics.measureString(currentName + '.indd').width;
+            var finalNameValue = finalNameRow.add('statictext', undefined, currentName);
+            var currentNameWidth = panel.graphics.measureString(currentName).width;
             finalNameValue.preferredSize.width = Math.max(currentNameWidth + 20, 340);
 
             // 個別整列はせず、ラベル参照を呼び出し側に返し、後段で全パネル統一整列する
@@ -1455,10 +1590,12 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * セグメントごとのオプションパネルを組み立てる
-         * @param {object} parent 追加先のコンテナ
-         * @param {Array<object>} segments セグメントの配列
+         * @param {Group} parent 追加先のコンテナ
+         * @param {array} segments セグメント配列
          * @param {object} prefs 保存しておいた設定
-         * @returns {object} パネル内のコントロール
+         * @param {string} parentFolderName 親フォルダー名
+         * @param {string} grandparentFolderName 2 階層上のフォルダー名
+         * @returns {object} パネル内のコントロールと取得関数
          */
         function buildOptionsPanel(parent, segments, prefs, parentFolderName, grandparentFolderName) {
             var panel = parent.add('panel', undefined, getLabel('panel.options'));
@@ -1573,13 +1710,17 @@ function setupRow(group, alignment, spacing) {
             timestampHHMMCheckbox.value = pickPref(prefs, 'timestampTime', ['no', 'hhmm'], 'no') === 'hhmm';
 
             /**
-             * タイムスタンプの書式に応じて時刻入力の有効／無効を切り替える
+             * 「時刻も付与」が ON なのにタイムスタンプが「なし」だと時刻はファイル名に出ない。
+             * ON にした時点で YYYYMMDD を選び直す（明示的に「なし」へ戻すのは妨げない）
              * @returns {void}
              */
-            function syncTimestampHHMMEnabled() {
-                timestampHHMMCheckbox.enabled = !timestampRow.radios.none.value;
+            function coerceTimestampForHHMM() {
+                if (!timestampHHMMCheckbox.value) return;
+                if (!timestampRow.radios.none.value) return;
+                timestampRow.radios.none.value = false;
+                timestampRow.radios.date.value = true;
             }
-            syncTimestampHHMMEnabled();
+            coerceTimestampForHHMM();
 
             // 連番（チェックボックス + プレフィックス入力 + 桁数ラジオ）。デフォルト OFF / "page" / 2 桁
             // SEGMENT_ORDER 内では timestamp の後・version の前に配置
@@ -1743,7 +1884,7 @@ function setupRow(group, alignment, spacing) {
                 statusDropdown: statusDropdown,
                 timestampRow: timestampRow,
                 timestampHHMMCheckbox: timestampHHMMCheckbox,
-                syncTimestampHHMMEnabled: syncTimestampHHMMEnabled,
+                coerceTimestampForHHMM: coerceTimestampForHHMM,
                 pageCheckbox: pageCheckbox,
                 pagePrefixField: pagePrefixField,
                 pagePadRadio2: pagePadRadio2,
@@ -1843,7 +1984,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * セグメントの並び替えダイアログを開く
-         * @returns {Array<string>|null} 並び順。キャンセル時は null
+         * @param {array} initialOrder 編集前の並び
+         * @returns {array} 編集後の並び（キャンセル時は null）
          */
         function openSortDialog(initialOrder) {
             var dlg = new Window('dialog', getLabel('sort.title'));
@@ -1875,6 +2017,7 @@ function setupRow(group, alignment, spacing) {
 
             /**
              * 並び替えダイアログのリスト表示を更新する
+             * @param {number} newIdx 選択し直す位置
              * @returns {void}
              */
             function refreshList(newIdx) {
@@ -1911,8 +2054,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 配列に値が含まれるかを判定する
-         * @param {Array} list 対象の配列
-         * @param {*} value 探す値
+         * @param {array} arr 探す配列
+         * @param {string} val 探す値
          * @returns {boolean} 含まれていれば true
          */
         function arrayContains(arr, val) {
@@ -1925,9 +2068,10 @@ function setupRow(group, alignment, spacing) {
         /**
          * 保存された設定から値を取り出す（無ければ既定値）
          * @param {object} prefs 保存しておいた設定
-         * @param {string} key 設定のキー
-         * @param {*} fallback 既定値
-         * @returns {*} 設定の値
+         * @param {string} key 取り出すキー
+         * @param {array} validValues 許可する値の一覧
+         * @param {string} fallback 一覧に無いときの既定値
+         * @returns {string} 採用する値
          */
         function pickPref(prefs, key, validValues, fallback) {
             var v = prefs && prefs[key];
@@ -1936,8 +2080,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 保存されたセグメント順の設定を配列へ変換する
-         * @param {*} orderValue 保存されている値
-         * @returns {Array<string>} セグメント種別の並び
+         * @param {string} value カンマ区切りの並び順文字列
+         * @returns {array} 並び順の配列（不正なら null）
          */
         function parseSegmentOrderPref(value) {
             if (!value) return null;
@@ -1954,7 +2098,9 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ラベル群の幅を最大値に揃える
-         * @param {Array<StaticText>} labelControls 幅を揃えるラベル
+         * @param {Panel} panel 幅の計測に使うパネル
+         * @param {array} labelTexts ラベル文字列の配列
+         * @param {array} controls 幅を揃えるコントロールの配列
          * @returns {void}
          */
         function alignLabelWidths(panel, labelTexts, controls) {
@@ -1980,15 +2126,16 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ラベル付きのラジオボタン行を追加する
-         * @param {object} parent 追加先のコンテナ
-         * @param {string} labelText ラベルの文字列
-         * @param {Array<string>} optionLabels 選択肢の表示名
-         * @returns {object} 追加したコントロール
+         * @param {Panel} panel 追加先のパネル
+         * @param {string} labelKey ラベルのキー
+         * @param {string} tipKey ヘルプチップのキー
+         * @param {array} radioDefs {key, text} を要素とするラジオ定義
+         * @returns {object} {group, label, radios}
          */
         function addRadioRow(panel, labelKey, tipKey, radioDefs) {
             var row = panel.add('group');
             row.orientation = 'row';
-            var tip = L(tipKey);
+            var tip = getLabel(tipKey);
             var label = row.add('statictext', undefined, getLabelWithColon(labelKey));
             label.helpTip = tip;
             var radios = {};
@@ -2003,7 +2150,8 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * コントロールの変更時にプレビューを更新するよう結び付ける
-         * @param {Array} controls 対象のコントロール
+         * @param {function} callback 変更時に呼ぶコールバック
+         * @param {array} controls 対象のコントロール配列（null は読み飛ばす）
          * @returns {void}
          */
         function wireRefresh(callback, controls) {
@@ -2019,12 +2167,16 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * ファイル名変更のダイアログを組み立てる
-         * @param {object} documentInfo ファイル情報
-         * @param {Array<object>} segments セグメントの配列
+         * @param {array} segments セグメント配列
+         * @param {string} currentName 現在のファイル名
          * @param {object} prefs 保存しておいた設定
-         * @returns {object} ダイアログとコントロール
+         * @param {string} parentFolderName 親フォルダー名
+         * @param {string} grandparentFolderName 2 階層上のフォルダー名
+         * @param {Folder} folder 保存先フォルダー
+         * @param {boolean} isNative 書類が .indd ネイティブか
+         * @returns {object} {dialog, getUIState, getMode}
          */
-        function createDialog(segments, currentName, prefs, parentFolderName, grandparentFolderName, folder) {
+        function createDialog(segments, currentName, prefs, parentFolderName, grandparentFolderName, folder, isNative) {
             var dialog = new Window('dialog', getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
             dialog.opacity = DIALOG_OPACITY;
             setupWindow(dialog, 10);
@@ -2033,11 +2185,11 @@ function setupRow(group, alignment, spacing) {
             var topRow = dialog.add('group');
             topRow.orientation = 'row';
             topRow.alignChildren = ['fill', 'top'];
-            var mode = buildModePanel(topRow, prefs);
+            var mode = buildModePanel(topRow, isNative);
             var opMode = buildOpModePanel(topRow);
             // 現在のファイル名から検出した並び順（要素ゼロなら「現在に準じる」は無効化）
             var currentOrder = FEATURE_SORT ? deriveOrderFromSegments(segments) : [];
-            var sort = FEATURE_SORT ? buildSortPanel(topRow, prefs, currentOrder.length > 0) : null;
+            var sort = FEATURE_SORT ? buildSortPanel(topRow, currentOrder.length > 0) : null;
 
             // 並び順カスタム値（prefs に保存されたものを採用、不正・未保存ならデフォルト）
             var customOrder = FEATURE_SORT
@@ -2057,7 +2209,7 @@ function setupRow(group, alignment, spacing) {
             // ---- ライブプレビュー ----
             /**
              * ダイアログの現在の状態を取得する
-             * @returns {object} UI の状態
+             * @returns {object} 現在の UI 状態
              */
             function currentUIState() {
                 var sortMode = (FEATURE_SORT && sort) ? sort.getSortMode() : 'off';
@@ -2110,7 +2262,6 @@ function setupRow(group, alignment, spacing) {
             function refreshPreviews() {
                 options.syncTitleFieldEnabled();
                 options.syncHalfwidthKanaEnabled();
-                options.syncTimestampHHMMEnabled();
                 options.syncPageControlsEnabled();
                 // 「バージョンのみ」モードでは UI 整形を一切かけず、元ファイル名の v 番号だけ更新
                 if (opMode.isVersionOnly()) {
@@ -2120,33 +2271,8 @@ function setupRow(group, alignment, spacing) {
                     return;
                 }
                 var st = currentUIState();
-                var finalBase = buildFinalName(segments, st);
-                if (st.version === 'short' || st.version === 'padded' || st.version === 'paddedWide') {
-                    finalBase = nextAvailableVersionName(finalBase, folder, '.indd');
-                }
-                if (st.pageEnable === 'yes') {
-                    finalBase = nextAvailablePageName(finalBase, folder, '.indd', st.pagePrefix);
-                }
-                if (FEATURE_NFC && options.getNfc() === 'combine') {
-                    finalBase = normalizeNFC(finalBase);
-                }
-                // 半角カナ → 全角カナ（clean が '-' / '_' のときだけ）。translit より先に行う
-                if (FEATURE_HALFWIDTH_KANA && options.getHalfwidthKana() === 'convert') {
-                    var cleanMode = options.getClean();
-                    if (cleanMode === 'dash' || cleanMode === 'underscore') {
-                        finalBase = convertHalfwidthKana(finalBase);
-                    }
-                }
-                // translit はクリーンより先に行う（㈱→株 などを残すため）
-                if (FEATURE_TRANSLITERATE) {
-                    finalBase = transliterate(finalBase, options.getTranslit());
-                }
-                if (FEATURE_CLEAN) {
-                    finalBase = cleanFilenameChars(finalBase, options.getClean());
-                }
-                finalBase = collapseAndTrimSeparators(finalBase, options.getSeparator());
-                finalBase = escapeWindowsReserved(finalBase);
-                filename.finalNameValue.text = finalBase + '.indd';
+                var finalBase = applyNameTransforms(buildFinalName(segments, st), st, folder, '.indd');
+                filename.finalNameValue.text = finalBase ? (finalBase + '.indd') : getLabel('message.emptyName');
             }
 
             opMode.versionOnlyRadio.onClick = function () {
@@ -2171,9 +2297,7 @@ function setupRow(group, alignment, spacing) {
             function demoteSortToDefault() {
                 if (!sort) return;
                 if (!sort.sortCurrentRadio.value) return;
-                sort.sortCurrentRadio.value = false;
-                sort.sortOffRadio.value = true;
-                sort.syncSortButtonEnabled();
+                sort.selectSortMode('off');
             }
             /**
              * プレビューを更新し、必要なら並び順を既定へ戻す
@@ -2190,10 +2314,15 @@ function setupRow(group, alignment, spacing) {
                 options.baseField, options.titleField,
                 options.statusDropdown,
                 ts.radios.none, ts.radios.date, ts.radios.dateDash,
-                options.timestampHHMMCheckbox,
                 options.pageCheckbox, options.pagePrefixField, options.pagePadRadio2, options.pagePadRadio3,
                 vr.radios.none, vr.radios.short_, vr.radios.padded, vr.radios.paddedWide
             ]);
+            // 「時刻も付与」だけは、ON にしたときタイムスタンプを YYYYMMDD に引き上げてから更新する
+            options.timestampHHMMCheckbox.onClick = function () {
+                options.coerceTimestampForHHMM();
+                refreshAndDemoteSort();
+            };
+
             // 整形のみ変える操作（並び順には影響しないので「現在のファイル名に準じる」を維持）
             wireRefresh(refreshPreviews, [
                 sr && sr.radios.noChange, sr && sr.radios.dash, sr && sr.radios.underscore,
@@ -2205,13 +2334,15 @@ function setupRow(group, alignment, spacing) {
 
             // ソートパネルの ON/OFF とサブダイアログ起動（FEATURE_SORT のとき）
             if (FEATURE_SORT && sort) {
-                var onSortToggle = function () {
-                    sort.syncSortButtonEnabled();
-                    refreshPreviews();
+                var onSortToggle = function (mode) {
+                    return function () {
+                        sort.selectSortMode(mode);
+                        refreshPreviews();
+                    };
                 };
-                sort.sortOffRadio.onClick = onSortToggle;
-                sort.sortCurrentRadio.onClick = onSortToggle;
-                sort.sortOnRadio.onClick = onSortToggle;
+                sort.sortOffRadio.onClick = onSortToggle('off');
+                sort.sortCurrentRadio.onClick = onSortToggle('current');
+                sort.sortOnRadio.onClick = onSortToggle('on');
                 sort.sortButton.onClick = function () {
                     var newOrder = openSortDialog(customOrder);
                     if (newOrder) {
@@ -2255,45 +2386,34 @@ function setupRow(group, alignment, spacing) {
             var segments = mergeFragmentedText(parseFileName(info.baseName));
             var prefs = loadPrefs();
 
-            var ui = createDialog(segments, info.currentName, prefs, info.parentFolderName, info.grandparentFolderName, info.folder);
+            // 保存先はダイアログ表示前に確定する。未保存ドキュメントはここで保存先フォルダーを選択。
+            // 同じフォルダーをプレビュー（連番/バージョンの繰り上げ）と実処理の両方で使い、両者を一致させる
+            var targetFolder = ensureTargetFolder(info.folder);
+            if (!targetFolder) return; // キャンセル
+
+            var ui = createDialog(segments, info.currentName, prefs, info.parentFolderName, info.grandparentFolderName, targetFolder, isNativeDocument(info));
             if (ui.dialog.show() !== 1) return; // キャンセル
+
+            // プレビュー中はフォルダー列挙をキャッシュしている。実保存の採番は取り直した一覧で行う
+            resetFolderFileNamesCache();
 
             var uiState = ui.getUIState();
             var newBaseName = (uiState.opMode === 'versionOnly')
                 ? bumpVersionInPlace(info.baseName)
                 : buildFinalName(segments, uiState);
+
+            if (uiState.opMode === 'versionOnly') {
+                // 「バージョンのみ」モードでは UI 整形をスキップして元ファイル名をそのまま尊重
+                newBaseName = nextAvailableVersionName(newBaseName, targetFolder, '.indd');
+            } else {
+                newBaseName = applyNameTransforms(newBaseName, uiState, targetFolder, '.indd');
+            }
+
+            // 整形前だけでなく整形後も判定する。記号だけ・絵文字だけの名前は
+            // clean / collapse を通ると空になり、そのままでは「.indd」という不可視ファイルになる
             if (!newBaseName) {
                 alert(getLabel('message.emptyName'));
                 return;
-            }
-
-            var targetFolder = ensureTargetFolder(info.folder);
-            if (!targetFolder) return; // キャンセル
-
-            if (uiState.opMode === 'versionOnly' || uiState.version === 'short' || uiState.version === 'padded' || uiState.version === 'paddedWide') {
-                newBaseName = nextAvailableVersionName(newBaseName, targetFolder, '.indd');
-            }
-            if (uiState.opMode !== 'versionOnly' && uiState.pageEnable === 'yes') {
-                newBaseName = nextAvailablePageName(newBaseName, targetFolder, '.indd', uiState.pagePrefix);
-            }
-
-            // 「バージョンのみ」モードでは UI 整形をスキップして元ファイル名をそのまま尊重
-            if (uiState.opMode !== 'versionOnly') {
-                if (FEATURE_NFC && uiState.nfc === 'combine') {
-                    newBaseName = normalizeNFC(newBaseName);
-                }
-                if (FEATURE_HALFWIDTH_KANA && uiState.halfwidthKana === 'convert'
-                    && (uiState.clean === 'dash' || uiState.clean === 'underscore')) {
-                    newBaseName = convertHalfwidthKana(newBaseName);
-                }
-                if (FEATURE_TRANSLITERATE) {
-                    newBaseName = transliterate(newBaseName, uiState.translit);
-                }
-                if (FEATURE_CLEAN) {
-                    newBaseName = cleanFilenameChars(newBaseName, uiState.clean);
-                }
-                newBaseName = collapseAndTrimSeparators(newBaseName, uiState.separator);
-                newBaseName = escapeWindowsReserved(newBaseName);
             }
 
             var destFile = File(targetFolder.fsName + '/' + newBaseName + '.indd');
