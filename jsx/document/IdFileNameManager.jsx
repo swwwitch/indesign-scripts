@@ -774,7 +774,7 @@ function setupPanel(panel, spacing) {
             var p = String(prefix || '');
             if (!p) return baseName;
             return nextAvailableNumberedName(baseName, folder, ext, escapeRegExp(p));
-        }
+         }
 
         /* Windows 予約名（拡張子の有無を問わず使用不可）。一致したら末尾に "_" を足してエスケープ
            / Windows-reserved basenames (regardless of extension); append "_" to escape them */
