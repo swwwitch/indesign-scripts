@@ -16,7 +16,7 @@ Draws and clears table-cell borders with a live preview, letting you set the mod
 - Keyboard shortcuts for mode switching (A/E/I/H/V/B/U/L/R/C)
 - The weight follows the document's stroke-weight unit, with presets and arrow-key stepping
 - Border colour from a document swatch, plus a 0-100 tint
-- A Standard Mode / Preview toggle button switches the screen mode
+- A Normal / Preview toggle button switches the screen mode
 - Remembers the settings confirmed with OK and restores them on the next run
 
 ## Usage
@@ -27,8 +27,8 @@ Draws and clears table-cell borders with a live preview, letting you set the mod
 
 ## Notes and limitations
 
-- Partial selections are rebuilt from the selection rectangle; merged cells are resolved by finding the cell covering each coordinate.
-- Turn off Clear Existing Borders to overwrite while keeping the current borders.
+- Partial selections are rebuilt from the selection rectangle; merged cells that partly overlap the rectangle are included.
+- Turn off Clear Existing Borders First to overwrite while keeping the current borders.
 - The selection state from before the run is restored when the dialog closes.
 
 ## Script info
@@ -36,10 +36,11 @@ Draws and clears table-cell borders with a live preview, letting you set the mod
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdSmartBorderBuilder.jsx` |
-| Version | v1.6.7 |
+| Version | v1.6.8 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-11 |
-| Last updated | 2026-04-17 |
+| Last updated | 2026-09-15 |
+| Article | https://note.com/dtp_tranist/n/n8c1bcb9a2844 |
 
 ## License
 
