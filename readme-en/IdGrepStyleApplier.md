@@ -27,7 +27,6 @@ Applies and manages GREP styles on paragraph styles: pick a rule and a character
 ## Notes and limitations
 
 - The OK button stays disabled until both a paragraph style and a character style are selected.
-- IdNestedStyleSetup.jsx is identical; using just one of the two is recommended.
 
 ## Script info
 
