@@ -10,6 +10,8 @@
 
 Applies alternating (zebra) fills to the selected table cells, based on the row order within the selection, with a live preview. A given number of rows from the top, and columns from the left, can be left out of the fill.
 
+![Dialog with the color and tint of the odd- and even-numbered rows at the top, and the Options and Skip panels below](../png/ss-848-786-144-20260916-133719.png)
+
 ## Features
 
 - Separate colour and tint (0-100%) for the Odd-numbered Rows and Even-numbered Rows panels
