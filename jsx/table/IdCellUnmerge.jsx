@@ -4,13 +4,13 @@
 
 ### 概要
 
-表の結合セルを解除します。解除後のセルへ元のテキストを分配するかどうかと、対象範囲（表全体・選択したセルのみ）をダイアログで選べます。
+表の結合セルを解除します。解除後のセルへ元のテキストを複製するかどうかと、対象範囲（表全体・選択セルのみ）をダイアログで選べます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Unmerges merged cells in a table. The dialog picks whether to distribute the original text into the resulting cells and the scope (the whole table or only the selected cells).
+Unmerges merged cells in a table. The dialog picks whether to copy the original text into the resulting cells and the scope (the whole table or only the selected cells).
 
 See the README for details.
 
@@ -20,13 +20,14 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCellUnmerge";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-16";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCellUnmerge.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCellUnmerge.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCellUnmerge.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCellUnmerge.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n175525637a3d"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -43,42 +44,43 @@ var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel 
 
 /**
  * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
+ * @param {Window} targetWindow 対象ウィンドウ
  * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
  * @returns {void}
  */
-function setupWindow(win, spacing) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
 
 /**
  * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
+ * @param {Panel} targetPanel 対象パネル
  * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
  * @returns {void}
  */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 /**
  * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
- * @param {string} [alignment] 配置。省略時は "left"
+ * @param {Group} targetGroup 対象グループ
+ * @param {string} [alignment] 横方向の配置。省略時は "left"
  * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
  * @returns {void}
  */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupRow(targetGroup, alignment, spacing) {
+    targetGroup.orientation = "row";
+    targetGroup.alignment = [alignment || "left", "center"];  /* 横と天地を対で / Pair the horizontal and vertical alignment */
+    targetGroup.alignChildren = ["left", "center"];           /* 親の fill 継承を打ち消す / Cancel the inherited fill */
+    targetGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 (function () {
@@ -106,17 +108,27 @@ function setupRow(group, alignment, spacing) {
 
     var LABELS = {
         dialog: {
-            title: { ja: "セルの結合解除", en: "Unmerge Cells" }
+            title: { ja: "セルの結合を解除", en: "Unmerge Cells" }
         },
         panel: {
-            merge: { ja: "結合", en: "Merge" },
+            text:  { ja: "解除後のテキスト", en: "Text after unmerge" },
             scope: { ja: "対象", en: "Scope" }
         },
         radio: {
-            noDistribute:  { ja: "デフォルト（分配なし）", en: "Default (no distribution)" },
-            distribute:    { ja: "テキストを分配", en: "Distribute text" },
-            wholeTable:    { ja: "表全体", en: "Whole table" },
-            selectedCells: { ja: "選択したセルのみ", en: "Selected cells only" }
+            keepInOriginal: { ja: "元のセルにのみ残す", en: "Keep in the original cell" },
+            copyToAll:      { ja: "すべてのセルに複製", en: "Copy to all cells" },
+            wholeTable:     { ja: "表全体", en: "Whole table" },
+            selectedCells:  { ja: "選択セルのみ", en: "Selected cells only" }
+        },
+        tooltip: {
+            text: {
+                ja: "「すべてのセルに複製」を選ぶと、その結合セルを解除してできたセルすべてに同じテキストが入ります。隣接する別のセルには影響しません。書式は引き継がれず、プレーンテキストになります。",
+                en: "Copy to all cells puts the same text into every cell the unmerge created. Neighboring cells are left alone, and the text is inserted as plain text without its formatting."
+            },
+            scope: {
+                ja: "「選択セルのみ」は、選択範囲に含まれる結合セルだけを解除します。",
+                en: "Selected cells only unmerges the merged cells inside the selection."
+            }
         },
         button: {
             ok:     { ja: "OK", en: "OK" },
@@ -124,21 +136,21 @@ function setupRow(group, alignment, spacing) {
         },
         alert: {
             noDocument:    { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-            selectCells:   { ja: "表のセルを選択してください。", en: "Please select table cells." },
+            selectTable:   { ja: "表、または表の中のセルを選択してください。", en: "Select a table or cells inside a table." },
             noTargetCells: { ja: "対象となるセルが選択されていません。", en: "No target cells are selected." }
         },
         undo: {
-            unmergeCells: { ja: "セルの結合解除", en: "Unmerge Cells" }
+            unmergeCells: { ja: "セルの結合を解除", en: "Unmerge Cells" }
         }
     };
 
     /**
      * ラベルを現在の言語で取得する
-     * @param {object} labelEntry ja / en を持つラベルオブジェクト
+     * @param {object} labelSet ja / en を持つラベルオブジェクト
      * @returns {string} 現在の言語のラベル文字列
      */
-    function localize(labelEntry) {
-        return labelEntry[currentLang];
+    function getLabel(labelSet) {
+        return labelSet[currentLang];
     }
 
     // =========================================
@@ -147,15 +159,15 @@ function setupRow(group, alignment, spacing) {
 
     /**
      * 任意のオブジェクトから親方向にたどって表を探す
-     * @param {object} pageObject 起点となるオブジェクト
+     * @param {object} startObject 起点となるオブジェクト
      * @returns {Table|null} 表。見つからない場合は null
      */
-    function getParentTable(pageObject) {
-        var currentObject = pageObject;
-        while (currentObject) {
-            if (currentObject.constructor && currentObject.constructor.name === "Table") return currentObject;
-            if (!currentObject.parent || currentObject.parent === currentObject) break;
-            currentObject = currentObject.parent;
+    function getParentTable(startObject) {
+        var ancestor = startObject;
+        while (ancestor) {
+            if (ancestor.constructor && ancestor.constructor.name === "Table") return ancestor;
+            if (!ancestor.parent || ancestor.parent === ancestor) break;
+            ancestor = ancestor.parent;
         }
         return null;
     }
@@ -251,13 +263,13 @@ function setupRow(group, alignment, spacing) {
             }
 
             /* セル内のテキストが選択されているケース / The selection is text inside a cell */
-            var currentObject = selectionItem;
-            while (currentObject && currentObject !== currentObject.parent) {
-                if (currentObject.constructor && currentObject.constructor.name === "Cell") {
-                    if (isSameTable(getParentTable(currentObject), targetTable)) collectedCells.push(currentObject);
+            var ancestor = selectionItem;
+            while (ancestor && ancestor !== ancestor.parent) {
+                if (ancestor.constructor && ancestor.constructor.name === "Cell") {
+                    if (isSameTable(getParentTable(ancestor), targetTable)) collectedCells.push(ancestor);
                     break;
                 }
-                currentObject = currentObject.parent;
+                ancestor = ancestor.parent;
             }
         }
 
@@ -269,8 +281,8 @@ function setupRow(group, alignment, spacing) {
      * @param {Array<Cell>} cells セルの配列
      * @returns {Array<Cell>} 重複を除いたセルの配列
      */
-    function uniqueCells(cells) {
-        var uniqueList = [];
+    function dedupeCells(cells) {
+        var dedupedCells = [];
         var seenCellIds = {};
 
         for (var i = 0; i < cells.length; i++) {
@@ -286,10 +298,42 @@ function setupRow(group, alignment, spacing) {
 
             if (seenCellIds[cellId]) continue;
             seenCellIds[cellId] = true;
-            uniqueList.push(cell);
+            dedupedCells.push(cell);
         }
 
-        return uniqueList;
+        return dedupedCells;
+    }
+
+    /**
+     * 表の一部だけがセル選択されているかを判定する
+     * テキストカーソルを置いただけの状態は「一部の選択」とみなさない
+     * @param {Array} selectionItems 選択オブジェクトの配列
+     * @param {Table} targetTable 対象の表
+     * @returns {boolean} 表の一部が選択されていれば true
+     */
+    function isPartialCellSelection(selectionItems, targetTable) {
+        if (!targetTable) return false;
+
+        /* セルを選んだときだけ対象を絞る。テキスト選択は表全体のつもりで実行していることが多い
+           / Narrow the scope only for a cell selection; a text selection usually means the whole table */
+        var hasCellSelection = false;
+        for (var i = 0; i < selectionItems.length; i++) {
+            var typeName = selectionItems[i].constructor && selectionItems[i].constructor.name;
+            if (typeName === "Cell" || typeName === "Cells") {
+                hasCellSelection = true;
+                break;
+            }
+        }
+        if (!hasCellSelection) return false;
+
+        var selectedCells = dedupeCells(getSelectedCells(selectionItems, targetTable));
+        if (selectedCells.length === 0) return false;
+
+        try {
+            return selectedCells.length < targetTable.cells.length;
+        } catch (e) {
+            return false;
+        }
     }
 
     // =========================================
@@ -297,43 +341,61 @@ function setupRow(group, alignment, spacing) {
     // =========================================
 
     /**
-     * 結合解除の設定ダイアログを表示する
-     * @returns {{distributeText: boolean, wholeTable: boolean}|null} 設定内容。キャンセル時は null
+     * ラジオボタンを縦に並べたパネルを追加する
+     * @param {Window|Group} parentContainer 追加先
+     * @param {object} panelLabel パネル見出しのラベル
+     * @param {Array.<object>} radioLabels ラジオボタンのラベル配列
+     * @param {number} selectedIndex 最初に選択するラジオボタンのインデックス
+     * @param {object} [tooltipLabel] パネルとラジオボタンに付けるツールチップのラベル
+     * @returns {Array.<RadioButton>} 追加したラジオボタン
      */
-    function showUnmergeDialog() {
-        var unmergeDialog = new Window("dialog", localize(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+    function addRadioPanel(parentContainer, panelLabel, radioLabels, selectedIndex, tooltipLabel) {
+        var radioPanel = parentContainer.add("panel", undefined, getLabel(panelLabel));
+        setupPanel(radioPanel, 6);
+        radioPanel.alignChildren = ["left", "top"];
+
+        /* パネルだけに付けると枠の上でしか出ないので、ラジオボタンにも同じ説明を持たせる
+           / A panel-only helpTip shows on the frame alone, so give the radio buttons the same text */
+        var tooltipText = tooltipLabel ? getLabel(tooltipLabel) : "";
+        radioPanel.helpTip = tooltipText;
+
+        var radioButtons = [];
+        for (var i = 0; i < radioLabels.length; i++) {
+            radioButtons[i] = radioPanel.add("radiobutton", undefined, getLabel(radioLabels[i]));
+            radioButtons[i].helpTip = tooltipText;
+        }
+        radioButtons[selectedIndex].value = true;
+
+        return radioButtons;
+    }
+
+    /**
+     * 結合解除の設定ダイアログを表示する
+     * @param {boolean} selectedCellsByDefault ［対象］の初期値を「選択セルのみ」にするか
+     * @returns {{copyToAllCells: boolean, wholeTable: boolean}|null} 設定内容。キャンセル時は null
+     */
+    function showUnmergeDialog(selectedCellsByDefault) {
+        var unmergeDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(unmergeDialog, 10);
 
-        /* 結合パネル / Merge panel */
-        var mergePanel = unmergeDialog.add("panel", undefined, localize(LABELS.panel.merge));
-        setupPanel(mergePanel, 6);
-        mergePanel.alignChildren = ["left", "top"];
-
-        mergePanel.add("radiobutton", undefined, localize(LABELS.radio.noDistribute));
-        var distributeTextRadio = mergePanel.add("radiobutton", undefined, localize(LABELS.radio.distribute));
-        distributeTextRadio.value = true;
-
-        /* 対象パネル / Scope panel */
-        var scopePanel = unmergeDialog.add("panel", undefined, localize(LABELS.panel.scope));
-        setupPanel(scopePanel, 6);
-        scopePanel.alignChildren = ["left", "top"];
-
-        var wholeTableRadio = scopePanel.add("radiobutton", undefined, localize(LABELS.radio.wholeTable));
-        wholeTableRadio.value = true;
-        scopePanel.add("radiobutton", undefined, localize(LABELS.radio.selectedCells));
+        var textRadios = addRadioPanel(unmergeDialog, LABELS.panel.text,
+            [LABELS.radio.keepInOriginal, LABELS.radio.copyToAll], 1, LABELS.tooltip.text);
+        var scopeRadios = addRadioPanel(unmergeDialog, LABELS.panel.scope,
+            [LABELS.radio.wholeTable, LABELS.radio.selectedCells],
+            selectedCellsByDefault ? 1 : 0, LABELS.tooltip.scope);
 
         /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
-        var dialogButtonRow = unmergeDialog.add("group");
-        setupRow(dialogButtonRow, "center", 8);
-        dialogButtonRow.margins = [0, 10, 0, 0];
-        dialogButtonRow.add("button", undefined, localize(LABELS.button.cancel), { name: "cancel" });
-        dialogButtonRow.add("button", undefined, localize(LABELS.button.ok), { name: "ok" });
+        var btnRowGroup = unmergeDialog.add("group");
+        setupRow(btnRowGroup, "right", 8);
+        btnRowGroup.margins = [0, 10, 0, 0];
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
         if (unmergeDialog.show() !== 1) return null;
 
         return {
-            distributeText: distributeTextRadio.value,
-            wholeTable: wholeTableRadio.value
+            copyToAllCells: textRadios[1].value,
+            wholeTable: scopeRadios[0].value
         };
     }
 
@@ -343,50 +405,50 @@ function setupRow(group, alignment, spacing) {
 
     /**
      * 結合セルを解除し、必要に応じて元のテキストを複製する
-     * @param {boolean} distributeText 解除後のすべてのセルに元のテキストを複製するか
+     * @param {boolean} copyToAllCells 解除後のすべてのセルに元のテキストを複製するか
      * @param {boolean} wholeTable 表全体を対象にするか（false なら選択セルのみ）
      * @returns {void}
      */
-    function runUnmerge(distributeText, wholeTable) {
+    function runUnmerge(copyToAllCells, wholeTable) {
         var selectionItems = app.selection;
         if (!selectionItems || selectionItems.length === 0) {
-            alert(localize(LABELS.alert.selectCells));
+            alert(getLabel(LABELS.alert.selectTable));
             return;
         }
 
         var targetTable = getTableFromSelection(selectionItems[0]);
         if (!targetTable) {
-            alert(localize(LABELS.alert.selectCells));
+            alert(getLabel(LABELS.alert.selectTable));
             return;
         }
 
-        var cellsToCheck;
+        var candidateCells;
         if (wholeTable) {
-            cellsToCheck = targetTable.cells.everyItem().getElements();
+            candidateCells = targetTable.cells.everyItem().getElements();
         } else {
-            cellsToCheck = getSelectedCells(selectionItems, targetTable);
-            if (!cellsToCheck || cellsToCheck.length === 0) {
-                alert(localize(LABELS.alert.noTargetCells));
+            candidateCells = getSelectedCells(selectionItems, targetTable);
+            if (!candidateCells || candidateCells.length === 0) {
+                alert(getLabel(LABELS.alert.noTargetCells));
                 return;
             }
         }
 
-        cellsToCheck = uniqueCells(cellsToCheck);
+        candidateCells = dedupeCells(candidateCells);
 
         /* 解除するたびに表のセル数が増えてインデックスがずれるため、後ろから処理する
            / Each unmerge adds cells and shifts the indexes after it, so walk the list backwards */
-        for (var i = cellsToCheck.length - 1; i >= 0; i--) {
-            var cell = cellsToCheck[i];
+        for (var i = candidateCells.length - 1; i >= 0; i--) {
+            var cell = candidateCells[i];
             if (!cell || !cell.isValid) continue;
 
             /* 行方向または列方向に 2 つ以上を跨いでいれば結合セル / A cell spanning more than one row or column is merged */
             if (cell.rowSpan <= 1 && cell.columnSpan <= 1) continue;
 
-            var originalContents = getCellText(cell);
+            var mergedCellText = getCellText(cell);
 
             /* 解除で増えたセルを後から特定するため、解除前のセル id を控える
                / Record the cell ids before unmerging so the cells it creates can be identified afterwards */
-            var existingCellIds = collectCellIds(targetTable);
+            var cellIdsBeforeUnmerge = collectCellIds(targetTable);
 
             try {
                 cell.unmerge();
@@ -394,10 +456,10 @@ function setupRow(group, alignment, spacing) {
                 continue;
             }
 
-            if (!distributeText || originalContents === "") continue;
+            if (!copyToAllCells || mergedCellText === "") continue;
 
             /* 解除で増えたセルだけがこの結合セルの内側 / Only the cells the unmerge created belong to this merged cell */
-            distributeContents(getCellsAddedSince(targetTable, existingCellIds), originalContents);
+            copyTextToCells(getCellsAddedSince(targetTable, cellIdsBeforeUnmerge), mergedCellText);
         }
     }
 
@@ -422,10 +484,10 @@ function setupRow(group, alignment, spacing) {
     /**
      * 控えた id に含まれない（＝あとから増えた）セルを集める
      * @param {Table} targetTable 対象の表
-     * @param {object} existingCellIds 解除前のセル id のルックアップ
+     * @param {object} previousCellIds 解除前のセル id のルックアップ
      * @returns {Array<Cell>} 増えたセルの配列
      */
-    function getCellsAddedSince(targetTable, existingCellIds) {
+    function getCellsAddedSince(targetTable, previousCellIds) {
         var addedCells = [];
         var allCells = targetTable.cells.everyItem().getElements();
 
@@ -433,7 +495,7 @@ function setupRow(group, alignment, spacing) {
             var cell = allCells[i];
             if (!cell || !cell.isValid) continue;
             try {
-                if (!existingCellIds[cell.id]) addedCells.push(cell);
+                if (!previousCellIds[cell.id]) addedCells.push(cell);
             } catch (e) {}
         }
 
@@ -442,17 +504,17 @@ function setupRow(group, alignment, spacing) {
 
     /**
      * 解除で増えたセルへ元のテキストを複製する
-     * @param {Array<Cell>} unmergedCells 解除で増えたセルの配列
-     * @param {string} originalContents 元のテキスト
+     * @param {Array<Cell>} createdCells 解除で増えたセルの配列
+     * @param {string} mergedCellText 元のテキスト
      * @returns {void}
      */
-    function distributeContents(unmergedCells, originalContents) {
-        for (var i = 0; i < unmergedCells.length; i++) {
-            var targetCell = unmergedCells[i];
+    function copyTextToCells(createdCells, mergedCellText) {
+        for (var i = 0; i < createdCells.length; i++) {
+            var targetCell = createdCells[i];
             if (!targetCell || !targetCell.isValid) continue;
 
             try {
-                targetCell.contents = originalContents;
+                targetCell.contents = mergedCellText;
             } catch (e) {
                 /* 1 セルの失敗で全体を止めない / One failed cell must not abort the run */
             }
@@ -469,21 +531,31 @@ function setupRow(group, alignment, spacing) {
      */
     function main() {
         if (app.documents.length === 0) {
-            alert(localize(LABELS.alert.noDocument));
-            return;
-        }
-        if (!app.selection || app.selection.length === 0) {
-            alert(localize(LABELS.alert.selectCells));
+            alert(getLabel(LABELS.alert.noDocument));
             return;
         }
 
-        var dialogResult = showUnmergeDialog();
-        if (dialogResult === null) return;
+        var selectionItems = app.selection;
+        if (!selectionItems || selectionItems.length === 0) {
+            alert(getLabel(LABELS.alert.selectTable));
+            return;
+        }
+
+        var targetTable = getTableFromSelection(selectionItems[0]);
+        if (!targetTable) {
+            alert(getLabel(LABELS.alert.selectTable));
+            return;
+        }
+
+        /* 表の一部を選んで実行したときは、そのまま［選択セルのみ］で始められるようにする
+           / Start on Selected cells only when the run began from a partial selection */
+        var unmergeSettings = showUnmergeDialog(isPartialCellSelection(selectionItems, targetTable));
+        if (unmergeSettings === null) return;
 
         /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
         app.doScript(function () {
-            runUnmerge(dialogResult.distributeText, dialogResult.wholeTable);
-        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, localize(LABELS.undo.unmergeCells));
+            runUnmerge(unmergeSettings.copyToAllCells, unmergeSettings.wholeTable);
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undo.unmergeCells));
     }
 
     main();
