@@ -20,10 +20,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTypeScaleStyleApplier";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTypeScaleStyleApplier.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypeScaleStyleApplier.md"; /* README (English) */
@@ -167,10 +167,10 @@ var LABELS = {
         separate: {
             ja: "本文と見出しで別々に指定",
             en: "Specify body and heading fonts separately"
-        },
-        none: { ja: "フォントを変更しない", en: "Do not change fonts" }
+        }
     },
     checkbox: {
+        includeFonts: { ja: "フォント、スタイルを含める", en: "Include fonts & styles" },
         sizeOnly: { ja: "サイズのみ", en: "Size only" }
     },
     field: {
@@ -215,10 +215,6 @@ var LABELS = {
         notAvailable: { ja: "—", en: "—" }
     },
     button: {
-        includeFonts: {
-            ja: "フォント、スタイルを含める",
-            en: "Include fonts & styles"
-        },
         cancel: { ja: "キャンセル", en: "Cancel" },
         ok: { ja: "OK", en: "OK" }
     },
@@ -370,7 +366,14 @@ function getMeasurementUnitValue(unitName) {
  * @returns {MeasurementUnits} テキストサイズの単位
  */
 function getTextSizeUnit() {
-    // テキスト単位優先 → 定規単位 → ptにフォールバック
+    // ドキュメントの文字サイズ単位 → アプリ既定 → 定規単位 → pt の順にフォールバック
+    // （単位はドキュメントごとに持つため、開いている書類がある間はそちらが実際の表示単位）
+    try {
+        if (app.documents.length > 0) {
+            var documentTextSizeUnit = app.activeDocument.viewPreferences.textSizeMeasurementUnits;
+            if (documentTextSizeUnit !== undefined && documentTextSizeUnit !== null) return documentTextSizeUnit;
+        }
+    } catch (eDocumentUnit) { }
     try {
         var textSizeUnit = app.viewPreferences.textSizeMeasurementUnits;
         if (textSizeUnit !== undefined && textSizeUnit !== null) return textSizeUnit;
@@ -409,6 +412,18 @@ function toPoints(value, unit) {
         }
     }
     return value;
+}
+
+/* 測定値の代入は必ず単位付き文字列で行う。素の数値は InDesign 側の現在単位で解釈されるため、
+   pt のつもりの値が mm 環境では mm として入ってしまう（spaceBefore は縦の定規単位で解釈される）
+   / Always assign measurements as unit-qualified strings; bare numbers are read in the current unit */
+/**
+ * ポイント値を単位付きの文字列にする
+ * @param {number} valueInPoints ポイント値
+ * @returns {string} "12.5pt" 形式の文字列
+ */
+function toPointString(valueInPoints) {
+    return String(valueInPoints) + "pt";
 }
 
 /**
@@ -710,7 +725,7 @@ function getStyleWeightRank(styleName, familyName) {
     var _fontInfo = null;
 
     // 基準サイズの初期値は段落スタイル "p" → "Normal" の本文サイズを参照する
-    var defaultBaseSize = getBodyStyleBaseSize(targetDocument, unit);
+    var defaultBaseSize = getBodyStyleBaseSize(targetDocument);
     if (defaultBaseSize === null) {
         // "p" / "Normal" が無ければ単位ごとの既定値にフォールバック
         defaultBaseSize = DEFAULT_BASE_SIZE_PT;
@@ -727,18 +742,19 @@ function getStyleWeightRank(styleName, familyName) {
     /**
      * 本文スタイルの基準サイズを取得する
      * @param {Document} targetDocument 対象ドキュメント
-     * @param {MeasurementUnits} unit 表示単位
-     * @returns {number|null} 基準サイズ。取得できない場合は null
+     * @returns {number|null} 基準サイズ（表示単位）。取得できない場合は null
      */
-    function getBodyStyleBaseSize(targetDocument, unit) {
+    function getBodyStyleBaseSize(targetDocument) {
         var candidateNames = ["p", "Normal"];
         for (var nameIndex = 0; nameIndex < candidateNames.length; nameIndex++) {
             var style = findParagraphStyle(targetDocument, candidateNames[nameIndex]);
             if (style === null) continue;
-            var sizePt = null;
-            try { sizePt = style.pointSize; } catch (eSize) { sizePt = null; }
-            if (typeof sizePt !== "number" || isNaN(sizePt) || sizePt <= 0) continue;
-            return roundTo(fromPoints(sizePt, unit), 2);
+            /* pointSize は文字サイズ単位で読み書きされる＝表示単位そのものなので換算しない
+               / pointSize is already in the text size unit, so no conversion here */
+            var sizeInUnit = null;
+            try { sizeInUnit = style.pointSize; } catch (eSize) { sizeInUnit = null; }
+            if (typeof sizeInUnit !== "number" || isNaN(sizeInUnit) || sizeInUnit <= 0) continue;
+            return roundTo(sizeInUnit, 2);
         }
         return null;
     }
@@ -849,6 +865,7 @@ function getStyleWeightRank(styleName, familyName) {
             setParagraphStyleProps(targetDocument, styleName, {
                 size: sizePt,
                 font: fontToUse,
+                fontStyleName: rowSettings.fontStyleName,
                 autoLeadingPercent: (typeof rowSettings.leadingMult === "number") ? rowSettings.leadingMult * 100 : null,
                 spaceBefore: spaceBeforePt,
                 spaceAfter: spaceAfterPt,
@@ -1113,6 +1130,25 @@ function getStyleWeightRank(styleName, familyName) {
     }
 
     /**
+     * 段落スタイルが現在使っているフォントファミリー名を返す
+     * @param {Document} targetDocument 対象ドキュメント
+     * @param {string} styleName 段落スタイル名
+     * @returns {string|null} フォントファミリー名。取得できない場合は null
+     */
+    function getStyleFontFamily(targetDocument, styleName) {
+        if (!styleName) return null;
+        var style = findParagraphStyle(targetDocument, styleName);
+        if (style === null) return null;
+        // appliedFont は文字列で設定しても Font オブジェクトで返るため fontFamily を読める
+        try {
+            var familyName = style.appliedFont.fontFamily;
+            return familyName ? familyName : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /**
      * ファミリーとスタイルからフォントを探す
      * @param {string} familyName フォントファミリー名
      * @param {string} styleName フォントスタイル名
@@ -1177,7 +1213,6 @@ function getStyleWeightRank(styleName, familyName) {
         var styleNames = getParagraphStyleNames(targetDocument);
         // ダイアログ表示中のライブプレビューが値を書き換えるため、元値を退避する（取得はダイアログ構築直前に実行）
         var originalStyleProps = null;
-        var _fontSectionActive = false;  // 「フォント、スタイルを含める」でフォント・スタイル指定を有効化したか
 
         // フォント一覧は UI（パレット／ダイアログ Window）を組み立てる前に読み込む。
         // ダイアログ Window 生成後やモーダル表示中に重いフォント列挙を行うと InDesign が落ちるため、
@@ -1462,27 +1497,31 @@ function getStyleWeightRank(styleName, familyName) {
             fontPanel.alignment = ["fill", "top"];
             setupPanel(fontPanel, 6);
 
+            // OFF のあいだはフォント・スタイルを変更しない（以前の「フォントを変更しない」ラジオの役目を兼ねる）
+            var includeFontsCheckbox = fontPanel.add("checkbox", undefined, getLabel("checkbox.includeFonts"));
+            includeFontsCheckbox.value = false;
+
+            // ラジオはチェックボックスに従属するので字下げして並べる
             var fontModeGroup = fontPanel.add("group");
             fontModeGroup.orientation = "column";
             fontModeGroup.alignChildren = ["left", "center"];
+            fontModeGroup.margins = [16, 0, 0, 0];
 
             var useSameFontRadio = fontModeGroup.add("radiobutton", undefined, getLabel("fontMode.same"));
             var separateFontRadio = fontModeGroup.add("radiobutton", undefined, getLabel("fontMode.separate"));
-            var disableFontRadio = fontModeGroup.add("radiobutton", undefined, getLabel("fontMode.none"));
 
-            // 初期状態はフォント・スタイル設定を不可（フォントを読み込まないため）
-            useSameFontRadio.value = false;
+            // ディム状態のまま既定の選択を見せておく（チェックを入れた時点でこの指定になる）
+            useSameFontRadio.value = true;
             separateFontRadio.value = false;
-            disableFontRadio.value = true;
 
             // 「サイズのみ」: ON にするとサイズだけ更新し、フォント／行送り／アキ等は元の値を保持する
-            // （保持の実体は setParagraphStyleProps の sizeOnly 分岐。ON 時にフォント指定を「変更しない」へ切り替えるのは onClick ハンドラ側）
-            // 既定 ON：初回は非破壊的にサイズだけ適用する（フォント指定の既定 disable とも整合）
+            // （保持の実体は setParagraphStyleProps の sizeOnly 分岐。ON 時に上のチェックを外すのは onClick ハンドラ側）
+            // 既定 OFF：行送り・段落前後のアキ・カーニングも入力どおりに適用する
             var sizeOnlyCheckbox = fontPanel.add("checkbox", undefined, getLabel("checkbox.sizeOnly"));
-            sizeOnlyCheckbox.value = true;
+            sizeOnlyCheckbox.value = false;
 
             return {
-                disableFontRadio: disableFontRadio,
+                includeFontsCheckbox: includeFontsCheckbox,
                 useSameFontRadio: useSameFontRadio,
                 separateFontRadio: separateFontRadio,
                 sizeOnlyCheckbox: sizeOnlyCheckbox
@@ -1695,12 +1734,6 @@ function getStyleWeightRank(styleName, familyName) {
             bottomRow.alignment = "fill";
             bottomRow.alignChildren = ["fill", "center"];
 
-            var leftButtonColumn = bottomRow.add("group");
-            leftButtonColumn.orientation = "row";
-            leftButtonColumn.alignChildren = ["left", "center"];
-
-            var includeFontsButton = leftButtonColumn.add("button", undefined, getLabel("button.includeFonts"));
-
             var centerButtonColumn = bottomRow.add("group");
             centerButtonColumn.alignment = ["fill", "fill"];
             centerButtonColumn.minimumSize.width = 0;
@@ -1719,7 +1752,7 @@ function getStyleWeightRank(styleName, familyName) {
             rightButtonColumn.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
             rightButtonColumn.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
-            return { includeFontsButton: includeFontsButton, applyProgressBar: applyProgressBar };
+            return { applyProgressBar: applyProgressBar };
         }
 
         /**
@@ -1765,9 +1798,8 @@ function getStyleWeightRank(styleName, familyName) {
                 spaceBeforeHeader: previewUi.spaceBeforeHeader,
                 spaceAfterHeader: previewUi.spaceAfterHeader,
                 fontStyleHeader: previewUi.fontStyleHeader,
-                includeFontsButton: buttonUi.includeFontsButton,
                 applyProgressBar: buttonUi.applyProgressBar,
-                disableFontRadio: fontSettingsUi.disableFontRadio,
+                includeFontsCheckbox: fontSettingsUi.includeFontsCheckbox,
                 useSameFontRadio: fontSettingsUi.useSameFontRadio,
                 separateFontRadio: fontSettingsUi.separateFontRadio,
                 sizeOnlyCheckbox: fontSettingsUi.sizeOnlyCheckbox
@@ -1895,12 +1927,21 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         /**
+         * フォント・スタイルを適用する設定かどうかを判定する
+         * @param {object} dialogUi ダイアログのコントロール一式
+         * @returns {boolean} 適用するなら true
+         */
+        function isFontAssignmentEnabled(dialogUi) {
+            return !!(dialogUi.includeFontsCheckbox && dialogUi.includeFontsCheckbox.value);
+        }
+
+        /**
          * 本文で選択中のフォントファミリーを取得する
          * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {string} フォントファミリー名
          */
         function getSelectedFontFamily(dialogUi) {
-            if (dialogUi.disableFontRadio && dialogUi.disableFontRadio.value) return null;
+            if (!isFontAssignmentEnabled(dialogUi)) return null;
             if (!dialogUi.fontDD.selection || dialogUi.fontDD.selection.index === 0) return null;
             return dialogUi.fontDD.selection.text;
         }
@@ -1911,7 +1952,7 @@ function getStyleWeightRank(styleName, familyName) {
          * @returns {string} フォントファミリー名
          */
         function getSelectedHeadingFontFamily(dialogUi) {
-            if (dialogUi.disableFontRadio && dialogUi.disableFontRadio.value) return null;
+            if (!isFontAssignmentEnabled(dialogUi)) return null;
 
             // 常に本文フォントを参照（ウエイトのみ変更できるようにする）
             var bodyFont = getSelectedFontFamily(dialogUi);
@@ -1927,14 +1968,29 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         /**
-         * 見出しで選択中のフォントスタイル名を取得する
+         * プレビュー行で選択中のフォントスタイル名を取得する
          * @param {object} dialogUi ダイアログのコントロール一式
          * @param {object} previewRow 対象のプレビュー行
          * @returns {string} フォントスタイル名
          */
-        function getHeadingFontStyleName(dialogUi, previewRow) {
-            if (dialogUi.disableFontRadio && dialogUi.disableFontRadio.value) return null;
+        function getRowFontStyleName(dialogUi, previewRow) {
+            if (!isFontAssignmentEnabled(dialogUi)) return null;
             return getFontStyleDropdownValue(previewRow.fontStyleDD);
+        }
+
+        /* ウエイトの候補。フォントファミリーを指定していないときは、その段落スタイルが今使っている
+           フォントから拾う（ファミリーは変えずウエイトだけ変更できるようにする）
+           / Weight options fall back to the font the paragraph style already uses */
+        /**
+         * プレビュー行のウエイト候補を作る
+         * @param {string} familyName 選択中のフォントファミリー名。未指定なら null
+         * @param {object} previewRow 対象のプレビュー行
+         * @returns {Array<string>} ウエイト名の配列
+         */
+        function getFontStyleOptionsForRow(familyName, previewRow) {
+            var effectiveFamilyName = familyName || getStyleFontFamily(targetDocument, getDropdownText(previewRow.styleDD));
+            var fontStyleOptions = effectiveFamilyName ? getFontStylesInFamily(effectiveFamilyName) : [];
+            return (fontStyleOptions.length > 0) ? fontStyleOptions : [getLabel("option.noFontChange")];
         }
 
         /**
@@ -2172,19 +2228,17 @@ function getStyleWeightRank(styleName, familyName) {
          * @returns {void}
          */
         function syncFontSelectionEnabled(dialogUi) {
-            var enabled = !(dialogUi.disableFontRadio && dialogUi.disableFontRadio.value);
+            var enabled = isFontAssignmentEnabled(dialogUi);
             var headingFontEnabled = enabled && !(dialogUi.useSameFontRadio && dialogUi.useSameFontRadio.value);
             dialogUi.fontDD.enabled = enabled;
             dialogUi.fontStyleDD.enabled = enabled;
             dialogUi.headingFontDD.enabled = headingFontEnabled;
             dialogUi.headingFontStyleDD.enabled = headingFontEnabled;
-            // 「スタイル（ウエイト）」列は、フォント指定が有効なときだけ操作可能にする（未アクティブ／変更しない時はディム）
+            // 「スタイル（ウエイト）」列は、フォント指定が有効なときだけ操作可能にする
             if (dialogUi.fontStyleHeader) dialogUi.fontStyleHeader.enabled = enabled;
-            // フォント指定モードのラジオは「フォント、スタイルを含める」で有効化するまで停止状態
-            var radiosEnabled = !!_fontSectionActive;
-            if (dialogUi.useSameFontRadio) dialogUi.useSameFontRadio.enabled = radiosEnabled;
-            if (dialogUi.separateFontRadio) dialogUi.separateFontRadio.enabled = radiosEnabled;
-            if (dialogUi.disableFontRadio) dialogUi.disableFontRadio.enabled = radiosEnabled;
+            // フォント指定モードのラジオは「フォント、スタイルを含める」がオンのときだけ操作できる
+            if (dialogUi.useSameFontRadio) dialogUi.useSameFontRadio.enabled = enabled;
+            if (dialogUi.separateFontRadio) dialogUi.separateFontRadio.enabled = enabled;
             if (!enabled) {
                 selectDropdownByText(dialogUi.fontDD, getLabel("option.noFontChange"));
                 resetDropdownItems(dialogUi.fontStyleDD, [getLabel("option.noFontChange")]);
@@ -2206,22 +2260,22 @@ function getStyleWeightRank(styleName, familyName) {
          * @returns {void}
          */
         function updateFontStyleDropdowns(dialogUi) {
-            if (dialogUi.disableFontRadio && dialogUi.disableFontRadio.value) {
+            if (!isFontAssignmentEnabled(dialogUi)) {
                 syncFontSelectionEnabled(dialogUi);
                 return;
             }
             var selectedFontFamily = getSelectedFontFamily(dialogUi);
-            var fontStyleOptions = selectedFontFamily ? getFontStylesInFamily(selectedFontFamily) : [getLabel("option.noFontChange")];
-            if (fontStyleOptions.length === 0) fontStyleOptions = [getLabel("option.noFontChange")];
 
-            resetDropdownItems(dialogUi.fontStyleDD, fontStyleOptions);
+            // マスターのウエイト欄は基準（本文）スタイルのフォントを基準にする
+            resetDropdownItems(dialogUi.fontStyleDD, getFontStyleOptionsForRow(selectedFontFamily, dialogUi.baseRow));
             dialogUi.fontStyleDD.enabled = true;
 
             var selectedMasterFontStyleName = getDropdownText(dialogUi.fontStyleDD);
             var previewRows = getAllPreviewRows(dialogUi);
             for (var previewRowIndex = 0; previewRowIndex < previewRows.length; previewRowIndex++) {
-                resetDropdownItems(previewRows[previewRowIndex].fontStyleDD, fontStyleOptions);
-                previewRows[previewRowIndex].fontStyleDD.enabled = true;
+                var previewRow = previewRows[previewRowIndex];
+                resetDropdownItems(previewRow.fontStyleDD, getFontStyleOptionsForRow(selectedFontFamily, previewRow));
+                previewRow.fontStyleDD.enabled = true;
             }
             if (selectedMasterFontStyleName && selectedMasterFontStyleName !== getLabel("option.noFontChange")) {
                 selectAllPreviewFontStyleDropdowns(dialogUi, selectedMasterFontStyleName);
@@ -2234,7 +2288,7 @@ function getStyleWeightRank(styleName, familyName) {
          * @returns {void}
          */
         function updateHeadingFontStyleDropdowns(dialogUi) {
-            if (dialogUi.disableFontRadio && dialogUi.disableFontRadio.value) {
+            if (!isFontAssignmentEnabled(dialogUi)) {
                 syncFontSelectionEnabled(dialogUi);
                 return;
             }
@@ -2243,20 +2297,21 @@ function getStyleWeightRank(styleName, familyName) {
                 return;
             }
             var selectedFontFamily = getSelectedHeadingFontFamily(dialogUi);
-            var fontStyleOptions = selectedFontFamily ? getFontStylesInFamily(selectedFontFamily) : [getLabel("option.noFontChange")];
-            if (fontStyleOptions.length === 0) fontStyleOptions = [getLabel("option.noFontChange")];
 
             // ここに到達するのは「別指定」モードのみ（共通指定は冒頭で return 済み）。見出しフォントは選択可能
             dialogUi.headingFontDD.enabled = true;
             dialogUi.headingFontDD.helpTip = "";
 
-            resetDropdownItems(dialogUi.headingFontStyleDD, fontStyleOptions);
+            // マスターのウエイト欄はレベル 1 のスタイルのフォントを基準にする
+            var headingMasterRow = dialogUi.levelRows.length > 0 ? dialogUi.levelRows[0] : dialogUi.baseRow;
+            resetDropdownItems(dialogUi.headingFontStyleDD, getFontStyleOptionsForRow(selectedFontFamily, headingMasterRow));
             dialogUi.headingFontStyleDD.enabled = true;
 
             var selectedHeadingFontStyleName = getDropdownText(dialogUi.headingFontStyleDD);
             for (var levelRowIndex = 0; levelRowIndex < dialogUi.levelRows.length; levelRowIndex++) {
-                resetDropdownItems(dialogUi.levelRows[levelRowIndex].fontStyleDD, fontStyleOptions);
-                dialogUi.levelRows[levelRowIndex].fontStyleDD.enabled = true;
+                var levelRow = dialogUi.levelRows[levelRowIndex];
+                resetDropdownItems(levelRow.fontStyleDD, getFontStyleOptionsForRow(selectedFontFamily, levelRow));
+                levelRow.fontStyleDD.enabled = true;
             }
             if (selectedHeadingFontStyleName && selectedHeadingFontStyleName !== getLabel("option.noFontChange")) {
                 syncHeadingPreviewFontStylesFromTextSettings(dialogUi);
@@ -2271,7 +2326,7 @@ function getStyleWeightRank(styleName, familyName) {
         function getHeadingLevelFontStyleNames(dialogUi) {
             var levelFontStyleNames = [];
             for (var levelRowIndex = 0; levelRowIndex < dialogUi.levelRows.length; levelRowIndex++) {
-                levelFontStyleNames.push(getHeadingFontStyleName(dialogUi, dialogUi.levelRows[levelRowIndex]));
+                levelFontStyleNames.push(getRowFontStyleName(dialogUi, dialogUi.levelRows[levelRowIndex]));
             }
             return levelFontStyleNames;
         }
@@ -2327,7 +2382,7 @@ function getStyleWeightRank(styleName, familyName) {
                 var bodyRow = dialogUi.bodyDerivedRows[bodyRowIndex];
                 rows.push({
                     styleName: getDropdownText(bodyRow.styleDD),
-                    fontStyleName: getFontStyleDropdownValue(bodyRow.fontStyleDD),
+                    fontStyleName: getRowFontStyleName(dialogUi, bodyRow),
                     sizeFactor: bodyRow.bodySizeFactor,
                     sizeOverride: bodyRow.sizeOverride,
                     spaceBeforeOverride: bodyRow.spaceBeforeOverride,
@@ -2355,8 +2410,8 @@ function getStyleWeightRank(styleName, familyName) {
                 levelFontStyleNames: getHeadingLevelFontStyleNames(dialogUi),
                 baseStyleName: getDropdownText(dialogUi.baseRow.styleDD),
                 captionStyleName: getDropdownText(dialogUi.captionRow.styleDD),
-                baseFontStyleName: getFontStyleDropdownValue(dialogUi.baseRow.fontStyleDD),
-                captionFontStyleName: getFontStyleDropdownValue(dialogUi.captionRow.fontStyleDD),
+                baseFontStyleName: getRowFontStyleName(dialogUi, dialogUi.baseRow),
+                captionFontStyleName: getRowFontStyleName(dialogUi, dialogUi.captionRow),
                 fontFamily: getSelectedFontFamily(dialogUi),
 
                 headingFontFamily: getSelectedHeadingFontFamily(dialogUi),
@@ -2507,49 +2562,51 @@ function getStyleWeightRank(styleName, familyName) {
             updateTypescalePreview(dialogUi);
         }
 
-        // 「フォント、スタイルを含める」: 停止中のフォント・スタイル指定を有効化する
-        // （フォント自体は起動時に読み込み済みなので、ここではモードの切り替えと有効化のみ）
         /**
-         * 停止中のフォント・スタイル指定を有効にし、プレビューへ反映する
+         * ダイアログ内の進捗バーの表示を切り替える
+         * @param {object} dialogUi ダイアログのコントロール一式
+         * @param {boolean} visible 表示するなら true
+         * @param {number} value 進捗値（0〜100）
+         * @returns {void}
+         */
+        function setApplyProgressVisible(dialogUi, visible, value) {
+            if (!dialogUi.applyProgressBar) return;
+            dialogUi.applyProgressBar.value = value;
+            dialogUi.applyProgressBar.visible = visible;
+            try { dialogUi.dialog.update(); } catch (eProgress) { }
+        }
+
+        // 「フォント、スタイルを含める」のオン・オフをフォント指定コントロールとプレビューへ反映する
+        /**
+         * フォント・スタイル指定の有効／無効を切り替え、プレビューへ反映する
          * @param {object} dialogUi ダイアログのコントロール一式
          * @returns {void}
          */
-        function includeFontsAndStyles(dialogUi) {
-            _fontSectionActive = true;
-            // 本文と見出しで共通の指定からアクティブ化する
-            setFontOptionMode(dialogUi, "same");
-            if (dialogUi.sizeOnlyCheckbox) dialogUi.sizeOnlyCheckbox.value = false;
-            if (dialogUi.includeFontsButton) dialogUi.includeFontsButton.enabled = false;
-            // 初回のフォント適用（フォントオブジェクト解決＋段落スタイル反映）は時間がかかるため、
+        function applyFontAssignmentToggle(dialogUi) {
+            var enabled = isFontAssignmentEnabled(dialogUi);
+            // フォントを適用する以上「サイズのみ」とは両立しない
+            if (enabled && dialogUi.sizeOnlyCheckbox) dialogUi.sizeOnlyCheckbox.value = false;
+            // フォント適用（フォントオブジェクト解決＋段落スタイル反映）は時間がかかるため、
             // ダイアログ内の進捗バーを表示する（モーダル中は別ウィンドウを出せないため）
-            if (dialogUi.applyProgressBar) {
-                dialogUi.applyProgressBar.value = 40;
-                dialogUi.applyProgressBar.visible = true;
-                try { dialogUi.dialog.update(); } catch (eShowProgress) { }
-            }
+            if (enabled) setApplyProgressVisible(dialogUi, true, 40);
             syncFontSelectionEnabled(dialogUi);
             updateFontStyleDropdowns(dialogUi);
             updateHeadingFontStyleDropdowns(dialogUi);
-            syncPreviewFontStylesFromTextSettings(dialogUi);
+            if (enabled) syncPreviewFontStylesFromTextSettings(dialogUi);
+            syncSizeOnlyColumnDimming(dialogUi);
             updateTypescalePreview(dialogUi);
-            if (dialogUi.applyProgressBar) {
-                dialogUi.applyProgressBar.value = 100;
-                try { dialogUi.dialog.update(); } catch (eDoneProgress) { }
-                dialogUi.applyProgressBar.visible = false;
-                try { dialogUi.dialog.update(); } catch (eHideProgress) { }
-            }
+            if (enabled) setApplyProgressVisible(dialogUi, false, 100);
         }
 
         /**
          * フォント指定モードを切り替える
          * @param {object} dialogUi ダイアログのコントロール一式
-         * @param {string} mode "same" / "separate" / "disable" のいずれか
+         * @param {string} mode "same" / "separate" のいずれか
          * @returns {void}
          */
         function setFontOptionMode(dialogUi, mode) {
             dialogUi.useSameFontRadio.value = (mode === "same");
             dialogUi.separateFontRadio.value = (mode === "separate");
-            dialogUi.disableFontRadio.value = (mode === "disable");
         }
 
         /**
@@ -2729,13 +2786,6 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.captionRow.styleDD.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.baseRow.fontStyleDD.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.captionRow.fontStyleDD.onChange = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.disableFontRadio.onClick = function () {
-                setFontOptionMode(dialogUi, "disable");
-                syncFontSelectionEnabled(dialogUi);
-                updateFontStyleDropdowns(dialogUi);
-                updateHeadingFontStyleDropdowns(dialogUi);
-                updateTypescalePreview(dialogUi);
-            };
             dialogUi.useSameFontRadio.onClick = function () {
                 setFontOptionMode(dialogUi, "same");
                 if (dialogUi.sizeOnlyCheckbox) dialogUi.sizeOnlyCheckbox.value = false;
@@ -2755,7 +2805,7 @@ function getStyleWeightRank(styleName, familyName) {
             };
             dialogUi.sizeOnlyCheckbox.onClick = function () {
                 if (dialogUi.sizeOnlyCheckbox.value) {
-                    setFontOptionMode(dialogUi, "disable");
+                    if (dialogUi.includeFontsCheckbox) dialogUi.includeFontsCheckbox.value = false;
                     syncFontSelectionEnabled(dialogUi);
                     updateFontStyleDropdowns(dialogUi);
                     updateHeadingFontStyleDropdowns(dialogUi);
@@ -2792,7 +2842,7 @@ function getStyleWeightRank(styleName, familyName) {
             dialogUi.leadingHeadingInput.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.bodyKerningDD.onChange = function () { updateTypescalePreview(dialogUi); };
             dialogUi.headingKerningDD.onChange = function () { updateTypescalePreview(dialogUi); };
-            dialogUi.includeFontsButton.onClick = function () { includeFontsAndStyles(dialogUi); };
+            dialogUi.includeFontsCheckbox.onClick = function () { applyFontAssignmentToggle(dialogUi); };
         }
 
         bindTypescaleDialogEvents(dialogUi);
@@ -2872,6 +2922,7 @@ function getStyleWeightRank(styleName, familyName) {
      * @param {object} styleProps 適用するプロパティ
      * @param {number} styleProps.size 文字サイズ（pt）
      * @param {Font} [styleProps.font] 適用するフォント
+     * @param {string} [styleProps.fontStyleName] ウエイト名。font が無いときはこれだけを適用する
      * @param {number} [styleProps.autoLeadingPercent] 自動行送りの割合（%）
      * @param {number} [styleProps.spaceBefore] 段落前のアキ（pt）
      * @param {number} [styleProps.spaceAfter] 段落後のアキ（pt）
@@ -2885,6 +2936,7 @@ function getStyleWeightRank(styleName, familyName) {
     function setParagraphStyleProps(targetDocument, styleName, styleProps) {
         var size = styleProps.size;
         var font = styleProps.font;
+        var fontStyleName = styleProps.fontStyleName;
         var autoLeadingPercent = styleProps.autoLeadingPercent;
         var spaceBefore = styleProps.spaceBefore;
         var spaceAfter = styleProps.spaceAfter;
@@ -2905,7 +2957,7 @@ function getStyleWeightRank(styleName, familyName) {
         _previewModifiedStyles[styleName] = true;
         // サイズのみモード: サイズだけを更新し、その他はダイアログ起動時の値に戻す
         if (styleProps.sizeOnly) {
-            style.pointSize = size;
+            style.pointSize = toPointString(size);
             assignSnapshotToStyle(style, originalProps, false);
             return true;
         }
@@ -2934,8 +2986,12 @@ function getStyleWeightRank(styleName, familyName) {
             if (assigned && font.fontStyleName) {
                 try { style.fontStyle = font.fontStyleName; } catch (e4) { }
             }
+        } else if (fontStyleName) {
+            /* フォントファミリー未指定：今のファミリーを保ったままウエイトだけ差し替える
+               / No family chosen: swap only the weight and keep the family the style already uses */
+            try { style.fontStyle = fontStyleName; } catch (e5) { }
         }
-        style.pointSize = size;
+        style.pointSize = toPointString(size);
         // 行送りは自動行送り（%）で設定する。上限は入力側（parseAutoLeadingMultiplier）で
         // 丸めているが、念のため例外は握りつぶす（範囲外はエラー「データが範囲外です」になる）
         if (typeof autoLeadingPercent === "number" && autoLeadingPercent > 0) {
@@ -2945,16 +3001,16 @@ function getStyleWeightRank(styleName, familyName) {
             } catch (eL) { }
         }
         if (ENABLE_SPACE_BEFORE && typeof spaceBefore === "number" && spaceBefore >= 0) {
-            style.spaceBefore = spaceBefore;
+            style.spaceBefore = toPointString(spaceBefore);
         }
         if (ENABLE_SPACE_AFTER && typeof spaceAfter === "number" && spaceAfter >= 0) {
-            style.spaceAfter = spaceAfter;
+            style.spaceAfter = toPointString(spaceAfter);
         }
         // 同じスタイルの段落間隔（sameParaStyleSpacing）をスタイル名ごとのルールで設定
         if (ENABLE_SAME_STYLE_SPACING) {
             var sameStyleSpacing = resolveSameStyleSpacing(styleName, spaceBefore);
             if (sameStyleSpacing !== null) {
-                try { style.sameParaStyleSpacing = sameStyleSpacing; } catch (eSSS) { }
+                try { style.sameParaStyleSpacing = toPointString(sameStyleSpacing); } catch (eSSS) { }
             }
         }
         // フォントによっては設定不可のため、安全に無視

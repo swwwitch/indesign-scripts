@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-08-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdScriptLauncher.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdScriptLauncher.md"; /* README (English) */
@@ -59,6 +59,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
     /* ボタンにしない語。件数は多いが検索の役に立たない接続語 / Words never turned into buttons */
     var KEYWORD_STOP_WORDS = ["and", "the", "for", "with", "from", "into", "その他"];
+
+    /* 出現ファイル数が足りなくても常に出す語。小文字・KEYWORD_MIN_WORD_LENGTH以上で書く
+       / Words always offered as buttons, regardless of how many files match */
+    var KEYWORD_PINNED_WORDS = ["font"];
 
     /* Finder表示に使うAutomatorアプリと、パスを受け渡す一時ファイル / Automator app used to reveal a file */
     /* 一時ファイル名はアプリ内のAppleScriptが読む固定名。アプリを旧名 IllustratorRevealLink.app から
@@ -892,6 +896,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     }
 
     /**
+     * 常に出す語かどうかを判定する
+     * @param {string} word - 小文字化した語
+     * @returns {boolean} 常設の語なら true
+     */
+    function isPinnedWord(word) {
+        for (var i = 0; i < KEYWORD_PINNED_WORDS.length; i++) {
+            if (KEYWORD_PINNED_WORDS[i] === word) return true;
+        }
+        return false;
+    }
+
+    /**
      * すでに入力済みの検索語で覆われている語かどうかを判定する
      * @param {string} word - 判定する語
      * @param {Array<string>} searchTerms - 正規化済みの検索語
@@ -910,7 +926,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @param {number} minCount - ボタンにする最小出現ファイル数
      * @param {number} maxButtons - 返す語の最大個数
      * @param {Array<string>} searchTerms - 入力済みの検索語。これを含む語は除く
-     * @returns {Array<string>} 出現ファイル数の多い順に並べた語
+     * @returns {Array<string>} 常設の語、続いて出現ファイル数の多い順に並べた語
      */
     function collectFrequentWords(scriptEntries, minCount, maxButtons, searchTerms) {
         var wordCounts = {};
@@ -930,11 +946,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var frequentWords = [];
         for (var countKey in wordCounts) {
             if (!wordCounts.hasOwnProperty(countKey)) continue;
-            if (wordCounts[countKey] < minCount) continue;
 
             /* 入力済みの語をボタンにしても絞り込めないので外す / A word the query already covers is a no-op */
             var word = countKey.substring(1);
             if (isCoveredByTerms(word, searchTerms)) continue;
+
+            /* 常設の語は件数を問わず先頭に置くので、ここでは数えない / Pinned words are placed first instead */
+            if (isPinnedWord(word)) continue;
+            if (wordCounts[countKey] < minCount) continue;
             frequentWords.push({ word: word, count: wordCounts[countKey] });
         }
 
@@ -943,8 +962,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             return wordA.word < wordB.word ? -1 : (wordA.word > wordB.word ? 1 : 0);
         });
 
+        /* 常設の語を先に並べる。絞り込み結果に1件も無い語は押しても空振りなので出さない
+           / Pinned words come first, unless nothing in the current result matches them */
         var presetWords = [];
-        for (var k = 0; k < frequentWords.length && k < maxButtons; k++) {
+        for (var p = 0; p < KEYWORD_PINNED_WORDS.length && presetWords.length < maxButtons; p++) {
+            var pinnedWord = KEYWORD_PINNED_WORDS[p];
+            if (!wordCounts["#" + pinnedWord]) continue;
+            if (isCoveredByTerms(pinnedWord, searchTerms)) continue;
+            presetWords.push(pinnedWord);
+        }
+
+        for (var k = 0; k < frequentWords.length && presetWords.length < maxButtons; k++) {
             presetWords.push(frequentWords[k].word);
         }
         return presetWords;

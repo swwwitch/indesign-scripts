@@ -60,14 +60,15 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Item | Value |
 | --- | --- |
 | File | `jsx/misc/IdScriptLauncher.jsx` |
-| Version | v1.0.1 |
+| Version | v1.0.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-08-26 |
-| Last updated | 2026-08-27 |
+| Last updated | 2026-09-20 |
 | Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
 ## Update history
 
+- v1.0.2 (2026-09-20): Added keyword buttons that always appear regardless of match count (font)
 - v1.0.1 (2026-08-27): Added a clear (×) button to the keyword field
 - v1.0.0 (2026-08-26): Initial release
 
