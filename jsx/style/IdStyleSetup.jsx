@@ -5,14 +5,14 @@
 ### 概要
 
 段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイルまでを一括で登録します。
-既定では既存の同名スタイルには手を触れず、新規作成したスタイルにだけ属性を適用します。
+スタイル名は HTML（h1 / p）と Word 対応（Heading 1 / Normal）から選べ、既定では既存の同名スタイルには手を触れません。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Registers paragraph and character styles together with their groups, inheritance and GREP styles in one pass.
-Existing same-named styles are left untouched by default; attributes are applied only to newly created ones.
+Style names can follow either HTML (h1 / p) or Word (Heading 1 / Normal), and existing same-named styles are left untouched by default.
 
 See the README for details.
 
@@ -22,10 +22,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdStyleSetup";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-01";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdStyleSetup.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdStyleSetup.md"; /* README (English) */
@@ -38,9 +38,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfe87ec253780"; /* 紹�
 // UIレイアウトの共通設定 / Shared UI layout
 // ==============================
 
-/* ウィンドウの余白と間隔 / Window margins and spacing */
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
 var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 6;                  /* パネル内の要素間隔 / panel spacing */
 
 /**
  * ウィンドウの共通設定を適用する
@@ -53,6 +55,20 @@ function setupWindow(win, spacing) {
     win.alignChildren = "fill";
     win.margins = WINDOW_MARGINS;
     win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定を適用する
+ * @param {Panel} panel 対象パネル
+ * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["left", "top"];   /* 横と天地を対で / Pair horizontal with vertical */
+    panel.alignment = ["fill", "top"];       /* 横は伸ばし、縦は伸ばさない / Stretch horizontally only */
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 (function () {
@@ -72,6 +88,29 @@ function setupWindow(win, spacing) {
          so text keeps its style association. */
     var OVERWRITE_EXISTING_STYLES = false;
 
+    /* ［Word 対応］を選んだときのスタイル名 / Style names used when the "Word" scheme is chosen.
+       キーは HTML 側の名前。ここに無いスタイル（p.caption、link、グループ内のスタイルなど）は
+       どちらの体系でも同じ名前のままです /
+       Keys are the HTML names; styles not listed here (p.caption, link, grouped styles, …)
+       keep the same name in both schemes.
+       Word の「見出し1〜5」「標準」「リスト段落」「強調太字」「強調斜体」に対応する名前なので、
+       Word 原稿を配置するときにスタイルのマッピングが不要になります /
+       These match Word's Heading 1–5, Normal, List Paragraph, Strong and Emphasis, so placing a
+       Word manuscript needs no style mapping. */
+    var WORD_STYLE_NAMES = {
+        "h1":          "Heading 1",
+        "h2":          "Heading 2",
+        "h3":          "Heading 3",
+        "h4":          "Heading 4",
+        "h5":          "Heading 5",
+        "h6":          "Heading 6",
+        "p":           "Normal",
+        "ul-li":       "List Paragraph",
+        "ol-li":       "List Number",
+        "strong-bold": "Strong",
+        "em-italic":   "Emphasis"
+    };
+
     // =========================================
     // レイアウト設定 / Layout settings
     // =========================================
@@ -79,6 +118,19 @@ function setupWindow(win, spacing) {
     /* 進捗バーの幅と高さ（px）/ Width and height of the progress bar (px) */
     var PROGRESS_BAR_WIDTH  = 320;
     var PROGRESS_BAR_HEIGHT = 12;
+
+    /* ボタン同士の間隔（px）/ Spacing between buttons (px) */
+    var CONTROL_SPACING = 8;
+
+    /* ボタン列の上余白と、左右を分けるスペーサーの最小幅（px）/ Top margin of the button row and minimum width of its spacer (px) */
+    var BUTTON_ROW_TOP_MARGIN       = 8;
+    var BUTTON_ROW_SPACER_MIN_WIDTH = 40;
+
+    /* ラジオボタンの下に添えるスタイル名の見本の字下げ（px）/ Indent of the sample style names under each radio button (px) */
+    var SCHEME_SAMPLE_INDENT = 18;
+
+    /* ダイアログの不透明度 / Dialog opacity */
+    var DIALOG_OPACITY = 0.97;
 
     // =========================================
     // ラベル定義 / Labels
@@ -95,6 +147,30 @@ function setupWindow(win, spacing) {
     var currentLang = getCurrentLang();
 
     var LABELS = {
+        dialog: {
+            title: { ja: "スタイル一括登録", en: "Register Styles" }
+        },
+        panel: {
+            styleNames: { ja: "スタイル名", en: "Style names" }
+        },
+        scheme: {
+            html: { ja: "HTML", en: "HTML" },
+            word: { ja: "Word 対応", en: "Word" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok:     { ja: "OK", en: "OK" }
+        },
+        tooltip: {
+            schemeHtml: {
+                ja: "h1〜h6、p、ul-li など、HTML の要素名に合わせたスタイル名で登録します。",
+                en: "Registers styles named after HTML elements (h1–h6, p, ul-li, …)."
+            },
+            schemeWord: {
+                ja: "Word の「見出し1〜5」「標準」「リスト段落」に対応するスタイル名で登録します。Word 原稿を配置するときにスタイルのマッピングが不要になります。",
+                en: "Registers styles matching Word's Heading 1–5, Normal and List Paragraph, so placing a Word manuscript needs no style mapping."
+            }
+        },
         progress: {
             title:   { ja: "スタイル一括登録", en: "Register Styles" },
             styles:  { ja: "スタイルとグループを作成中…", en: "Creating styles and groups…" },
@@ -123,6 +199,106 @@ function setupWindow(win, spacing) {
             if (!node) return labelKey;
         }
         return node[currentLang] || node.en || labelKey;
+    }
+
+    // =========================================
+    // スタイル名の体系 / Style name schemes
+    // =========================================
+
+    /* 選べるスタイル名の体系 / Selectable style-name schemes */
+    var STYLE_NAME_SCHEMES = {
+        html: {},                /* 読み替えなし。キーがそのままスタイル名 / No mapping: the keys are the style names */
+        word: WORD_STYLE_NAMES
+    };
+
+    /* 選択中の体系のスタイル名マップ。ダイアログの結果で差し替える /
+       Style-name map of the selected scheme; replaced with the dialog's result */
+    var activeStyleNameMap = STYLE_NAME_SCHEMES.html;
+
+    /**
+     * HTML 側の名前を、選択中の体系でのスタイル名に読み替える
+     * ※ 読み替えの対象はグループに入れていないスタイルだけ。グループ内のスタイル
+     *   （base-regex、th、toc-h1、lang-US など）はどちらの体系でも名前を変えません /
+     *   Only root-level styles are renamed; grouped styles (base-regex, th, toc-h1, lang-US, …)
+     *   keep the same name in both schemes.
+     * @param {string} htmlStyleName HTML 側のスタイル名（例: "h1"）
+     * @returns {string} 選択中の体系でのスタイル名。対応が無ければ引数をそのまま返す
+     */
+    function styleName(htmlStyleName) {
+        var mappedName = activeStyleNameMap[htmlStyleName];
+        return (typeof mappedName === "string") ? mappedName : htmlStyleName;
+    }
+
+    // =========================================
+    // ダイアログ / Dialog
+    // =========================================
+
+    /* ラジオボタンの下に出す見本に使う代表スタイル / Representative styles shown under each radio button */
+    var SCHEME_SAMPLE_KEYS = ["h1", "p", "ul-li", "strong-bold"];
+
+    /**
+     * ラジオボタンの下に添える、代表スタイル名の見本を作る
+     * @param {object} styleNameMap 体系のスタイル名マップ
+     * @returns {string} 「 / 」区切りのスタイル名
+     */
+    function buildSchemeSample(styleNameMap) {
+        var sampleNames = [];
+        for (var sampleIndex = 0; sampleIndex < SCHEME_SAMPLE_KEYS.length; sampleIndex++) {
+            var sampleKey = SCHEME_SAMPLE_KEYS[sampleIndex];
+            var mappedName = styleNameMap[sampleKey];
+            sampleNames.push((typeof mappedName === "string") ? mappedName : sampleKey);
+        }
+        return sampleNames.join(" / ");
+    }
+
+    /**
+     * スタイル名の体系を選ぶダイアログを表示する
+     * @returns {object|null} 選んだ体系のスタイル名マップ。キャンセルした場合は null
+     */
+    function showStyleSchemeDialog() {
+        var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        dialog.opacity = DIALOG_OPACITY;
+        setupWindow(dialog);
+
+        var schemePanel = dialog.add("panel", undefined, getLabel("panel.styleNames"));
+        setupPanel(schemePanel);
+
+        /* ラジオは同じ親の直下どうしでしか排他にならないため、2つとも panel の直下に置く /
+           Radio buttons are exclusive only among siblings, so both go directly under the panel */
+        var rdoHtml = schemePanel.add("radiobutton", undefined, getLabel("scheme.html"));
+        rdoHtml.helpTip = getLabel("tooltip.schemeHtml");
+        var htmlSample = schemePanel.add("statictext", undefined, buildSchemeSample(STYLE_NAME_SCHEMES.html));
+        htmlSample.indent = SCHEME_SAMPLE_INDENT;
+
+        var rdoWord = schemePanel.add("radiobutton", undefined, getLabel("scheme.word"));
+        rdoWord.helpTip = getLabel("tooltip.schemeWord");
+        var wordSample = schemePanel.add("statictext", undefined, buildSchemeSample(STYLE_NAME_SCHEMES.word));
+        wordSample.indent = SCHEME_SAMPLE_INDENT;
+
+        rdoHtml.value = true;
+
+        /* ボタン列（右寄せでキャンセル・OK）/ Button row (Cancel and OK, right-aligned) */
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = BUTTON_ROW_SPACER_MIN_WIDTH;
+
+        /* 右側グループ / Right-side button group */
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.alignment = ["right", "center"];
+        btnRightGroup.margins = 0;
+        btnRightGroup.spacing = CONTROL_SPACING;
+        btnRightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        if (dialog.show() !== 1) return null;
+        return rdoWord.value ? STYLE_NAME_SCHEMES.word : STYLE_NAME_SCHEMES.html;
     }
 
     // =========================================
@@ -176,25 +352,25 @@ function setupWindow(win, spacing) {
      * @returns {void}
      */
     function main() {
-        if (app.documents.length === 0) {
-            alert(getLabel("alert.noDocument"));
-            return;
-        }
         var doc = app.activeDocument;
 
         // =========================================
         // スタイル名定義 / Style name definitions
         // =========================================
 
+        /* グループに入れないスタイルは styleName() を通す。選んだ体系に応じて
+           HTML 名（h1 / p / …）と Word 名（Heading 1 / Normal / …）を切り替える /
+           Root-level style names go through styleName(), which switches between the HTML names
+           (h1 / p / …) and the Word names (Heading 1 / Normal / …) depending on the chosen scheme. */
         var paragraphStyleNames = [
-            "h1", "h2", "h3", "h4", "h5", "h6",
-            "ul-li", "ol-li",
-            "p", "p.caption", "p.code", "p.img", "p.table"
+            styleName("h1"), styleName("h2"), styleName("h3"), styleName("h4"), styleName("h5"), styleName("h6"),
+            styleName("ul-li"), styleName("ol-li"),
+            styleName("p"), styleName("p.caption"), styleName("p.code"), styleName("p.img"), styleName("p.table")
         ];
 
         var characterStyleNames = [
-            "strong-bold", "em-italic",
-            "link", "code-normal", "code-strong", "highlighter"
+            styleName("strong-bold"), styleName("em-italic"),
+            styleName("link"), styleName("code-normal"), styleName("code-strong"), styleName("highlighter")
         ];
 
         var paragraphStyleGroupNames = [
@@ -398,7 +574,7 @@ function setupWindow(win, spacing) {
 
             // p / ul-li / ol-li / p.caption → body-text
             if (bodyTextStyle.isValid) {
-                var basedOnBaseStyleNames = ["p", "ul-li", "ol-li", "p.caption"];
+                var basedOnBaseStyleNames = [styleName("p"), styleName("ul-li"), styleName("ol-li"), styleName("p.caption")];
                 for (var basedOnIndex = 0; basedOnIndex < basedOnBaseStyleNames.length; basedOnIndex++) {
                     var basedOnStyleName = basedOnBaseStyleNames[basedOnIndex];
                     if (!shouldApplyAttributesToParagraphStyle(doc, basedOnStyleName)) continue;
@@ -408,16 +584,17 @@ function setupWindow(win, spacing) {
             }
 
             // p.table → p
-            var bodyParagraphStyle = doc.paragraphStyles.itemByName("p");
+            var bodyParagraphStyle = doc.paragraphStyles.itemByName(styleName("p"));
             if (bodyParagraphStyle.isValid &&
-                shouldApplyAttributesToParagraphStyle(doc, "p.table")) {
-                var tableParagraphStyle = doc.paragraphStyles.itemByName("p.table");
+                shouldApplyAttributesToParagraphStyle(doc, styleName("p.table"))) {
+                var tableParagraphStyle = doc.paragraphStyles.itemByName(styleName("p.table"));
                 if (tableParagraphStyle.isValid) tableParagraphStyle.basedOn = bodyParagraphStyle;
             }
 
             // h1〜h6 → heading
             if (headingStyle.isValid) {
-                var headingBasedOnNames = ["h1", "h2", "h3", "h4", "h5", "h6"];
+                var headingBasedOnNames = [styleName("h1"), styleName("h2"), styleName("h3"),
+                                           styleName("h4"), styleName("h5"), styleName("h6")];
                 for (var headingBasedOnIndex = 0; headingBasedOnIndex < headingBasedOnNames.length; headingBasedOnIndex++) {
                     var headingBasedOnName = headingBasedOnNames[headingBasedOnIndex];
                     if (!shouldApplyAttributesToParagraphStyle(doc, headingBasedOnName)) continue;
@@ -433,9 +610,10 @@ function setupWindow(win, spacing) {
          * @returns {void}
          */
         function applyNextStyleSettings(doc) {
-            var bodyParagraphStyle = doc.paragraphStyles.itemByName("p");
+            var bodyParagraphStyle = doc.paragraphStyles.itemByName(styleName("p"));
             if (!bodyParagraphStyle.isValid) return;
-            var nextStyleTargetNames = ["h1", "h2", "h3", "h4", "h5", "h6", "p.caption"];
+            var nextStyleTargetNames = [styleName("h1"), styleName("h2"), styleName("h3"), styleName("h4"),
+                                        styleName("h5"), styleName("h6"), styleName("p.caption")];
             for (var nextStyleIndex = 0; nextStyleIndex < nextStyleTargetNames.length; nextStyleIndex++) {
                 var nextStyleTargetName = nextStyleTargetNames[nextStyleIndex];
                 if (!shouldApplyAttributesToParagraphStyle(doc, nextStyleTargetName)) continue;
@@ -450,7 +628,7 @@ function setupWindow(win, spacing) {
          * @returns {void}
          */
         function applyKeepTogetherSettings(doc) {
-            var keepWithPreviousStyleNames = ["ul-li", "p.caption"];
+            var keepWithPreviousStyleNames = [styleName("ul-li"), styleName("p.caption")];
             for (var keepWithPreviousIndex = 0; keepWithPreviousIndex < keepWithPreviousStyleNames.length; keepWithPreviousIndex++) {
                 var keepWithPreviousName = keepWithPreviousStyleNames[keepWithPreviousIndex];
                 if (!shouldApplyAttributesToParagraphStyle(doc, keepWithPreviousName)) continue;
@@ -462,8 +640,8 @@ function setupWindow(win, spacing) {
 
             // body-text を継承しない p.code は単独で「すべての行を分離禁止」を設定 /
             // p.code does not inherit from body-text, so set keep-all-lines-together directly
-            if (shouldApplyAttributesToParagraphStyle(doc, "p.code")) {
-                var codeKeepStyle = doc.paragraphStyles.itemByName("p.code");
+            if (shouldApplyAttributesToParagraphStyle(doc, styleName("p.code"))) {
+                var codeKeepStyle = doc.paragraphStyles.itemByName(styleName("p.code"));
                 if (codeKeepStyle.isValid) {
                     codeKeepStyle.keepLinesTogether = true;
                     codeKeepStyle.keepAllLinesTogether = true;
@@ -472,8 +650,8 @@ function setupWindow(win, spacing) {
 
             // p は分離禁止オプションをすべて OFF（body-text からの継承も含めて打ち消す）/
             // p turns off all keep options (also overriding what is inherited from body-text)
-            if (shouldApplyAttributesToParagraphStyle(doc, "p")) {
-                var bodyKeepStyle = doc.paragraphStyles.itemByName("p");
+            if (shouldApplyAttributesToParagraphStyle(doc, styleName("p"))) {
+                var bodyKeepStyle = doc.paragraphStyles.itemByName(styleName("p"));
                 if (bodyKeepStyle.isValid) {
                     bodyKeepStyle.keepLinesTogether = false;
                     bodyKeepStyle.keepAllLinesTogether = false;
@@ -489,8 +667,8 @@ function setupWindow(win, spacing) {
          * @returns {void}
          */
         function applyImageParagraphSettings(doc) {
-            if (!shouldApplyAttributesToParagraphStyle(doc, "p.img")) return;
-            var imageParagraphStyle = doc.paragraphStyles.itemByName("p.img");
+            if (!shouldApplyAttributesToParagraphStyle(doc, styleName("p.img"))) return;
+            var imageParagraphStyle = doc.paragraphStyles.itemByName(styleName("p.img"));
             if (imageParagraphStyle.isValid) {
                 imageParagraphStyle.justification = Justification.CENTER_ALIGN;
             }
@@ -502,8 +680,8 @@ function setupWindow(win, spacing) {
          * @returns {void}
          */
         function applyListSettings(doc) {
-            if (shouldApplyAttributesToParagraphStyle(doc, "ul-li")) {
-                var bulletListStyle = doc.paragraphStyles.itemByName("ul-li");
+            if (shouldApplyAttributesToParagraphStyle(doc, styleName("ul-li"))) {
+                var bulletListStyle = doc.paragraphStyles.itemByName(styleName("ul-li"));
                 if (bulletListStyle.isValid) {
                     bulletListStyle.bulletsAndNumberingListType = ListType.BULLET_LIST;
                     var bulletCharacterStyle = resolveCharacterStyle(doc, "li-bullet");
@@ -517,8 +695,8 @@ function setupWindow(win, spacing) {
                         ["sameParaStyleSpacing", "spaceBetweenParagraphsUsingSameStyle", "spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
                 }
             }
-            if (shouldApplyAttributesToParagraphStyle(doc, "ol-li")) {
-                var numberedListStyle = doc.paragraphStyles.itemByName("ol-li");
+            if (shouldApplyAttributesToParagraphStyle(doc, styleName("ol-li"))) {
+                var numberedListStyle = doc.paragraphStyles.itemByName(styleName("ol-li"));
                 if (numberedListStyle.isValid) {
                     numberedListStyle.bulletsAndNumberingListType = ListType.NUMBERED_LIST;
                     var numberingCharacterStyle = resolveCharacterStyle(doc, "li-num");
@@ -686,9 +864,9 @@ function setupWindow(win, spacing) {
          * @returns {void}
          */
         function applyLinkSettings(doc) {
-            var resolved = resolveCharacterStyle(doc, "link");
+            var resolved = resolveCharacterStyle(doc, styleName("link"));
             if (!resolved) return;
-            if (!shouldApplyAttributesToCharacterStyle(resolved.container, "link")) return;
+            if (!shouldApplyAttributesToCharacterStyle(resolved.container, styleName("link"))) return;
             resolved.style.underline = false;
         }
 
@@ -777,9 +955,9 @@ function setupWindow(win, spacing) {
          * @returns {void}
          */
         function applyCodeNormalLanguageSetting(doc) {
-            var resolved = resolveCharacterStyle(doc, "code-normal");
+            var resolved = resolveCharacterStyle(doc, styleName("code-normal"));
             if (!resolved) return;
-            if (!shouldApplyAttributesToCharacterStyle(resolved.container, "code-normal")) return;
+            if (!shouldApplyAttributesToCharacterStyle(resolved.container, styleName("code-normal"))) return;
             var noLanguage = resolveLanguageByNames(NO_LANGUAGE_NAMES);
             if (noLanguage) resolved.style.appliedLanguage = noLanguage;
             resolved.style.ligatures = false;
@@ -791,8 +969,8 @@ function setupWindow(win, spacing) {
          * @returns {void}
          */
         function applyCodeParagraphSettings(doc) {
-            if (!shouldApplyAttributesToParagraphStyle(doc, "p.code")) return;
-            var codeParagraphStyle = doc.paragraphStyles.itemByName("p.code");
+            if (!shouldApplyAttributesToParagraphStyle(doc, styleName("p.code"))) return;
+            var codeParagraphStyle = doc.paragraphStyles.itemByName(styleName("p.code"));
             if (!codeParagraphStyle.isValid) return;
             var noLanguage = resolveLanguageByNames(NO_LANGUAGE_NAMES);
             if (noLanguage) codeParagraphStyle.appliedLanguage = noLanguage;
@@ -817,9 +995,9 @@ function setupWindow(win, spacing) {
             //   applyTableCellSettings already does basedOn → attributes internally, so it stays put.
             applyBaseStyleBasedOn(doc);
             applyTocSubheadingBasedOn(doc);
-            applyCharacterStyleBasedOn(doc, "highlighter", "strong-bold");
-            applyCharacterStyleBasedOn(doc, "code-strong", "code-normal");
-            applyCharacterStyleBasedOn(doc, "li-label", "strong-bold");
+            applyCharacterStyleBasedOn(doc, styleName("highlighter"), styleName("strong-bold"));
+            applyCharacterStyleBasedOn(doc, styleName("code-strong"), styleName("code-normal"));
+            applyCharacterStyleBasedOn(doc, "li-label", styleName("strong-bold"));
 
             applyBaseGroupStyleSettings(doc);
             applyNextStyleSettings(doc);
@@ -862,10 +1040,10 @@ function setupWindow(win, spacing) {
                 { group: "basestyle", paragraph: "base-regex", character: "lang-US", expression: "[\\u\\l]" },
                 { group: "basestyle", paragraph: "base-regex", character: "no-break", expression: "..[。」』？！…]?$" },
                 { group: "basestyle", paragraph: "base-regex", character: "inline-graphic", expression: "~a" },
-                { group: null, paragraph: "ul-li", character: "lang-US", expression: "[\\u\\l]" },
-                { group: null, paragraph: "ul-li", character: "no-break", expression: "..[。」』？！…]?$" },
-                { group: null, paragraph: "ul-li", character: "inline-graphic", expression: "~a" },
-                { group: null, paragraph: "ul-li", character: "li-label", expression: "^.+?(?=：)" }
+                { group: null, paragraph: styleName("ul-li"), character: "lang-US", expression: "[\\u\\l]" },
+                { group: null, paragraph: styleName("ul-li"), character: "no-break", expression: "..[。」』？！…]?$" },
+                { group: null, paragraph: styleName("ul-li"), character: "inline-graphic", expression: "~a" },
+                { group: null, paragraph: styleName("ul-li"), character: "li-label", expression: "^.+?(?=：)" }
             ];
 
             // 置き換えモード（OVERWRITE_EXISTING_STYLES）では、各対象スタイルの既存 GREP を
@@ -1038,6 +1216,17 @@ function setupWindow(win, spacing) {
             progress.close();
         }
     }
+
+    if (app.documents.length === 0) {
+        alert(getLabel("alert.noDocument"));
+        return;
+    }
+
+    // スタイル名の体系をダイアログで決めてから本処理へ。キャンセルならアンドゥ単位を作らずに終える /
+    // Pick the style-name scheme first; cancelling exits without creating an undo step
+    var selectedStyleNameMap = showStyleSchemeDialog();
+    if (!selectedStyleNameMap) return;
+    activeStyleNameMap = selectedStyleNameMap;
 
     // 全処理を 1 つのアンドゥ単位にまとめて実行 /
     // Run everything as a single undo step

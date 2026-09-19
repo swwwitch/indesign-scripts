@@ -1640,8 +1640,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
                / The launched script manages its own undo grouping, so no doScript wrapper here */
             $.evalFile(scriptFile);
         } catch (e) {
-            var message = formatLabel(getLabel(LABELS.alert.runFailed), [scriptFile.fsName, e.message]);
-            if (e.line) message += formatLabel(getLabel(LABELS.alert.errorLine), [e.line]);
+            /* 投げられるのは Error とは限らず、message を持たない値のこともある。
+               ここで落ちると本当の失敗理由が隠れるので、どんな形でも文字列にして出す
+               / The thrown value is not always an Error; never let this handler fail */
+            var detail = (e && e.message) ? e.message : String(e);
+            var message = formatLabel(getLabel(LABELS.alert.runFailed), [scriptFile.fsName, detail]);
+            if (e && e.line) message += formatLabel(getLabel(LABELS.alert.errorLine), [e.line]);
             alert(message, getLabel(LABELS.dialog.title));
         }
     }

@@ -83,6 +83,7 @@ var DEFAULT_LEVEL_COUNT   = 4;      /* 見出しレベル数 / number of heading
 /* 行送りとアキの既定値（%）/ Default leading and spacing (%) */
 var DEFAULT_BODY_LEADING_PERCENT      = 160;  /* 本文の行送り / body leading */
 var DEFAULT_HEADING_LEADING_PERCENT   = 115;  /* 見出しの行送り / heading leading */
+var MAX_AUTO_LEADING_PERCENT          = 500;  /* 自動行送りの上限。超えると「データが範囲外です」 / auto leading upper limit */
 var DEFAULT_SPACE_BEFORE_PERCENT      = 10;   /* 見出しの段落前のアキ / space before headings */
 var DEFAULT_SPACE_AFTER_PERCENT       = 10;   /* 見出しの段落後のアキ / space after headings */
 var DEFAULT_BODY_SPACE_BEFORE_PERCENT = 15;   /* 本文の段落前のアキ / space before body */
@@ -695,6 +696,19 @@ function getStyleWeightRank(styleName, familyName) {
     // showTypescaleDialog 内のライブプレビューより前に初期化しておく
     var _previewModifiedStyles = {};
 
+    /* 以下のキャッシュもダイアログより前に初期化する。関数宣言は巻き上げられるが var への代入は
+       されないため、後ろで宣言するとライブプレビュー中は undefined のまま参照されてしまう
+       / These caches must be initialized before the dialog, not after it */
+
+    /* 段落スタイル名 → スタイルの対応表。ライブプレビューは 1 キーストロークごとに
+       行数ぶんスタイルを引くため、allParagraphStyles の走査を毎回行わずキャッシュする。
+       ダイアログはモーダルで、表示中にスタイルが増減することはない
+       / Cached name-to-style table; the live preview looks styles up on every keystroke */
+    var _paragraphStyleMap = null;
+
+    /* 利用できるフォントファミリーとスタイルの一覧 / Cached font family and style list */
+    var _fontInfo = null;
+
     // 基準サイズの初期値は段落スタイル "p" → "Normal" の本文サイズを参照する
     var defaultBaseSize = getBodyStyleBaseSize(targetDocument, unit);
     if (defaultBaseSize === null) {
@@ -835,7 +849,7 @@ function getStyleWeightRank(styleName, familyName) {
             setParagraphStyleProps(targetDocument, styleName, {
                 size: sizePt,
                 font: fontToUse,
-                leading: (typeof rowSettings.leadingMult === "number") ? sizePt * rowSettings.leadingMult : null,
+                autoLeadingPercent: (typeof rowSettings.leadingMult === "number") ? rowSettings.leadingMult * 100 : null,
                 spaceBefore: spaceBeforePt,
                 spaceAfter: spaceAfterPt,
                 kerningMethod: isHeading ? typescaleSettings.headingKerningMethod : typescaleSettings.bodyKerningMethod,
@@ -940,8 +954,6 @@ function getStyleWeightRank(styleName, familyName) {
         }
         return names;
     }
-
-    var _fontInfo = null;
 
     /**
      * 利用できるフォントファミリーとスタイルの一覧を作る
@@ -1798,6 +1810,18 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         /**
+         * 行送りの入力を自動行送りの範囲に収めた倍率として解釈する
+         * @param {string} text 入力文字列
+         * @param {number} fallbackValue 解釈できない場合の倍率
+         * @returns {number} 行送り倍率
+         */
+        function parseAutoLeadingMultiplier(text, fallbackValue) {
+            var multiplier = parsePositivePercentMultiplier(text, fallbackValue);
+            var maxMultiplier = MAX_AUTO_LEADING_PERCENT / 100;
+            return (multiplier > maxMultiplier) ? maxMultiplier : multiplier;
+        }
+
+        /**
          * ラジオボタン群で選択中の値を取得する
          * @param {Array} radioButtons 対象のラジオボタン
          * @param {Array} options 対応する選択肢
@@ -1919,7 +1943,7 @@ function getStyleWeightRank(styleName, familyName) {
          * @returns {number} 行送り倍率
          */
         function getBodyLeadingMultiplier(dialogUi) {
-            return parsePositivePercentMultiplier(dialogUi.leadingBodyInput.text, DEFAULT_BODY_LEADING_PERCENT / 100);
+            return parseAutoLeadingMultiplier(dialogUi.leadingBodyInput.text, DEFAULT_BODY_LEADING_PERCENT / 100);
         }
 
         /**
@@ -1928,7 +1952,7 @@ function getStyleWeightRank(styleName, familyName) {
          * @returns {number} 行送り倍率
          */
         function getHeadingLeadingMultiplier(dialogUi) {
-            return parsePositivePercentMultiplier(dialogUi.leadingHeadingInput.text, DEFAULT_HEADING_LEADING_PERCENT / 100);
+            return parseAutoLeadingMultiplier(dialogUi.leadingHeadingInput.text, DEFAULT_HEADING_LEADING_PERCENT / 100);
         }
 
         /**
@@ -1995,12 +2019,12 @@ function getStyleWeightRank(styleName, familyName) {
         }
 
         /**
-         * 行送りの表示用文字列を作る
+         * 段落前後のアキの表示用文字列を作る
          * @param {number} value 対象の数値
          * @param {number} roundDigits 小数点以下の桁数
          * @returns {string} 表示する文字列
          */
-        function formatLeadingValue(value, roundDigits) {
+        function formatSpacingValue(value, roundDigits) {
             if (typeof value !== "number" || isNaN(value)) return getLabel("option.notAvailable");
             return String(roundTo(value, roundDigits)) + unitSym;
         }
@@ -2408,9 +2432,9 @@ function getStyleWeightRank(styleName, familyName) {
                     var effectiveHeadingSize = (typeof levelRow.sizeOverride === "number") ? levelRow.sizeOverride : computedHeadingSize;
                     levelRow.sizeText.text = roundTo(effectiveHeadingSize, roundDigits) + " " + unitSym;
                     var effectiveHeadingSpaceBefore = (typeof levelRow.spaceBeforeOverride === "number") ? levelRow.spaceBeforeOverride : effectiveHeadingSize * headingSpaceBeforeRatio;
-                    levelRow.spaceBeforeText.text = formatLeadingValue(effectiveHeadingSpaceBefore, roundDigits);
+                    levelRow.spaceBeforeText.text = formatSpacingValue(effectiveHeadingSpaceBefore, roundDigits);
                     var effectiveHeadingSpaceAfter = (typeof levelRow.spaceAfterOverride === "number") ? levelRow.spaceAfterOverride : effectiveHeadingSize * headingSpaceAfterRatio;
-                    levelRow.spaceAfterText.text = formatLeadingValue(effectiveHeadingSpaceAfter, roundDigits);
+                    levelRow.spaceAfterText.text = formatSpacingValue(effectiveHeadingSpaceAfter, roundDigits);
                     setRowEnabled(levelRow, true);
                 } else {
                     levelRow.sizeText.text = getLabel("option.notAvailable");
@@ -2422,9 +2446,9 @@ function getStyleWeightRank(styleName, familyName) {
             var effectiveBaseSize = (typeof dialogUi.baseRow.sizeOverride === "number") ? dialogUi.baseRow.sizeOverride : computedSizes.base;
             dialogUi.baseRow.sizeText.text = roundTo(effectiveBaseSize, roundDigits) + " " + unitSym;
             var effectiveBaseSpaceBefore = (typeof dialogUi.baseRow.spaceBeforeOverride === "number") ? dialogUi.baseRow.spaceBeforeOverride : effectiveBaseSize * bodySpaceBeforeRatio;
-            dialogUi.baseRow.spaceBeforeText.text = formatLeadingValue(effectiveBaseSpaceBefore, roundDigits);
+            dialogUi.baseRow.spaceBeforeText.text = formatSpacingValue(effectiveBaseSpaceBefore, roundDigits);
             var effectiveBaseSpaceAfter = (typeof dialogUi.baseRow.spaceAfterOverride === "number") ? dialogUi.baseRow.spaceAfterOverride : effectiveBaseSize * bodySpaceAfterRatio;
-            dialogUi.baseRow.spaceAfterText.text = formatLeadingValue(effectiveBaseSpaceAfter, roundDigits);
+            dialogUi.baseRow.spaceAfterText.text = formatSpacingValue(effectiveBaseSpaceAfter, roundDigits);
             // 本文派生行（リスト・テーブル）: 文字サイズは基準（本文）×係数
             for (var bodyRowIndex = 0; bodyRowIndex < dialogUi.bodyDerivedRows.length; bodyRowIndex++) {
                 var bodyRow = dialogUi.bodyDerivedRows[bodyRowIndex];
@@ -2432,16 +2456,16 @@ function getStyleWeightRank(styleName, familyName) {
                 var effectiveBodyRowSize = (typeof bodyRow.sizeOverride === "number") ? bodyRow.sizeOverride : bodyRowSize;
                 bodyRow.sizeText.text = roundTo(effectiveBodyRowSize, roundDigits) + " " + unitSym;
                 var effectiveBodyRowSpaceBefore = (typeof bodyRow.spaceBeforeOverride === "number") ? bodyRow.spaceBeforeOverride : effectiveBodyRowSize * bodySpaceBeforeRatio;
-                bodyRow.spaceBeforeText.text = formatLeadingValue(effectiveBodyRowSpaceBefore, roundDigits);
+                bodyRow.spaceBeforeText.text = formatSpacingValue(effectiveBodyRowSpaceBefore, roundDigits);
                 var effectiveBodyRowSpaceAfter = (typeof bodyRow.spaceAfterOverride === "number") ? bodyRow.spaceAfterOverride : effectiveBodyRowSize * bodySpaceAfterRatio;
-                bodyRow.spaceAfterText.text = formatLeadingValue(effectiveBodyRowSpaceAfter, roundDigits);
+                bodyRow.spaceAfterText.text = formatSpacingValue(effectiveBodyRowSpaceAfter, roundDigits);
             }
             var effectiveCaptionSize = (typeof dialogUi.captionRow.sizeOverride === "number") ? dialogUi.captionRow.sizeOverride : computedSizes.caption;
             dialogUi.captionRow.sizeText.text = roundTo(effectiveCaptionSize, roundDigits) + " " + unitSym;
             var effectiveCaptionSpaceBefore = (typeof dialogUi.captionRow.spaceBeforeOverride === "number") ? dialogUi.captionRow.spaceBeforeOverride : effectiveCaptionSize * bodySpaceBeforeRatio;
-            dialogUi.captionRow.spaceBeforeText.text = formatLeadingValue(effectiveCaptionSpaceBefore, roundDigits);
+            dialogUi.captionRow.spaceBeforeText.text = formatSpacingValue(effectiveCaptionSpaceBefore, roundDigits);
             var effectiveCaptionSpaceAfter = (typeof dialogUi.captionRow.spaceAfterOverride === "number") ? dialogUi.captionRow.spaceAfterOverride : effectiveCaptionSize * bodySpaceAfterRatio;
-            dialogUi.captionRow.spaceAfterText.text = formatLeadingValue(effectiveCaptionSpaceAfter, roundDigits);
+            dialogUi.captionRow.spaceAfterText.text = formatSpacingValue(effectiveCaptionSpaceAfter, roundDigits);
 
             applyTypescaleSettings(targetDocument, collectTypescaleSettings(dialogUi), true, unit);
             syncSizeOnlyColumnDimming(dialogUi);
@@ -2830,6 +2854,7 @@ function getStyleWeightRank(styleName, familyName) {
         }
         if (snapshot.appliedFont) { try { style.appliedFont = snapshot.appliedFont; } catch (eF) { } }
         if (snapshot.fontStyle) { try { style.fontStyle = snapshot.fontStyle; } catch (eFS) { } }
+        if (typeof snapshot.autoLeading !== "undefined") { try { style.autoLeading = snapshot.autoLeading; } catch (eAL) { } }
         if (typeof snapshot.leading !== "undefined") { try { style.leading = snapshot.leading; } catch (eL) { } }
         if (typeof snapshot.spaceBefore !== "undefined") { try { style.spaceBefore = snapshot.spaceBefore; } catch (eSB) { } }
         if (typeof snapshot.spaceAfter !== "undefined") { try { style.spaceAfter = snapshot.spaceAfter; } catch (eSA) { } }
@@ -2847,7 +2872,7 @@ function getStyleWeightRank(styleName, familyName) {
      * @param {object} styleProps 適用するプロパティ
      * @param {number} styleProps.size 文字サイズ（pt）
      * @param {Font} [styleProps.font] 適用するフォント
-     * @param {number} [styleProps.leading] 行送り（pt）
+     * @param {number} [styleProps.autoLeadingPercent] 自動行送りの割合（%）
      * @param {number} [styleProps.spaceBefore] 段落前のアキ（pt）
      * @param {number} [styleProps.spaceAfter] 段落後のアキ（pt）
      * @param {string} [styleProps.kerningMethod] カーニング方式
@@ -2860,7 +2885,7 @@ function getStyleWeightRank(styleName, familyName) {
     function setParagraphStyleProps(targetDocument, styleName, styleProps) {
         var size = styleProps.size;
         var font = styleProps.font;
-        var leading = styleProps.leading;
+        var autoLeadingPercent = styleProps.autoLeadingPercent;
         var spaceBefore = styleProps.spaceBefore;
         var spaceAfter = styleProps.spaceAfter;
         var kerningMethod = styleProps.kerningMethod;
@@ -2911,8 +2936,13 @@ function getStyleWeightRank(styleName, familyName) {
             }
         }
         style.pointSize = size;
-        if (typeof leading === "number" && leading > 0) {
-            style.leading = leading;
+        // 行送りは自動行送り（%）で設定する。上限は入力側（parseAutoLeadingMultiplier）で
+        // 丸めているが、念のため例外は握りつぶす（範囲外はエラー「データが範囲外です」になる）
+        if (typeof autoLeadingPercent === "number" && autoLeadingPercent > 0) {
+            try {
+                style.autoLeading = autoLeadingPercent;
+                style.leading = Leading.AUTO;
+            } catch (eL) { }
         }
         if (ENABLE_SPACE_BEFORE && typeof spaceBefore === "number" && spaceBefore >= 0) {
             style.spaceBefore = spaceBefore;
@@ -2960,6 +2990,7 @@ function getStyleWeightRank(styleName, familyName) {
             var styleSnapshot = {};
             try { styleSnapshot.pointSize = paragraphStyle.pointSize; } catch (ePS) { }
             try { styleSnapshot.leading = paragraphStyle.leading; } catch (eL) { }
+            try { styleSnapshot.autoLeading = paragraphStyle.autoLeading; } catch (eAL) { }
             try { styleSnapshot.spaceBefore = paragraphStyle.spaceBefore; } catch (eSB) { }
             try { styleSnapshot.spaceAfter = paragraphStyle.spaceAfter; } catch (eSA) { }
             try { styleSnapshot.justification = paragraphStyle.justification; } catch (eJ) { }
@@ -2992,19 +3023,13 @@ function getStyleWeightRank(styleName, familyName) {
         }
     }
 
-    /* 段落スタイル名 → スタイルの対応表。ライブプレビューは 1 キーストロークごとに
-       行数ぶんスタイルを引くため、allParagraphStyles の走査を毎回行わずキャッシュする。
-       ダイアログはモーダルで、表示中にスタイルが増減することはない
-       / Cached name-to-style table; the live preview looks styles up on every keystroke */
-    var _paragraphStyleMap = null;
-
     /**
      * 段落スタイル名から段落スタイルを引くための対応表を返す
      * @param {Document} targetDocument 対象ドキュメント
      * @returns {object} スタイル名をキーにした対応表
      */
     function getParagraphStyleMap(targetDocument) {
-        if (_paragraphStyleMap !== null) return _paragraphStyleMap;
+        if (_paragraphStyleMap) return _paragraphStyleMap;
         var map = {};
         var styles = targetDocument.allParagraphStyles;
         for (var styleIndex = 0; styleIndex < styles.length; styleIndex++) {
