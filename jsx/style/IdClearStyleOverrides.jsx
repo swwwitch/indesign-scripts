@@ -22,7 +22,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdClearStyleOverrides";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Gregor Fellenz (grefel)";      /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2020-06-09";                   /* 最初のリリース日 / first release date */
@@ -259,6 +259,7 @@ function addRowLabel(parentGroup, labelKey) {
 var ALL_TEXT_GREP   = "(?s).+";   /* 改行を含むすべてのテキストにマッチ / Match every text run, newlines included */
 var TABLE_MARKER    = "<0016>";   /* 表のアンカー文字 U+0016 / Table anchor character U+0016 */
 var ALL_STYLES      = null;       /* スタイルで絞り込まないことを表す値 / Sentinel meaning "do not filter by style" */
+var PARENT_TABLE_SEARCH_DEPTH = 5;   /* セルから表までさかのぼる上限 / How far to walk up from a cell to its table */
 
 /* 検索の種類ごとの app プロパティ名 / app property names per search kind */
 var SEARCH_MODES = {
@@ -536,6 +537,21 @@ function clearTextOverrides(textTargets, settings) {
 }
 
 /**
+ * セルが属する表をさかのぼって探す
+ * 選択範囲から展開したセルの parent は表とはかぎらないので、階層を決め打ちしない
+ * @param {Cell} targetCell 起点のセル
+ * @returns {Table} 見つかった表。届かなければ null
+ */
+function findParentTable(targetCell) {
+    var container = targetCell;
+    for (var depth = 0; depth < PARENT_TABLE_SEARCH_DEPTH && container; depth++) {
+        if (container.hasOwnProperty("appliedTableStyle")) return container;
+        container = container.parent;
+    }
+    return null;
+}
+
+/**
  * 表の中のセルスタイルのオーバーライドを消去する
  * @param {Table} targetTable 対象の表
  * @param {object} selectedCellStyle 対象のセルスタイル。ALL_STYLES ならすべて
@@ -575,8 +591,8 @@ function clearTableOverrides(scopeTargets, selectedTableStyle, selectedCellStyle
         if (isTargetStyle(targetCell.appliedCellStyle, selectedCellStyle)) {
             targetCell.clearCellStyleOverrides();
         }
-        var cellTable = targetCell.parent;
-        if (processedTableIds.hasOwnProperty(cellTable.id)) continue;
+        var cellTable = findParentTable(targetCell);
+        if (cellTable === null || processedTableIds.hasOwnProperty(cellTable.id)) continue;
         processedTableIds[cellTable.id] = true;
         if (isTargetStyle(cellTable.appliedTableStyle, selectedTableStyle)) {
             cellTable.clearTableStyleOverrides();
