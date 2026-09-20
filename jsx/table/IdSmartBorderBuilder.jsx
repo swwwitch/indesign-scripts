@@ -1,5 +1,4 @@
 #target indesign
-#targetengine "SmartBorderBuilderEngine"
 
 /*
 

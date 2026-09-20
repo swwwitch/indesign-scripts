@@ -20,6 +20,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 - "Full path" switches the target folder display between the full path and a `~`-abbreviated one
 - Preferences let you change the target folder and the keyword button rules (occurrences and number of keywords)
 - The target folder and keyword button settings are restored the next time you run the script
+- While "Remember the search" is on, the keyword, "Include subdirectories", "Full path" and the list selections carry over until InDesign quits (on by default)
 
 ## Usage
 
@@ -54,13 +55,14 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 - Alias folders are not followed, to avoid loops.
 - "Reveal in Finder" uses `/Applications/RevealInFinder.app`. Without it, the enclosing folder is opened instead (as on platforms other than macOS).
 - Settings are stored in `IdScriptLauncher-prefs.txt` in the user data folder.
+- While "Remember the search" is on, the keyword, the "Include subdirectories" and "Full path" states and the list selections are stored in `IdScriptLauncher.session.txt` in the temp folder, tagged with the name of a working file InDesign only keeps while it runs, so a restart changes that name and brings back the defaults (macOS only). Changing the target folder drops the list selections only.
 
 ## Script info
 
 | Item | Value |
 | --- | --- |
 | File | `jsx/misc/IdScriptLauncher.jsx` |
-| Version | v1.0.2 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-08-26 |
 | Last updated | 2026-09-20 |
@@ -68,6 +70,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 
 ## Update history
 
+- v1.1.0 (2026-09-20): Added "Remember the search". While it is on, the keyword and the list selections carry over between runs within an InDesign session
 - v1.0.2 (2026-09-20): Added keyword buttons that always appear regardless of match count (font)
 - v1.0.1 (2026-08-27): Added a clear (×) button to the keyword field
 - v1.0.0 (2026-08-26): Initial release

@@ -22,7 +22,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
@@ -77,6 +77,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     /* 「フルパス」の初期状態。OFFではホームフォルダーを ~ に略す / Initial state of the full path checkbox */
     var SHOW_FULL_PATH_DEFAULT = false;
 
+    /* 「検索条件を記憶」の初期状態 / Initial state of the remember checkbox */
+    var REMEMBER_SETTINGS_DEFAULT = true;
+
     /* サブディレクトリOFF時に残す階層の深さ（対象フォルダー直下のフォルダーまで） / Folder depth kept when subfolders are excluded */
     var NESTED_FOLDER_DEPTH_LIMIT = 1;
 
@@ -104,19 +107,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @returns {object} キーと文字列値の対応。読めなければ空のオブジェクト
      */
     function loadPrefs() {
-        var prefsFile = getPrefsFile();
-        if (!prefsFile.exists) return {};
-
-        var raw = "";
-        try {
-            prefsFile.encoding = "UTF-8";
-            if (!prefsFile.open("r")) return {};
-            raw = prefsFile.read();
-        } catch (e) {
-            return {};
-        } finally {
-            try { prefsFile.close(); } catch (e) {}
-        }
+        var raw = readTextFile(getPrefsFile());
+        if (!raw) return {};
 
         var prefs = {};
         var lines = String(raw).split("\n");
@@ -134,22 +126,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @returns {void}
      */
     function savePrefs(prefs) {
-        var prefsFile = getPrefsFile();
-        try {
-            prefsFile.encoding = "UTF-8";
-            prefsFile.lineFeed = "Unix";
-            if (!prefsFile.open("w")) return;
-
-            var lines = [];
-            for (var key in prefs) {
-                if (prefs.hasOwnProperty(key)) lines.push(key + "=" + prefs[key]);
-            }
-            prefsFile.write(lines.join("\n"));
-        } catch (e) {
-            /* 保存できなくても操作は続けられるので、ここでは知らせない / A failed save must not break the run */
-        } finally {
-            try { prefsFile.close(); } catch (e) {}
+        var lines = [];
+        for (var key in prefs) {
+            if (prefs.hasOwnProperty(key)) lines.push(key + "=" + prefs[key]);
         }
+
+        /* 保存できなくても操作は続けられるので、書き出せたかどうかは見ない / A failed save must not break the run */
+        writeTextFile(getPrefsFile(), lines.join("\n"));
     }
 
     /**
@@ -204,6 +187,256 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     }
 
     // =========================================
+    // セッションの記憶 / Session state
+    // =========================================
+
+    /* スクリプトは実行のたびに初期化され、グローバル変数は次の実行まで残らない。そのため一時ファイルに
+       置き、このセッションを表すidを一緒に書いておく。InDesignを起動し直すとidが変わり、前回の記録は使われない
+       / Globals do not survive between runs, so the state lives in a temp file tagged with a session id */
+    var SESSION_FILE_NAME = "IdScriptLauncher.session.txt";
+
+    /* InDesignが起動中だけ作る作業用データベース。名前にプロセスidが入るので、起動し直すと変わる
+       / A working database that only exists while InDesign runs; its name carries the process id */
+    var SESSION_TEMP_DB_MASK = "DBTmp*";
+    var RECOVERY_FOLDER_NAME = "InDesign Recovery";
+
+    /* 上のファイルが見つからないとき用。起動のたびに書き直されるので、その時刻をidにする
+       / Fallback: this file is rewritten at every launch, so its time can serve as the id */
+    var SESSION_MARKER_FILE_NAME = "PluginLoadStartup_Data";
+
+    /* 1回の実行の中でidは変わらないので、調べるのは最初の1回だけにする / Look it up once per run */
+    var isSessionIdChecked = false;
+    var cachedSessionId = null;
+
+    /**
+     * 一時フォルダー内のファイルを返す
+     * @param {string} fileName - ファイル名
+     * @returns {File} 一時フォルダー内のファイル
+     */
+    function temporaryFile(fileName) {
+        return new File(Folder.temp.fsName + "/" + fileName);
+    }
+
+    /**
+     * フォルダーの中身を取り出す
+     * @param {Folder} folder - 対象のフォルダー
+     * @param {string} [mask] - 名前のマスク。省略時はすべて
+     * @returns {Array} 見つかった項目。読めなければ空の配列
+     */
+    function folderEntries(folder, mask) {
+        try {
+            /* getFiles は読めないと null を返す / getFiles returns null when it fails */
+            var entries = (mask === undefined) ? folder.getFiles() : folder.getFiles(mask);
+            return entries ? entries : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    /**
+     * 使用中のInDesignのキャッシュフォルダーを集める
+     * @returns {Array<Folder>} 言語ごとのフォルダー。見つからなければ空の配列
+     */
+    function findCacheFolders() {
+        /* Folder.userData は ~/Library/Application Support を指す / userData is Application Support on macOS */
+        var cacheRoot = new Folder(Folder.userData.parent.fsName + "/Caches/Adobe InDesign");
+        if (!cacheRoot.exists) return [];
+
+        /* フォルダー名はビルドによって変わる（Version 21.0-J）ので、メジャーバージョンで始まるものをまとめて見る
+           / The folder name differs between builds */
+        var versionFolders = folderEntries(cacheRoot, "Version " + parseInt(app.version, 10) + "*");
+        var localeFolders = [];
+
+        for (var i = 0; i < versionFolders.length; i++) {
+            if (!(versionFolders[i] instanceof Folder)) continue;
+
+            var entries = folderEntries(versionFolders[i]);
+            for (var j = 0; j < entries.length; j++) {
+                if (entries[j] instanceof Folder) localeFolders.push(entries[j]);
+            }
+        }
+        return localeFolders;
+    }
+
+    /**
+     * このセッションのidを調べる
+     * @returns {string|null} 起動のたびに変わるid。見つからなければ null
+     */
+    function lookUpSessionId() {
+        var localeFolders = findCacheFolders();
+        var newestTempDb = null;
+        var newestStamp = null;
+
+        for (var i = 0; i < localeFolders.length; i++) {
+            /* 落ちたセッションの置き土産が残っていることがあるので、いちばん新しいものを選ぶ
+               / A crashed session can leave one behind, so take the newest */
+            var tempDbFiles = folderEntries(new Folder(localeFolders[i].fsName + "/" + RECOVERY_FOLDER_NAME), SESSION_TEMP_DB_MASK);
+            for (var j = 0; j < tempDbFiles.length; j++) {
+                if (!newestTempDb || tempDbFiles[j].modified > newestTempDb.modified) newestTempDb = tempDbFiles[j];
+            }
+
+            var marker = new File(localeFolders[i].fsName + "/" + SESSION_MARKER_FILE_NAME);
+            if (!marker.exists) continue;
+
+            var stamp = marker.modified || marker.created;
+            if (stamp && (!newestStamp || stamp > newestStamp)) newestStamp = stamp;
+        }
+
+        /* 名前は起動中ずっと変わらないので、そのままidにできる / The name stays the same for the whole session */
+        if (newestTempDb) return newestTempDb.name;
+        return newestStamp ? String(newestStamp.getTime()) : null;
+    }
+
+    /**
+     * このセッションのidを返す
+     * @returns {string|null} セッションのid。調べられなかったときは null
+     */
+    function readSessionId() {
+        if (!isSessionIdChecked) {
+            isSessionIdChecked = true;
+            cachedSessionId = lookUpSessionId();
+        }
+        return cachedSessionId;
+    }
+
+    /**
+     * 記録ファイルを「項目名 → 値」の形で読み出す
+     * @returns {Object|null} 読み出した項目。ファイルが無ければ null
+     */
+    function readSessionFields() {
+        var savedText = readTextFile(temporaryFile(SESSION_FILE_NAME));
+        if (!savedText) return null;
+
+        var savedLines = savedText.split(/\r\n|\r|\n/);
+        var savedFields = {};
+        for (var i = 0; i < savedLines.length; i++) {
+            var separatorIndex = savedLines[i].indexOf("\t");
+            if (separatorIndex === -1) continue;
+            savedFields[savedLines[i].substring(0, separatorIndex)] = savedLines[i].substring(separatorIndex + 1);
+        }
+        return savedFields;
+    }
+
+    /**
+     * このセッションで前回閉じたときの状態を読み出す
+     * @returns {{remember: boolean, targetFolder: string|null, keyword: string, includeSubfolders: boolean, showFullPath: boolean, folderPath: string|null, fileName: string|null}} 記録がなければユーザー設定の初期値
+     */
+    function readSessionState() {
+        var defaultState = {
+            remember: REMEMBER_SETTINGS_DEFAULT,
+            targetFolder: null,
+            keyword: "",
+            includeSubfolders: INCLUDE_SUBFOLDERS_DEFAULT,
+            showFullPath: SHOW_FULL_PATH_DEFAULT,
+            folderPath: null,
+            fileName: null
+        };
+
+        var sessionId = readSessionId();
+        if (!sessionId) return defaultState;
+
+        /* 前回のInDesignが残した記録は使わない / Ignore what an earlier InDesign left behind */
+        var savedFields = readSessionFields();
+        if (!savedFields || savedFields.session !== sessionId) return defaultState;
+
+        return {
+            /* 「記憶しない」で閉じたあとは初期値だけが書いてあるので、そのまま読めばよい / Defaults were stored */
+            remember: (savedFields.remember === undefined) ? REMEMBER_SETTINGS_DEFAULT : savedFields.remember === "1",
+            targetFolder: (savedFields.targetFolder === undefined) ? null : savedFields.targetFolder,
+            keyword: (savedFields.keyword === undefined) ? "" : savedFields.keyword,
+            includeSubfolders: (savedFields.includeSubfolders === undefined) ? INCLUDE_SUBFOLDERS_DEFAULT : savedFields.includeSubfolders === "1",
+            showFullPath: (savedFields.showFullPath === undefined) ? SHOW_FULL_PATH_DEFAULT : savedFields.showFullPath === "1",
+
+            /* 「すべて」を選んでいたときは記録しない。空文字はルート直下を指すので区別する / An empty value means the root */
+            folderPath: (savedFields.folderPath === undefined) ? null : savedFields.folderPath,
+            fileName: (savedFields.fileName === undefined) ? null : savedFields.fileName
+        };
+    }
+
+    /**
+     * このセッションの記憶を書き換える
+     * @param {Object} changes - 書き換える項目だけを持つオブジェクト
+     * @returns {void}
+     */
+    function saveSessionState(changes) {
+        var sessionId = readSessionId();
+        if (!sessionId) return;
+
+        var sessionState = readSessionState();
+        for (var key in changes) {
+            if (changes.hasOwnProperty(key)) sessionState[key] = changes[key];
+        }
+
+        var savedFields = {
+            session: sessionId,
+            remember: sessionState.remember ? "1" : "0",
+            targetFolder: sessionState.targetFolder,
+            keyword: sessionState.keyword,
+            includeSubfolders: sessionState.includeSubfolders ? "1" : "0",
+            showFullPath: sessionState.showFullPath ? "1" : "0",
+            folderPath: sessionState.folderPath,
+            fileName: sessionState.fileName
+        };
+
+        var savedLines = [];
+        for (var fieldName in savedFields) {
+            /* null の項目は行ごと書かない。読み出すときに「記録なし」と区別できるようにする / Skip empty fields */
+            if (!savedFields.hasOwnProperty(fieldName)) continue;
+            if (savedFields[fieldName] === null) continue;
+
+            /* 改行やタブが混じると行の形が壊れるので、その項目はあきらめる / Would break the line format */
+            var fieldValue = String(savedFields[fieldName]);
+            if (/[\t\r\n]/.test(fieldValue)) continue;
+
+            savedLines.push(fieldName + "\t" + fieldValue);
+        }
+        writeTextFile(temporaryFile(SESSION_FILE_NAME), savedLines.join("\n"));
+    }
+
+    // =========================================
+    // テキストファイルの読み書き / Text files
+    // =========================================
+
+    /**
+     * テキストファイルを読み込む
+     * @param {File} textFile - 読み込むファイル
+     * @returns {string} 中身。読めなければ空文字
+     */
+    function readTextFile(textFile) {
+        if (!textFile.exists) return "";
+        try {
+            textFile.encoding = "UTF-8";
+            if (!textFile.open("r")) return "";
+            return textFile.read();
+        } catch (e) {
+            return "";
+        } finally {
+            try { textFile.close(); } catch (e) {}
+        }
+    }
+
+    /**
+     * テキストファイルへ書き出す
+     * @param {File} textFile - 書き出すファイル
+     * @param {string} text - 書き出す内容
+     * @returns {boolean} 書き出せたら true
+     */
+    function writeTextFile(textFile, text) {
+        try {
+            textFile.encoding = "UTF-8";
+            textFile.lineFeed = "Unix";
+            if (!textFile.open("w")) return false;
+
+            textFile.write(text);
+            return true;
+        } catch (e) {
+            return false;
+        } finally {
+            try { textFile.close(); } catch (e) {}
+        }
+    }
+
+    // =========================================
     // レイアウト / Layout
     // =========================================
 
@@ -234,6 +467,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     var FOLDER_PATH_WIDTH    = 360;          /* 対象フォルダーのパス表示の幅 / target folder path width */
     var BUTTON_ROW_TOP_MARGIN   = 10;        /* ボタン列の上余白 / top margin above the button row */
     var CHECKBOX_TOP_MARGIN     = 10;        /* リスト下のチェックボックスの上余白 / top margin above a checkbox under a list */
+    var REMEMBER_ROW_TOP_MARGIN = 5;         /* 「検索条件を記憶」の上余白 / top margin above the remember checkbox */
 
     /* キーワードボタンは小ぶりにする / Keyword preset buttons are smaller */
     var PRESET_BUTTON_HEIGHT  = 22;          /* キーワードボタンの高さ / preset button height */
@@ -402,7 +636,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         button.maximumSize = [CLEAR_BUTTON_SIZE, CLEAR_BUTTON_SIZE];
         button.pressed = false;
 
-        /* キーワード欄は空の状態で開くので、ディム表示から始める / Start dimmed for the empty field */
+        /* 実際の状態は呼び出し側が入力欄に合わせる / The caller syncs this with the field */
         button.enabled = false;
 
         button.onDraw = function () {
@@ -528,7 +762,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         },
         checkbox: {
             includeSubfolders: { ja: "サブディレクトリを含む", en: "Include subdirectories" },
-            showFullPath:      { ja: "フルパス", en: "Full path" }
+            showFullPath:      { ja: "フルパス", en: "Full path" },
+            rememberSettings:  { ja: "検索条件を記憶", en: "Remember the search" }
+        },
+        tooltip: {
+            rememberSettings: { ja: "InDesignを終了するまでのあいだ引き継ぎます", en: "Carried over until InDesign quits" }
         },
         button: {
             changeFolder:    { ja: "フォルダー変更", en: "Change Folder" },
@@ -1029,14 +1267,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @param {Folder} targetFolder - 現在の対象フォルダー
      * @param {number} minCount - 現在の出現数
      * @param {number} maxButtons - 現在のキーワード数
+     * @param {boolean} remembersSettings - 「フルパス」の状態を覚えるかどうか
      * @returns {{folder: Folder, minCount: number, maxButtons: number}|null} 入力された値。取り消し時は null
      */
-    function showPreferencesDialog(targetFolder, minCount, maxButtons) {
+    function showPreferencesDialog(targetFolder, minCount, maxButtons, remembersSettings) {
         var settingsDialog = new Window("dialog", getLabel(LABELS.dialog.preferences));
         setupWindow(settingsDialog, DENSE_SPACING);
 
         var selectedFolder = targetFolder;
-        var folderUI = buildScriptFolderPanel(settingsDialog, selectedFolder);
+        var folderUI = buildScriptFolderPanel(settingsDialog, selectedFolder, remembersSettings);
         folderUI.changeButton.onClick = function () {
             var pickedFolder = chooseScriptFolder(selectedFolder);
             if (!pickedFolder) return;
@@ -1089,9 +1328,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     /**
      * 絞り込みパネルを組み立てる
      * @param {Window} parent - 追加先のウィンドウ
-     * @returns {{panel: Panel, input: EditText, clearButton: Button, presetContainer: Group}} パネル・入力欄・クリアボタン・ボタン置き場
+     * @param {string} initialKeyword - 最初に表示するキーワード
+     * @param {boolean} remembersSettings - 「検索条件を記憶」の初期状態
+     * @returns {{panel: Panel, input: EditText, clearButton: Button, presetContainer: Group, rememberCheckbox: Checkbox}} パネルの部品
      */
-    function buildKeywordPanel(parent) {
+    function buildKeywordPanel(parent, initialKeyword, remembersSettings) {
         var panel = parent.add("panel", undefined, formatLabel(getLabel(LABELS.panel.keyword), [0]));
         setupPanel(panel, DENSE_SPACING);
 
@@ -1099,7 +1340,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         setupRow(row, "fill", DENSE_SPACING);
         row.add("statictext", undefined, labelText(LABELS.fieldLabel.keyword));
 
-        var input = row.add("edittext", undefined, "");
+        var input = row.add("edittext", undefined, initialKeyword);
         input.alignment = ["fill", "center"];
 
         var clearButton = addClearButton(row);
@@ -1111,17 +1352,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         presetContainer.alignment = ["fill", "top"];
         presetContainer.spacing = DENSE_SPACING;
 
-        return { panel: panel, input: input, clearButton: clearButton, presetContainer: presetContainer };
+        var rememberRow = panel.add("group");
+        setupRow(rememberRow, "left", 0);
+        rememberRow.margins = [0, REMEMBER_ROW_TOP_MARGIN, 0, 0];
+
+        var rememberCheckbox = rememberRow.add("checkbox", undefined, getLabel(LABELS.checkbox.rememberSettings));
+        rememberCheckbox.helpTip = getLabel(LABELS.tooltip.rememberSettings);
+        rememberCheckbox.value = remembersSettings;
+
+        return {
+            panel: panel,
+            input: input,
+            clearButton: clearButton,
+            presetContainer: presetContainer,
+            rememberCheckbox: rememberCheckbox
+        };
     }
 
     /**
      * 対象フォルダーパネルを組み立てる
      * @param {Window} parent - 追加先のウィンドウ
      * @param {Folder} targetFolder - 最初に表示するフォルダー
+     * @param {boolean} remembersSettings - 「フルパス」の状態を覚えるかどうか
      * @returns {{changeButton: Button, refreshPath: function(Folder): void}} 変更ボタンと表示更新関数
      */
-    function buildScriptFolderPanel(parent, targetFolder) {
+    function buildScriptFolderPanel(parent, targetFolder, remembersSettings) {
         var currentFolder = targetFolder;
+        var showFullPath = readSessionState().showFullPath;
 
         var panel = parent.add("panel", undefined, getLabel(LABELS.panel.scriptFolder));
         setupPanel(panel, DENSE_SPACING);
@@ -1130,7 +1387,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         setupRow(row, "fill", DENSE_SPACING);
 
         /* 入力欄に見せないよう statictext で表示し、長いパスは中央を省略する / Plain text, truncated in the middle */
-        var pathText = row.add("statictext", undefined, formatFolderPath(currentFolder, SHOW_FULL_PATH_DEFAULT), { truncate: "middle" });
+        var pathText = row.add("statictext", undefined, formatFolderPath(currentFolder, showFullPath), { truncate: "middle" });
         pathText.preferredSize.width = FOLDER_PATH_WIDTH;
 
         var changeButton = row.add("button", undefined, getLabel(LABELS.button.changeFolder));
@@ -1139,7 +1396,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
         var fullPathCheckbox = panel.add("checkbox", undefined, getLabel(LABELS.checkbox.showFullPath));
         fullPathCheckbox.alignment = "left";
-        fullPathCheckbox.value = SHOW_FULL_PATH_DEFAULT;
+        fullPathCheckbox.value = showFullPath;
 
         /**
          * パス表示を今のフォルダーと「フルパス」の状態に合わせる
@@ -1151,16 +1408,21 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             pathText.text = formatFolderPath(currentFolder, fullPathCheckbox.value);
         }
 
-        fullPathCheckbox.onClick = function () { refreshPath(); };
+        fullPathCheckbox.onClick = function () {
+            /* 表示の切り替えはセッション中だけ覚えておく / Remember the toggle for this session */
+            if (remembersSettings) saveSessionState({ showFullPath: fullPathCheckbox.value });
+            refreshPath();
+        };
         return { changeButton: changeButton, refreshPath: refreshPath };
     }
 
     /**
      * 左右2本のリストを組み立てる
      * @param {Window} parent - 追加先のウィンドウ
+     * @param {boolean} includeSubfolders - 「サブディレクトリを含む」の初期状態
      * @returns {{folderListBox: ListBox, subfoldersCheckbox: Checkbox, scriptListBox: ListBox}} リスト部品
      */
-    function buildListColumns(parent) {
+    function buildListColumns(parent, includeSubfolders) {
         /* 左でフォルダーを選び、右にそのフォルダー内のファイル名だけを並べる / Folder on the left, file names on the right */
         var row = parent.add("group");
         setupRow(row, "fill", COLUMN_SPACING);
@@ -1174,7 +1436,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         setupRow(checkboxRow, "left", 0);
         checkboxRow.margins = [0, CHECKBOX_TOP_MARGIN, 0, 0];
         var subfoldersCheckbox = checkboxRow.add("checkbox", undefined, getLabel(LABELS.checkbox.includeSubfolders));
-        subfoldersCheckbox.value = INCLUDE_SUBFOLDERS_DEFAULT;
+        subfoldersCheckbox.value = includeSubfolders;
 
         var scriptColumn = addListColumn(row, getLabel(LABELS.listCaption.fileName));
         var scriptListBox = scriptColumn.add("listbox", undefined, [], { multiselect: false });
@@ -1231,15 +1493,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             return { action: "changeFolder", file: null, folder: null };
         }
 
+        /* 同じセッション中に開き直したときは、前回の絞り込みから再開する / Resume the previous search within the session */
+        var sessionState = readSessionState();
+
+        /* 対象フォルダーが変わっていれば、フォルダーとファイルの選択は引き継がない
+           / Those two are relative to the folder they were stored for */
+        if (sessionState.targetFolder !== targetFolder.fsName) {
+            sessionState.folderPath = null;
+            sessionState.fileName = null;
+        }
+
         var launcherDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(launcherDialog);
 
         /* 検索欄を最初の操作部品にして、起動時のフォーカスを安定させる / Keep the keyword field first */
-        var keywordUI = buildKeywordPanel(launcherDialog);
+        var keywordUI = buildKeywordPanel(launcherDialog, sessionState.keyword, sessionState.remember);
         var keywordPanel = keywordUI.panel;
         var keywordInput = keywordUI.input;
         var keywordClearButton = keywordUI.clearButton;
         var keywordPresetContainer = keywordUI.presetContainer;
+        var rememberCheckbox = keywordUI.rememberCheckbox;
 
         /* 絞り込み結果によく出る語をワンクリックで入れる / One-click presets from the filtered results */
         var storedSettings = readKeywordSettings();
@@ -1250,7 +1523,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var isDialogShown = false;
         reserveKeywordPresetHeight(keywordPresetContainer, presetMaxButtons);
 
-        var listUI = buildListColumns(launcherDialog);
+        var listUI = buildListColumns(launcherDialog, sessionState.includeSubfolders);
         var folderListBox = listUI.folderListBox;
         var includeSubfoldersCheckbox = listUI.subfoldersCheckbox;
         var scriptListBox = listUI.scriptListBox;
@@ -1266,6 +1539,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
         /* 組み直し中の選択変更でファイル名リストが何度も再構築されるのを防ぐ / Suppress cascaded rebuilds */
         var isRebuildingFolderList = false;
+
+        /* 前回の選択は最初の組み立てでだけ使う。以降は通常どおり先頭を選ぶ / Used only while building the lists for the first time */
+        var restoringFolderPath = sessionState.folderPath;
+        var restoringFileName = sessionState.fileName;
+
+        /* 記録は1回だけ。閉じ方によっては二重に呼ばれる / Guards against being called twice */
+        var isSessionSaved = false;
 
         /**
          * 絞り込み結果に合わせてキーワードボタンを作り直す
@@ -1338,7 +1618,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
          */
         function refreshFolderList() {
             var searchTerms = splitSearchTerms(keywordInput.text);
+
+            /* 最初の組み立てだけは前回のセッションで選んでいたフォルダーを狙う / Aim at the remembered folder on the first pass */
             var previousFolderPath = selectedFolderPath();
+            if (previousFolderPath === null) previousFolderPath = restoringFolderPath;
+            restoringFolderPath = null;
             var depthLimit = includeSubfoldersCheckbox.value ? null : NESTED_FOLDER_DEPTH_LIMIT;
             isRebuildingFolderList = true;
             filteredScripts = [];
@@ -1385,6 +1669,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         }
 
         /**
+         * ファイル名リストから指定した名前の位置を探す
+         * @param {string|null} fileName - 探すファイル名
+         * @returns {number} 見つかった位置。見つからなければ 0（先頭）
+         */
+        function findScriptIndex(fileName) {
+            if (!fileName) return 0;
+            for (var i = 0; i < scriptListBox.items.length; i++) {
+                if (scriptListBox.items[i].text === fileName) return i;
+            }
+            return 0;
+        }
+
+        /**
          * 選択中フォルダーに合わせて右のファイル名リストを組み直す
          * @returns {void}
          */
@@ -1402,8 +1699,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
 
             /* 件数はパネルのタイトルに出す / Show the match count in the panel title */
             keywordPanel.text = formatLabel(getLabel(LABELS.panel.keyword), [listedScripts.length]);
+
+            /* 最初の組み立てだけは前回のセッションで選んでいたファイルを狙う / Aim at the remembered file on the first pass */
+            var selectionIndex = findScriptIndex(restoringFileName);
+            restoringFileName = null;
+
             if (scriptListBox.items.length > 0) {
-                scriptListBox.selection = 0;
+                scriptListBox.selection = selectionIndex;
                 btnRun.enabled = true;
             } else {
                 btnRun.enabled = false;
@@ -1422,6 +1724,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         }
 
         /**
+         * 今の絞り込みと選択を控える
+         * 閉じたあとでは部品の値を読めないことがあるので、記録はここでまとめて行う
+         * @returns {void}
+         */
+        function saveLauncherSession() {
+            if (isSessionSaved) return;
+            isSessionSaved = true;
+
+            var savedState = { remember: rememberCheckbox.value };
+            if (rememberCheckbox.value) {
+                var chosenScript = selectedScriptEntry();
+
+                /* 対象フォルダーも控える。別のフォルダーで開いたときに選択を引き継がないため
+                   / The selections below only make sense against this folder */
+                savedState.targetFolder = targetFolder.fsName;
+                savedState.keyword = keywordInput.text;
+                savedState.includeSubfolders = includeSubfoldersCheckbox.value;
+                savedState.folderPath = selectedFolderPath();
+                savedState.fileName = chosenScript ? chosenScript.fileName : null;
+            } else {
+                /* OFFのときは初期値を書き、次に開いたときは何も引き継がない / Store the defaults instead */
+                savedState.targetFolder = null;
+                savedState.keyword = "";
+                savedState.includeSubfolders = INCLUDE_SUBFOLDERS_DEFAULT;
+                savedState.showFullPath = SHOW_FULL_PATH_DEFAULT;
+                savedState.folderPath = null;
+                savedState.fileName = null;
+            }
+            saveSessionState(savedState);
+        }
+
+        /**
+         * 今の絞り込みと選択を控えてからダイアログを閉じる
+         * @param {number} [closeCode] - close() に渡す値
+         * @returns {void}
+         */
+        function closeLauncher(closeCode) {
+            saveLauncherSession();
+
+            if (closeCode === undefined) launcherDialog.close();
+            else launcherDialog.close(closeCode);
+        }
+
+        /**
          * 選択中のスクリプトを実行対象に確定してダイアログを閉じる
          * @returns {void}
          */
@@ -1430,7 +1776,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             if (!selectedScript) return;
             dialogResult.action = "run";
             dialogResult.file = selectedScript.file;
-            launcherDialog.close(1);
+            closeLauncher(1);
         }
 
         /**
@@ -1506,7 +1852,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             handleKeywordChanged();
         };
         btnPreferences.onClick = function () {
-            var settings = showPreferencesDialog(targetFolder, presetMinCount, presetMaxButtons);
+            var settings = showPreferencesDialog(targetFolder, presetMinCount, presetMaxButtons, rememberCheckbox.value);
             if (!settings) return;
             presetMinCount = settings.minCount;
             presetMaxButtons = settings.maxButtons;
@@ -1516,7 +1862,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             if (settings.folder.fsName !== targetFolder.fsName) {
                 dialogResult.action = "changeFolder";
                 dialogResult.folder = settings.folder;
-                launcherDialog.close(2);
+                closeLauncher(2);
                 return;
             }
 
@@ -1546,7 +1892,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         btnRun.onClick = runSelectedScript;
         btnCancel.onClick = function () {
             dialogResult.action = "cancel";
-            launcherDialog.close();
+            closeLauncher();
         };
         keywordInput.addEventListener("keydown", function (event) {
             if (event.keyName === "Down" && scriptListBox.items.length > 0) {
@@ -1579,8 +1925,18 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             }
         });
 
+        /* セッションを見分けられない環境では覚えようがないので、操作させない / Nothing to remember without a session id */
+        rememberCheckbox.enabled = !!readSessionId();
+
+        /* ボタン以外の方法で閉じられても記録を残す / Cover any other way of dismissing the dialog */
+        launcherDialog.onClose = function () {
+            saveLauncherSession();
+            return true;
+        };
+
         refreshFolderList();
         lastNormalizedQuery = splitSearchTerms(keywordInput.text).join(" ");
+        updateClearButtonState();
         launcherDialog.center();
 
         /* 検索欄を先頭の操作部品にしたうえで、表示時にも明示的にフォーカスする / Focus the keyword field on show */
@@ -1616,20 +1972,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @returns {boolean} 書き出せたら true
      */
     function writeRevealPath(scriptFile) {
-        var pathFile = new File(REVEAL_PATH_FILE);
-        try {
-            pathFile.encoding = "UTF-8";
-            pathFile.lineFeed = "Unix";
-            if (!pathFile.open("w")) return false;
-
-            /* fsName で ~ ではなく絶対パスを渡す / fsName gives the absolute POSIX path */
-            pathFile.write(scriptFile.fsName);
-            return true;
-        } catch (e) {
-            return false;
-        } finally {
-            try { pathFile.close(); } catch (e) {}
-        }
+        /* fsName で ~ ではなく絶対パスを渡す / fsName gives the absolute POSIX path */
+        return writeTextFile(new File(REVEAL_PATH_FILE), scriptFile.fsName);
     }
 
     /**

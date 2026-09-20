@@ -8,14 +8,14 @@
 
 ---
 
-Lists the fonts used in the document by family and style, and replaces the selected ones with another font in a single pass.
+Lists the fonts used in the document by family and style, and replaces the selected ones with another font in a single pass. Paragraph and character styles can be updated at the same time.
 
 ## Features
 
 - Two lists (source and target) of the fonts in use, with multiple selection on the source side
 - Selecting a family row selects every style in that family
 - Show PostScript names toggles between family plus style and the PostScript name
-- Update paragraph and character styles replaces the font in styles as well as in the text
+- Update paragraph and character styles, on by default, replaces the font in styles as well as in the text
 - Each row shows how many places use the font, and fonts that are missing are marked "not installed"
 - Replace All unifies every font in use on a single font
 - Master pages, hidden layers, footnotes and table cells are all covered (the script uses InDesign's own find engine)
@@ -34,7 +34,7 @@ Replace All unifies every font in use on the target font when one is selected, o
 - Only fonts already used in the document can be chosen as the target.
 - Locked layers and locked stories are left untouched, although they are included in the counts.
 - Undo takes one step per source font.
-- With Update paragraph and character styles off, the replacement becomes a local override: reapplying the paragraph style restores the original font.
+- Turn Update paragraph and character styles off and the replacement becomes a local override: reapplying the paragraph style restores the original font.
 - Members of a composite font cannot be replaced.
 - Usage counts come from one search per font, so building the list takes a while on documents with many fonts or pages. Set `SHOW_USAGE_COUNT` to `false` near the top of the script to skip the counts.
 
@@ -43,7 +43,7 @@ Replace All unifies every font in use on the target font when one is selected, o
 | Item | Value |
 | --- | --- |
 | File | `jsx/font/IdReplaceDocumentFonts.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-20 |
 | Last updated | 2026-09-20 |

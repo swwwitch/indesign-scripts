@@ -6,13 +6,15 @@
 
 ドキュメントで使用中のフォントをファミリー／スタイル単位で一覧し、
 選んだフォントを別のフォントへまとめて置き換えます。
+段落スタイル・文字スタイルのフォントも同時に更新できます。
 
 詳細は README を参照してください。
 
 ### Overview
 
 Lists the fonts used in the document by family and style, and replaces
-the selected ones with another font in a single pass.
+the selected ones with another font in a single pass. Paragraph and
+character styles can be updated at the same time.
 
 See the README for details.
 
@@ -22,7 +24,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdReplaceDocumentFonts";       /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-20";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
@@ -46,7 +48,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     var SHOW_POSTSCRIPT_NAME_DEFAULT = false;
 
     /* ［段落・文字スタイルも更新］の初期状態 / Initial state of the style-update option */
-    var UPDATE_STYLES_DEFAULT = false;
+    var UPDATE_STYLES_DEFAULT = true;
 
     /* 使用箇所の件数を表示するか。フォントごとに検索するため、大きなドキュメントでは一覧の作成に時間がかかる
        Whether to show usage counts. Each font is searched separately, so building the list is slower on large documents */
