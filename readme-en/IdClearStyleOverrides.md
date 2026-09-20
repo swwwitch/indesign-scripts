@@ -80,7 +80,7 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdClearStyleOverrides.jsx` |
-| Version | v1.3.0 |
+| Version | v1.3.1 |
 | Original author | Gregor Fellenz (grefel) |
 | Modified by | Masahiro Takano (@swwwitch) |
 | First release | 2020-06-09 |
@@ -88,6 +88,7 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 
 ## Version history
 
+- **v1.3.1** (2026-09-20) — Fixed a bug where only some of the selected cells were processed when several cells were selected.
 - **v1.3.0** (2026-09-20) — Added scope (Document / Story / Selection), override type (Both / Paragraph only / Character only) and filtering by cell style. Japanese and English localization.
 - **v1.2.0** (2020-06-09) — Original work (Gregor Fellenz / grefel/clearOverrides)
 
