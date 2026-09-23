@@ -4,15 +4,18 @@
 
 ### 概要
 
-使われていないスタイル（段落・文字・オブジェクト・表・セル）、スウォッチ、親ページを削除します。
+現在のドキュメントで使われていないスタイル（段落・文字・オブジェクト・表・セル）、親ページ、空ページ、スウォッチ、合成フォントを削除します。
 削除する前に一覧で確認でき、残したい項目はチェックを外せます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteUnused.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n879f09b72808
+
 ### Overview
 
-Deletes unused styles (paragraph, character, object, table, cell), swatches, and parent pages.
+Deletes unused styles (paragraph, character, object, table, cell), parent pages, empty pages, swatches, and composite fonts in the active document.
 The candidates are listed before deletion so you can uncheck anything you want to keep.
 
 See the README for details.
@@ -29,8 +32,9 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-24";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteUnused.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteUnused.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteUnused.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteUnused.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n879f09b72808"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -48,12 +52,12 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
 
     /* 確認リスト / Confirmation list */
-    var CONFIRM_LIST_SIZE         = [560, 320];        /* リストの寸法 [幅,高さ] / list size */
-    var CONFIRM_COLUMN_WIDTHS     = [170, 380];        /* 列幅（種類・名前） / column widths (kind, name) */
-    var CONFIRM_COLUMN_WIDTHS_DOC = [150, 250, 150];   /* 列幅（種類・名前・ドキュメント） / column widths with document */
+    var CONFIRM_LIST_SIZE     = [560, 320];            /* リストの寸法 [幅,高さ] / list size */
+    var CONFIRM_COLUMN_WIDTHS = [170, 380];            /* 列幅（種類・名前） / column widths (kind, name) */
 
     /* ボタン / Buttons */
     var BUTTON_ROW_TOP_MARGIN = 10;          /* ボタン列の上余白 / top margin above the button row */
+    var BUTTON_SPACING        = 10;          /* ボタンの間隔 / gap between buttons */
 
     // =========================================
     // ラベル定義 / Labels
@@ -75,13 +79,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             confirm: { ja: "削除する項目の確認", en: "Confirm Items to Delete" }
         },
         panel: {
-            scope:   { ja: "対象", en: "Target" },
-            targets: { ja: "削除する項目", en: "Items to Delete" },
-            options: { ja: "オプション", en: "Options" }
-        },
-        radio: {
-            activeDocument: { ja: "このドキュメント", en: "This document" },
-            allDocuments:   { ja: "すべてのドキュメント", en: "All documents" }
+            styleTargets: { ja: "スタイル", en: "Styles" },
+            pageTargets:  { ja: "ページ", en: "Pages" },
+            otherTargets: { ja: "その他", en: "Other" },
+            options:      { ja: "オプション", en: "Options" }
         },
         checkbox: {
             paragraphStyle:    { ja: "段落スタイル", en: "Paragraph styles" },
@@ -91,6 +92,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             cellStyle:         { ja: "セルスタイル", en: "Cell styles" },
             swatch:            { ja: "スウォッチ", en: "Swatches" },
             masterSpread:      { ja: "親ページ", en: "Parent pages" },
+            emptyPage:         { ja: "空ページ", en: "Empty pages" },
+            compositeFont:     { ja: "合成フォント", en: "Composite fonts" },
             removeEmptyGroups: { ja: "空のスタイルグループを削除", en: "Delete empty style groups" }
         },
         kindName: {
@@ -101,12 +104,13 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             cellStyle:      { ja: "セルスタイル", en: "Cell style" },
             swatch:         { ja: "スウォッチ", en: "Swatch" },
             masterSpread:   { ja: "親ページ", en: "Parent page" },
+            emptyPage:      { ja: "空ページ", en: "Empty page" },
+            compositeFont:  { ja: "合成フォント", en: "Composite font" },
             styleGroup:     { ja: "スタイルグループ", en: "Style group" }
         },
         columnTitle: {
-            kind:     { ja: "種類", en: "Kind" },
-            name:     { ja: "名前", en: "Name" },
-            document: { ja: "ドキュメント", en: "Document" }
+            kind: { ja: "種類", en: "Kind" },
+            name: { ja: "名前", en: "Name" }
         },
         tooltip: {
             paragraphStyle: {
@@ -137,6 +141,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
                 ja: "どのページにも、他の親ページの「基準」にも使われていない親ページを削除します。",
                 en: "Deletes parent pages not applied to any page and not used as the basis of another parent page."
             },
+            emptyPage: {
+                ja: "オブジェクトが1つも無いページを削除します。親ページのオブジェクトしか無いページも空とみなします。ドキュメントの最後の1ページは残します。",
+                en: "Deletes pages with no objects. Pages showing only parent page objects count as empty. The last remaining page is kept."
+            },
+            compositeFont: {
+                ja: "テキストにも、段落スタイル・文字スタイル、テキストの既定にも使われていない合成フォントを削除します。",
+                en: "Deletes composite fonts not used in text, in paragraph or character styles, or in text defaults."
+            },
             removeEmptyGroups: {
                 ja: "段落・文字・オブジェクト・表・セルのスタイルグループのうち、中身が空のもの（削除で空になるものを含む）を削除します。",
                 en: "Deletes paragraph, character, object, table, and cell style groups that are empty, including those emptied by this deletion."
@@ -146,8 +158,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
                 en: "Option (Alt)-click: check only this item. Do it again to check all"
             },
             confirmList: {
-                ja: "チェックを外した項目は削除しません。行をダブルクリックしてもチェックを切り替えられます。",
-                en: "Unchecked items are kept. Double-click a row to toggle its check."
+                ja: "行をダブルクリックするとチェックを切り替えます。チェックを外した項目は削除しません。",
+                en: "Double-click a row to toggle its check. Unchecked items are kept."
             }
         },
         button: {
@@ -167,7 +179,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             noneFound:  { ja: "未使用の項目は見つかりませんでした。", en: "No unused items were found." },
             result:     { ja: "削除しました。", en: "Deleted." },
-            docCount:   { ja: "%1個のドキュメントを処理しました。", en: "Processed %1 documents." },
             countLine:  { ja: "%1：%2個", en: "%1: %2" },
             totalLine:  { ja: "合計：%1個", en: "Total: %1" },
             keptLine: {
@@ -206,7 +217,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     // =========================================
 
     /* 削除対象の種類（ダイアログ・確認リスト・結果の並び順） / Target kinds, in display order */
-    var TARGET_KEYS = ["paragraphStyle", "characterStyle", "objectStyle", "tableStyle", "cellStyle", "swatch", "masterSpread"];
+    var TARGET_KEYS = ["paragraphStyle", "characterStyle", "objectStyle", "tableStyle", "cellStyle", "masterSpread", "emptyPage", "swatch", "compositeFont"];
+
+    /* 削除する項目のパネル分け / Panels for the target checkboxes */
+    var TARGET_PANELS = [
+        { labelKey: "styleTargets", targetKeys: ["paragraphStyle", "characterStyle", "objectStyle", "tableStyle", "cellStyle"] },
+        { labelKey: "pageTargets",  targetKeys: ["masterSpread", "emptyPage"] },
+        { labelKey: "otherTargets", targetKeys: ["swatch", "compositeFont"] }
+    ];
 
     /* 初回の初期値 / Defaults on first run */
     var DEFAULT_CHECKED_TARGETS = { swatch: true };
@@ -226,6 +244,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     /* 確認リストでのスタイルグループの種類名 / Kind key for style groups in the list */
     var GROUP_KIND_KEY = "styleGroup";
 
+    /* 合成フォントは、フォント名のファミリー部分との照合に使うので名前から作ったキーで記録する
+       / Composite fonts are keyed by name, to match the family part of applied font names */
+    var COMPOSITE_FONT_KEY_PREFIX = "compositeFont:";
+
     // =========================================
     // 設定の記憶 / Saved settings
     // =========================================
@@ -233,7 +255,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     /* InDesignには任意の値を残す環境設定APIが無いので、設定ファイルに key=value で書き出す
        / InDesign has no scriptable preference store, so settings go to a key=value file */
     var PREFS_FILE_NAME              = "IdDeleteUnused-prefs.txt";
-    var PREF_KEY_ALL_DOCUMENTS       = "allDocuments";
     var PREF_KEY_TARGETS             = "targets";
     var PREF_KEY_REMOVE_EMPTY_GROUPS = "removeEmptyGroups";
 
@@ -247,10 +268,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 
     /**
      * 前回のダイアログの状態を読み出す。記録が無ければ初期値を返す
-     * @returns {{allDocuments: boolean, targets: Object<string, boolean>, removeEmptyGroups: boolean}} ダイアログの状態
+     * @returns {{targets: Object<string, boolean>, removeEmptyGroups: boolean}} ダイアログの状態
      */
     function loadDialogState() {
-        var dialogState = { allDocuments: false, targets: DEFAULT_CHECKED_TARGETS, removeEmptyGroups: DEFAULT_REMOVE_EMPTY_GROUPS };
+        var dialogState = { targets: DEFAULT_CHECKED_TARGETS, removeEmptyGroups: DEFAULT_REMOVE_EMPTY_GROUPS };
 
         var prefsFile = getPrefsFile();
         prefsFile.encoding = "UTF-8";
@@ -264,7 +285,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             if (separatorIndex > 0) prefs[lines[i].substring(0, separatorIndex)] = lines[i].substring(separatorIndex + 1);
         }
 
-        if (prefs.hasOwnProperty(PREF_KEY_ALL_DOCUMENTS)) dialogState.allDocuments = prefs[PREF_KEY_ALL_DOCUMENTS] === "true";
         if (prefs.hasOwnProperty(PREF_KEY_REMOVE_EMPTY_GROUPS)) dialogState.removeEmptyGroups = prefs[PREF_KEY_REMOVE_EMPTY_GROUPS] === "true";
         if (prefs.hasOwnProperty(PREF_KEY_TARGETS)) {
             dialogState.targets = {};
@@ -276,7 +296,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 
     /**
      * ダイアログの状態を設定ファイルに書き出す
-     * @param {{allDocuments: boolean, targets: Object<string, boolean>, removeEmptyGroups: boolean}} dialogState - ダイアログの状態
+     * @param {{targets: Object<string, boolean>, removeEmptyGroups: boolean}} dialogState - ダイアログの状態
      * @returns {void}
      */
     function saveDialogState(dialogState) {
@@ -285,7 +305,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             if (dialogState.targets[TARGET_KEYS[i]]) checkedKeys.push(TARGET_KEYS[i]);
         }
         var lines = [
-            PREF_KEY_ALL_DOCUMENTS + "=" + dialogState.allDocuments,
             PREF_KEY_TARGETS + "=" + checkedKeys.join(","),
             PREF_KEY_REMOVE_EMPTY_GROUPS + "=" + dialogState.removeEmptyGroups
         ];
@@ -327,38 +346,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * ボタン列を追加する（左側は任意、右側にキャンセルと確定）
+     * ボタン列を左右中央に追加する（任意のボタン → キャンセル → 確定の順）
      * @param {Window} parent - 追加先のウィンドウ
-     * @param {Array<{ja: string, en: string}>} leftLabels - 左側に並べるボタンのラベル
+     * @param {Array<{ja: string, en: string}>} extraLabels - キャンセルの前に並べるボタンのラベル
      * @param {{ja: string, en: string}} okLabel - 確定ボタンのラベル
-     * @returns {{left: Array<Button>, ok: Button}} 左側のボタンと確定ボタン
+     * @returns {{extra: Array<Button>, ok: Button}} 任意のボタンと確定ボタン
      */
-    function addButtonRow(parent, leftLabels, okLabel) {
-        // メイングループ（横並び） / Main group (horizontal layout)
+    function addButtonRow(parent, extraLabels, okLabel) {
         var btnRowGroup = parent.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        btnRowGroup.spacing = BUTTON_SPACING;
 
-        // 左側グループ / Left-side button group
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.alignChildren = ["left", "center"];
-        var leftButtons = [];
-        for (var i = 0; i < leftLabels.length; i++) {
-            leftButtons.push(btnLeftGroup.add("button", undefined, getLabel(leftLabels[i])));
+        var extraButtons = [];
+        for (var i = 0; i < extraLabels.length; i++) {
+            extraButtons.push(btnRowGroup.add("button", undefined, getLabel(extraLabels[i])));
         }
-
-        // スペーサー（伸縮）/ Spacer (stretchable)
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        // 右側グループ / Right-side button group
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-        btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnOK = btnRightGroup.add("button", undefined, getLabel(okLabel), { name: "ok" });
-        return { left: leftButtons, ok: btnOK };
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRowGroup.add("button", undefined, getLabel(okLabel), { name: "ok" });
+        return { extra: extraButtons, ok: btnOK };
     }
 
     // =========================================
@@ -366,39 +374,25 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     // =========================================
 
     /**
-     * 対象ドキュメントのラジオボタンを並べる
-     * @param {Window} parent - 追加先のウィンドウ
-     * @param {boolean} allDocuments - 「すべてのドキュメント」を選んだ状態にするか
-     * @returns {RadioButton} 「すべてのドキュメント」のラジオボタン
-     */
-    function addScopeRadios(parent, allDocuments) {
-        var scopePanel = parent.add("panel", undefined, getLabel(LABELS.panel.scope));
-        setupPanel(scopePanel);
-
-        var activeDocumentRadio = scopePanel.add("radiobutton", undefined, getLabel(LABELS.radio.activeDocument));
-        var allDocumentsRadio = scopePanel.add("radiobutton", undefined, getLabel(LABELS.radio.allDocuments));
-        activeDocumentRadio.value = !allDocuments;
-        allDocumentsRadio.value = allDocuments;
-        return allDocumentsRadio;
-    }
-
-    /**
-     * 削除する項目のチェックボックスを並べる
+     * 削除する項目のチェックボックスを、スタイル・ページ・その他のパネルに分けて並べる
      * @param {Window} parent - 追加先のウィンドウ
      * @param {Object<string, boolean>} checkedTargets - ONにしておく種類
      * @returns {Object<string, Checkbox>} 種類ごとのチェックボックス
      */
     function addTargetCheckboxes(parent, checkedTargets) {
-        var targetPanel = parent.add("panel", undefined, getLabel(LABELS.panel.targets));
-        setupPanel(targetPanel);
-
         var targetCheckboxes = {};
-        for (var i = 0; i < TARGET_KEYS.length; i++) {
-            var targetKey = TARGET_KEYS[i];
-            var targetCheckbox = targetPanel.add("checkbox", undefined, getLabel(LABELS.checkbox[targetKey]));
-            targetCheckbox.value = checkedTargets[targetKey] === true;
-            targetCheckbox.helpTip = getLabel(LABELS.tooltip[targetKey]) + "\n\n" + getLabel(LABELS.tooltip.optionClick);
-            targetCheckboxes[targetKey] = targetCheckbox;
+        for (var i = 0; i < TARGET_PANELS.length; i++) {
+            var targetPanel = parent.add("panel", undefined, getLabel(LABELS.panel[TARGET_PANELS[i].labelKey]));
+            setupPanel(targetPanel);
+
+            var targetKeys = TARGET_PANELS[i].targetKeys;
+            for (var j = 0; j < targetKeys.length; j++) {
+                var targetKey = targetKeys[j];
+                var targetCheckbox = targetPanel.add("checkbox", undefined, getLabel(LABELS.checkbox[targetKey]));
+                targetCheckbox.value = checkedTargets[targetKey] === true;
+                targetCheckbox.helpTip = getLabel(LABELS.tooltip[targetKey]) + "\n\n" + getLabel(LABELS.tooltip.optionClick);
+                targetCheckboxes[targetKey] = targetCheckbox;
+            }
         }
         return targetCheckboxes;
     }
@@ -440,9 +434,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * 設定ダイアログを表示して、対象ドキュメント・削除する項目・オプションを選ばせる
+     * 設定ダイアログを表示して、削除する項目とオプションを選ばせる
      * 開くときは前回の状態を復元し、OK で閉じたら保存する
-     * @returns {{allDocuments: boolean, targets: Object<string, boolean>, removeEmptyGroups: boolean}|null} 選んだ内容。キャンセル時は null
+     * @returns {{targets: Object<string, boolean>, removeEmptyGroups: boolean}|null} 選んだ内容。キャンセル時は null
      */
     function showSettingsDialog() {
         var savedState = loadDialogState();
@@ -450,7 +444,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
         var settingsDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(settingsDialog);
 
-        var allDocumentsRadio = addScopeRadios(settingsDialog, savedState.allDocuments);
         var targetCheckboxes = addTargetCheckboxes(settingsDialog, savedState.targets);
         var emptyGroupsCheckbox = addOptionCheckboxes(settingsDialog, savedState.removeEmptyGroups);
         var btnOK = addButtonRow(settingsDialog, [], LABELS.button.ok).ok;
@@ -486,7 +479,6 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             selectedTargets[TARGET_KEYS[j]] = targetCheckboxes[TARGET_KEYS[j]].value;
         }
         var dialogState = {
-            allDocuments: allDocumentsRadio.value,
             targets: selectedTargets,
             removeEmptyGroups: emptyGroupsCheckbox.value
         };
@@ -511,22 +503,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     /**
      * 削除候補を一覧で見せ、チェックを付けたものだけを返す
      * @param {Array<Object>} candidates - 削除候補
-     * @param {boolean} showDocumentColumn - ドキュメントの列を出すか
      * @returns {Array<Object>|null} チェックを付けた候補。キャンセル時は null
      */
-    function showConfirmDialog(candidates, showDocumentColumn) {
+    function showConfirmDialog(candidates) {
         var confirmDialog = new Window("dialog", getLabel(LABELS.dialog.confirm));
         setupWindow(confirmDialog);
 
         confirmDialog.add("statictext", undefined, formatLabel(getLabel(LABELS.message.confirmCount), [candidates.length]));
 
-        var columnTitles = [getLabel(LABELS.columnTitle.kind), getLabel(LABELS.columnTitle.name)];
-        if (showDocumentColumn) columnTitles.push(getLabel(LABELS.columnTitle.document));
         var candidateList = confirmDialog.add("listbox", undefined, [], {
-            numberOfColumns: columnTitles.length,
+            numberOfColumns: 2,
             showHeaders: true,
-            columnTitles: columnTitles,
-            columnWidths: showDocumentColumn ? CONFIRM_COLUMN_WIDTHS_DOC : CONFIRM_COLUMN_WIDTHS
+            columnTitles: [getLabel(LABELS.columnTitle.kind), getLabel(LABELS.columnTitle.name)],
+            columnWidths: CONFIRM_COLUMN_WIDTHS
         });
         candidateList.preferredSize = CONFIRM_LIST_SIZE;
         candidateList.helpTip = getLabel(LABELS.tooltip.confirmList);
@@ -534,10 +523,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
         for (var i = 0; i < candidates.length; i++) {
             var listItem = candidateList.add("item", getKindText(candidates[i]));
             listItem.subItems[0].text = candidates[i].name;
-            if (showDocumentColumn) listItem.subItems[1].text = candidates[i].doc.name;
             listItem.checked = true;
         }
 
+        /* Mac の listbox はチェック欄を直接クリックしても切り替わらないので、ダブルクリックで切り替える
+           / Checkboxes in a Mac listbox do not respond to clicks, so double-click toggles them */
         candidateList.onDoubleClick = function () {
             if (candidateList.selection) candidateList.selection.checked = !candidateList.selection.checked;
         };
@@ -553,8 +543,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
                 for (var j = 0; j < candidateList.items.length; j++) candidateList.items[j].checked = checked;
             };
         }
-        buttons.left[0].onClick = createCheckAllHandler(true);
-        buttons.left[1].onClick = createCheckAllHandler(false);
+        buttons.extra[0].onClick = createCheckAllHandler(true);
+        buttons.extra[1].onClick = createCheckAllHandler(false);
 
         if (confirmDialog.show() !== 1) return null;
 
@@ -656,11 +646,62 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * 削除候補に左右されない使用状況を集める（ページアイテム・表・ページへの適用、ドキュメント設定）
+     * appliedFont の値から、合成フォントの記録に使うキーを作る
+     * フォント名は「ファミリー名\tスタイル名」の形なので、ファミリー名の部分で合成フォント名と照合する
+     * 未設定のスタイルでは空文字が返る
+     * @param {*} fontValue - appliedFont の値（Font か文字列）
+     * @returns {string} 合成フォントの記録キー。フォント名が取れなければ空文字
+     */
+    function getFontFamilyKey(fontValue) {
+        var fontName = (typeof fontValue === "string") ? fontValue : fontValue.name;
+        if (!fontName) return "";
+        return COMPOSITE_FONT_KEY_PREFIX + String(fontName).split("\t")[0];
+    }
+
+    /**
+     * 書式範囲のフォントを使用中として記録する
+     * @param {TextStyleRanges} textStyleRanges - 調べる書式範囲
+     * @param {Object<string, boolean>} fontUse - 合成フォントの使用中の記録
+     * @returns {void}
+     */
+    function markRangeFonts(textStyleRanges, fontUse) {
+        if (textStyleRanges.length === 0) return;
+        var fontValues = textStyleRanges.everyItem().appliedFont;
+        if (!(fontValues instanceof Array)) fontValues = [fontValues];
+        for (var i = 0; i < fontValues.length; i++) {
+            var fontKey = getFontFamilyKey(fontValues[i]);
+            if (fontKey) fontUse[fontKey] = true;
+        }
+    }
+
+    /**
+     * テキスト（ストーリー・表のセル・脚注）に使われているフォントを記録する
+     * 合成フォントのオブジェクトは検索条件に入れられない（Font か文字列しか受け付けない）ので、書式範囲を直接読む
      * @param {Document} doc - 対象ドキュメント
+     * @param {Object<string, boolean>} fontUse - 合成フォントの使用中の記録
+     * @returns {void}
+     */
+    function markTextFonts(doc, fontUse) {
+        for (var i = 0; i < doc.stories.length; i++) {
+            var story = doc.stories[i];
+            markRangeFonts(story.textStyleRanges, fontUse);
+            for (var j = 0; j < story.tables.length; j++) {
+                var cells = story.tables[j].cells;
+                for (var k = 0; k < cells.length; k++) markRangeFonts(cells[k].texts[0].textStyleRanges, fontUse);
+            }
+            for (var m = 0; m < story.footnotes.length; m++) {
+                markRangeFonts(story.footnotes[m].texts[0].textStyleRanges, fontUse);
+            }
+        }
+    }
+
+    /**
+     * 削除候補に左右されない使用状況を集める（ページアイテム・表への適用、ドキュメント設定）
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object<string, boolean>} selectedTargets - 種類ごとのON/OFF（重い調べものを省くのに使う）
      * @returns {Object<string, Object<string, boolean>>} 種類ごとの使用中のID
      */
-    function collectDirectUse(doc) {
+    function collectDirectUse(doc, selectedTargets) {
         var directUse = createKindMap();
 
         var pageItems = doc.allPageItems;
@@ -680,8 +721,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
         markReferenced(directUse.paragraphStyle, doc.textDefaults.appliedParagraphStyle, ParagraphStyle);
         markReferenced(directUse.characterStyle, doc.textDefaults.appliedCharacterStyle, CharacterStyle);
 
-        for (var j = 0; j < doc.pages.length; j++) {
-            markReferenced(directUse.masterSpread, doc.pages[j].appliedMaster, MasterSpread);
+        if (selectedTargets.compositeFont) {
+            var defaultFontKey = getFontFamilyKey(doc.textDefaults.appliedFont);
+            if (defaultFontKey) directUse.compositeFont[defaultFontKey] = true;
+            markTextFonts(doc, directUse.compositeFont);
         }
         return directUse;
     }
@@ -725,6 +768,17 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
+     * 段落・文字スタイルのフォントを、合成フォントの参照として記録する
+     * @param {ParagraphStyle|CharacterStyle} style - 参照元のスタイル
+     * @param {Object<string, Object<string, boolean>>} crossRefs - 種類ごとの参照の記録
+     * @returns {void}
+     */
+    function markStyleFont(style, crossRefs) {
+        var fontKey = getFontFamilyKey(style.appliedFont);
+        if (fontKey) crossRefs.compositeFont[fontKey] = true;
+    }
+
+    /**
      * スタイル同士の参照を集める。ignoredIds にある参照元（削除予定のもの）は数えない
      * @param {Document} doc - 対象ドキュメント
      * @param {Object<string, boolean>} ignoredIds - 削除予定のID
@@ -734,11 +788,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     function markStyleCrossRefs(doc, ignoredIds, crossRefs) {
         var paragraphStyles = getNonRootStyles(doc, "paragraphStyle");
         for (var i = 0; i < paragraphStyles.length; i++) {
-            if (!ignoredIds[paragraphStyles[i].id]) markParagraphStyleRefs(paragraphStyles[i], crossRefs);
+            if (ignoredIds[paragraphStyles[i].id]) continue;
+            markParagraphStyleRefs(paragraphStyles[i], crossRefs);
+            markStyleFont(paragraphStyles[i], crossRefs);
         }
         var characterStyles = getNonRootStyles(doc, "characterStyle");
         for (var j = 0; j < characterStyles.length; j++) {
-            if (!ignoredIds[characterStyles[j].id]) markReferenced(crossRefs.characterStyle, characterStyles[j].basedOn, CharacterStyle);
+            if (ignoredIds[characterStyles[j].id]) continue;
+            markReferenced(crossRefs.characterStyle, characterStyles[j].basedOn, CharacterStyle);
+            markStyleFont(characterStyles[j], crossRefs);
         }
         var objectStyles = getNonRootStyles(doc, "objectStyle");
         for (var k = 0; k < objectStyles.length; k++) {
@@ -759,7 +817,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * スタイル・スウォッチ・親ページ同士の参照を集める。ignoredIds にある参照元（削除予定のもの）は数えない
+     * スタイル・合成フォント・スウォッチ・ページ・親ページの間の参照を集める。ignoredIds にある参照元（削除予定のもの）は数えない
      * スウォッチはグラデーションの分岐点と濃淡の元のカラー。unusedSwatches にはこれらが含まれ、
      * 消すとグラデーションや濃淡が変わってしまう
      * @param {Document} doc - 対象ドキュメント
@@ -781,6 +839,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             if (!ignoredIds[doc.tints[k].id]) markReferenced(crossRefs.swatch, doc.tints[k].baseColor, Swatch);
         }
 
+        /* 空ページを消すと、そこに適用していた親ページが未使用になりうる / Deleting empty pages may free their parent pages */
+        for (var p = 0; p < doc.pages.length; p++) {
+            if (!ignoredIds[doc.pages[p].id]) markReferenced(crossRefs.masterSpread, doc.pages[p].appliedMaster, MasterSpread);
+        }
         for (var m = 0; m < doc.masterSpreads.length; m++) {
             if (ignoredIds[doc.masterSpreads[m].id]) continue;
             var masterPages = doc.masterSpreads[m].pages;
@@ -830,7 +892,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
      * ［ ］で囲まれた既定のスタイルと、名前のないカラーは最初から外す
      * @param {Document} doc - 対象ドキュメント
      * @param {Object<string, boolean>} selectedTargets - 種類ごとのON/OFF
-     * @returns {Array<{kind: string, item: Object, id: number, name: string, doc: Document}>} 候補になりうる項目
+     * @returns {Array<{kind: string, item: Object, id: (number|string), name: string}>} 候補になりうる項目
      */
     function listRemovableItems(doc, selectedTargets) {
         var removableItems = [];
@@ -841,7 +903,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
          * @returns {void}
          */
         function pushItem(kind, item) {
-            removableItems.push({ kind: kind, item: item, id: item.id, name: item.name, doc: doc });
+            removableItems.push({ kind: kind, item: item, id: item.id, name: item.name });
         }
 
         for (var i = 0; i < STYLE_KIND_KEYS.length; i++) {
@@ -861,25 +923,39 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
         if (selectedTargets.masterSpread) {
             for (var m = 0; m < doc.masterSpreads.length; m++) pushItem("masterSpread", doc.masterSpreads[m]);
         }
+        if (selectedTargets.emptyPage) {
+            for (var n = 0; n < doc.pages.length; n++) {
+                if (doc.pages[n].pageItems.length === 0) pushItem("emptyPage", doc.pages[n]);
+            }
+        }
+        if (selectedTargets.compositeFont) {
+            /* ［No composite font］など［ ］で始まる既定のものは外す / Skip defaults in [ ] */
+            for (var q = 0; q < doc.compositeFonts.length; q++) {
+                var compositeFont = doc.compositeFonts[q];
+                if (compositeFont.name.charAt(0) === "[") continue;
+                removableItems.push({ kind: "compositeFont", item: compositeFont, id: COMPOSITE_FONT_KEY_PREFIX + compositeFont.name, name: compositeFont.name });
+            }
+        }
         return removableItems;
     }
 
     /**
      * 項目が使用中かを判定する。テキストへの適用は重いので最後に調べ、結果を控える
+     * @param {Document} doc - 対象ドキュメント
      * @param {Object} removableItem - listRemovableItems() の要素
      * @param {Object<string, Object<string, boolean>>} directUse - 削除候補に左右されない使用状況
      * @param {Object<string, Object<string, boolean>>} crossRefs - 項目同士の参照
      * @param {Object<string, boolean>} textUseCache - テキストへの適用の判定結果
      * @returns {boolean} 使用中なら true
      */
-    function isInUse(removableItem, directUse, crossRefs, textUseCache) {
+    function isInUse(doc, removableItem, directUse, crossRefs, textUseCache) {
         var kind = removableItem.kind;
         if (directUse[kind][removableItem.id] || crossRefs[kind][removableItem.id]) return true;
 
         var findProperty = STYLE_KINDS[kind] ? STYLE_KINDS[kind].findProperty : null;
         if (!findProperty) return false;
         if (!textUseCache.hasOwnProperty(removableItem.id)) {
-            textUseCache[removableItem.id] = isAppliedToText(removableItem.doc, findProperty, removableItem.item);
+            textUseCache[removableItem.id] = isAppliedToText(doc, findProperty, removableItem.item);
         }
         return textUseCache[removableItem.id];
     }
@@ -925,22 +1001,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             var emptyGroups = [];
             collectEmptyGroups(doc[STYLE_KINDS[styleKind].groups], styleKind, deletedIds, emptyGroups);
             for (var j = 0; j < emptyGroups.length; j++) {
-                groupCandidates.push({ kind: GROUP_KIND_KEY, styleKind: styleKind, item: emptyGroups[j], id: emptyGroups[j].id, name: emptyGroups[j].name, doc: doc });
+                groupCandidates.push({ kind: GROUP_KIND_KEY, styleKind: styleKind, item: emptyGroups[j], id: emptyGroups[j].id, name: emptyGroups[j].name });
             }
         }
         return groupCandidates;
     }
 
     /**
-     * 1つのドキュメントの削除候補を洗い出す
-     * 子スタイルや派生した親ページを消すと元が未使用になることがあるので、候補が増えなくなるまで繰り返す
+     * 削除候補を洗い出す
+     * 子スタイル・派生した親ページ・空ページなどを消すと元が未使用になることがあるので、候補が増えなくなるまで繰り返す
      * @param {Document} doc - 対象ドキュメント
      * @param {{targets: Object<string, boolean>, removeEmptyGroups: boolean}} dialogState - 設定ダイアログの内容
      * @returns {Array<Object>} 削除候補（種類の並び順）
      */
     function findCandidates(doc, dialogState) {
         var removableItems = listRemovableItems(doc, dialogState.targets);
-        var directUse = collectDirectUse(doc);
+        var directUse = collectDirectUse(doc, dialogState.targets);
         var textUseCache = {};
         var candidateIds = {};
 
@@ -950,7 +1026,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             var crossRefs = collectCrossRefs(doc, candidateIds);
             for (var i = 0; i < removableItems.length; i++) {
                 if (candidateIds[removableItems[i].id]) continue;
-                if (isInUse(removableItems[i], directUse, crossRefs, textUseCache)) continue;
+                if (isInUse(doc, removableItems[i], directUse, crossRefs, textUseCache)) continue;
                 candidateIds[removableItems[i].id] = true;
                 addedCount++;
             }
@@ -965,23 +1041,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * 対象ドキュメントすべての削除候補を洗い出す。テキスト検索の範囲は必ず元に戻す
-     * @param {Array<Document>} targetDocs - 対象ドキュメント
+     * 検索範囲を広げて削除候補を洗い出す。テキスト検索の範囲は必ず元に戻す
+     * @param {Document} doc - 対象ドキュメント
      * @param {Object} dialogState - 設定ダイアログの内容
      * @returns {Array<Object>} 削除候補
      */
-    function findAllCandidates(targetDocs, dialogState) {
-        var candidates = [];
+    function findCandidatesWithWideScope(doc, dialogState) {
         var savedScope = widenFindScope();
         try {
-            for (var i = 0; i < targetDocs.length; i++) {
-                candidates = candidates.concat(findCandidates(targetDocs[i], dialogState));
-            }
+            return findCandidates(doc, dialogState);
         } finally {
             /* 検索範囲はユーザーの設定なので、失敗しても戻す / Always restore the user's find scope */
             app.findChangeTextOptions.properties = savedScope;
         }
-        return candidates;
     }
 
     // =========================================
@@ -996,7 +1068,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
      * @returns {Array<Object>} 実際に削除する候補
      */
     function excludeStillReferenced(doc, confirmedItems) {
-        var directUse = collectDirectUse(doc);
+        var confirmedKinds = {};
+        for (var n = 0; n < confirmedItems.length; n++) confirmedKinds[confirmedItems[n].kind] = true;
+        var directUse = collectDirectUse(doc, confirmedKinds);
         var deletingIds = {};
         for (var i = 0; i < confirmedItems.length; i++) deletingIds[confirmedItems[i].id] = true;
 
@@ -1023,12 +1097,15 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 
     /**
      * 項目を削除する
-     * Swatch には削除可否のプロパティが無いので、既定のスウォッチは remove() の例外で見分ける
+     * スウォッチと合成フォントには削除可否のプロパティが無いので、remove() の例外で見分ける
+     * 空ページは、ドキュメントの最後の1ページになったら残す
+     * @param {Document} doc - 対象ドキュメント
      * @param {Object} candidate - 削除候補
      * @returns {boolean} 削除できたら true
      */
-    function removeCandidate(candidate) {
-        if (candidate.kind !== "swatch") {
+    function removeCandidate(doc, candidate) {
+        if (candidate.kind === "emptyPage" && doc.pages.length <= 1) return false;
+        if (candidate.kind !== "swatch" && candidate.kind !== "compositeFont") {
             candidate.item.remove();
             return true;
         }
@@ -1052,10 +1129,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * 1つのドキュメントで、チェックを付けた候補を削除する
+     * チェックを付けた候補を削除する
      * スタイルグループは最後に、実際に空になったものだけを消す（子グループが先の順）
      * @param {Document} doc - 対象ドキュメント
-     * @param {Array<Object>} confirmedCandidates - このドキュメントのチェックを付けた候補
+     * @param {Array<Object>} confirmedCandidates - チェックを付けた候補
      * @param {Object<string, number>} removedCounts - 種類ごとの削除数（加算していく）
      * @returns {void}
      */
@@ -1072,7 +1149,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 
         var deletingItems = excludeStillReferenced(doc, confirmedItems);
         for (var j = 0; j < deletingItems.length; j++) {
-            if (removeCandidate(deletingItems[j])) removedCounts[deletingItems[j].kind]++;
+            if (removeCandidate(doc, deletingItems[j])) removedCounts[deletingItems[j].kind]++;
         }
         for (var k = 0; k < groupCandidates.length; k++) {
             if (!isGroupEmpty(groupCandidates[k])) continue;
@@ -1082,26 +1159,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * 候補をドキュメントごとに分け、ドキュメントごとに1回の取り消し単位で削除する
-     * @param {Array<Document>} targetDocs - 対象ドキュメント
+     * 種類ごとの削除数を 0 で用意する
+     * @returns {Object<string, number>} 種類（スタイルグループを含む）ごとの削除数
+     */
+    function createCountMap() {
+        var countMap = {};
+        countMap[GROUP_KIND_KEY] = 0;
+        for (var i = 0; i < TARGET_KEYS.length; i++) countMap[TARGET_KEYS[i]] = 0;
+        return countMap;
+    }
+
+    /**
+     * チェックを付けた候補を、1回の取り消し単位で削除する
+     * @param {Document} doc - 対象ドキュメント
      * @param {Array<Object>} confirmedCandidates - チェックを付けた候補
      * @returns {Object<string, number>} 種類ごとの削除数
      */
-    function removeAllConfirmed(targetDocs, confirmedCandidates) {
-        var removedCounts = { styleGroup: 0 };
-        for (var i = 0; i < TARGET_KEYS.length; i++) removedCounts[TARGET_KEYS[i]] = 0;
-
-        for (var j = 0; j < targetDocs.length; j++) {
-            var doc = targetDocs[j];
-            var docCandidates = [];
-            for (var k = 0; k < confirmedCandidates.length; k++) {
-                if (confirmedCandidates[k].doc === doc) docCandidates.push(confirmedCandidates[k]);
-            }
-            if (docCandidates.length === 0) continue;
-            app.doScript(function () {
-                removeConfirmedCandidates(doc, docCandidates, removedCounts);
-            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undoName));
-        }
+    function removeConfirmedWithUndo(doc, confirmedCandidates) {
+        var removedCounts = createCountMap();
+        app.doScript(function () {
+            removeConfirmedCandidates(doc, confirmedCandidates, removedCounts);
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undoName));
         return removedCounts;
     }
 
@@ -1114,13 +1192,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
      * @param {{targets: Object<string, boolean>, removeEmptyGroups: boolean}} dialogState - 設定ダイアログの内容
      * @param {Object<string, number>} removedCounts - 種類ごとの削除数
      * @param {number} confirmedCount - チェックを付けた候補の数
-     * @param {number} documentCount - 処理したドキュメント数
      * @returns {void}
      */
-    function showResult(dialogState, removedCounts, confirmedCount, documentCount) {
-        var resultLines = [getLabel(LABELS.alert.result)];
-        if (documentCount > 1) resultLines.push(formatLabel(getLabel(LABELS.alert.docCount), [documentCount]));
-        resultLines.push("");
+    function showResult(dialogState, removedCounts, confirmedCount) {
+        var resultLines = [getLabel(LABELS.alert.result), ""];
 
         var shownKeys = [];
         for (var i = 0; i < TARGET_KEYS.length; i++) {
@@ -1158,18 +1233,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
         var dialogState = showSettingsDialog();
         if (!dialogState) return;
 
-        var targetDocs = dialogState.allDocuments ? app.documents.everyItem().getElements() : [app.activeDocument];
-        var candidates = findAllCandidates(targetDocs, dialogState);
+        var doc = app.activeDocument;
+        var candidates = findCandidatesWithWideScope(doc, dialogState);
         if (candidates.length === 0) {
             alert(getLabel(LABELS.alert.noneFound), getLabel(LABELS.dialog.title));
             return;
         }
 
-        var confirmedCandidates = showConfirmDialog(candidates, targetDocs.length > 1);
+        var confirmedCandidates = showConfirmDialog(candidates);
         if (!confirmedCandidates || confirmedCandidates.length === 0) return;
 
-        var removedCounts = removeAllConfirmed(targetDocs, confirmedCandidates);
-        showResult(dialogState, removedCounts, confirmedCandidates.length, targetDocs.length);
+        var removedCounts = removeConfirmedWithUndo(doc, confirmedCandidates);
+        showResult(dialogState, removedCounts, confirmedCandidates.length);
     }
 
     main();

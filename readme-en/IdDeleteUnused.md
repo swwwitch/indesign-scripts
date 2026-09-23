@@ -8,15 +8,17 @@
 
 ---
 
-Deletes paragraph, character, object, table, and cell styles, swatches, and parent pages that are not used in the document. Before deleting, the candidates are listed so you can uncheck anything you want to keep.
+Deletes unused styles (paragraph, character, object, table, cell), parent pages, empty pages, swatches, and composite fonts in the active document. Before deleting, the candidates are listed so you can uncheck anything you want to keep.
 
 ## Features
 
-- Choose what to delete (paragraph / character / object / table / cell styles, swatches, parent pages) with checkboxes (only swatches are checked on first run)
-- Choose the target: "This document" or "All documents"
-- Before deleting, candidates are listed with kind, name, and document. Unchecked items are kept
+- Choose what to delete with checkboxes grouped into Styles, Pages, and Other panels (only swatches are checked on first run)
+  - Styles: paragraph / character / object / table / cell styles
+  - Pages: parent pages / empty pages
+  - Other: swatches / composite fonts
+- Before deleting, candidates are listed with kind and name. Unchecked items are kept
 - Styles referenced by other styles or document settings are kept as "in use", not only those applied to text or tables
-- When a child style or a parent page based on another one is unused, the style or parent page it is based on is also listed
+- Styles, parent pages, and composite fonts that become unused once child styles, derived parent pages, or empty pages are deleted are listed as well
 - Colors used in gradient stops or as the base of tints are kept, since deleting them would change the gradient or tint
 - "Delete empty style groups" option also deletes empty style groups, including those emptied by this deletion
 - The dialog settings are remembered and used as the defaults next time
@@ -25,7 +27,7 @@ Deletes paragraph, character, object, table, and cell styles, swatches, and pare
 ## Usage
 
 1. Open a document and run the script
-2. Choose the target, what to delete, and options, then click [OK]
+2. Choose what to delete and options, then click [OK]
 3. In the confirmation list, uncheck anything you want to keep, then click [Delete]
 
 ### Mouse
@@ -48,6 +50,8 @@ Deletes paragraph, character, object, table, and cell styles, swatches, and pare
 | Cell styles | Applied to a cell; Based On of another cell style; table style regions (header, footer, body, left and right columns) |
 | Swatches | Not in InDesign's unused swatches; gradient stops; base colors of tints |
 | Parent pages | Applied to a page; basis of another parent page |
+| Empty pages | Pages with any object on them (parent page objects do not count) |
+| Composite fonts | Applied to text; font of a paragraph or character style; text default font |
 
 ## Notes and limitations
 
@@ -58,7 +62,10 @@ Deletes paragraph, character, object, table, and cell styles, swatches, and pare
 - Character styles referenced only by formatting applied directly to paragraphs (e.g. local nested styles) are not detected as in use.
 - Table and cell styles are checked on tables directly in stories. Tables nested inside cells are not examined.
 - Text search covers hidden and locked layers, locked stories, master pages, and footnotes. The search scope settings are restored afterwards, but the Find/Change query is cleared.
-- Each document can be restored with a single undo.
+- Only the active document is processed.
+- An empty page is not deleted if it would be the last page of the document.
+- Composite fonts are matched by comparing their names with the family part of applied font names.
+- Everything can be restored with a single undo.
 - Dialog settings are saved to `IdDeleteUnused-prefs.txt` in the user data folder.
 
 ## Script info
@@ -70,6 +77,7 @@ Deletes paragraph, character, object, table, and cell styles, swatches, and pare
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-24 |
 | Last updated | 2026-09-24 |
+| Article | https://note.com/dtp_tranist/n/n879f09b72808 |
 
 ## Update history
 
