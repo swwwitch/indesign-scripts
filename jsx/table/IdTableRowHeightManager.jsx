@@ -7,12 +7,17 @@
 選択した表の行の高さを、範囲（選択範囲／ストーリー／ドキュメント）と対象行を指定しながらプレビュー付きで設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableRowHeightManager.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n9f95f8e98db6
 
 ### Overview
 
 Sets the row heights of the selected table with a live preview, choosing the scope (selection, story or document) and which rows to target.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableRowHeightManager.md
 
 */
 
@@ -20,13 +25,14 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTableRowHeightManager";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-20";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-09";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableRowHeightManager.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableRowHeightManager.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableRowHeightManager.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableRowHeightManager.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f95f8e98db6"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -41,6 +47,10 @@ var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / 
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
 var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+/* ボタンエリア / Button area */
+var BUTTON_ROW_TOP_MARGIN = 10;          /* ボタン列の上余白 / top margin above the button row */
+var BUTTON_SPACING        = 10;          /* ボタンの間隔 / gap between buttons */
 
 /**
  * ウィンドウの共通設定を適用する
@@ -92,12 +102,18 @@ function setupRow(group, alignment, spacing) {
            / Minimum row height in points; InDesign's own minimum is about 0.0139 inch (≈ 1pt) */
         var MIN_ROW_HEIGHT_PT = 1.0008;
 
+        /* 初期値を行から求められないときの行の高さ（pt） / Fallback row height (pt) when none can be read from the rows */
+        var FALLBACK_ROW_HEIGHT_PT = 15;
+
         // =========================================
         // レイアウト設定 / Layout settings
         // =========================================
 
         /* 行高入力欄の文字数 / Character width of the row-height field */
         var ROW_HEIGHT_INPUT_CHARACTERS = 5;
+
+        /* 進捗バーの幅 / Width of the progress bar */
+        var PROGRESS_BAR_WIDTH = 320;
 
         // =========================================
         // ラベル定義 / Labels
@@ -110,36 +126,34 @@ function setupRow(group, alignment, spacing) {
         function getCurrentLang() {
             return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
         }
-        var currentLanguage = getCurrentLang();
+        var uiLang = getCurrentLang();
 
         var LABELS = {
             dialog: {
                 title: { ja: "行の高さを設定", en: "Set Row Height" }
             },
-            scope: {
-                panel: { ja: "範囲", en: "Scope" },
-                document: { ja: "ドキュメント", en: "Document" },
-                story: { ja: "ストーリー", en: "Story" },
-                selection: { ja: "選択範囲", en: "Selection" }
+            panel: {
+                scope: { ja: "範囲", en: "Scope" },
+                target: { ja: "対象", en: "Target" },
+                rowHeight: { ja: "行の高さ", en: "Row Height" },
+                options: { ja: "オプション", en: "Options" }
             },
-            target: {
-                panel: { ja: "対象", en: "Target" },
-                whole: { ja: "表全体", en: "Whole Table" },
-                wholeNoHead: { ja: "表全体（見出し行を除く）", en: "Whole Table (Except Header Rows)" },
-                selected: { ja: "選択した行のみ", en: "Selected Rows" }
+            radio: {
+                scopeDocument: { ja: "ドキュメント", en: "Document" },
+                scopeStory: { ja: "ストーリー", en: "Story" },
+                scopeSelection: { ja: "選択範囲", en: "Selection" },
+                targetWhole: { ja: "表全体", en: "Whole Table" },
+                targetBody: { ja: "表全体（ヘッダー行を除く）", en: "Whole Table (Except Header Rows)" },
+                targetSelected: { ja: "選択した行のみ", en: "Selected Rows Only" },
+                heightMinimum: { ja: "最小限度", en: "At Least" },
+                heightSpecified: { ja: "指定値を使用", en: "Exactly" }
             },
-            mode: {
-                panel: { ja: "行の高さ", en: "Row Height" },
-                minimum: { ja: "最小限度", en: "Minimum" },
-                specified: { ja: "指定値を使用", en: "Use Specified Value" }
-            },
-            options: {
-                panel: { ja: "オプション", en: "Options" }
+            checkbox: {
+                fitFrameToContent: { ja: "フレームを内容に合わせる", en: "Fit Frame to Content" }
             },
             button: {
-                enterPreview: { ja: "プレビュー", en: "Enter Preview" },
-                exitPreview: { ja: "標準モード", en: "Exit Preview" },
-                fitParentFrame: { ja: "親フレームの調整", en: "Fit Parent Frame" },
+                enterPreviewMode: { ja: "プレビューモード", en: "Preview Mode" },
+                exitPreviewMode: { ja: "標準モード", en: "Normal Mode" },
                 ok: { ja: "OK", en: "OK" },
                 cancel: { ja: "キャンセル", en: "Cancel" }
             },
@@ -149,35 +163,43 @@ function setupRow(group, alignment, spacing) {
                     en: "Targets all tables in the document."
                 },
                 scopeStory: {
-                    ja: "選択中のテキスト（ストーリー）に含まれる表を対象にします。",
-                    en: "Targets tables in the selected story."
+                    ja: "選択した表と同じストーリーにあるすべての表を対象にします。",
+                    en: "Targets all tables in the same story as the selected table."
                 },
                 scopeSelection: {
-                    ja: "現在の選択範囲に含まれる表を対象にします。",
-                    en: "Targets tables in the current selection."
+                    ja: "選択した表だけを対象にします。",
+                    en: "Targets only the selected table."
                 },
-                rowHeightInput: {
-                    ja: "↑↓キーで増減（Shiftで整数値にスナップ）。単位はドキュメントの縦方向単位です。",
-                    en: "Use Up/Down to adjust (Shift snaps to whole numbers). Unit follows the document's vertical units."
+                targetBody: {
+                    ja: "ヘッダー行を除いた行を対象にします。",
+                    en: "Targets all rows except header rows."
                 },
-                screenModeToggle: {
-                    ja: "プレビュー画面モードを切り替えて、ガイドや選択ハイライトの表示を消します。",
-                    en: "Toggles the preview screen mode to hide guides and selection highlights."
+                targetSelected: {
+                    ja: "選択した行だけを対象にします。範囲が「選択範囲」で、行を選択しているときに使えます。",
+                    en: "Targets only the selected rows. Available when the scope is Selection and rows are selected."
                 },
-                fitParentFrame: {
-                    ja: "表を含む親テキストフレームの高さを内容に合わせて調整します。",
-                    en: "Fits the height of the parent text frame to its content."
-                },
-                modeMinimum: {
+                heightMinimum: {
                     ja: "各行を最小の高さ（約1pt）に設定し、内容に合わせて自動的に伸びるようにします。",
                     en: "Sets each row to the minimum height (about 1 pt) so it grows to fit its content."
                 },
-                modeSpecified: {
+                heightSpecified: {
                     ja: "入力した値を行の高さとして設定します。",
                     en: "Uses the entered value as the row height."
+                },
+                heightInput: {
+                    ja: "↑↓キーで0.1ずつ増減、Shift＋↑↓で整数値に揃えます。単位はドキュメントの縦方向の単位です。",
+                    en: "Up/Down changes the value by 0.1; Shift+Up/Down snaps to whole numbers. Unit follows the document's vertical units."
+                },
+                screenMode: {
+                    ja: "画面モードを標準とプレビューで切り替えます。ガイドや枠線を隠して仕上がりを確認できます。",
+                    en: "Switches the screen mode between Normal and Preview to check the result without guides and frame edges."
+                },
+                fitFrameToContent: {
+                    ja: "行の高さを変えたあと、表を含むテキストフレームの高さを内容に合わせます。",
+                    en: "After changing the row heights, fits the height of the text frame containing the table to its content."
                 }
             },
-            error: {
+            alert: {
                 noTable: {
                     ja: "表、セル、または表を含むテキストフレームを選択してください。",
                     en: "Please select a table, cell, or a text frame containing a table."
@@ -206,16 +228,16 @@ function setupRow(group, alignment, spacing) {
          */
         function getLabel(labelKey) {
             var keyParts = labelKey.split(".");
-            var node = LABELS;
+            var labelNode = LABELS;
             for (var i = 0; i < keyParts.length; i++) {
-                if (node && node.hasOwnProperty(keyParts[i])) {
-                    node = node[keyParts[i]];
+                if (labelNode && labelNode.hasOwnProperty(keyParts[i])) {
+                    labelNode = labelNode[keyParts[i]];
                 } else {
                     return labelKey;
                 }
             }
-            var labelText = (node && node[currentLanguage]) ? node[currentLanguage] : labelKey;
-            return labelText.replace(/\{slash\}/g, "/");
+            var labelString = (labelNode && labelNode[uiLang]) ? labelNode[uiLang] : labelKey;
+            return labelString.replace(/\{slash\}/g, "/");
         }
 
         // =========================================
@@ -223,85 +245,28 @@ function setupRow(group, alignment, spacing) {
         // =========================================
 
         /**
-         * 環境設定の縦方向単位のラベルを取得する
-         * @returns {string} 単位のラベル
-         */
-        function getUnitLabel() {
-            try {
-                var unit = app.activeDocument.viewPreferences.verticalMeasurementUnits;
-                switch (unit) {
-                    case MeasurementUnits.MILLIMETERS: return "mm";
-                    case MeasurementUnits.CENTIMETERS: return "cm";
-                    case MeasurementUnits.INCHES:
-                    case MeasurementUnits.INCHES_DECIMAL: return "inch";
-                    case MeasurementUnits.POINTS:
-                    case MeasurementUnits.AMERICAN_POINTS: return "pt";
-                    case MeasurementUnits.PICAS: return "pica";
-                    case MeasurementUnits.PIXELS: return "px";
-                    case MeasurementUnits.AGATES: return "ag";
-                    case MeasurementUnits.Q: return "Q";
-                    case MeasurementUnits.HA: return "H";
-                    case MeasurementUnits.CICEROS: return "cicero";
-                    case MeasurementUnits.BAI: return "倍";
-                    case MeasurementUnits.U: return "U";
-                    default: return "";
-                }
-            } catch (e) {
-                return "";
-            }
-        }
-
-        /**
-         * ドキュメントの縦方向の単位を取得する
-         * @returns {MeasurementUnits} 縦方向の単位
-         */
-        function getDocumentVerticalUnit() {
-            try {
-                return app.activeDocument.viewPreferences.verticalMeasurementUnits;
-            } catch (e) {
-                return MeasurementUnits.POINTS;
-            }
-        }
-
-        /**
-         * 1 単位あたりのポイント数を返す
+         * 単位の表示ラベルと 1 単位あたりのポイント数を返す
          * @param {MeasurementUnits} unit 対象の単位
-         * @returns {number} 1 単位あたりのポイント数
+         * @returns {object} { label: string, pointsPerUnit: number }
          */
-        function getPointsPerUnit(unit) {
+        function getUnitInfo(unit) {
             switch (unit) {
-                case MeasurementUnits.MILLIMETERS: return 72 / 25.4;
-                case MeasurementUnits.CENTIMETERS: return 72 / 2.54;
+                case MeasurementUnits.MILLIMETERS: return { label: "mm", pointsPerUnit: 72 / 25.4 };
+                case MeasurementUnits.CENTIMETERS: return { label: "cm", pointsPerUnit: 72 / 2.54 };
                 case MeasurementUnits.INCHES:
-                case MeasurementUnits.INCHES_DECIMAL: return 72;
+                case MeasurementUnits.INCHES_DECIMAL: return { label: "inch", pointsPerUnit: 72 };
                 case MeasurementUnits.POINTS:
-                case MeasurementUnits.AMERICAN_POINTS: return 1;
-                case MeasurementUnits.PICAS: return 12;
-                case MeasurementUnits.AGATES: return 5.5;
-                case MeasurementUnits.Q:
-                case MeasurementUnits.HA: return 72 / 25.4 * 0.25;
-                default: return 1;
+                case MeasurementUnits.AMERICAN_POINTS: return { label: "pt", pointsPerUnit: 1 };
+                case MeasurementUnits.PICAS: return { label: "pica", pointsPerUnit: 12 };
+                case MeasurementUnits.PIXELS: return { label: "px", pointsPerUnit: 1 };
+                case MeasurementUnits.AGATES: return { label: "ag", pointsPerUnit: 5.5 };
+                case MeasurementUnits.Q: return { label: "Q", pointsPerUnit: 72 / 25.4 * 0.25 };
+                case MeasurementUnits.HA: return { label: "H", pointsPerUnit: 72 / 25.4 * 0.25 };
+                case MeasurementUnits.CICEROS: return { label: "cicero", pointsPerUnit: 1 };
+                case MeasurementUnits.BAI: return { label: "倍", pointsPerUnit: 1 };
+                case MeasurementUnits.U: return { label: "U", pointsPerUnit: 1 };
+                default: return { label: "", pointsPerUnit: 1 };
             }
-        }
-
-        /**
-         * 指定単位の数値をポイントへ換算する
-         * @param {number} value 換算元の数値
-         * @param {MeasurementUnits} unit 換算元の単位
-         * @returns {number} ポイント値
-         */
-        function convertToPointsByUnit(value, unit) {
-            return value * getPointsPerUnit(unit);
-        }
-
-        /**
-         * ポイント値を指定単位の数値へ換算する
-         * @param {number} value ポイント値
-         * @param {MeasurementUnits} unit 換算先の単位
-         * @returns {number} 指定単位での数値
-         */
-        function convertFromPointsByUnit(value, unit) {
-            return value / getPointsPerUnit(unit);
         }
 
         /**
@@ -319,27 +284,38 @@ function setupRow(group, alignment, spacing) {
         // =========================================
 
         /**
-         * 親方向にたどって表とその経路情報を求める
-         * @param {object} start 起点となるオブジェクト
-         * @returns {object|null} 表と経路の情報。見つからない場合は null
+         * コレクションや選択を通常の配列に写す
+         * @param {object} collection length と添字アクセスを持つオブジェクト
+         * @param {number} [startIndex] 写し始める位置。省略時は 0
+         * @returns {Array} 要素の配列
          */
-        function walkUpToTable(start) {
-            var node = start;
+        function collectionToArray(collection, startIndex) {
+            var items = [];
+            for (var i = startIndex || 0; i < collection.length; i++) items.push(collection[i]);
+            return items;
+        }
+
+        /**
+         * 親方向にたどって表とその経路情報を求める
+         * @param {object} startItem 起点となるオブジェクト
+         * @returns {object} { table, cell, row, sourceItem }。表が無ければ table は null
+         */
+        function walkUpToTable(startItem) {
+            var currentNode = startItem;
             var foundCell = null;
             var foundRow = null;
             var foundTable = null;
-            while (node) {
+            while (currentNode) {
+                /* Application まで遡ると parent が無く例外になる / Reaching Application throws on .parent */
                 try {
-                    if (node instanceof Cell) { foundCell = node; foundTable = node.parent; break; }
-                    if (node instanceof Row) { foundRow = node; foundTable = node.parent; break; }
-                    if (node instanceof Table) { foundTable = node; break; }
-                    if (node instanceof TextFrame) {
-                        if (node.tables.length > 0) { foundTable = node.tables[0]; break; }
-                    }
-                    node = node.parent;
+                    if (currentNode instanceof Cell) { foundCell = currentNode; foundTable = currentNode.parent; break; }
+                    if (currentNode instanceof Row) { foundRow = currentNode; foundTable = currentNode.parent; break; }
+                    if (currentNode instanceof Table) { foundTable = currentNode; break; }
+                    if (currentNode instanceof TextFrame && currentNode.tables.length > 0) { foundTable = currentNode.tables[0]; break; }
+                    currentNode = currentNode.parent;
                 } catch (e) { break; }
             }
-            return { table: foundTable, cell: foundCell, row: foundRow, node: start };
+            return { table: foundTable, cell: foundCell, row: foundRow, sourceItem: startItem };
         }
 
         /**
@@ -347,48 +323,33 @@ function setupRow(group, alignment, spacing) {
          * @returns {object} 行インデックスを追加・取得するオブジェクト
          */
         function createRowIndexCollector() {
-            var rowMap = {};
+            var rowIndexMap = {};
             var hasSpecificRows = false;
 
             /**
              * 行インデックスを 1 つ追加する
-             * @param {number} index 行インデックス
+             * @param {number} rowIndex 行インデックス
              * @returns {void}
              */
-            function addRowIndex(index) {
-                if (index === undefined || index === null) return;
-                rowMap[index] = true;
+            function addRowIndex(rowIndex) {
+                if (rowIndex === undefined || rowIndex === null) return;
+                rowIndexMap[rowIndex] = true;
                 hasSpecificRows = true;
             }
 
             /**
-             * 行オブジェクトの配列からインデックスを追加する
-             * @param {Array<Row>} rows 行の配列
-             * @returns {void}
+             * 要素ごとに行を求めて、そのインデックスを追加する
+             * @param {Array} items 行またはセルの配列
+             * @param {Function} getRow 要素から行を返す関数
+             * @returns {boolean} 1 つでも追加できたら true
              */
-            function addRowsFromRows(rows) {
-                if (!rows || rows.length === 0) return false;
+            function addRowsFrom(items, getRow) {
+                if (!items || items.length === 0) return false;
                 var added = false;
-                for (var r = 0; r < rows.length; r++) {
+                for (var i = 0; i < items.length; i++) {
+                    /* 無効になった参照は読めないので飛ばす / Skip references that became invalid */
                     try {
-                        addRowIndex(rows[r].index);
-                        added = true;
-                    } catch (e) { }
-                }
-                return added;
-            }
-
-            /**
-             * セルの配列から行インデックスを追加する
-             * @param {Array<Cell>} cells セルの配列
-             * @returns {void}
-             */
-            function addRowsFromCells(cells) {
-                if (!cells || cells.length === 0) return false;
-                var added = false;
-                for (var c = 0; c < cells.length; c++) {
-                    try {
-                        addRowIndex(cells[c].parentRow.index);
+                        addRowIndex(getRow(items[i]).index);
                         added = true;
                     } catch (e) { }
                 }
@@ -401,8 +362,8 @@ function setupRow(group, alignment, spacing) {
              */
             function toSortedIndices() {
                 var rowIndices = [];
-                for (var k in rowMap) {
-                    if (rowMap.hasOwnProperty(k)) rowIndices.push(parseInt(k, 10));
+                for (var k in rowIndexMap) {
+                    if (rowIndexMap.hasOwnProperty(k)) rowIndices.push(parseInt(k, 10));
                 }
                 rowIndices.sort(function (a, b) { return a - b; });
                 return rowIndices;
@@ -410,8 +371,8 @@ function setupRow(group, alignment, spacing) {
 
             return {
                 addRowIndex: addRowIndex,
-                addRowsFromRows: addRowsFromRows,
-                addRowsFromCells: addRowsFromCells,
+                addRowsFromRows: function (rows) { return addRowsFrom(rows, function (row) { return row; }); },
+                addRowsFromCells: function (cells) { return addRowsFrom(cells, function (cell) { return cell.parentRow; }); },
                 toSortedIndices: toSortedIndices,
                 hasSpecificRows: function () { return hasSpecificRows; }
             };
@@ -424,21 +385,22 @@ function setupRow(group, alignment, spacing) {
          * @returns {void}
          */
         function collectRowIndicesFromItem(walkResult, collector) {
-            var node = walkResult.node;
+            var sourceItem = walkResult.sourceItem;
 
-            /* 選択ノードが持つ行・セルのコレクションから行インデックスを集める / Collect row indices from any row/cell collections the node exposes */
+            /* 選択項目が持つ行・セルのコレクションから行インデックスを集める / Collect row indices from any row/cell collections the item exposes */
             var rangeSources = [
-                { prop: "parentRows", add: collector.addRowsFromRows },
-                { prop: "rows", add: collector.addRowsFromRows },
-                { prop: "parentCells", add: collector.addRowsFromCells },
-                { prop: "cells", add: collector.addRowsFromCells }
+                { propName: "parentRows", addRows: collector.addRowsFromRows },
+                { propName: "rows", addRows: collector.addRowsFromRows },
+                { propName: "parentCells", addRows: collector.addRowsFromCells },
+                { propName: "cells", addRows: collector.addRowsFromCells }
             ];
             var addedFromRange = false;
-            for (var s = 0; s < rangeSources.length; s++) {
+            for (var i = 0; i < rangeSources.length; i++) {
+                /* 選択の型によってはプロパティ自体が無く例外になる / Some selection types lack the property and throw */
                 try {
-                    var collection = node && node[rangeSources[s].prop];
+                    var collection = sourceItem && sourceItem[rangeSources[i].propName];
                     if (collection && collection.length > 0) {
-                        addedFromRange = rangeSources[s].add(collection.everyItem().getElements()) || addedFromRange;
+                        addedFromRange = rangeSources[i].addRows(collection.everyItem().getElements()) || addedFromRange;
                     }
                 } catch (e) { }
             }
@@ -447,15 +409,16 @@ function setupRow(group, alignment, spacing) {
             if (walkResult.row) { collector.addRowIndex(walkResult.row.index); return; }
             if (walkResult.cell) { collector.addRowIndex(walkResult.cell.parentRow.index); return; }
 
+            /* parentRow を持たない選択もある / Not every selection has parentRow */
             try {
-                if (node && node.parentRow) collector.addRowIndex(node.parentRow.index);
+                if (sourceItem && sourceItem.parentRow) collector.addRowIndex(sourceItem.parentRow.index);
             } catch (e) { }
         }
 
         /**
          * 選択から対象の表と選択行インデックスを特定する
          * @param {Array} selection 選択オブジェクトの配列
-         * @returns {object|null} 表と選択行の情報。特定できない場合は null
+         * @returns {object|null} { table, rowIndices } または { error }。特定できない場合は null
          */
         function resolveTargetFromSelection(selection) {
             if (!selection || selection.length === 0) return null;
@@ -497,31 +460,11 @@ function setupRow(group, alignment, spacing) {
          */
         function collectDocumentTables() {
             var tables = [];
-            try {
-                var stories = app.activeDocument.stories;
-                for (var s = 0; s < stories.length; s++) {
-                    var storyTables = stories[s].tables;
-                    for (var t = 0; t < storyTables.length; t++) tables.push(storyTables[t]);
-                }
-            } catch (e) { }
-            return tables;
-        }
-
-        /**
-         * 基準の表が属するストーリー内の表を集める
-         * @param {Table} baseTable 基準となる表
-         * @returns {Array<Table>} 表の配列
-         */
-        function collectStoryTables(baseTable) {
-            try {
-                var story = baseTable.parentStory;
-                var storyTables = story.tables;
-                var tables = [];
-                for (var t = 0; t < storyTables.length; t++) tables.push(storyTables[t]);
-                return tables;
-            } catch (e) {
-                return [baseTable];
+            var stories = app.activeDocument.stories;
+            for (var i = 0; i < stories.length; i++) {
+                tables = tables.concat(collectionToArray(stories[i].tables));
             }
+            return tables;
         }
 
         /**
@@ -532,57 +475,13 @@ function setupRow(group, alignment, spacing) {
          */
         function resolveScopeTables(scope, baseTable) {
             if (scope === "document") return collectDocumentTables();
-            if (scope === "story") return collectStoryTables(baseTable);
+            if (scope === "story") return collectionToArray(baseTable.parentStory.tables);
             return [baseTable];
         }
 
-        /**
-         * 行の高さを一時保存して復元できるストアを作る
-         * @returns {object} 保存と復元を行うオブジェクト
-         */
-        function createRowSnapshotStore() {
-            var entries = [];
-            var seen = [];
-
-            /**
-             * まだ保存していない表の行高を控える
-             * @param {Table} table 対象の表
-             * @returns {void}
-             */
-            function ensure(table) {
-                for (var i = 0; i < seen.length; i++) {
-                    if (seen[i] === table) return;
-                }
-                var rows = getAllRows(table);
-                entries.push({ rows: rows, heights: getOriginalHeights(rows) });
-                seen.push(table);
-            }
-
-            /**
-             * 控えておいたすべての行高を元に戻す
-             * @returns {void}
-             */
-            function restoreAll() {
-                for (var i = 0; i < entries.length; i++) {
-                    restoreRowHeights(entries[i].rows, entries[i].heights);
-                }
-            }
-
-            return { ensure: ensure, restoreAll: restoreAll };
-        }
-
-
-
-        /**
-         * 表のすべての行を取得する
-         * @param {Table} table 対象の表
-         * @returns {Array<Row>} 行の配列
-         */
-        function getAllRows(table) {
-            var all = [];
-            for (var i = 0; i < table.rows.length; i++) all.push(table.rows[i]);
-            return all;
-        }
+        // =========================================
+        // 行の取得 / Row lookup
+        // =========================================
 
         /**
          * 指定したインデックスの行を取得する
@@ -591,76 +490,168 @@ function setupRow(group, alignment, spacing) {
          * @returns {Array<Row>} 行の配列
          */
         function getRowsByIndices(table, rowIndices) {
-            if (!rowIndices || rowIndices.length === 0) return [];
             var rows = [];
             for (var i = 0; i < rowIndices.length; i++) {
-                var idx = rowIndices[i];
-                if (idx >= 0 && idx < table.rows.length) {
-                    rows.push(table.rows[idx]);
-                }
+                var rowIndex = rowIndices[i];
+                if (rowIndex >= 0 && rowIndex < table.rows.length) rows.push(table.rows[rowIndex]);
             }
             return rows;
         }
 
         /**
-         * 見出し行を除いた本文行を取得する
+         * 対象モードに応じて処理する行を求める
          * @param {Table} table 対象の表
-         * @returns {Array<Row>} 行の配列
+         * @param {Array<number>|null} selectedRowIndices 選択行のインデックス
+         * @param {string} targetMode "whole" / "body" / "selected"
+         * @returns {Array<Row>} 対象の行
          */
-        function getBodyRows(table) {
-            var headerCount = 0;
-            try { headerCount = table.headerRowCount || 0; } catch (e) { }
-            var rows = [];
-            for (var i = headerCount; i < table.rows.length; i++) {
-                rows.push(table.rows[i]);
-            }
-            return rows;
+        function resolveTargetRows(table, selectedRowIndices, targetMode) {
+            var hasSelectedRows = !!(selectedRowIndices && selectedRowIndices.length > 0);
+            if (targetMode === "selected" && hasSelectedRows) return getRowsByIndices(table, selectedRowIndices);
+            if (targetMode === "body") return collectionToArray(table.rows, table.headerRowCount);
+            return collectionToArray(table.rows);
         }
 
         /**
-         * すべての行が同じ高さならその値を返す
-         * @param {Array<Row>} rows 対象の行
-         * @returns {number|null} 共通の高さ。異なる場合は null
+         * 範囲と対象モードから、表ごとの対象行をまとめて求める
+         * 選択行の指定は基準の表にだけ効き、ほかの表は表全体として扱う
+         * @param {Array<Table>} tables 対象の表
+         * @param {Table} baseTable 基準となる表
+         * @param {Array<number>|null} selectedRowIndices 基準の表の選択行
+         * @param {string} targetMode "whole" / "body" / "selected"
+         * @returns {Array<Array<Row>>} 表ごとの行の配列
          */
-        function getCommonRowHeight(rows) {
-            if (!rows || rows.length === 0) return null;
-            var first = rows[0].height;
-            for (var i = 1; i < rows.length; i++) {
-                if (Math.abs(rows[i].height - first) > 0.01) return null;
+        function collectTargetRowSets(tables, baseTable, selectedRowIndices, targetMode) {
+            var rowSets = [];
+            for (var i = 0; i < tables.length; i++) {
+                var rowIndicesForTable = (tables[i] === baseTable) ? selectedRowIndices : null;
+                rowSets.push(resolveTargetRows(tables[i], rowIndicesForTable, targetMode));
             }
-            return first;
-        }
-
-        /**
-         * 行の高さの平均を求める
-         * @param {Array<Row>} rows 対象の行
-         * @returns {number} 平均の高さ
-         */
-        function getAverageRowHeight(rows) {
-            if (!rows || rows.length === 0) return null;
-            var total = 0;
-            for (var i = 0; i < rows.length; i++) {
-                total += rows[i].height;
-            }
-            return total / rows.length;
+            return rowSets;
         }
 
         /**
          * ダイアログの初期値に使う行の高さを求める
+         * 対象行がそろっていればその値、ばらばらなら本文行の平均
          * @param {Table} table 対象の表
-         * @param {Array<number>} selectedRowIndices 選択行のインデックス
+         * @param {Array<number>|null} selectedRowIndices 選択行のインデックス
          * @returns {number} 初期値（pt）
          */
-        function getInitialRowHeightForDialog(table, selectedRowIndices) {
-            var targetRows = resolveTargetRows(table, selectedRowIndices, selectedRowIndices && selectedRowIndices.length > 0 ? "selected" : "whole");
-            var commonHeight = getCommonRowHeight(targetRows);
-            if (commonHeight !== null) return commonHeight;
+        function getInitialRowHeight(table, selectedRowIndices) {
+            var targetRows = resolveTargetRows(table, selectedRowIndices, "selected");
+            if (targetRows.length > 0) {
+                var firstHeight = targetRows[0].height;
+                var isUniform = true;
+                for (var i = 1; i < targetRows.length; i++) {
+                    if (Math.abs(targetRows[i].height - firstHeight) > 0.01) { isUniform = false; break; }
+                }
+                if (isUniform) return firstHeight;
+            }
 
-            var bodyRows = getBodyRows(table);
-            var averageHeight = getAverageRowHeight(bodyRows);
-            if (averageHeight !== null) return averageHeight;
+            var bodyRows = resolveTargetRows(table, null, "body");
+            if (bodyRows.length === 0) return FALLBACK_ROW_HEIGHT_PT;
+            var totalHeight = 0;
+            for (var j = 0; j < bodyRows.length; j++) totalHeight += bodyRows[j].height;
+            return totalHeight / bodyRows.length;
+        }
 
-            return 15;
+        // =========================================
+        // 行の高さ操作 / Row height operations
+        // =========================================
+
+        /**
+         * 行の高さを一時保存して復元できるストアを作る
+         * @returns {object} 保存と復元を行うオブジェクト
+         */
+        function createRowHeightSnapshotStore() {
+            var entries = [];
+            var frameEntries = [];
+
+            /**
+             * まだ控えていない表の行高を控える
+             * @param {Table} table 対象の表
+             * @returns {void}
+             */
+            function rememberTable(table) {
+                for (var i = 0; i < entries.length; i++) {
+                    if (entries[i].table === table) return;
+                }
+                var rows = collectionToArray(table.rows);
+                var heights = [];
+                for (var j = 0; j < rows.length; j++) heights.push(rows[j].height);
+                entries.push({ table: table, rows: rows, heights: heights });
+            }
+
+            /**
+             * まだ控えていないフレームの寸法を控える
+             * @param {TextFrame} frame 対象のフレーム
+             * @returns {void}
+             */
+            function rememberFrame(frame) {
+                for (var i = 0; i < frameEntries.length; i++) {
+                    if (frameEntries[i].frame === frame) return;
+                }
+                frameEntries.push({ frame: frame, bounds: frame.geometricBounds });
+            }
+
+            /**
+             * 控えておいたすべての行高とフレームの寸法を元に戻す
+             * @returns {void}
+             */
+            function restoreAll() {
+                for (var i = 0; i < entries.length; i++) {
+                    for (var j = 0; j < entries[i].rows.length; j++) {
+                        entries[i].rows[j].height = entries[i].heights[j];
+                    }
+                }
+                for (var k = 0; k < frameEntries.length; k++) {
+                    frameEntries[k].frame.geometricBounds = frameEntries[k].bounds;
+                }
+            }
+
+            return { rememberTable: rememberTable, rememberFrame: rememberFrame, restoreAll: restoreAll };
+        }
+
+        /**
+         * 表を含むテキストフレームを求める
+         * @param {Table} table 対象の表
+         * @returns {TextFrame|null} テキストフレーム。パス上のテキストなどでは null
+         */
+        function getParentTextFrame(table) {
+            var frames = table.storyOffset.parentTextFrames;
+            var parentFrame = (frames.length > 0) ? frames[0] : table.parentStory.textContainers[0];
+            return (parentFrame instanceof TextFrame) ? parentFrame : null;
+        }
+
+        /**
+         * テキストフレームを内容に合わせる
+         * @param {TextFrame} frame 対象のフレーム
+         * @returns {void}
+         */
+        function fitFrameToContent(frame) {
+            var story = frame.parentStory;
+            story.recompose();
+            /* ロックされたフレームなどは fit が例外になる / fit throws on locked frames and the like */
+            try {
+                frame.fit(FitOptions.FRAME_TO_CONTENT);
+            } catch (e) { return; }
+            story.recompose();
+        }
+
+        // =========================================
+        // 選択の控えと復元 / Selection snapshot
+        // =========================================
+
+        /**
+         * 控えておいた選択状態を復元する
+         * @param {Array} selectionItems 復元する選択項目
+         * @returns {void}
+         */
+        function restoreSelection(selectionItems) {
+            /* 控えた項目が無効になっていると select が例外になる / select throws if a remembered item became invalid */
+            try {
+                app.select(selectionItems.length > 0 ? selectionItems : NothingEnum.NOTHING);
+            } catch (e) { }
         }
 
         // =========================================
@@ -674,33 +665,31 @@ function setupRow(group, alignment, spacing) {
          * @returns {object} 更新と終了を行うオブジェクト
          */
         function createProgressBar(title, maxValue) {
-            var win = new Window("palette", title);
-            win.orientation = "column";
-            win.alignChildren = "fill";
-            win.margins = 16;
+            var progressWin = new Window("palette", title);
+            setupWindow(progressWin);
 
-            var label = win.add("statictext", undefined, "");
-            label.preferredSize.width = 320;
+            var progressLabel = progressWin.add("statictext", undefined, "");
+            progressLabel.preferredSize.width = PROGRESS_BAR_WIDTH;
 
-            var bar = win.add("progressbar", undefined, 0, maxValue);
-            bar.preferredSize = [320, 12];
+            var progressControl = progressWin.add("progressbar", undefined, 0, maxValue);
+            progressControl.preferredSize = [PROGRESS_BAR_WIDTH, 12];
 
-            win.show();
+            progressWin.show();
 
             return {
                 update: function (value, text) {
-                    bar.value = value;
-                    if (text !== undefined) label.text = text;
-                    win.update();
+                    progressControl.value = value;
+                    if (text !== undefined) progressLabel.text = text;
+                    progressWin.update();
                 },
                 close: function () {
-                    try { win.close(); } catch (e) { }
+                    progressWin.close();
                 }
             };
         }
 
         // =========================================
-        // スクリーンモード切り替え / Screen mode toggle
+        // 画面モード切り替え / Screen mode toggle
         // =========================================
 
         /**
@@ -708,8 +697,9 @@ function setupRow(group, alignment, spacing) {
          * @returns {boolean} プレビュー表示なら true
          */
         function isInPreviewScreenMode() {
+            /* ストーリーエディターのウィンドウには screenMode が無い / Story editor windows have no screenMode */
             try {
-                return app.activeWindow && app.activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE;
+                return app.activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE;
             } catch (e) {
                 return false;
             }
@@ -720,32 +710,19 @@ function setupRow(group, alignment, spacing) {
          * @returns {void}
          */
         function toggleScreenPreviewMode() {
+            var nextMode = isInPreviewScreenMode() ? ScreenModeOptions.PREVIEW_OFF : ScreenModeOptions.PREVIEW_TO_PAGE;
+            /* ストーリーエディターのウィンドウには screenMode が無い / Story editor windows have no screenMode */
             try {
-                var activeWindow = app.activeWindow;
-                if (!activeWindow) return;
-                if (activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE) {
-                    activeWindow.screenMode = ScreenModeOptions.PREVIEW_OFF;
-                } else {
-                    activeWindow.screenMode = ScreenModeOptions.PREVIEW_TO_PAGE;
-                }
-            } catch (e) { /* ignore */ }
+                app.activeWindow.screenMode = nextMode;
+            } catch (e) { }
         }
 
         /**
-         * 画面モードに応じたトグルボタンのラベルを返す
+         * 画面モードに応じた切り替えボタンのラベルを返す
          * @returns {string} ボタンに表示する文字列
          */
-        function getScreenModeToggleButtonLabel() {
-            return isInPreviewScreenMode() ? getLabel('button.exitPreview') : getLabel('button.enterPreview');
-        }
-
-        /**
-         * トグルボタンのラベルを現在の画面モードに合わせて更新する
-         * @param {Button} button 対象のボタン
-         * @returns {void}
-         */
-        function updateScreenModeToggleButtonLabel(button) {
-            button.text = getScreenModeToggleButtonLabel();
+        function getScreenModeButtonLabel() {
+            return isInPreviewScreenMode() ? getLabel('button.exitPreviewMode') : getLabel('button.enterPreviewMode');
         }
 
         // =========================================
@@ -753,8 +730,10 @@ function setupRow(group, alignment, spacing) {
         // =========================================
 
         /**
-         * ↑↓ で値を増減。通常は±0.1、shift では整数値へスナップ
-         * Arrow keys adjust value: normal ±0.1, shift snaps to whole numbers
+         * ↑↓ で値を増減する。通常は±0.1、Shift では整数値へスナップ
+         * @param {EditText} editText 対象の入力欄
+         * @param {Function} [onUpdate] 値を変えた後に呼ぶ関数
+         * @returns {void}
          */
         function changeValueByArrowKey(editText, onUpdate) {
             editText.addEventListener("keydown", function (event) {
@@ -769,18 +748,12 @@ function setupRow(group, alignment, spacing) {
                 var value = Number(editText.text);
                 if (isNaN(value)) value = 0;
 
-                var keyboard = ScriptUI.environment.keyboardState;
-                var isShift = keyboard && keyboard.shiftKey ? true : event.shiftKey;
-                var isUp = isArrowUp;
+                var keyboardState = ScriptUI.environment.keyboardState;
+                var isShift = (keyboardState && keyboardState.shiftKey) ? true : event.shiftKey;
                 if (isShift) {
-                    if (isUp) {
-                        value = Math.ceil(value + 0.0001);
-                    } else {
-                        value = Math.floor(value - 0.0001);
-                    }
+                    value = isArrowUp ? Math.ceil(value + 0.0001) : Math.floor(value - 0.0001);
                 } else {
-                    value += isUp ? 0.1 : -0.1;
-                    value = Math.round(value * 10) / 10;
+                    value = Math.round((value + (isArrowUp ? 0.1 : -0.1)) * 10) / 10;
                 }
 
                 if (value < 0) value = 0;
@@ -791,139 +764,140 @@ function setupRow(group, alignment, spacing) {
         }
 
         // =========================================
-        // 行の高さ操作 / Row height operations
+        // ダイアログ部品 / Dialog parts
         // =========================================
 
         /**
-         * 指定した行に高さを適用する
-         * @param {Array<Row>} rows 対象の行
-         * @param {number} height 行の高さ（pt）
-         * @returns {void}
+         * パネルにラジオボタンを並べる
+         * @param {Panel} panel 追加先のパネル
+         * @param {Array<object>} radioDefs { labelKey, tooltipKey } の配列。tooltipKey は省略可
+         * @returns {Array<RadioButton>} 追加したラジオボタン
          */
-        function applyRowHeight(rows, height) {
-            for (var i = 0; i < rows.length; i++) {
-                rows[i].height = height;
+        function addRadioButtons(panel, radioDefs) {
+            var radios = [];
+            for (var i = 0; i < radioDefs.length; i++) {
+                var radio = panel.add("radiobutton", undefined, getLabel(radioDefs[i].labelKey));
+                if (radioDefs[i].tooltipKey) radio.helpTip = getLabel(radioDefs[i].tooltipKey);
+                radios.push(radio);
             }
+            return radios;
         }
 
         /**
-         * 行の現在の高さを控える
-         * @param {Array<Row>} rows 対象の行
-         * @returns {Array<number>} 各行の高さ
+         * ラジオボタンだけを縦に並べるパネルを作る
+         * @param {Group} parentGroup 追加先
+         * @param {string} titleKey パネル見出しのラベルキー
+         * @returns {Panel} 作ったパネル
          */
-        function getOriginalHeights(rows) {
-            var heights = [];
-            for (var i = 0; i < rows.length; i++) {
-                heights.push(rows[i].height);
-            }
-            return heights;
+        function addRadioPanel(parentGroup, titleKey) {
+            var radioPanel = parentGroup.add("panel", undefined, getLabel(titleKey));
+            setupPanel(radioPanel, 6);
+            radioPanel.alignChildren = "left";
+            return radioPanel;
         }
 
         /**
-         * 控えておいた行の高さを戻す
-         * @param {Array<Row>} rows 対象の行
-         * @param {Array<number>} heights 戻す高さの配列
-         * @returns {void}
+         * 「範囲」パネルを作る
+         * @param {Group} parentGroup 追加先
+         * @returns {object} { documentRadio, storyRadio, selectionRadio }
          */
-        function restoreRowHeights(rows, heights) {
-            for (var i = 0; i < rows.length; i++) {
-                rows[i].height = heights[i];
-            }
+        function addScopePanel(parentGroup) {
+            var radios = addRadioButtons(addRadioPanel(parentGroup, 'panel.scope'), [
+                { labelKey: 'radio.scopeDocument', tooltipKey: 'tooltip.scopeDocument' },
+                { labelKey: 'radio.scopeStory', tooltipKey: 'tooltip.scopeStory' },
+                { labelKey: 'radio.scopeSelection', tooltipKey: 'tooltip.scopeSelection' }
+            ]);
+            radios[2].value = true;
+            return { documentRadio: radios[0], storyRadio: radios[1], selectionRadio: radios[2] };
         }
 
         /**
-         * 対象モードに応じて処理する行を求める
-         * @param {Table} table 対象の表
-         * @param {Array<number>|null} selectedRowIndices 選択行のインデックス
-         * @param {string} targetMode "whole" / "body" / "selected"
-         * @returns {Array<Row>} 対象の行
+         * 「対象」パネルを作る
+         * @param {Group} parentGroup 追加先
+         * @param {boolean} hasSelectedRows 行が選択されているか
+         * @returns {object} { wholeRadio, bodyRadio, selectedRadio }
          */
-        function resolveTargetRows(table, selectedRowIndices, targetMode) {
-            var hasSelection = !!(selectedRowIndices && selectedRowIndices.length > 0);
-            if (targetMode === "selected" && hasSelection) return getRowsByIndices(table, selectedRowIndices);
-            if (targetMode === "body") return getBodyRows(table);
-            return getAllRows(table);
+        function addTargetPanel(parentGroup, hasSelectedRows) {
+            var radios = addRadioButtons(addRadioPanel(parentGroup, 'panel.target'), [
+                { labelKey: 'radio.targetWhole' },
+                { labelKey: 'radio.targetBody', tooltipKey: 'tooltip.targetBody' },
+                { labelKey: 'radio.targetSelected', tooltipKey: 'tooltip.targetSelected' }
+            ]);
+            radios[2].enabled = hasSelectedRows;
+            radios[hasSelectedRows ? 2 : 0].value = true;
+            return { wholeRadio: radios[0], bodyRadio: radios[1], selectedRadio: radios[2] };
         }
 
         /**
-         * 実行前の選択状態を控えておく
-         * @returns {Array} 復元用の選択情報
+         * 「行の高さ」パネルを作る
+         * @param {Group} parentGroup 追加先
+         * @param {string} initialText 入力欄の初期値
+         * @param {string} unitLabel 単位の表示
+         * @returns {object} { minimumRadio, specifiedRadio, heightInput }
          */
-        function getSelectionSnapshot() {
-            var snapshot = [];
-            try {
-                var sel = app.selection;
-                for (var i = 0; i < sel.length; i++) snapshot.push(sel[i]);
-            } catch (e) { }
-            return snapshot;
+        function addRowHeightPanel(parentGroup, initialText, unitLabel) {
+            var rowHeightPanel = addRadioPanel(parentGroup, 'panel.rowHeight');
+            var radios = addRadioButtons(rowHeightPanel, [
+                { labelKey: 'radio.heightMinimum', tooltipKey: 'tooltip.heightMinimum' },
+                { labelKey: 'radio.heightSpecified', tooltipKey: 'tooltip.heightSpecified' }
+            ]);
+            radios[0].value = true;
+
+            var heightInputRow = rowHeightPanel.add("group");
+            setupRow(heightInputRow, "left", 6);
+            heightInputRow.alignChildren = ["left", "center"];
+            var heightInput = heightInputRow.add("edittext", undefined, initialText);
+            heightInput.characters = ROW_HEIGHT_INPUT_CHARACTERS;
+            heightInput.helpTip = getLabel('tooltip.heightInput');
+            heightInputRow.add("statictext", undefined, unitLabel);
+
+            return { minimumRadio: radios[0], specifiedRadio: radios[1], heightInput: heightInput };
         }
 
         /**
-         * 控えておいた選択状態を復元する
-         * @param {Array} snapshot 復元用の選択情報
-         * @returns {void}
+         * 「オプション」パネルを作る
+         * @param {Group} parentGroup 追加先
+         * @param {boolean} canFitFrame フレームを内容に合わせられるか
+         * @returns {Checkbox} ［フレームを内容に合わせる］チェックボックス
          */
-        function restoreSelectionSnapshot(snapshot) {
-            try {
-                if (snapshot && snapshot.length > 0) {
-                    app.select(snapshot);
-                } else {
-                    app.select(NothingEnum.NOTHING);
-                }
-            } catch (e) { }
+        function addOptionsPanel(parentGroup, canFitFrame) {
+            var optionsPanel = parentGroup.add("panel", undefined, getLabel('panel.options'));
+            setupPanel(optionsPanel, 6);
+            optionsPanel.alignChildren = ["left", "center"];
+            var fitFrameCheckbox = optionsPanel.add("checkbox", undefined, getLabel('checkbox.fitFrameToContent'));
+            fitFrameCheckbox.helpTip = getLabel('tooltip.fitFrameToContent');
+            fitFrameCheckbox.value = canFitFrame;
+            fitFrameCheckbox.enabled = canFitFrame;
+            return fitFrameCheckbox;
         }
 
         /**
-         * 表を含む親テキストフレームを内容に合わせる
-         * @param {Table} table 対象の表
-         * @returns {void}
+         * ボタンエリア（左：画面モード／スペーサー／右：キャンセル・OK）を作る
+         * @param {Window} dialogWin 追加先のダイアログ
+         * @returns {object} { btnScreenMode, btnCancel, btnOK }
          */
-        function fitParentFrameToContent(table) {
-            try {
-                var parentFrame = null;
-                var story = null;
+        function addButtonRow(dialogWin) {
+            var btnRowGroup = dialogWin.add("group");
+            btnRowGroup.orientation = "row";
+            btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+            btnRowGroup.alignment = ["fill", "bottom"];
 
-                try {
-                    story = table.parentStory;
-                } catch (e) { }
+            var btnLeftGroup = btnRowGroup.add("group");
+            btnLeftGroup.alignChildren = ["left", "center"];
+            var btnScreenMode = btnLeftGroup.add("button", undefined, getScreenModeButtonLabel());
+            btnScreenMode.helpTip = getLabel('tooltip.screenMode');
 
-                try {
-                    if (table.storyOffset && table.storyOffset.parentTextFrames && table.storyOffset.parentTextFrames.length > 0) {
-                        parentFrame = table.storyOffset.parentTextFrames[0];
-                    }
-                } catch (e) { }
+            var spacer = btnRowGroup.add("group");
+            spacer.alignment = ["fill", "fill"];
+            spacer.minimumSize.width = 0;
 
-                if (!parentFrame) {
-                    try {
-                        if (table.parent && table.parent.parentTextFrames && table.parent.parentTextFrames.length > 0) {
-                            parentFrame = table.parent.parentTextFrames[0];
-                        }
-                    } catch (e) { }
-                }
+            var btnRightGroup = btnRowGroup.add("group");
+            btnRightGroup.alignChildren = ["right", "center"];
+            btnRightGroup.spacing = BUTTON_SPACING;
+            var btnCancel = btnRightGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
+            var btnOK = btnRightGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
 
-                if (!parentFrame && story) {
-                    var containers = story.textContainers;
-                    if (containers && containers.length > 0) {
-                        parentFrame = containers[0];
-                    }
-                }
-
-                if (!parentFrame) return false;
-
-                try {
-                    if (story) story.recompose();
-                } catch (e) { }
-
-                parentFrame.fit(FitOptions.FRAME_TO_CONTENT);
-
-                try {
-                    if (story) story.recompose();
-                } catch (e) { }
-
-                return true;
-            } catch (e) {
-                return false;
-            }
+            return { btnScreenMode: btnScreenMode, btnCancel: btnCancel, btnOK: btnOK };
         }
 
         // =========================================
@@ -932,191 +906,49 @@ function setupRow(group, alignment, spacing) {
 
         /**
          * 行の高さを設定するダイアログを表示する
-         * @param {Table} table 対象の表
-         * @param {Array<number>} selectedRowIndices 選択行のインデックス
-         * @param {number} defaultValuePt 初期値（pt）
-         * @returns {object|null} 設定内容。キャンセル時は null
+         * @param {Table} baseTable 対象の表
+         * @param {Array<number>|null} selectedRowIndices 選択行のインデックス
+         * @param {number} initialHeightPt 初期値（pt）
+         * @returns {object|null} { height, targetMode, scope, fitFrame }。キャンセル時は null
          */
-        function showRowHeightDialog(table, selectedRowIndices, defaultValuePt) {
+        function showRowHeightDialog(baseTable, selectedRowIndices, initialHeightPt) {
             /* 触れた表の元の高さを遅延記憶（範囲切り替えに追従） / Lazily remember original heights of touched tables (follows scope changes) */
-            var snapshot = createRowSnapshotStore();
-            var hasSelection = !!(selectedRowIndices && selectedRowIndices.length > 0);
-            var documentUnit = getDocumentVerticalUnit();
-            var defaultValueDisplay = convertFromPointsByUnit(defaultValuePt, documentUnit);
+            var snapshotStore = createRowHeightSnapshotStore();
+            var hasSelectedRows = !!(selectedRowIndices && selectedRowIndices.length > 0);
+            var parentFrame = getParentTextFrame(baseTable);
+            var unitInfo = getUnitInfo(app.activeDocument.viewPreferences.verticalMeasurementUnits);
 
-            var dlg = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
-            setupWindow(dlg, 10);
+            var rowHeightDialog = new Window("dialog", getLabel('dialog.title') + ' ' + SCRIPT_VERSION);
+            setupWindow(rowHeightDialog, 10);
 
-            var contentGroup = dlg.add("group");
-            setupRow(contentGroup, "fill", COLUMN_SPACING);
-            contentGroup.alignChildren = ["fill", "top"];
+            var columnsGroup = rowHeightDialog.add("group");
+            setupRow(columnsGroup, "fill", COLUMN_SPACING);
+            columnsGroup.alignChildren = ["fill", "top"];
 
-            var leftColumn = contentGroup.add("group");
+            var leftColumn = columnsGroup.add("group");
             leftColumn.orientation = "column";
             leftColumn.alignChildren = "fill";
             leftColumn.alignment = ["fill", "fill"];
 
-            var rightColumn = contentGroup.add("group");
+            var rightColumn = columnsGroup.add("group");
             rightColumn.orientation = "column";
-            rightColumn.alignChildren = ["fill", "top"];
-            rightColumn.alignment = ["right", "fill"];
+            rightColumn.alignChildren = "fill";
+            rightColumn.alignment = ["fill", "fill"];
 
-            /* 範囲選択パネル / Scope selection panel */
-            var scopeGroup = leftColumn.add("panel", undefined, getLabel('scope.panel'));
-
-            setupPanel(scopeGroup, 6);
-
-            scopeGroup.alignChildren = "left";
-            var scopeDocument = scopeGroup.add("radiobutton", undefined, getLabel('scope.document'));
-            var scopeStory = scopeGroup.add("radiobutton", undefined, getLabel('scope.story'));
-            var scopeSelection = scopeGroup.add("radiobutton", undefined, getLabel('scope.selection'));
-            scopeDocument.helpTip = getLabel('tooltip.scopeDocument');
-            scopeStory.helpTip = getLabel('tooltip.scopeStory');
-            scopeSelection.helpTip = getLabel('tooltip.scopeSelection');
-            scopeSelection.value = true;
-
-            scopeDocument.onClick = function () { syncTargetEnabled(); updatePreview(); };
-            scopeStory.onClick = function () { syncTargetEnabled(); updatePreview(); };
-            scopeSelection.onClick = function () { syncTargetEnabled(); updatePreview(); };
-
-            /* 対象選択パネル / Target selection panel */
-            var targetGroup = leftColumn.add("panel", undefined, getLabel('target.panel'));
-
-            setupPanel(targetGroup, 6);
-
-            targetGroup.alignChildren = "left";
-            var targetWhole = targetGroup.add("radiobutton", undefined, getLabel('target.whole'));
-            var targetBody = targetGroup.add("radiobutton", undefined, getLabel('target.wholeNoHead'));
-            var targetSel = targetGroup.add("radiobutton", undefined, getLabel('target.selected'));
-            targetSel.enabled = hasSelection;
-            if (hasSelection) {
-                targetSel.value = true;
-            } else {
-                targetWhole.value = true;
-            }
-
-            /* モード選択パネル / Mode selection panel */
-            var modeGroup = leftColumn.add("panel", undefined, getLabel('mode.panel'));
-
-            setupPanel(modeGroup, 6);
-
-            modeGroup.alignChildren = "left";
-
-            var modeMinimum = modeGroup.add("radiobutton", undefined, getLabel('mode.minimum'));
-            var modeSpecified = modeGroup.add("radiobutton", undefined, getLabel('mode.specified'));
-            modeMinimum.helpTip = getLabel('tooltip.modeMinimum');
-            modeSpecified.helpTip = getLabel('tooltip.modeSpecified');
-            modeMinimum.value = true;
-
-            var manualRow = modeGroup.add("group");
-            setupRow(manualRow, "left", 6);
-            manualRow.alignChildren = ["left", "center"];
-            var input = manualRow.add("edittext", undefined, formatDisplayValue(defaultValueDisplay));
-            input.characters = ROW_HEIGHT_INPUT_CHARACTERS;
-            input.helpTip = getLabel('tooltip.rowHeightInput');
-            manualRow.add("statictext", undefined, getUnitLabel());
-
-            /**
-             * 指定値モードのときだけ入力欄を有効にする
-             * @returns {void}
-             */
-            function syncInputEnabled() {
-                input.enabled = modeSpecified.value;
-            }
-            syncInputEnabled();
-
-            modeMinimum.onClick = function () { syncInputEnabled(); updatePreview(); };
-            modeSpecified.onClick = function () {
-                syncInputEnabled();
-                if (modeSpecified.value) input.active = true;
-                updatePreview();
-            };
-
-            targetWhole.onClick = function () { updatePreview(); };
-            targetBody.onClick = function () { updatePreview(); };
-            targetSel.onClick = function () { updatePreview(); };
-
-
-            /* 右カラムの実行ボタン / Action buttons in the right column */
-            var actionGroup = rightColumn.add("group");
-            actionGroup.orientation = "column";
-            actionGroup.alignChildren = ["fill", "top"];
-            actionGroup.alignment = ["fill", "top"];
-            var okBtn = actionGroup.add("button", undefined, getLabel('button.ok'), { name: "ok" });
-            var cancelBtn = actionGroup.add("button", undefined, getLabel('button.cancel'), { name: "cancel" });
-
-            /* OK/Cancel とプレビューボタンの間を伸ばすスペーサー / Spacer that pushes the preview button to the bottom */
-            var rightSpacer = rightColumn.add("group");
-            rightSpacer.alignment = ["fill", "fill"];
-
-            /* 右カラム下部の画面モード切り替え / Screen mode toggle at the bottom of the right column */
-            var screenModeGroup = rightColumn.add("group");
-            setupRow(screenModeGroup, "fill", 8);
-            screenModeGroup.alignChildren = ["fill", "center"];
-            var screenModeToggleBtn = screenModeGroup.add("button", undefined, getScreenModeToggleButtonLabel());
-            screenModeToggleBtn.alignment = ["fill", "center"];
-            screenModeToggleBtn.helpTip = getLabel('tooltip.screenModeToggle');
-
-            screenModeToggleBtn.onClick = function () {
-                toggleScreenPreviewMode();
-                updateScreenModeToggleButtonLabel(screenModeToggleBtn);
-            };
-
-            /* 左カラム下部のオプションパネル / Options panel at the bottom of the left column */
-            var optionsGroup = leftColumn.add("panel", undefined, getLabel('options.panel'));
-
-            setupPanel(optionsGroup, 6);
-
-            optionsGroup.alignChildren = ["left", "center"];
-            var fitParentFrameBtn = optionsGroup.add("button", undefined, getLabel('button.fitParentFrame'));
-            fitParentFrameBtn.helpTip = getLabel('tooltip.fitParentFrame');
-
-            fitParentFrameBtn.onClick = function () {
-                snapshot.restoreAll();
-                updatePreview();
-                fitParentFrameToContent(table);
-            };
-
-
-            /**
-             * 入力欄の値をポイント値に変換する
-             * @returns {number|null} ポイント値。無効な場合は null
-             */
-            function parseValue() {
-                var v = parseFloat(input.text);
-                if (isNaN(v) || v <= 0) return null;
-                return convertToPointsByUnit(v, documentUnit);
-            }
-
-            /**
-             * 現在のモードに応じた行の高さ（pt）を求める
-             * @returns {number|null} 行の高さ。無効な場合は null
-             */
-            function getRowHeightValue() {
-                if (modeMinimum.value) return MIN_ROW_HEIGHT_PT;
-                return parseValue();
-            }
+            var scopeControls = addScopePanel(leftColumn);
+            var targetControls = addTargetPanel(leftColumn, hasSelectedRows);
+            var heightControls = addRowHeightPanel(rightColumn, formatDisplayValue(initialHeightPt / unitInfo.pointsPerUnit), unitInfo.label);
+            var fitFrameCheckbox = addOptionsPanel(rightColumn, parentFrame !== null);
+            var buttons = addButtonRow(rowHeightDialog);
 
             /**
              * 選択中の範囲を取得する
              * @returns {string} "document" / "story" / "selection"
              */
             function getCurrentScope() {
-                if (scopeDocument.value) return "document";
-                if (scopeStory.value) return "story";
+                if (scopeControls.documentRadio.value) return "document";
+                if (scopeControls.storyRadio.value) return "story";
                 return "selection";
-            }
-
-            /**
-             * 範囲に応じて「選択した行のみ」の有効／無効を切り替える
-             * @returns {void}
-             */
-            function syncTargetEnabled() {
-                var allowSelected = (getCurrentScope() === "selection") && hasSelection;
-                targetSel.enabled = allowSelected;
-                if (!allowSelected && targetSel.value) {
-                    targetWhole.value = true;
-                }
             }
 
             /**
@@ -1124,9 +956,40 @@ function setupRow(group, alignment, spacing) {
              * @returns {string} "whole" / "body" / "selected"
              */
             function getCurrentTargetMode() {
-                if (targetSel.value && targetSel.enabled && hasSelection) return "selected";
-                if (targetBody.value) return "body";
+                if (targetControls.selectedRadio.value && targetControls.selectedRadio.enabled) return "selected";
+                if (targetControls.bodyRadio.value) return "body";
                 return "whole";
+            }
+
+            /**
+             * 現在のモードに応じた行の高さ（pt）を求める
+             * @returns {number|null} 行の高さ。入力が正の数でなければ null
+             */
+            function getRowHeightValue() {
+                if (heightControls.minimumRadio.value) return MIN_ROW_HEIGHT_PT;
+                var inputValue = parseFloat(heightControls.heightInput.text);
+                if (isNaN(inputValue) || inputValue <= 0) return null;
+                return inputValue * unitInfo.pointsPerUnit;
+            }
+
+            /**
+             * 範囲に応じて「選択した行のみ」の有効／無効を切り替える
+             * @returns {void}
+             */
+            function syncTargetEnabled() {
+                var allowSelected = (getCurrentScope() === "selection") && hasSelectedRows;
+                targetControls.selectedRadio.enabled = allowSelected;
+                if (!allowSelected && targetControls.selectedRadio.value) {
+                    targetControls.wholeRadio.value = true;
+                }
+            }
+
+            /**
+             * 指定値モードのときだけ入力欄を有効にする
+             * @returns {void}
+             */
+            function syncInputEnabled() {
+                heightControls.heightInput.enabled = heightControls.specifiedRadio.value;
             }
 
             /**
@@ -1135,114 +998,148 @@ function setupRow(group, alignment, spacing) {
              */
             function updatePreview() {
                 /* 毎回すべて元に戻してから対象表に適用 / Always restore then apply to the current target tables */
-                snapshot.restoreAll();
-                var scope = getCurrentScope();
-                var targetMode = getCurrentTargetMode();
-                var tables = resolveScopeTables(scope, table);
-                var value = getRowHeightValue();
-                if (value === null) return;
-                for (var i = 0; i < tables.length; i++) {
-                    snapshot.ensure(tables[i]);
+                snapshotStore.restoreAll();
+                var rowHeight = getRowHeightValue();
+                if (rowHeight === null) return;
+                var tables = resolveScopeTables(getCurrentScope(), baseTable);
+                for (var i = 0; i < tables.length; i++) snapshotStore.rememberTable(tables[i]);
+                var rowSets = collectTargetRowSets(tables, baseTable, selectedRowIndices, getCurrentTargetMode());
+                for (var j = 0; j < rowSets.length; j++) {
+                    for (var k = 0; k < rowSets[j].length; k++) rowSets[j][k].height = rowHeight;
                 }
-                for (var j = 0; j < tables.length; j++) {
-                    var rowIndicesForTable = (tables[j] === table) ? selectedRowIndices : null;
-                    var targetRows = resolveTargetRows(tables[j], rowIndicesForTable, targetMode);
-                    applyRowHeight(targetRows, value);
+                if (fitFrameCheckbox.value) {
+                    snapshotStore.rememberFrame(parentFrame);
+                    fitFrameToContent(parentFrame);
                 }
             }
 
-            input.onChanging = updatePreview;
-            changeValueByArrowKey(input, updatePreview);
+            scopeControls.documentRadio.onClick =
+                scopeControls.storyRadio.onClick =
+                scopeControls.selectionRadio.onClick = function () { syncTargetEnabled(); updatePreview(); };
 
-            cancelBtn.onClick = function () {
-                snapshot.restoreAll();
-                dlg.close(0);
+            targetControls.wholeRadio.onClick =
+                targetControls.bodyRadio.onClick =
+                targetControls.selectedRadio.onClick = updatePreview;
+
+            heightControls.minimumRadio.onClick = function () { syncInputEnabled(); updatePreview(); };
+            heightControls.specifiedRadio.onClick = function () {
+                syncInputEnabled();
+                if (heightControls.specifiedRadio.value) heightControls.heightInput.active = true;
+                updatePreview();
+            };
+            heightControls.heightInput.onChanging = updatePreview;
+            changeValueByArrowKey(heightControls.heightInput, updatePreview);
+
+            fitFrameCheckbox.onClick = updatePreview;
+
+            buttons.btnScreenMode.onClick = function () {
+                toggleScreenPreviewMode();
+                buttons.btnScreenMode.text = getScreenModeButtonLabel();
+            };
+
+            buttons.btnCancel.onClick = function () {
+                snapshotStore.restoreAll();
+                rowHeightDialog.close(0);
             };
 
             /* 初期状態を範囲に同期してプレビュー / Sync to scope and show the initial preview */
+            syncInputEnabled();
             syncTargetEnabled();
             updatePreview();
 
-            if (dlg.show() !== 1) return null;
+            if (rowHeightDialog.show() !== 1) return null;
 
-            var finalScope = getCurrentScope();
-            var finalTargetMode = getCurrentTargetMode();
-            var value = getRowHeightValue();
-            snapshot.restoreAll();
+            var dialogResult = {
+                height: getRowHeightValue(),
+                targetMode: getCurrentTargetMode(),
+                scope: getCurrentScope(),
+                fitFrame: fitFrameCheckbox.value ? parentFrame : null
+            };
+            snapshotStore.restoreAll();
 
-            if (value === null) {
-                alert(getLabel('error.invalidNumber'));
+            if (dialogResult.height === null) {
+                alert(getLabel('alert.invalidNumber'));
                 return null;
             }
-            return { height: value, targetMode: finalTargetMode, scope: finalScope };
+            return dialogResult;
+        }
+
+        // =========================================
+        // 適用 / Apply
+        // =========================================
+
+        /**
+         * 表ごとの対象行に行の高さを適用する（進捗表示つき、1 回の取り消しにまとめる）
+         * @param {Array<Array<Row>>} rowSets 表ごとの行の配列
+         * @param {number} rowHeight 行の高さ（pt）
+         * @param {TextFrame|null} frameToFit 適用後に内容に合わせるフレーム。合わせない場合は null
+         * @returns {void}
+         */
+        function applyRowHeightToRowSets(rowSets, rowHeight, frameToFit) {
+            var totalRows = 0;
+            for (var i = 0; i < rowSets.length; i++) totalRows += rowSets[i].length;
+
+            var progress = createProgressBar(getLabel('progress.title') + ' ' + SCRIPT_VERSION, totalRows);
+
+            /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
+            app.doScript(function () {
+                try {
+                    var doneRows = 0;
+                    for (var j = 0; j < rowSets.length; j++) {
+                        for (var k = 0; k < rowSets[j].length; k++) {
+                            rowSets[j][k].height = rowHeight;
+                            doneRows++;
+                            /* 行ごとの更新は重いので間引く / Throttle updates since per-row refresh is costly */
+                            if (doneRows === totalRows || doneRows % 10 === 0) {
+                                progress.update(doneRows, doneRows + " / " + totalRows);
+                            }
+                        }
+                    }
+                    if (frameToFit) fitFrameToContent(frameToFit);
+                } finally {
+                    progress.close();
+                }
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel('undo.applyRowHeight'));
         }
 
         // =========================================
         // メイン処理 / Main
         // =========================================
 
-        var originalSelection = getSelectionSnapshot();
-        var target = resolveTargetFromSelection(app.selection);
+        /**
+         * 選択から表を特定し、ダイアログの設定で行の高さを適用する
+         * @returns {void}
+         */
+        function main() {
+            var originalSelection = collectionToArray(app.selection);
+            var selectionTarget = resolveTargetFromSelection(app.selection);
 
-        if (!target) {
-            alert(getLabel('error.noTable'));
-        } else if (target.error === "multipleTables") {
-            alert(getLabel('error.multipleTables'));
-        } else {
-            var table = target.table;
-            var initialHeightPt = getInitialRowHeightForDialog(table, target.rowIndices);
+            if (!selectionTarget) {
+                alert(getLabel('alert.noTable'));
+                return;
+            }
+            if (selectionTarget.error === "multipleTables") {
+                alert(getLabel('alert.multipleTables'));
+                return;
+            }
 
-            var didClearSelection = false;
+            var baseTable = selectionTarget.table;
+            var initialHeightPt = getInitialRowHeight(baseTable, selectionTarget.rowIndices);
 
             /* 表全体のときのみハイライトをオフ / Clear selection highlight only when whole table is targeted */
-            if (target.rowIndices === null) {
-                try {
-                    app.select(NothingEnum.NOTHING);
-                    didClearSelection = true;
-                } catch (e) { }
-            }
+            var didClearSelection = (selectionTarget.rowIndices === null);
+            if (didClearSelection) app.select(NothingEnum.NOTHING);
 
-            var result = showRowHeightDialog(table, target.rowIndices, initialHeightPt);
+            var dialogResult = showRowHeightDialog(baseTable, selectionTarget.rowIndices, initialHeightPt);
 
-            if (didClearSelection) {
-                restoreSelectionSnapshot(originalSelection);
-            }
+            if (didClearSelection) restoreSelection(originalSelection);
+            if (dialogResult === null) return;
 
-            if (result !== null) {
-                var targetTables = resolveScopeTables(result.scope, table);
-
-                /* 先に対象行をすべて解決して総数を数える / Resolve all target rows up front and count the total */
-                var jobRowSets = [];
-                var totalRows = 0;
-                for (var ti = 0; ti < targetTables.length; ti++) {
-                    var rowIndicesForTable = (targetTables[ti] === table) ? target.rowIndices : null;
-                    var rows = resolveTargetRows(targetTables[ti], rowIndicesForTable, result.targetMode);
-                    jobRowSets.push(rows);
-                    totalRows += rows.length;
-                }
-
-                var progress = createProgressBar(getLabel('progress.title') + ' ' + SCRIPT_VERSION, totalRows);
-
-                /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
-                app.doScript(function () {
-                    try {
-                        var doneRows = 0;
-                        for (var ji = 0; ji < jobRowSets.length; ji++) {
-                            var jobRows = jobRowSets[ji];
-                            for (var ri = 0; ri < jobRows.length; ri++) {
-                                jobRows[ri].height = result.height;
-                                doneRows++;
-                                /* 行ごとの更新は重いので間引く / Throttle updates since per-row refresh is costly */
-                                if (doneRows === totalRows || doneRows % 10 === 0) {
-                                    progress.update(doneRows, doneRows + " / " + totalRows);
-                                }
-                            }
-                        }
-                    } finally {
-                        progress.close();
-                    }
-                }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel('undo.applyRowHeight'));
-            }
+            var targetTables = resolveScopeTables(dialogResult.scope, baseTable);
+            var rowSets = collectTargetRowSets(targetTables, baseTable, selectionTarget.rowIndices, dialogResult.targetMode);
+            applyRowHeightToRowSets(rowSets, dialogResult.height, dialogResult.fitFrame);
         }
+
+        main();
 
     })();
