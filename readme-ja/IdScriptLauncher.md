@@ -1,6 +1,6 @@
 # スクリプトをキーワードで絞り込んで実行
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/misc/IdScriptLauncher.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/runner/IdScriptLauncher.jsx)
 
 [![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdScriptLauncher.md)
 
@@ -61,7 +61,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| ファイル | `jsx/misc/IdScriptLauncher.jsx` |
+| ファイル | `jsx/runner/IdScriptLauncher.jsx` |
 | バージョン | v1.1.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-08-26 |

@@ -1,6 +1,6 @@
 # Filter scripts by keyword and run them
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-IdScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/misc/IdScriptLauncher.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdScriptLauncher.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/runner/IdScriptLauncher.jsx)
 
 [![Japanese](https://img.shields.io/badge/README-Japanese-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdScriptLauncher.md)
 
@@ -61,7 +61,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 
 | Item | Value |
 | --- | --- |
-| File | `jsx/misc/IdScriptLauncher.jsx` |
+| File | `jsx/runner/IdScriptLauncher.jsx` |
 | Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-08-26 |

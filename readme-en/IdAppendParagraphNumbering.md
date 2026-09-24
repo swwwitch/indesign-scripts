@@ -8,7 +8,7 @@
 
 ---
 
-Appends sequential numbering when the same text repeats within the same paragraph style, grouping duplicates by the nearest parent heading.
+Adds or removes sequential numbers at the end of paragraphs that repeat the same text with the same paragraph style, grouping duplicates by the nearest parent heading.
 
 ![Dialog with paragraph styles and scope on the left, and the list of repeated text on the right](../png/ss-1154-1016-144-20260813-223137.png)
 
@@ -18,16 +18,16 @@ Appends sequential numbering when the same text repeats within the same paragrap
 - Narrows that list with a checkbox per paragraph style
 - Switches the scope between selection, story, and document
 - Switches between full-width and half-width brackets (Japanese UI only)
-- Includes a Delete button that strips existing numbering
+- Includes a Remove Numbers button that strips existing numbering
 
 ## Usage
 
 1. Open the target document
 2. Run the script (the dialog opens once the analysis finishes)
 3. Pick the entries to number from the list on the right (multiple selection is allowed)
-4. Choose the scope, then click Add
+4. Choose the scope, then click Add Numbers
 
-To strip existing numbers, select the entries the same way and click Delete.
+To strip existing numbers, select the entries the same way and click Remove Numbers.
 
 ## How duplicates are judged
 
@@ -49,13 +49,22 @@ Only the paragraph style names defined in `HEADING_LEVEL_MAP` (`h1`–`h6` / `He
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdAppendParagraphNumbering.jsx` |
-| Version | v1.2.0 |
+| Version | v1.2.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-06-30 |
-| Last updated | 2026-08-13 |
+| Last updated | 2026-09-25 |
 | Article | https://note.com/dtp_tranist/n/nc96549bb60f9 |
 
 ## Changelog
+
+### v1.2.1 (2026-09-25)
+
+- Renamed the dialog to "Number Repeated Paragraphs"
+- Renamed the buttons to Add Numbers / Remove Numbers, and the Target panel to Scope
+- Added a "Brackets" label before the full-width / half-width choice (Japanese UI)
+- Added tooltips to the scope, bracket, and button controls and the paragraph style checkboxes
+- Reworded messages to match what actually happens (nothing selected, no text selected, numbers removed, nothing found)
+- Cleaned up the internal code (no change in behavior)
 
 ### v1.2.0 (2026-08-13)
 
