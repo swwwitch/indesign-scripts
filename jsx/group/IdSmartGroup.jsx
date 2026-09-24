@@ -20,10 +20,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdSmartGroup";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-11";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-04-17";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSmartGroup.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSmartGroup.md"; /* README (English) */
@@ -44,9 +44,10 @@ var TOLERANCE_MAX     = 50;
 var PREVIEW_LAYER_NAME   = "SmartGroup Preview";
 var PREVIEW_SWATCH_NAME  = "SmartGroup_Preview_Red";
 
-/* プレビュー矩形の CMYK 値と不透明度 / CMYK value and opacity of the preview rectangle */
-var PREVIEW_SWATCH_CMYK = [0, 100, 100, 0];
-var PREVIEW_OPACITY     = 40;
+/* プレビュー枠の線色（CMYK）・線幅・不透明度 / Stroke color (CMYK), weight and opacity of the preview frame */
+var PREVIEW_SWATCH_CMYK   = [0, 100, 100, 0];
+var PREVIEW_STROKE_WEIGHT = "10pt";
+var PREVIEW_OPACITY       = 50;
 
 // =========================================
 // レイアウト設定 / Layout settings
@@ -116,19 +117,23 @@ function setupRow(group, alignment, spacing) {
      * UI 言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function getCurrentUILang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var currentLang = getCurrentLang();
+    var uiLang = getCurrentUILang();
 
     var LABELS = {
         dialog: {
-            title: { ja: "グループ化の設定", en: "Smart Group Settings" }
+            title: { ja: "スマートグループ", en: "Smart Group" }
         },
         panel: {
-            direction: { ja: "グループ化する方向", en: "Grouping direction" },
-            tolerance: { ja: "許容値", en: "Tolerance" }
+            direction:         { ja: "グループ化する方向", en: "Grouping direction" },
+            tolerance:         { ja: "許容値", en: "Tolerance" },
+            toleranceWithUnit: { ja: "許容値（%1）", en: "Tolerance (%1)" }
+        },
+        checkbox: {
+            showPreview: { ja: "プレビューを表示", en: "Show preview" }
         },
         radio: {
             horizontal: { ja: "水平方向（横並び）", en: "Horizontal (rows)" },
@@ -142,8 +147,24 @@ function setupRow(group, alignment, spacing) {
             horizontal: { ja: "水平方向", en: "horizontally" },
             vertical:   { ja: "垂直方向", en: "vertically" }
         },
+        tooltip: {
+            horizontal: {
+                ja: "上下の中心がそろったオブジェクトを、横一列ずつグループ化します。",
+                en: "Groups objects whose vertical centers line up, one row at a time."
+            },
+            vertical: {
+                ja: "左右の中心がそろったオブジェクトを、縦一列ずつグループ化します。",
+                en: "Groups objects whose horizontal centers line up, one column at a time."
+            },
+            tolerance: {
+                ja: "隣り合うオブジェクトの中心のずれがこの値以内なら、同じ行／列とみなします（定規の単位）。",
+                en: "Objects whose centers are within this distance of their neighbor count as the same row/column (ruler units)."
+            }
+        },
         alert: {
-            noSelection: { ja: "アイテムを選択してください。", en: "Please select one or more items." }
+            noSelection: { ja: "アイテムを選択してください。", en: "Please select one or more items." },
+            result:      { ja: "%1で %2 個のグループを作成しました。", en: "%2 group(s) created %1." },
+            noClusters:  { ja: "グループ化できる並びがありませんでした。", en: "No rows or columns to group were found." }
         },
         undo: {
             smartGroup: { ja: "スマートグループ化", en: "Smart Group" }
@@ -151,20 +172,83 @@ function setupRow(group, alignment, spacing) {
     };
 
     /**
-     * ラベルを現在の言語で取得する
-     * @param {object} labelEntry ja / en を持つラベルオブジェクト
-     * @returns {string} 現在の言語のラベル文字列
+     * ラベル定義から現在の UI 言語の文字列を取り出す
+     * @param {{ja: string, en: string}} labelSet 言語別のラベル定義
+     * @returns {string} 現在の UI 言語の文字列
      */
-    function localize(labelEntry) {
-        return labelEntry[currentLang];
+    function getLabel(labelSet) {
+        return labelSet[uiLang] || labelSet.en;
+    }
+
+    /**
+     * ラベル内のプレースホルダー（%1, %2 …）を値で置き換える
+     * @param {string} template プレースホルダーを含む文字列
+     * @param {Array} values 差し込む値
+     * @returns {string} 置き換え後の文字列
+     */
+    function formatLabel(template, values) {
+        var text = template;
+        for (var i = 0; i < values.length; i++) {
+            text = text.split("%" + (i + 1)).join(String(values[i]));
+        }
+        return text;
     }
 
     // =========================================
-    // プレビュー用リソース / Preview resources
+    // 単位 / Units
     // =========================================
 
-    /* プレビュー矩形の参照を保持する / Holds references to the preview rectangles */
-    var previewRectangles = [];
+    /**
+     * 定規の単位から表示用の単位名を返す
+     * @param {MeasurementUnits} rulerUnit 対象の単位
+     * @returns {string} 単位名（表示しない単位は空文字）
+     */
+    function getUnitName(rulerUnit) {
+        switch (rulerUnit) {
+            case MeasurementUnits.MILLIMETERS:    return "mm";
+            case MeasurementUnits.CENTIMETERS:    return "cm";
+            case MeasurementUnits.POINTS:         return "pt";
+            case MeasurementUnits.INCHES:         return "in";
+            case MeasurementUnits.INCHES_DECIMAL: return "in";
+            case MeasurementUnits.PICAS:          return "p";
+            case MeasurementUnits.CICEROS:        return "c";
+            case MeasurementUnits.PIXELS:         return "px";
+            case MeasurementUnits.Q:              return "Q";
+            case MeasurementUnits.HA:             return "H";
+            default:                              return "";
+        }
+    }
+
+    /**
+     * 比べる座標の向きに合った定規の単位名を返す
+     * 水平方向（行）は Y 座標を比べるので縦の定規、垂直方向（列）は横の定規を使う
+     * @param {Document} targetDoc 対象ドキュメント
+     * @param {string} direction "horizontal" または "vertical"
+     * @returns {string} 単位名
+     */
+    function getToleranceUnitName(targetDoc, direction) {
+        var viewPrefs = targetDoc.viewPreferences;
+        return getUnitName((direction === "horizontal")
+            ? viewPrefs.verticalMeasurementUnits
+            : viewPrefs.horizontalMeasurementUnits);
+    }
+
+    /**
+     * 許容値パネルの見出しを単位付きで返す
+     * @param {Document} targetDoc 対象ドキュメント
+     * @param {string} direction "horizontal" または "vertical"
+     * @returns {string} 見出し
+     */
+    function getTolerancePanelTitle(targetDoc, direction) {
+        var unitName = getToleranceUnitName(targetDoc, direction);
+        return unitName
+            ? formatLabel(getLabel(LABELS.panel.toleranceWithUnit), [unitName])
+            : getLabel(LABELS.panel.tolerance);
+    }
+
+    // =========================================
+    // プレビュー / Preview
+    // =========================================
 
     /**
      * プレビュー用の赤スウォッチを取得する（なければ作成）
@@ -172,9 +256,8 @@ function setupRow(group, alignment, spacing) {
      * @returns {Color} プレビュー用スウォッチ
      */
     function getPreviewSwatch(targetDoc) {
-        for (var i = 0; i < targetDoc.colors.length; i++) {
-            if (targetDoc.colors[i].name === PREVIEW_SWATCH_NAME) return targetDoc.colors[i];
-        }
+        var previewSwatch = targetDoc.colors.itemByName(PREVIEW_SWATCH_NAME);
+        if (previewSwatch.isValid) return previewSwatch;
         return targetDoc.colors.add({
             name: PREVIEW_SWATCH_NAME,
             model: ColorModel.PROCESS,
@@ -184,15 +267,16 @@ function setupRow(group, alignment, spacing) {
     }
 
     /**
-     * プレビュー用の非印刷レイヤーを取得する（なければ作成）
+     * プレビュー用の非印刷レイヤーを最上位に取得する（なければ作成）
      * @param {Document} targetDoc 対象ドキュメント
      * @returns {Layer} プレビュー用レイヤー
      */
     function getPreviewLayer(targetDoc) {
-        for (var i = 0; i < targetDoc.layers.length; i++) {
-            if (targetDoc.layers[i].name === PREVIEW_LAYER_NAME) return targetDoc.layers[i];
-        }
-        return targetDoc.layers.add({ name: PREVIEW_LAYER_NAME, printable: false });
+        var previewLayer = targetDoc.layers.itemByName(PREVIEW_LAYER_NAME);
+        if (previewLayer.isValid) return previewLayer;
+        previewLayer = targetDoc.layers.add({ name: PREVIEW_LAYER_NAME, printable: false });
+        previewLayer.move(LocationOptions.AT_BEGINNING);
+        return previewLayer;
     }
 
     /**
@@ -201,24 +285,61 @@ function setupRow(group, alignment, spacing) {
      * @returns {void}
      */
     function clearPreview(targetDoc) {
-        for (var i = 0; i < targetDoc.layers.length; i++) {
-            if (targetDoc.layers[i].name === PREVIEW_LAYER_NAME) {
-                try { targetDoc.layers[i].remove(); } catch (e) {}
-                break;
-            }
+        var previewLayer = targetDoc.layers.itemByName(PREVIEW_LAYER_NAME);
+        if (previewLayer.isValid) previewLayer.remove();
+        app.redraw();
+    }
+
+    /**
+     * プレビューのレイヤーとスウォッチをすべて片付ける
+     * @param {Document} targetDoc 対象ドキュメント
+     * @returns {void}
+     */
+    function removePreviewResources(targetDoc) {
+        clearPreview(targetDoc);
+        var previewSwatch = targetDoc.colors.itemByName(PREVIEW_SWATCH_NAME);
+        if (previewSwatch.isValid) previewSwatch.remove();
+    }
+
+    /**
+     * 現在の設定でまとまりの範囲を示すプレビュー枠を描き直す
+     * @param {Document} targetDoc 対象ドキュメント
+     * @param {Array} itemBounds 境界情報つきの配列
+     * @param {string} direction "horizontal" または "vertical"
+     * @param {number} tolerance 許容値
+     * @returns {void}
+     */
+    function updatePreview(targetDoc, itemBounds, direction, tolerance) {
+        clearPreview(targetDoc);
+
+        var clusters      = computeClusters(itemBounds, direction, tolerance);
+        var previewLayer  = getPreviewLayer(targetDoc);
+        var previewSwatch = getPreviewSwatch(targetDoc);
+        var noneSwatch    = targetDoc.swatches.itemByName("[None]");
+
+        for (var i = 0; i < clusters.length; i++) {
+            if (clusters[i].length < 2) continue;
+            var parentPage = clusters[i][0].pageItem.parentPage;
+            if (!parentPage) continue;
+
+            var previewRectangle = parentPage.rectangles.add(previewLayer);
+            previewRectangle.geometricBounds = getClusterBounds(clusters[i]);
+            previewRectangle.fillColor       = noneSwatch;
+            previewRectangle.strokeColor     = previewSwatch;
+            previewRectangle.strokeWeight    = PREVIEW_STROKE_WEIGHT;
+            previewRectangle.opacity         = PREVIEW_OPACITY;
         }
-        previewRectangles = [];
-        try { app.redraw(); } catch (e) {}
+        app.redraw();
     }
 
     // =========================================
-    // グループ計算 / Group computation
+    // まとまりの計算 / Cluster computation
     // =========================================
 
     /**
-     * 選択オブジェクトの境界情報を取り出す
+     * 選択オブジェクトの境界と中心座標を取り出す
      * @param {Array} selectedItems 選択オブジェクトの配列
-     * @returns {Array<{pageItem: PageItem, top: number, left: number, bottom: number, right: number}>} 境界情報つきの配列
+     * @returns {Array<{pageItem: PageItem, top: number, left: number, bottom: number, right: number, centerX: number, centerY: number}>} 境界情報つきの配列
      */
     function collectItemBounds(selectedItems) {
         var itemBounds = [];
@@ -230,113 +351,142 @@ function setupRow(group, alignment, spacing) {
                 top: bounds[0],
                 left: bounds[1],
                 bottom: bounds[2],
-                right: bounds[3]
+                right: bounds[3],
+                centerX: (bounds[1] + bounds[3]) / 2,
+                centerY: (bounds[0] + bounds[2]) / 2
             });
         }
         return itemBounds;
     }
 
     /**
-     * 指定方向の中心座標を返す
-     * @param {{top: number, left: number, bottom: number, right: number}} itemBound 境界情報
+     * 指定方向で比べる中心座標を返す
+     * @param {{centerX: number, centerY: number}} itemBound 境界情報
      * @param {string} direction "horizontal"（Y 中心）または "vertical"（X 中心）
      * @returns {number} 中心座標
      */
     function getCenterAlongAxis(itemBound, direction) {
-        return (direction === "horizontal")
-            ? (itemBound.top + itemBound.bottom) / 2
-            : (itemBound.left + itemBound.right) / 2;
+        return (direction === "horizontal") ? itemBound.centerY : itemBound.centerX;
     }
 
     /**
-     * 中心座標の近さでオブジェクトを行または列にまとめる
+     * 中心座標の近さでオブジェクトを行または列のまとまりに分ける
      * @param {Array} itemBounds 境界情報つきの配列
      * @param {string} direction "horizontal" または "vertical"
      * @param {number} tolerance 同じ行／列とみなす許容値
-     * @returns {Array<Array>} まとめた結果
+     * @returns {Array<Array>} まとまりごとの配列
      */
-    function computeGroups(itemBounds, direction, tolerance) {
+    function computeClusters(itemBounds, direction, tolerance) {
         var sortedItems = itemBounds.slice();
         sortedItems.sort(function (a, b) {
             return getCenterAlongAxis(a, direction) - getCenterAlongAxis(b, direction);
         });
 
-        var groups = [];
-        var currentGroup = [];
+        var clusters = [];
+        var currentCluster = [sortedItems[0]];
 
-        for (var i = 0; i < sortedItems.length; i++) {
-            if (currentGroup.length === 0) {
-                currentGroup.push(sortedItems[i]);
-                continue;
-            }
-            var previousItem = currentGroup[currentGroup.length - 1];
-            var centerDelta = Math.abs(
-                getCenterAlongAxis(sortedItems[i], direction) - getCenterAlongAxis(previousItem, direction)
-            );
+        for (var i = 1; i < sortedItems.length; i++) {
+            var previousItem = currentCluster[currentCluster.length - 1];
+            var centerDelta = getCenterAlongAxis(sortedItems[i], direction) - getCenterAlongAxis(previousItem, direction);
             if (centerDelta <= tolerance) {
-                currentGroup.push(sortedItems[i]);
+                currentCluster.push(sortedItems[i]);
             } else {
-                groups.push(currentGroup);
-                currentGroup = [sortedItems[i]];
+                clusters.push(currentCluster);
+                currentCluster = [sortedItems[i]];
             }
         }
-        if (currentGroup.length > 0) groups.push(currentGroup);
-        return groups;
+        clusters.push(currentCluster);
+        return clusters;
     }
 
     /**
-     * グループ全体を囲む境界を求める
-     * @param {Array} groupItems 同じグループに属する境界情報の配列
+     * まとまり全体を囲む境界を求める
+     * @param {Array} clusterItems 同じまとまりに属する境界情報の配列
      * @returns {Array<number>} [上, 左, 下, 右]
      */
-    function getGroupBounds(groupItems) {
-        var top    = groupItems[0].top;
-        var left   = groupItems[0].left;
-        var bottom = groupItems[0].bottom;
-        var right  = groupItems[0].right;
-        for (var i = 1; i < groupItems.length; i++) {
-            top    = Math.min(top, groupItems[i].top);
-            left   = Math.min(left, groupItems[i].left);
-            bottom = Math.max(bottom, groupItems[i].bottom);
-            right  = Math.max(right, groupItems[i].right);
+    function getClusterBounds(clusterItems) {
+        var top    = clusterItems[0].top;
+        var left   = clusterItems[0].left;
+        var bottom = clusterItems[0].bottom;
+        var right  = clusterItems[0].right;
+        for (var i = 1; i < clusterItems.length; i++) {
+            top    = Math.min(top, clusterItems[i].top);
+            left   = Math.min(left, clusterItems[i].left);
+            bottom = Math.max(bottom, clusterItems[i].bottom);
+            right  = Math.max(right, clusterItems[i].right);
         }
         return [top, left, bottom, right];
-    }
-
-    /**
-     * 現在の設定でグループ範囲を示すプレビュー矩形を描き直す
-     * @param {Document} targetDoc 対象ドキュメント
-     * @param {Array} itemBounds 境界情報つきの配列
-     * @param {string} direction "horizontal" または "vertical"
-     * @param {number} tolerance 許容値
-     * @returns {void}
-     */
-    function updatePreview(targetDoc, itemBounds, direction, tolerance) {
-        clearPreview(targetDoc);
-
-        var groups        = computeGroups(itemBounds, direction, tolerance);
-        var previewLayer  = getPreviewLayer(targetDoc);
-        var previewSwatch = getPreviewSwatch(targetDoc);
-        var noneSwatch    = targetDoc.swatches.itemByName("[None]");
-
-        for (var i = 0; i < groups.length; i++) {
-            if (groups[i].length < 2) continue;
-            var parentPage = groups[i][0].pageItem.parentPage;
-            if (!parentPage) continue;
-
-            var previewRectangle = parentPage.rectangles.add(previewLayer);
-            previewRectangle.geometricBounds = getGroupBounds(groups[i]);
-            previewRectangle.fillColor       = previewSwatch;
-            previewRectangle.strokeColor     = noneSwatch;
-            previewRectangle.opacity         = PREVIEW_OPACITY;
-            previewRectangles.push(previewRectangle);
-        }
-        try { app.redraw(); } catch (e) {}
     }
 
     // =========================================
     // ダイアログ / Dialog
     // =========================================
+
+    /**
+     * 方向パネルを作る
+     * @param {Window} parentDialog 親ダイアログ
+     * @returns {{horizontal: RadioButton, vertical: RadioButton}} 方向のラジオボタン
+     */
+    function buildDirectionPanel(parentDialog) {
+        var directionPanel = parentDialog.add("panel", undefined, getLabel(LABELS.panel.direction));
+        setupPanel(directionPanel, 6);
+        directionPanel.alignChildren = ["left", "top"];
+
+        var horizontalRadio = directionPanel.add("radiobutton", undefined, getLabel(LABELS.radio.horizontal));
+        var verticalRadio   = directionPanel.add("radiobutton", undefined, getLabel(LABELS.radio.vertical));
+        horizontalRadio.helpTip = getLabel(LABELS.tooltip.horizontal);
+        verticalRadio.helpTip   = getLabel(LABELS.tooltip.vertical);
+        horizontalRadio.value = true;
+
+        return { horizontal: horizontalRadio, vertical: verticalRadio };
+    }
+
+    /**
+     * 許容値パネルを作る
+     * @param {Window} parentDialog 親ダイアログ
+     * @param {string} panelTitle パネルの見出し
+     * @returns {{panel: Panel, slider: Slider, valueLabel: StaticText}} パネル・スライダー・数値表示
+     */
+    function buildTolerancePanel(parentDialog, panelTitle) {
+        var tolerancePanel = parentDialog.add("panel", undefined, panelTitle);
+        setupPanel(tolerancePanel, 6);
+
+        var toleranceRowGroup = tolerancePanel.add("group");
+        setupRow(toleranceRowGroup, "left", 8);
+        toleranceRowGroup.alignChildren = ["left", "center"];
+
+        var toleranceSlider = toleranceRowGroup.add("slider", undefined, TOLERANCE_DEFAULT, TOLERANCE_MIN, TOLERANCE_MAX);
+        toleranceSlider.preferredSize.width = TOLERANCE_SLIDER_WIDTH;
+        toleranceSlider.helpTip = getLabel(LABELS.tooltip.tolerance);
+
+        var toleranceValueLabel = toleranceRowGroup.add("statictext", undefined, String(TOLERANCE_DEFAULT));
+        toleranceValueLabel.preferredSize.width = TOLERANCE_VALUE_WIDTH;
+
+        return { panel: tolerancePanel, slider: toleranceSlider, valueLabel: toleranceValueLabel };
+    }
+
+    /**
+     * ［プレビューを表示］チェックボックスを作る（初期値 ON）
+     * @param {Window} parentDialog 親ダイアログ
+     * @returns {Checkbox} チェックボックス
+     */
+    function buildPreviewCheckbox(parentDialog) {
+        var previewCheckbox = parentDialog.add("checkbox", undefined, getLabel(LABELS.checkbox.showPreview));
+        previewCheckbox.value = true;
+        return previewCheckbox;
+    }
+
+    /**
+     * キャンセル／OK ボタンの行を作る（幅いっぱいには広げない）
+     * @param {Window} parentDialog 親ダイアログ
+     * @returns {void}
+     */
+    function buildButtonRow(parentDialog) {
+        var btnRowGroup = parentDialog.add("group");
+        setupRow(btnRowGroup, "center", 8);
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRowGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+    }
 
     /**
      * 方向と許容値を指定するダイアログを表示する
@@ -345,63 +495,56 @@ function setupRow(group, alignment, spacing) {
      * @returns {{direction: string, tolerance: number}|null} 設定内容。キャンセル時は null
      */
     function showSmartGroupDialog(targetDoc, itemBounds) {
-        var smartGroupDialog = new Window("dialog", localize(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        var smartGroupDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         setupWindow(smartGroupDialog);
 
-        /* 方向パネル / Direction panel */
-        var directionPanel = smartGroupDialog.add("panel", undefined, localize(LABELS.panel.direction));
-        setupPanel(directionPanel, 6);
-        directionPanel.alignChildren = ["left", "top"];
+        var directionRadios   = buildDirectionPanel(smartGroupDialog);
+        var toleranceControls = buildTolerancePanel(smartGroupDialog, getTolerancePanelTitle(targetDoc, "horizontal"));
+        var previewCheckbox   = buildPreviewCheckbox(smartGroupDialog);
+        buildButtonRow(smartGroupDialog);
 
-        var horizontalRadio = directionPanel.add("radiobutton", undefined, localize(LABELS.radio.horizontal));
-        var verticalRadio   = directionPanel.add("radiobutton", undefined, localize(LABELS.radio.vertical));
-        horizontalRadio.value = true;
+        /* プレビュー用レイヤーを足すとアクティブレイヤーが変わるので控えておく / Adding the preview layer changes the active layer, so remember it */
+        var originalActiveLayer = targetDoc.activeLayer;
 
-        /* 許容値パネル / Tolerance panel */
-        var tolerancePanel = smartGroupDialog.add("panel", undefined, localize(LABELS.panel.tolerance));
-        setupPanel(tolerancePanel, 6);
-
-        var toleranceRow = tolerancePanel.add("group");
-        setupRow(toleranceRow, "left", 8);
-        toleranceRow.alignChildren = ["left", "center"];
-
-        var toleranceSlider = toleranceRow.add("slider", undefined, TOLERANCE_DEFAULT, TOLERANCE_MIN, TOLERANCE_MAX);
-        toleranceSlider.preferredSize.width = TOLERANCE_SLIDER_WIDTH;
-        var toleranceValueLabel = toleranceRow.add("statictext", undefined, String(TOLERANCE_DEFAULT));
-        toleranceValueLabel.preferredSize.width = TOLERANCE_VALUE_WIDTH;
+        /**
+         * ダイアログの現在の設定を読み取る
+         * @returns {{direction: string, tolerance: number}} 設定内容
+         */
+        function readSettings() {
+            return {
+                direction: directionRadios.horizontal.value ? "horizontal" : "vertical",
+                tolerance: Math.round(toleranceControls.slider.value)
+            };
+        }
 
         /**
          * 現在の入力値でプレビューを描き直す
          * @returns {void}
          */
         function refreshPreview() {
-            var direction = horizontalRadio.value ? "horizontal" : "vertical";
-            var tolerance = Math.round(toleranceSlider.value);
-            toleranceValueLabel.text = String(tolerance);
-            updatePreview(targetDoc, itemBounds, direction, tolerance);
+            var settings = readSettings();
+            toleranceControls.valueLabel.text = String(settings.tolerance);
+            toleranceControls.panel.text = getTolerancePanelTitle(targetDoc, settings.direction);
+            if (previewCheckbox.value) {
+                updatePreview(targetDoc, itemBounds, settings.direction, settings.tolerance);
+            } else {
+                clearPreview(targetDoc);
+            }
         }
 
-        toleranceSlider.onChanging = refreshPreview;
-        horizontalRadio.onClick    = refreshPreview;
-        verticalRadio.onClick      = refreshPreview;
-        smartGroupDialog.onShow    = refreshPreview;
-
-        /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
-        var dialogButtonRow = smartGroupDialog.add("group");
-        setupRow(dialogButtonRow, "center", 8);
-        dialogButtonRow.add("button", undefined, localize(LABELS.button.cancel), { name: "cancel" });
-        dialogButtonRow.add("button", undefined, localize(LABELS.button.ok), { name: "ok" });
+        toleranceControls.slider.onChanging = refreshPreview;
+        directionRadios.horizontal.onClick  = refreshPreview;
+        directionRadios.vertical.onClick    = refreshPreview;
+        previewCheckbox.onClick             = refreshPreview;
+        smartGroupDialog.onShow             = refreshPreview;
 
         var accepted = smartGroupDialog.show() === 1;
 
         /* ダイアログを閉じたらプレビューを片付ける / Clean up the preview once the dialog closes */
-        clearPreview(targetDoc);
+        removePreviewResources(targetDoc);
+        targetDoc.activeLayer = originalActiveLayer;
 
-        if (!accepted) return null;
-        return {
-            direction: horizontalRadio.value ? "horizontal" : "vertical",
-            tolerance: Math.round(toleranceSlider.value)
-        };
+        return accepted ? readSettings() : null;
     }
 
     // =========================================
@@ -409,12 +552,34 @@ function setupRow(group, alignment, spacing) {
     // =========================================
 
     /**
+     * 2 つ以上のオブジェクトを含むまとまりをグループ化する
+     * @param {Document} targetDoc 対象ドキュメント
+     * @param {Array<Array>} clusters まとまりごとの配列
+     * @returns {number} 作成したグループの数
+     */
+    function groupClusters(targetDoc, clusters) {
+        var createdGroupCount = 0;
+        for (var i = 0; i < clusters.length; i++) {
+            /* グループ化には 2 つ以上のオブジェクトが必要 / Grouping requires at least two items */
+            if (clusters[i].length < 2) continue;
+
+            var itemsToGroup = [];
+            for (var j = 0; j < clusters[i].length; j++) {
+                itemsToGroup.push(clusters[i][j].pageItem);
+            }
+            targetDoc.groups.add(itemsToGroup);
+            createdGroupCount++;
+        }
+        return createdGroupCount;
+    }
+
+    /**
      * 選択オブジェクトを方向と許容値に応じてグループ化する
      * @returns {void}
      */
     function main() {
         if (app.selection.length === 0) {
-            alert(localize(LABELS.alert.noSelection));
+            alert(getLabel(LABELS.alert.noSelection));
             return;
         }
 
@@ -424,31 +589,20 @@ function setupRow(group, alignment, spacing) {
         var dialogResult = showSmartGroupDialog(activeDoc, itemBounds);
         if (dialogResult === null) return; /* キャンセル / Cancelled */
 
-        var groups = computeGroups(itemBounds, dialogResult.direction, dialogResult.tolerance);
-        var createdGroupCount = 0;
+        var clusters = computeClusters(itemBounds, dialogResult.direction, dialogResult.tolerance);
+        var createdGroupCount = groupClusters(activeDoc, clusters);
 
-        for (var i = 0; i < groups.length; i++) {
-            var groupItems = groups[i];
-            if (groupItems.length < 2) continue;
-
-            app.select(groupItems[0].pageItem);
-            for (var j = 1; j < groupItems.length; j++) {
-                app.select(groupItems[j].pageItem, SelectionOptions.ADD_TO);
-            }
-            activeDoc.groups.add(app.selection);
-            createdGroupCount++;
+        if (createdGroupCount === 0) {
+            alert(getLabel(LABELS.alert.noClusters));
+            return;
         }
-
-        var directionLabel = (dialogResult.direction === "horizontal")
-            ? localize(LABELS.direction.horizontal)
-            : localize(LABELS.direction.vertical);
-
-        alert(currentLang === "ja"
-            ? directionLabel + "で " + createdGroupCount + " 個のグループを作成しました。"
-            : createdGroupCount + " group(s) created " + directionLabel + ".");
+        alert(formatLabel(getLabel(LABELS.alert.result), [
+            getLabel(LABELS.direction[dialogResult.direction]),
+            createdGroupCount
+        ]));
     }
 
     /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
-    app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, localize(LABELS.undo.smartGroup));
+    app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undo.smartGroup));
 
 })();
