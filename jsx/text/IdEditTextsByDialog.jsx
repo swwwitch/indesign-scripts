@@ -20,10 +20,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdEditTextsByDialog";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v0.1.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v0.1.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-28";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2025-06-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdEditTextsByDialog.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdEditTextsByDialog.md"; /* README (English) */
@@ -50,9 +50,6 @@ var NEW_FRAME_HEIGHT         = 20;
 
 /* 入力欄のサイズ [幅, 高さ]（px）/ Size of the input field [width, height] (px) */
 var INPUT_BOX_SIZE = [350, 160];
-
-/* ボタン列を左右に分けるスペーサーの幅（px）/ Width of the spacer that splits the button row (px) */
-var BUTTON_ROW_SPACER_WIDTH = 30;
 
 // ==============================
 // UIレイアウトの共通設定 / Shared UI layout
@@ -99,39 +96,55 @@ function setupRow(group, alignment, spacing) {
      * UI 言語を判定する
      * @returns {string} "ja" または "en"
      */
-    function getCurrentLang() {
+    function getUiLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var currentLang = getCurrentLang();
+    var uiLang = getUiLang();
 
+    /* {marker} は SOFT_BREAK_MARKER に置き換わる / {marker} is replaced with SOFT_BREAK_MARKER */
     var LABELS = {
         dialog: {
-            title: { ja: "テキスト編集", en: "Edit Text" },
-            note:  { ja: "@#で強制改行（\\n）、fn + returnで確定", en: "@# = forced line break (\\n), fn + return to confirm" }
+            title: { ja: "テキストを編集", en: "Edit Text" },
+            note:  { ja: "{marker} で強制改行、fn + return で確定", en: "{marker} = forced line break, fn + Return to confirm" }
         },
         button: {
-            ok:              { ja: "OK", en: "OK" },
-            cancel:          { ja: "キャンセル", en: "Cancel" },
-            clearLineBreaks: { ja: "改行全削除", en: "Clear All" },
-            insertSoftBreak: { ja: "@# 挿入", en: "Insert @#" }
+            ok:               { ja: "OK", en: "OK" },
+            cancel:           { ja: "キャンセル", en: "Cancel" },
+            removeLineBreaks: { ja: "改行を削除", en: "Remove Breaks" },
+            appendMarker:     { ja: "{marker} を追加", en: "Add {marker}" }
+        },
+        tooltip: {
+            textInput: {
+                ja: "return で段落改行、{marker} で強制改行になります。",
+                en: "Return starts a new paragraph; {marker} becomes a forced line break."
+            },
+            removeLineBreaks: {
+                ja: "入力欄の改行と {marker} をすべて削除して 1 行にします。",
+                en: "Removes every line break and {marker} to join the text into one line."
+            },
+            appendMarker: {
+                ja: "入力欄の末尾に強制改行のマーカー（{marker}）を追加します。",
+                en: "Appends the forced line break marker ({marker}) to the end of the field."
+            }
         },
         alert: {
-            noTextFrame:   { ja: "テキストフレームを選択してください。", en: "Please select a text frame." },
+            noDocument:    { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+            noTextTarget:  { ja: "テキストまたはテキストフレームを選択してください。", en: "Please select text or a text frame." },
             errorOccurred: { ja: "エラーが発生しました：\n", en: "An error occurred:\n" }
         },
         undo: {
-            editText: { ja: "テキスト編集", en: "Edit Text" }
+            editText: { ja: "テキストを編集", en: "Edit Text" }
         }
     };
 
     /**
-     * ラベルを現在の言語で取得する
+     * ラベルを現在の言語で取得する（{marker} は SOFT_BREAK_MARKER に置換）
      * @param {object} labelEntry ja / en を持つラベルオブジェクト
      * @returns {string} 現在の言語のラベル文字列
      */
-    function localize(labelEntry) {
-        return labelEntry[currentLang];
+    function getLabel(labelEntry) {
+        return labelEntry[uiLang].replace(/\{marker\}/g, SOFT_BREAK_MARKER);
     }
 
     // =========================================
@@ -139,60 +152,75 @@ function setupRow(group, alignment, spacing) {
     // =========================================
 
     /**
+     * 入力欄にフォーカスし、キャレットを末尾へ置く
+     * @param {EditText} textInput 対象の入力欄
+     * @returns {void}
+     */
+    function placeCaretAtEnd(textInput) {
+        textInput.active = true;
+        textInput.selection = [textInput.text.length, textInput.text.length];
+    }
+
+    /**
      * 複数行テキストの編集ダイアログを表示する
      * @param {string} initialText 入力欄の初期値
      * @returns {string|null} 入力されたテキスト。キャンセル時は null
      */
     function showMultilineTextDialog(initialText) {
-        var textEditDialog = new Window("dialog", localize(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-        setupWindow(textEditDialog, 8);
+        var editTextDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(editTextDialog, 8);
 
-        var inputBox = textEditDialog.add("edittext", undefined, initialText || "", { multiline: true });
-        inputBox.preferredSize = INPUT_BOX_SIZE;
+        var textInput = editTextDialog.add("edittext", undefined, initialText || "", { multiline: true });
+        textInput.preferredSize = INPUT_BOX_SIZE;
+        textInput.helpTip = getLabel(LABELS.tooltip.textInput);
 
-        var noteRow = textEditDialog.add("group");
+        var noteRow = editTextDialog.add("group");
         setupRow(noteRow, "center", 0);
-        noteRow.add("statictext", undefined, localize(LABELS.dialog.note));
+        noteRow.add("statictext", undefined, getLabel(LABELS.dialog.note));
 
-        /* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
-        var dialogButtonRow = textEditDialog.add("group");
-        setupRow(dialogButtonRow, "fill", 8);
+        /* ボタンエリア（左右分割）/ Button area (split left and right) */
+        var btnRowGroup = editTextDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "bottom"];
 
-        var clearLineBreaksButton = dialogButtonRow.add("button", undefined, localize(LABELS.button.clearLineBreaks));
-        clearLineBreaksButton.alignment = "left";
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnRemoveLineBreaks = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.removeLineBreaks));
+        btnRemoveLineBreaks.helpTip = getLabel(LABELS.tooltip.removeLineBreaks);
+        var btnAppendMarker = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.appendMarker));
+        btnAppendMarker.helpTip = getLabel(LABELS.tooltip.appendMarker);
 
-        var insertSoftBreakButton = dialogButtonRow.add("button", undefined, localize(LABELS.button.insertSoftBreak));
-        insertSoftBreakButton.alignment = "left";
+        /* スペーサー（伸縮）/ Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
-        /* 左右のボタンを分けるスペーサー / Spacer that separates the left and right button clusters */
-        dialogButtonRow.add("statictext", undefined, "").preferredSize.width = BUTTON_ROW_SPACER_WIDTH;
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
-        dialogButtonRow.add("button", undefined, localize(LABELS.button.cancel), { name: "cancel" });
-        dialogButtonRow.add("button", undefined, localize(LABELS.button.ok), { name: "ok" });
-
-        clearLineBreaksButton.onClick = function () {
-            inputBox.text = inputBox.text
+        btnRemoveLineBreaks.onClick = function () {
+            textInput.text = textInput.text
                 .replace(/\\[nr]/g, "")   /* 文字列としての \n / \r を削除 / Remove literal \n and \r */
                 .replace(/[\n\r]/g, "")   /* 実際の改行を削除 / Remove actual line breaks */
-                .replace(/@#/g, "");      /* 可視マーカーを削除 / Remove the visible marker */
-            inputBox.active = true;
-            inputBox.selection = [inputBox.text.length, inputBox.text.length];
+                .split(SOFT_BREAK_MARKER).join("");
+            placeCaretAtEnd(textInput);
         };
 
-        insertSoftBreakButton.onClick = function () {
-            inputBox.text += SOFT_BREAK_MARKER;
-            inputBox.selection = [inputBox.text.length, inputBox.text.length];
-            inputBox.active = true;
+        btnAppendMarker.onClick = function () {
+            textInput.text += SOFT_BREAK_MARKER;
+            placeCaretAtEnd(textInput);
         };
 
-        inputBox.active = true;
-        if (!initialText) inputBox.selection = [0, 0];
+        textInput.active = true;
+        if (!initialText) textInput.selection = [0, 0];
 
-        return (textEditDialog.show() === 1) ? inputBox.text : null;
+        return (editTextDialog.show() === 1) ? textInput.text : null;
     }
 
     // =========================================
-    // テキスト挿入 / Text insertion
+    // テキスト反映 / Text application
     // =========================================
 
     /**
@@ -207,56 +235,55 @@ function setupRow(group, alignment, spacing) {
             .replace(/\r\n/g, "\r")
             .replace(/\n/g, "\r")
             .replace(/\r{2,}/g, "\r")
-            .replace(/@#/g, "\n");
+            .split(SOFT_BREAK_MARKER).join("\n");
     }
 
     /**
-     * 選択がテキスト編集の対象になり得るか判定する
-     * @returns {boolean} テキスト／テキストフレームが 1 つ選択されていれば true
+     * 選択が 1 つだけならそれを返す
+     * @returns {object|null} 選択オブジェクト。0 個・複数なら null
      */
-    function hasEditableTextSelection() {
-        return !!(app.selection && app.selection.length === 1 &&
-            (app.selection[0] instanceof TextFrame ||
-                app.selection[0].hasOwnProperty("contents") ||
-                app.selection[0].hasOwnProperty("insertionPoints")));
+    function getSingleSelection() {
+        return (app.selection && app.selection.length === 1) ? app.selection[0] : null;
+    }
+
+    /**
+     * テキスト編集の対象になり得るか判定する
+     * @param {object|null} selectedObject 選択オブジェクト
+     * @returns {boolean} テキスト／挿入ポイント／テキストフレームなら true
+     */
+    function isEditableTextTarget(selectedObject) {
+        return !!selectedObject &&
+            (selectedObject instanceof TextFrame ||
+                selectedObject.hasOwnProperty("contents") ||
+                selectedObject.hasOwnProperty("insertionPoints"));
     }
 
     /**
      * 選択範囲・挿入ポイント・テキストフレームのいずれかにテキストを流し込む
+     * @param {object} selectedObject 選択オブジェクト
      * @param {string} textToApply 適用するテキスト
      * @returns {void}
      */
-    function replaceTextInSelection(textToApply) {
-        try {
-            if (!app.selection || app.selection.length !== 1) {
-                alert(localize(LABELS.alert.noTextFrame));
-                return;
-            }
-
-            var selectedObject = app.selection[0];
-
-            /* 選択テキストがあれば置換 / Replace when text is selected */
-            if (selectedObject.hasOwnProperty("contents") && selectedObject.contents !== "") {
-                selectedObject.contents = textToApply;
-                return;
-            }
-
-            /* テキストフレーム選択時はストーリー末尾へ挿入 / Append to the story when a text frame is selected */
-            if (selectedObject instanceof TextFrame && selectedObject.parentStory) {
-                selectedObject.parentStory.insertionPoints[-1].contents = textToApply;
-                return;
-            }
-
-            /* 挿入ポイントのみのときはその位置へ挿入 / Insert at the caret when only an insertion point is active */
-            if (selectedObject.hasOwnProperty("insertionPoints")) {
-                selectedObject.insertionPoints[0].contents = textToApply;
-                return;
-            }
-
-            alert(localize(LABELS.alert.noTextFrame));
-        } catch (e) {
-            alert(localize(LABELS.alert.errorOccurred) + e);
+    function applyTextToSelection(selectedObject, textToApply) {
+        /* 選択テキスト、または文字のあるテキストフレームは中身を置換 / Replace selected text, or the contents of a non-empty text frame */
+        if (selectedObject.hasOwnProperty("contents") && selectedObject.contents !== "") {
+            selectedObject.contents = textToApply;
+            return;
         }
+
+        /* 空のテキストフレームはストーリー末尾へ挿入 / Append to the story of an empty text frame */
+        if (selectedObject instanceof TextFrame && selectedObject.parentStory) {
+            selectedObject.parentStory.insertionPoints[-1].contents = textToApply;
+            return;
+        }
+
+        /* 挿入ポイントのみのときはその位置へ挿入 / Insert at the caret when only an insertion point is active */
+        if (selectedObject.hasOwnProperty("insertionPoints")) {
+            selectedObject.insertionPoints[0].contents = textToApply;
+            return;
+        }
+
+        alert(getLabel(LABELS.alert.noTextTarget));
     }
 
     /**
@@ -265,18 +292,14 @@ function setupRow(group, alignment, spacing) {
      * @returns {void}
      */
     function createTextFrameAtPageCenter(textToApply) {
-        var activeDoc  = app.activeDocument;
         var frameWidth = Math.min(Math.max(textToApply.length * NEW_FRAME_WIDTH_PER_CHAR, NEW_FRAME_WIDTH_MIN), NEW_FRAME_WIDTH_MAX);
 
         /* bounds は [上, 左, 下, 右] / bounds is [top, left, bottom, right] */
         var pageBounds = app.activeWindow.activePage.bounds;
-        var centerY = (pageBounds[0] + pageBounds[2]) / 2;
-        var centerX = (pageBounds[1] + pageBounds[3]) / 2;
+        var frameLeft = (pageBounds[1] + pageBounds[3]) / 2 - frameWidth / 2;
+        var frameTop  = (pageBounds[0] + pageBounds[2]) / 2 - NEW_FRAME_HEIGHT / 2;
 
-        var frameLeft = centerX - frameWidth / 2;
-        var frameTop  = centerY - NEW_FRAME_HEIGHT / 2;
-
-        var newTextFrame = activeDoc.textFrames.add();
+        var newTextFrame = app.activeDocument.textFrames.add();
         newTextFrame.geometricBounds = [frameTop, frameLeft, frameTop + NEW_FRAME_HEIGHT, frameLeft + frameWidth];
         newTextFrame.contents = textToApply;
     }
@@ -290,25 +313,37 @@ function setupRow(group, alignment, spacing) {
      * @returns {void}
      */
     function main() {
+        if (app.documents.length === 0) {
+            alert(getLabel(LABELS.alert.noDocument));
+            return;
+        }
+
+        var selectedObject = getSingleSelection();
+
         /* 選択テキストを初期値にする（\n は可視マーカーへ）/ Seed the field with the selected text (\n shown as the marker) */
         var initialText = "";
-        if (app.selection && app.selection.length === 1 && app.selection[0].hasOwnProperty("contents")) {
-            initialText = app.selection[0].contents.replace(/\n/g, SOFT_BREAK_MARKER);
+        if (selectedObject && selectedObject.hasOwnProperty("contents") && typeof selectedObject.contents === "string") {
+            initialText = selectedObject.contents.replace(/\n/g, SOFT_BREAK_MARKER);
         }
 
         var userInput = showMultilineTextDialog(initialText);
         if (!userInput) return;
 
-        var hasSelection = hasEditableTextSelection();
         var normalizedText = normalizeLineBreaks(userInput);
+        var hasTextTarget = isEditableTextTarget(selectedObject);
 
-        app.doScript(function () {
-            if (hasSelection) {
-                replaceTextInSelection(normalizedText);
-            } else {
-                createTextFrameAtPageCenter(normalizedText);
-            }
-        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, localize(LABELS.undo.editText));
+        /* ロックされたフレームなどで DOM への代入が失敗しうる / DOM writes can fail, e.g. on a locked frame */
+        try {
+            app.doScript(function () {
+                if (hasTextTarget) {
+                    applyTextToSelection(selectedObject, normalizedText);
+                } else {
+                    createTextFrameAtPageCenter(normalizedText);
+                }
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undo.editText));
+        } catch (e) {
+            alert(getLabel(LABELS.alert.errorOccurred) + e);
+        }
     }
 
     main();

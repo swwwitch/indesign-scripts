@@ -15,7 +15,7 @@ Edits text in a multi-line dialog, then replaces the selection, inserts at the c
 - Replaces selected text, inserts at an insertion point, or appends to a selected text frame
 - Creates a new text frame at the page centre when nothing is selected
 - Treats `@#` as a visible marker for a forced line break (\n)
-- A Clear All button strips line breaks and markers at once
+- A Remove Breaks button strips line breaks and markers at once
 
 ## Usage
 
@@ -26,17 +26,26 @@ Edits text in a multi-line dialog, then replaces the selection, inserts at the c
 ## Notes and limitations
 
 - Enter in the field inserts a paragraph return (\r).
-- Use the Insert @# button to add a forced line break.
+- Use the Add @# button to add a forced line break (it is appended to the end of the field).
 
 ## Script info
 
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdEditTextsByDialog.jsx` |
-| Version | v0.1.3 |
+| Version | v0.1.4 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-05-28 |
-| Last updated | 2025-06-26 |
+| Last updated | 2026-09-25 |
+
+## Changelog
+
+### v0.1.4 (2026-09-25)
+
+- Renamed the buttons to Remove Breaks / Add @#
+- Added tooltips to the input field and the left-hand buttons
+- Shows a message and exits when no document is open
+- Fixed an error when a single special character was selected
 
 ## License
 
