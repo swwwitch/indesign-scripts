@@ -60,6 +60,7 @@ Does the same as Object > Anchored Object > Release in one pass, without selecti
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-25 |
 | Last updated | 2026-09-25 |
+| Article | https://note.com/dtp_tranist/n/ne3ee16f466bf |
 
 ## Change log
 

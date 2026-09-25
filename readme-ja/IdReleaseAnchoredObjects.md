@@ -60,6 +60,7 @@
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-09-25 |
 | 最終更新 | 2026-09-25 |
+| 紹介記事 | https://note.com/dtp_tranist/n/ne3ee16f466bf |
 
 ## 更新履歴
 
