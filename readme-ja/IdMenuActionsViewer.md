@@ -87,7 +87,7 @@ Peter Kahrel 氏の `menu_actions.jsx` をもとにしています。便利な�
 
 ## ライセンス
 
-原作 `menu_actions.jsx` の著作権は Peter Kahrel 氏に帰属します。改変版は、原作者の許可を得て MIT License で公開しています。
+原作 `menu_actions.jsx` の著作権は Peter Kahrel 氏に帰属します。改変版の公開について、現在、原作者に許可を確認中です。許可が得られた場合は、改変部分を MIT License で公開します。
 
 - 改変部分：Copyright (c) 2026 Masahiro Takano (@swwwitch)
 - MIT License — <http://opensource.org/licenses/mit-license.php>

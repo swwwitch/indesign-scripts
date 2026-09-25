@@ -87,7 +87,7 @@ Main changes from the original:
 
 ## License
 
-The original `menu_actions.jsx` is copyright Peter Kahrel. This modified version is released under the MIT License with the permission of the original author.
+The original `menu_actions.jsx` is copyright Peter Kahrel. Permission to publish this modified version is currently being requested from the original author. Once granted, the modifications will be released under the MIT License.
 
 - Modifications: Copyright (c) 2026 Masahiro Takano (@swwwitch)
 - MIT License — <http://opensource.org/licenses/mit-license.php>

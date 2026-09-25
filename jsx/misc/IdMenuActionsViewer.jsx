@@ -50,7 +50,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5038c9d2cc85"; /* ç´¹ä
  * https://creativepro.com/menu_actions/
  *
  * Modifications Copyright (c) 2026 Masahiro Takano (@swwwitch)
- * Released under the MIT license with permission from Peter Kahrel.
+ * Permission from Peter Kahrel is being requested. The MIT license below
+ * applies to the modifications only, once permission is granted.
  * http://opensource.org/licenses/mit-license.php
  */
 
