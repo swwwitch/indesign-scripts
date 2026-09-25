@@ -4,16 +4,21 @@
 
 ### 概要
 
-InDesign のメニューアクションを一覧し、エリア・メニュー・名前・ID で絞り込んで調べます。
+InDesign のメニューアクションを一覧し、カテゴリ・エリア・名前・ID で絞り込んで調べます。
 選択したアクションのキーストリング（$ID/…）と実行コード（app.menuActions.itemByID(…).invoke();）をコピーできます。
+Peter Kahrel 氏の menu_actions.jsx をもとに改変しています。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdMenuActionsViewer.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n5038c9d2cc85
+
 ### Overview
 
-Lists InDesign menu actions and lets you filter them by area, menu, name, and ID.
+Lists InDesign menu actions and lets you filter them by category, area, name, and ID.
 You can copy the key strings ($ID/…) and the invoke code (app.menuActions.itemByID(…).invoke();) of the selected action.
+Based on menu_actions.jsx by Peter Kahrel.
 
 See the README for details.
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdMenuActionsViewer.md
@@ -24,22 +29,29 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdMenuActionsVi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdMenuActionsViewer";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.14";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.24";                      /* バージョン / version */
 var SCRIPT_AUTHOR   = "Peter Kahrel";                 /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-09-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-25";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdMenuActionsViewer.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdMenuActionsViewer.md"; /* README (English) */
-
-// Released under the MIT license
-// http://opensource.org/licenses/mit-license.php
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdMenuActionsViewer.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdMenuActionsViewer.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5038c9d2cc85"; /* 紹介記事 / article URL */
 
 /**
- * @author Peter Kahrel（原作 menu_actions.jsx）
+ * @author Peter Kahrel（原作 menu_actions.jsx / original author）
  * @discussion https://creativepro.com/menu_actions/
  * http://kasyan.ho.com.ua/open_menu_item.html
+ */
+
+/*
+ * Original script: menu_actions.jsx by Peter Kahrel
+ * https://creativepro.com/menu_actions/
+ *
+ * Modifications Copyright (c) 2026 Masahiro Takano (@swwwitch)
+ * Released under the MIT license with permission from Peter Kahrel.
+ * http://opensource.org/licenses/mit-license.php
  */
 
 (function () {
@@ -61,27 +73,24 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     /* ファイル名（最近使用したファイル・スクリプト）/ File names (recent files, scripts) */
     var FILE_NAME_PATTERN = /\.(?:indd|jsx?(?:bin)?)$/i;
 
+    /* 文字・数字を1つも含まない名前（「(」「)」だけなど）の判定用 / Names without any letter or digit */
+    var MEANINGFUL_CHAR_PATTERN = /[0-9A-Za-z\u3040-\u30FF\u3400-\u9FFF\uFF10-\uFF19\uFF21-\uFF5A]/;
+
+    /* ［ウィンドウ］メニューに並ぶドキュメントのウィンドウ名（「名称未設定-1 @ 239%」）/ Document window names */
+    var WINDOW_NAME_PATTERN = /@\s*[\d.]+%/;
+
     /* 除外するエリア（英語版の名称）/ Areas to exclude (English names) */
     var NOISE_AREA_PATTERN = /^(?:Text Selection|Menu:Insert)/i;
 
-    /*
-     * メニューによる絞り込み。エリア名が areaPrefixes のどれかで始まれば対象にする（日本語版・英語版の両方を並べる）
-     * Menu filter: an area matches when it starts with one of areaPrefixes (both Japanese and English names)
-     */
-    var MENU_FILTERS = [
-        { labelKey: "file",      areaPrefixes: ["ファイル", "File"] },
-        { labelKey: "edit",      areaPrefixes: ["編集", "Edit"] },
-        { labelKey: "view",      areaPrefixes: ["表示", "View"] },
-        { labelKey: "format",    areaPrefixes: ["フォーマット", "Format"] },
-        { labelKey: "find",      areaPrefixes: ["検索", "Find"] },
-        { labelKey: "tools",     areaPrefixes: ["ツール", "Tool"] },
-        { labelKey: "window",    areaPrefixes: ["ウィンドウ", "Window"] },
-        { labelKey: "panelMenu", areaPrefixes: ["パネルメニュー", "Panel Menu"] }
-    ];
+    /* エリア名の階層の区切り（「パネルメニュー:スウォッチ」）/ Separator of area levels */
+    var AREA_LEVEL_SEPARATOR = ":";
+
+    /* メニュー関連のカテゴリ（「編集メニュー」「Panel Menus」など）/ Menu-related categories */
+    var MENU_CATEGORY_PATTERN = /メニュー|Menu/;
 
     /* 並び順ラジオボタンの順（リストの列順にそろえる）/ Sort radio order (matches the list columns) */
-    var SORT_KEYS = ["area", "name", "id"];
-    var DEFAULT_SORT_INDEX = 0;
+    var SORT_KEYS = ["name", "area"];
+    var DEFAULT_SORT_INDEX = 1;
 
     // =========================================
     // レイアウト / Layout
@@ -89,7 +98,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     var WINDOW_MARGINS        = 16;              /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING        = 12;              /* ウィンドウ内の要素間隔 / window spacing */
     var LIST_SIZE             = [560, 520];      /* リストの寸法 [幅,高さ] / list size */
-    var COLUMN_WIDTHS         = [70, 470];       /* 列幅（エリア・名前）/ column widths (area, name) */
+    var COLUMN_WIDTHS         = [280, 260];      /* 列幅（名前・エリア）/ column widths (name, area) */
+    var NAME_COLUMN_MAX_CHARS = 20;              /* 1列目に出す名前の最大文字数 / max characters shown in the name column */
     var FILTER_FIELD_WIDTH    = 300;             /* エリア・名前・ID の欄の幅 / width of the area and name/ID fields */
     var ROW_LABEL_WIDTH       = 130;             /* 行ラベルの幅 / row label width */
     var COPY_BUTTON_WIDTH     = 70;              /* ［コピー］ボタンの幅 / width of the Copy buttons */
@@ -119,38 +129,27 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             name:       { ja: "名前", en: "Name" },
             nameOrId:   { ja: "名前・ID", en: "Name / ID" },
             area:       { ja: "エリア", en: "Area" },
-            menu:       { ja: "メニュー", en: "Menu" },
-            id:         { ja: "ID", en: "ID" },
+            category:   { ja: "カテゴリ", en: "Category" },
             sortOrder:  { ja: "並び順", en: "Sort by" },
             keyStrings: { ja: "キーストリング", en: "Key strings" },
             invokeCode: { ja: "実行コード", en: "Invoke code" }
         },
         dropdown: {
             allAreas: { ja: "［すべて］", en: "[All]" },
-            allMenus: { ja: "［すべて］", en: "[All]" }
-        },
-        menuFilter: {
-            file:      { ja: "ファイル", en: "File" },
-            edit:      { ja: "編集", en: "Edit" },
-            view:      { ja: "表示", en: "View" },
-            format:    { ja: "フォーマット", en: "Format" },
-            find:      { ja: "検索", en: "Find" },
-            tools:     { ja: "ツール", en: "Tools" },
-            window:    { ja: "ウィンドウ", en: "Window" },
-            panelMenu: { ja: "パネルメニュー", en: "Panel Menus" }
+            allCategories: { ja: "［すべて］", en: "[All]" }
         },
         button: {
             copy:  { ja: "コピー", en: "Copy" },
             close: { ja: "閉じる", en: "Close" }
         },
         tooltip: {
-            menu: {
-                ja: "エリア名がこのメニュー名で始まるアクションに絞り込みます。エリアの候補も絞られます。",
-                en: "Filters to actions whose area starts with this menu name. The area choices are narrowed as well."
+            category: {
+                ja: "エリア名の「:」より前の部分（編集メニュー、パネルメニューなど）で絞り込みます。エリアの候補も絞られます。",
+                en: "Filters by the part of the area name before \":\" (Edit Menu, Panel Menus, etc.). The area choices are narrowed as well."
             },
             nameOrId: {
-                ja: "名前に含まれる文字で絞り込みます（大文字小文字を区別しません）。正規表現も使えます。数字だけを入れると、その ID のアクションも対象にします。Enter で確定します。",
-                en: "Filters by text contained in the name (case-insensitive). Regular expressions are allowed. Digits only also match the action with that ID. Press Enter to apply."
+                ja: "名前に含まれる文字で絞り込みます（大文字小文字を区別しません）。正規表現も使えます。数字だけを入れると、その ID のアクションも対象にします。入力するたびに絞り込みます。",
+                en: "Filters by text contained in the name (case-insensitive). Regular expressions are allowed. Digits only also match the action with that ID. The list is filtered as you type."
             },
             copyKeyStrings: {
                 ja: "選択したアクション名に対応するキーストリング（$ID/…）をクリップボードにコピーします。複数ある場合は「 | 」で区切ります。",
@@ -217,6 +216,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             return false;
         }
         return (actionId >= NOISE_ID_MIN && actionId <= NOISE_ID_MAX)
+            || !MEANINGFUL_CHAR_PATTERN.test(actionName)
+            || WINDOW_NAME_PATTERN.test(actionName)
             || FILE_NAME_PATTERN.test(actionName)
             || NOISE_AREA_PATTERN.test(areaName);
     }
@@ -282,14 +283,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     /**
      * 並べ替え用の文字列キーを作る（同順位は名前・ID で決める）
      * @param {ActionEntry} actionEntry - 対象のアクション
-     * @param {string} sortKey - "name" / "area" / "id"
+     * @param {string} sortKey - "name" / "area"
      * @returns {string} 並べ替えキー
      */
     function buildSortKey(actionEntry, sortKey) {
         var paddedId = padActionId(actionEntry.id);
-        if (sortKey === "id") {
-            return paddedId;
-        }
         var nameKey = actionEntry.name + SORT_KEY_SEPARATOR + paddedId;
         return (sortKey === "area") ? actionEntry.area + SORT_KEY_SEPARATOR + nameKey : nameKey;
     }
@@ -298,7 +296,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
      * 指定したキーでアクションを並べ替える
      * 比較関数を渡すと ExtendScript では数秒かかるため、文字列キーを組み込みの sort() で並べる
      * @param {ActionEntry[]} entries - 並べ替えるアクションの一覧（直接並べ替える）
-     * @param {string} sortKey - "name" / "area" / "id"
+     * @param {string} sortKey - "name" / "area"
      * @returns {void}
      */
     function sortActions(entries, sortKey) {
@@ -336,33 +334,42 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * エリア名がメニューの絞り込み条件に合うか判定する
+     * エリア名からカテゴリ（「:」より前の部分）を取り出す
      * @param {string} areaName - エリア名
-     * @param {Object|null} menuFilter - MENU_FILTERS の要素。null ならすべて
-     * @returns {boolean} 合えば true
+     * @returns {string} カテゴリ名
      */
-    function matchesMenuFilter(areaName, menuFilter) {
-        if (menuFilter === null) {
-            return true;
-        }
-        for (var i = 0; i < menuFilter.areaPrefixes.length; i++) {
-            if (areaName.indexOf(menuFilter.areaPrefixes[i]) === 0) {
-                return true;
-            }
-        }
-        return false;
+    function getCategoryName(areaName) {
+        return areaName.split(AREA_LEVEL_SEPARATOR)[0];
     }
 
     /**
-     * メニューの絞り込み条件に合うエリア名だけを返す
+     * エリア名の一覧からカテゴリ名を重複なく昇順で返す
      * @param {string[]} areaNames - エリア名の一覧
-     * @param {Object|null} menuFilter - MENU_FILTERS の要素。null ならすべて
+     * @returns {string[]} カテゴリ名の一覧
+     */
+    function collectCategoryNames(areaNames) {
+        var seen = {};
+        var categoryNames = [];
+        for (var i = 0; i < areaNames.length; i++) {
+            var categoryName = getCategoryName(areaNames[i]);
+            if (!seen[categoryName]) {
+                seen[categoryName] = true;
+                categoryNames.push(categoryName);
+            }
+        }
+        return categoryNames.sort();
+    }
+
+    /**
+     * 指定したカテゴリに属するエリア名だけを返す
+     * @param {string[]} areaNames - エリア名の一覧
+     * @param {string|null} categoryName - カテゴリ名。null ならすべて
      * @returns {string[]} 条件に合うエリア名
      */
-    function filterAreaNames(areaNames, menuFilter) {
+    function filterAreaNames(areaNames, categoryName) {
         var matched = [];
         for (var i = 0; i < areaNames.length; i++) {
-            if (matchesMenuFilter(areaNames[i], menuFilter)) {
+            if (categoryName === null || getCategoryName(areaNames[i]) === categoryName) {
                 matched.push(areaNames[i]);
             }
         }
@@ -370,14 +377,14 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * 名前・ID、エリア、メニューの条件で絞り込む
+     * 名前・ID、カテゴリ、エリアの条件で絞り込む
      * @param {ActionEntry[]} entries - アクションの一覧
      * @param {string} searchText - 名前の検索文字列（数字だけなら ID とも照合する）
+     * @param {string|null} categoryName - カテゴリ名。null ならすべて
      * @param {string|null} areaName - エリア名。null ならすべて
-     * @param {Object|null} menuFilter - MENU_FILTERS の要素。null ならすべて
      * @returns {ActionEntry[]} 条件に合うアクション
      */
-    function filterActions(entries, searchText, areaName, menuFilter) {
+    function filterActions(entries, searchText, categoryName, areaName) {
         var trimmedText = searchText.replace(/^\s+|\s+$/g, "");
         var namePattern = buildNamePattern(trimmedText);
         var idText = /^\d+$/.test(trimmedText) ? trimmedText : null;
@@ -390,7 +397,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             if (areaName !== null && entries[i].area !== areaName) {
                 continue;
             }
-            if (!matchesMenuFilter(entries[i].area, menuFilter)) {
+            if (categoryName !== null && getCategoryName(entries[i].area) !== categoryName) {
                 continue;
             }
             matched.push(entries[i]);
@@ -419,6 +426,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
+     * 1列目に出す名前を切り詰める
+     * Mac の ScriptUI は1列目の幅を中身の最も長い文字列まで広げ、columnWidths を無視するため
+     * @param {string} actionName - アクション名
+     * @returns {string} 長い場合は末尾を「…」にした名前
+     */
+    function truncateForNameColumn(actionName) {
+        return (actionName.length > NAME_COLUMN_MAX_CHARS)
+            ? actionName.substring(0, NAME_COLUMN_MAX_CHARS - 1) + "…"
+            : actionName;
+    }
+
+    /**
      * アクションを実行するコードを作る
      * @param {ActionEntry} actionEntry - 対象のアクション
      * @returns {string} app.menuActions.itemByID(…).invoke(); 形式のコード
@@ -435,7 +454,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
      * 進行状況バーの小さなパレットを表示する
      * @param {Object} messageSet - 表示する文言
      * @param {number} maxValue - バーの最大値
-     * @returns {{update: function(number): void, reset: function(Object, number): void, close: function(): void}} 操作用の関数
+     * @returns {{update: function(number): void, reset: function(Object, number): void, close: function(): void}} 操作用の関数（close は2回呼んでもよい）
      */
     function createProgressWindow(messageSet, maxValue) {
         var progressPalette = new Window("palette", getLabel(LABELS.dialog.title));
@@ -449,6 +468,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 
         progressPalette.show();
         progressPalette.update();
+        var isClosed = false;
 
         return {
             update: function (value) {
@@ -462,7 +482,10 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
                 progressPalette.update();
             },
             close: function () {
-                progressPalette.close();
+                if (!isClosed) {
+                    isClosed = true;
+                    progressPalette.close();
+                }
             }
         };
     }
@@ -491,18 +514,18 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * エリア・名前の2列のリストを作る（ID は実行コードの欄で確認する）
+     * 名前・エリアの2列のリストを作る（ID は実行コードの欄で確認する）
      * @param {Group} parent - 追加先
      * @returns {ListBox} アクション一覧
      */
     function buildActionList(parent) {
-        var actionList = parent.add("listbox", undefined, "", {
+        var actionList = parent.add("listbox", [0, 0, LIST_SIZE[0], LIST_SIZE[1]], "", {
             multiselect: false,
             numberOfColumns: 2,
             showHeaders: true,
             columnTitles: [
-                getLabel(LABELS.fieldLabel.area),
-                getLabel(LABELS.fieldLabel.name)
+                getLabel(LABELS.fieldLabel.name),
+                getLabel(LABELS.fieldLabel.area)
             ],
             columnWidths: COLUMN_WIDTHS
         });
@@ -526,24 +549,49 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * リスト上の絞り込み条件（エリア・メニュー・名前と ID・並び順）の行を作る
+     * カテゴリのドロップダウンを作る（［すべて］→ メニュー関連 → 区切り線 → それ以外）
+     * @param {DropDownList} categoryDropdown - カテゴリのドロップダウン
+     * @param {string[]} categoryNames - カテゴリ名の一覧（昇順）
+     * @returns {void}
+     */
+    function fillCategoryDropdown(categoryDropdown, categoryNames) {
+        var menuCategories = [];
+        var otherCategories = [];
+        for (var i = 0; i < categoryNames.length; i++) {
+            if (MENU_CATEGORY_PATTERN.test(categoryNames[i])) {
+                menuCategories.push(categoryNames[i]);
+            } else {
+                otherCategories.push(categoryNames[i]);
+            }
+        }
+        categoryDropdown.add("item", getLabel(LABELS.dropdown.allCategories));
+        for (var j = 0; j < menuCategories.length; j++) {
+            categoryDropdown.add("item", menuCategories[j]);
+        }
+        if (menuCategories.length > 0 && otherCategories.length > 0) {
+            categoryDropdown.add("separator");
+        }
+        for (var k = 0; k < otherCategories.length; k++) {
+            categoryDropdown.add("item", otherCategories[k]);
+        }
+    }
+
+    /**
+     * リスト上の絞り込み条件（カテゴリ・エリア・名前と ID・並び順）の行を作る
      * @param {Group} parent - 追加先
      * @param {string[]} areaNames - エリア名の一覧
-     * @returns {{areaDropdown: DropDownList, menuDropdown: DropDownList, searchInput: EditText, sortRadios: RadioButton[]}} 作成した部品
+     * @returns {{categoryDropdown: DropDownList, areaDropdown: DropDownList, searchInput: EditText, sortRadios: RadioButton[]}} 作成した部品
      */
     function buildFilterRows(parent, areaNames) {
+        var categoryDropdown = addFieldRow(parent, LABELS.fieldLabel.category).add("dropdownlist", undefined, []);
+        fillCategoryDropdown(categoryDropdown, collectCategoryNames(areaNames));
+        categoryDropdown.preferredSize.width = FILTER_FIELD_WIDTH;
+        categoryDropdown.helpTip = getLabel(LABELS.tooltip.category);
+        categoryDropdown.selection = 0;
+
         var areaDropdown = addFieldRow(parent, LABELS.fieldLabel.area).add("dropdownlist", undefined, []);
         areaDropdown.preferredSize.width = FILTER_FIELD_WIDTH;
         fillAreaDropdown(areaDropdown, areaNames);
-
-        var menuItems = [getLabel(LABELS.dropdown.allMenus)];
-        for (var i = 0; i < MENU_FILTERS.length; i++) {
-            menuItems.push(getLabel(LABELS.menuFilter[MENU_FILTERS[i].labelKey]));
-        }
-        var menuDropdown = addFieldRow(parent, LABELS.fieldLabel.menu).add("dropdownlist", undefined, menuItems);
-        menuDropdown.preferredSize.width = FILTER_FIELD_WIDTH;
-        menuDropdown.helpTip = getLabel(LABELS.tooltip.menu);
-        menuDropdown.selection = 0;
 
         var searchInput = addFieldRow(parent, LABELS.fieldLabel.nameOrId).add("edittext", undefined, "");
         searchInput.preferredSize.width = FILTER_FIELD_WIDTH;
@@ -559,8 +607,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
         sortRadios[DEFAULT_SORT_INDEX].value = true;
 
         return {
+            categoryDropdown: categoryDropdown,
             areaDropdown: areaDropdown,
-            menuDropdown: menuDropdown,
             searchInput: searchInput,
             sortRadios: sortRadios
         };
@@ -592,16 +640,19 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
     }
 
     /**
-     * ボタンエリア（右端に［閉じる］）を作る
+     * ボタンエリア（右端に［閉じる］）を作る。［閉じる］はデフォルトボタン兼キャンセルボタン
      * @param {Window} dialogWindow - 追加先のダイアログ
-     * @returns {void}
+     * @returns {Button} ［閉じる］ボタン
      */
     function buildButtonRow(dialogWindow) {
         var btnRowGroup = dialogWindow.add("group");
         btnRowGroup.orientation = "row";
         btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
         btnRowGroup.alignment = ["right", "bottom"];
-        btnRowGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
+        var btnClose = btnRowGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
+        dialogWindow.defaultElement = btnClose;
+        dialogWindow.cancelElement = btnClose;
+        return btnClose;
     }
 
     // =========================================
@@ -643,6 +694,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
      */
     function showMainDialog(allActions, progressWindow) {
         var visibleActions = [];
+        var lastSearchText = "";
 
         var mainDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         mainDialog.orientation = "column";
@@ -667,7 +719,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
         }
 
         /**
-         * 選択が変わったら詳細欄を空にし、選択の有無でボタンの有効／無効を切り替える
+         * 選択中のアクションのキーストリングと実行コードを詳細欄に出し、［コピー］の有効／無効を切り替える
          * @returns {void}
          */
         function updateDetailRows() {
@@ -684,29 +736,30 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
         }
 
         /**
-         * 選択中のメニューの絞り込み条件を返す
-         * @returns {Object|null} MENU_FILTERS の要素。［すべて］なら null
+         * ドロップダウンの選択を返す（先頭の［すべて］なら null）
+         * @param {DropDownList} dropdown - 対象のドロップダウン
+         * @returns {string|null} 選択中の項目名
          */
-        function getSelectedMenuFilter() {
-            var menuIndex = filterControls.menuDropdown.selection.index;
-            return (menuIndex === 0) ? null : MENU_FILTERS[menuIndex - 1];
+        function getDropdownFilterValue(dropdown) {
+            return (dropdown.selection.index === 0) ? null : dropdown.selection.text;
         }
 
         /**
-         * メニューを変えたら、エリアの候補を絞り直して一覧を作り直す
+         * カテゴリを変えたら、エリアの候補を絞り直して一覧を作り直す
          * @returns {void}
          */
-        function handleMenuChange() {
+        function handleCategoryChange() {
             /* 項目の入れ替えで onChange が走らないよう外しておく / Detach so refilling does not fire onChange */
             filterControls.areaDropdown.onChange = null;
-            fillAreaDropdown(filterControls.areaDropdown, filterAreaNames(allAreaNames, getSelectedMenuFilter()));
+            fillAreaDropdown(filterControls.areaDropdown,
+                filterAreaNames(allAreaNames, getDropdownFilterValue(filterControls.categoryDropdown)));
             filterControls.areaDropdown.onChange = handleFilterChange;
             refreshList(null);
         }
 
         /**
          * 選択中の並び順のキーを返す
-         * @returns {string} "area" / "name" / "id"
+         * @returns {string} "name" / "area"
          */
         function getSelectedSortKey() {
             for (var i = 0; i < filterControls.sortRadios.length; i++) {
@@ -723,9 +776,9 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
          * @returns {void}
          */
         function refreshList(listProgress) {
-            var areaSelection = filterControls.areaDropdown.selection;
-            var areaName = (areaSelection.index === 0) ? null : areaSelection.text;
-            visibleActions = filterActions(allActions, filterControls.searchInput.text, areaName, getSelectedMenuFilter());
+            lastSearchText = filterControls.searchInput.text;
+            visibleActions = filterActions(allActions, filterControls.searchInput.text,
+                getDropdownFilterValue(filterControls.categoryDropdown), getDropdownFilterValue(filterControls.areaDropdown));
             sortActions(visibleActions, getSelectedSortKey());
 
             if (listProgress) {
@@ -733,8 +786,8 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             }
             actionList.removeAll();
             for (var i = 0; i < visibleActions.length; i++) {
-                var listItem = actionList.add("item", visibleActions[i].area);
-                listItem.subItems[0].text = visibleActions[i].name;
+                var listItem = actionList.add("item", truncateForNameColumn(visibleActions[i].name));
+                listItem.subItems[0].text = visibleActions[i].area;
                 if (listProgress && i % PROGRESS_STEP === 0) {
                     listProgress.update(i);
                 }
@@ -755,10 +808,22 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
             refreshList(null);
         }
 
-        /* 全件の作り直しは重いので確定時に絞り込む / Rebuilding is heavy, so filter on commit */
-        filterControls.searchInput.onChange = handleFilterChange;
+        /**
+         * 名前・ID 欄の文字が前回の絞り込みから変わっていれば一覧を作り直す
+         * （onChanging と onChange の両方から呼ばれても1回で済ませる）
+         * @returns {void}
+         */
+        function applySearchText() {
+            if (filterControls.searchInput.text !== lastSearchText) {
+                refreshList(null);
+            }
+        }
+
+        /* 入力するたびに絞り込む（Enter は［閉じる］に使う）/ Filter as you type (Enter is for Close) */
+        filterControls.searchInput.onChanging = applySearchText;
+        filterControls.searchInput.onChange = applySearchText;
         filterControls.areaDropdown.onChange = handleFilterChange;
-        filterControls.menuDropdown.onChange = handleMenuChange;
+        filterControls.categoryDropdown.onChange = handleCategoryChange;
         for (var i = 0; i < filterControls.sortRadios.length; i++) {
             filterControls.sortRadios[i].onClick = handleFilterChange;
         }
@@ -777,6 +842,11 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 
     /* 読み込み3段階（名前・エリア・ID）/ Three loading steps (names, areas, IDs) */
     var loadingProgress = createProgressWindow(LABELS.progress.loading, 3);
-    showMainDialog(collectActions(loadingProgress), loadingProgress);
+    /* 途中で例外が起きても進行状況ウィンドウを残さない / Never leave the progress window open on error */
+    try {
+        showMainDialog(collectActions(loadingProgress), loadingProgress);
+    } finally {
+        loadingProgress.close();
+    }
 
 }());
