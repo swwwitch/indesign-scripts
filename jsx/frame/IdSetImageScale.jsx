@@ -26,7 +26,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetImageScale
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdSetImageScale";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
@@ -66,6 +66,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
 
     var DEFAULT_ANCHOR_INDEX = 0;    /* 基準点の初期値（0..8 を行優先。0=左上, 4=中央, 8=右下）/ default reference point, row-major 0..8 */
 
+    /* キーボードショートカットの初期値（機能 ID → 「修飾キー+キー」）/ default shortcuts: action ID → "modifiers+key" */
+    var DEFAULT_SHORTCUTS = {
+        "preset:100": "option+1",
+        "fit:margin": "option+0"
+    };
+    /* 管理画面で選べる修飾キー。修飾キーなしは入力欄への文字入力とぶつかるので選べない / selectable modifiers (none would clash with typing) */
+    var SHORTCUT_MODIFIERS = ["option", "control", "control+option"];
+    var SHORTCUT_KEYS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");   /* 管理画面で選べるキー / selectable keys */
+
+    /* InDesign には任意の値を残す環境設定 API が無いので、設定ファイルに key=value で書き出す
+       / InDesign has no scriptable preference store, so settings go to a key=value file */
+    var PREFS_FILE_NAME      = "IdSetImageScale-prefs.txt";
+    var PREF_SHORTCUT_PREFIX = "shortcut.";
+
     // =========================================
     // レイアウト / Layout
     // =========================================
@@ -88,6 +102,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
     var COLUMN_SPACING         = 10;   /* ボタン類の2カラムの間隔 / gap between the button columns */
     var COLUMN_PANEL_MARGINS   = [10, 16, 10, 10];   /* カラムのパネル余白 [左,上,右,下] / column panel margins */
     var ANCHOR_PANEL_MARGINS   = [4, 10, 4, 0];      /* 基準点パネルの余白 [左,上,右,下]。9軸自体に余白があるので詰める / anchor panel margins; the widget has its own padding */
+    var SHORTCUT_LABEL_WIDTH   = 80;   /* 管理画面の機能名の幅 / action label width in the Manage dialog */
+    var BUTTON_ROW_TOP_MARGIN  = 4;    /* 管理画面のボタン行の上余白 / top margin of the Manage dialog button row */
 
     // =========================================
     // ラベル定義 / Labels
@@ -107,6 +123,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
         palette: {
             title: { ja: "画像の縮尺率とフレームの合わせ", en: "Scale Images and Fit Frames" }
         },
+        manageDialog: {
+            title: { ja: "管理：キーボードショートカット", en: "Manage: Keyboard Shortcuts" }
+        },
         field: {
             scale:        { ja: "縮尺率", en: "Scale" },
             width:        { ja: "幅", en: "Width" },
@@ -121,16 +140,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
         value: {
             mixed:    { ja: "混在", en: "Mixed" },
             perFrame: { ja: "個別", en: "Varies" },
-            none:     { ja: "—", en: "—" }
+            none:     { ja: "—", en: "—" },
+            noModifier: { ja: "なし", en: "None" }
         },
         checkbox: {
             roundToInteger: { ja: "縮尺率を整数に丸める", en: "Round scale to whole numbers" }
         },
         button: {
             fitMargin:    { ja: "マージン幅", en: "Margins" },
-            fitTextFrame: { ja: "親フレーム", en: "Parent Frame" }
+            fitTextFrame: { ja: "親フレーム", en: "Parent Frame" },
+            manage:       { ja: "管理", en: "Manage" },
+            cancel:       { ja: "キャンセル", en: "Cancel" },
+            ok:           { ja: "OK", en: "OK" }
         },
         tooltip: {
+            manage: { ja: "キーボードショートカットを設定する管理画面を表示します。", en: "Opens the window for setting keyboard shortcuts." },
+            shortcutModifier: { ja: "修飾キー。「なし」でショートカットを外します。", en: "Modifier keys. Choose None to remove the shortcut." },
+            shortcutKey: { ja: "組み合わせるキー", en: "Key to combine with the modifiers" },
             scale: {
                 ja: "画像の縦横の縮尺率。適用後、フレームを画像のサイズに合わせます。\n↑↓で1、shift+↑↓で10ずつ増減します。",
                 en: "Horizontal and vertical scale of the image. Frames are then fitted to the image.\nUse Up/Down to change by 1, or shift+Up/Down by 10."
@@ -179,6 +205,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
             }
         },
         alert: {
+            duplicateShortcut: {
+                ja: "同じショートカットが複数の機能に割り当てられています：",
+                en: "The same shortcut is assigned to more than one action:"
+            },
             noDocument:    { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             noTargetFrame: {
                 ja: "選択範囲に対象のフレームがありません。\n画像（またはPDF）を1点だけ配置した長方形フレームを選択してください。",
@@ -646,6 +676,250 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
     }
 
     /**
+     * ショートカットを割り当てられる機能の一覧を返す（増減・幅に合わせる・プリセット）
+     * @returns {Array} { id, kind, value, labelText, groupLabel } の配列
+     */
+    function getShortcutActions() {
+        var shortcutActions = [];
+
+        /**
+         * 機能を一覧に加える
+         * @param {string} kind "step"／"fit"／"preset"
+         * @param {number|string} value 増減量・FIT_MODE の値・縮尺率
+         * @param {string} labelString 管理画面に出す機能名
+         * @param {object} groupLabel 所属するパネルのラベル
+         * @returns {void}
+         */
+        function addAction(kind, value, labelString, groupLabel) {
+            shortcutActions.push({ id: kind + ":" + value, kind: kind, value: value, labelText: labelString, groupLabel: groupLabel });
+        }
+        for (var i = 0; i < SCALE_STEPS.length; i++) {
+            addAction("step", SCALE_STEPS[i], (SCALE_STEPS[i] > 0 ? "+" : "\u2212") + Math.abs(SCALE_STEPS[i]), LABELS.field.step);
+        }
+        addAction("fit", FIT_MODE.margin, getLabel(LABELS.button.fitMargin), LABELS.field.fitWidth);
+        addAction("fit", FIT_MODE.textFrame, getLabel(LABELS.button.fitTextFrame), LABELS.field.fitWidth);
+        for (var j = 0; j < SCALE_PRESETS.length; j++) {
+            addAction("preset", SCALE_PRESETS[j], SCALE_PRESETS[j] + "%", LABELS.field.preset);
+        }
+        return shortcutActions;
+    }
+
+    /**
+     * 設定ファイルを返す
+     * @returns {File} 設定ファイル
+     */
+    function getPrefsFile() {
+        return File(Folder.userData.fsName + "/" + PREFS_FILE_NAME);
+    }
+
+    /**
+     * ショートカットの割り当てを読み出す。記録の無い機能は初期値にする
+     * @returns {Object<string, string>} 機能 ID → 「修飾キー+キー」（未割り当ては ""）
+     */
+    function loadShortcuts() {
+        var shortcuts = {};
+        for (var actionId in DEFAULT_SHORTCUTS) {
+            if (DEFAULT_SHORTCUTS.hasOwnProperty(actionId)) shortcuts[actionId] = DEFAULT_SHORTCUTS[actionId];
+        }
+
+        var prefsFile = getPrefsFile();
+        prefsFile.encoding = "UTF-8";
+        if (!prefsFile.exists || !prefsFile.open("r")) return shortcuts;
+        var lines = prefsFile.read().split("\n");
+        prefsFile.close();
+
+        for (var i = 0; i < lines.length; i++) {
+            var separatorIndex = lines[i].indexOf("=");
+            if (separatorIndex < 0 || lines[i].indexOf(PREF_SHORTCUT_PREFIX) !== 0) continue;
+            shortcuts[lines[i].substring(PREF_SHORTCUT_PREFIX.length, separatorIndex)] = lines[i].substring(separatorIndex + 1);
+        }
+        return shortcuts;
+    }
+
+    /**
+     * ショートカットの割り当てを設定ファイルに書き出す（未割り当ても "" で残し、初期値に戻らないようにする）
+     * @param {Object<string, string>} shortcuts 機能 ID → 「修飾キー+キー」
+     * @returns {void}
+     */
+    function saveShortcuts(shortcuts) {
+        var shortcutActions = getShortcutActions();
+        var lines = [];
+        for (var i = 0; i < shortcutActions.length; i++) {
+            lines.push(PREF_SHORTCUT_PREFIX + shortcutActions[i].id + "=" + (shortcuts[shortcutActions[i].id] || ""));
+        }
+
+        /* 保存できなくてもこのセッションでは使えるので、書き出せたかどうかは見ない / A failed save still works for this session */
+        var prefsFile = getPrefsFile();
+        prefsFile.encoding = "UTF-8";
+        if (!prefsFile.open("w")) return;
+        prefsFile.write(lines.join("\n"));
+        prefsFile.close();
+    }
+
+    /**
+     * 押されたキーを「修飾キー+キー」の文字列にする
+     * @param {KeyboardEvent} event keydown のイベント
+     * @returns {string} 例："option+1"。修飾キーが無ければ ""
+     */
+    function getPressedShortcut(event) {
+        var keyboardState = ScriptUI.environment.keyboardState;
+        var modifiers = [];
+        if (keyboardState.ctrlKey) modifiers.push("control");
+        if (keyboardState.altKey) modifiers.push("option");
+        if (modifiers.length === 0 || !event.keyName) return "";
+        return modifiers.join("+") + "+" + String(event.keyName).toUpperCase();
+    }
+
+    /**
+     * 押されたキーに割り当てた機能を探す
+     * @param {Object<string, string>} shortcuts 機能 ID → 「修飾キー+キー」
+     * @param {string} pressedShortcut getPressedShortcut() の戻り値
+     * @returns {object|null} getShortcutActions() の要素。割り当てが無ければ null
+     */
+    function findShortcutAction(shortcuts, pressedShortcut) {
+        if (pressedShortcut === "") return null;
+        var shortcutActions = getShortcutActions();
+        for (var i = 0; i < shortcutActions.length; i++) {
+            if (shortcuts[shortcutActions[i].id] === pressedShortcut) return shortcutActions[i];
+        }
+        return null;
+    }
+
+    /**
+     * 管理画面の1行（機能名・修飾キー・キー）を追加する
+     * @param {Panel} parent 追加先のパネル
+     * @param {object} shortcutAction getShortcutActions() の要素
+     * @param {string} shortcut 今の割り当て（未割り当ては ""）
+     * @returns {{modifierList: DropDownList, keyList: DropDownList}} 追加した選択欄
+     */
+    function addShortcutRow(parent, shortcutAction, shortcut) {
+        var rowGroup = parent.add("group");
+        rowGroup.orientation = "row";
+        rowGroup.alignChildren = ["left", "center"];
+        var actionLabel = rowGroup.add("statictext", undefined, shortcutAction.labelText);
+        actionLabel.preferredSize.width = SHORTCUT_LABEL_WIDTH;
+        actionLabel.justify = "right";
+
+        var modifierList = rowGroup.add("dropdownlist", undefined, [getLabel(LABELS.value.noModifier)].concat(SHORTCUT_MODIFIERS));
+        modifierList.helpTip = getLabel(LABELS.tooltip.shortcutModifier);
+        var keyList = rowGroup.add("dropdownlist", undefined, SHORTCUT_KEYS);
+        keyList.helpTip = getLabel(LABELS.tooltip.shortcutKey);
+
+        /* 「修飾キー+キー」を分ける（キーは最後の + の後）/ the key follows the last "+" */
+        var separatorIndex = shortcut.lastIndexOf("+");
+        var modifierIndex = -1;
+        var keyIndex = -1;
+        if (separatorIndex > 0) {
+            var modifierText = shortcut.substring(0, separatorIndex);
+            var keyText = shortcut.substring(separatorIndex + 1);
+            for (var i = 0; i < SHORTCUT_MODIFIERS.length; i++) {
+                if (SHORTCUT_MODIFIERS[i] === modifierText) modifierIndex = i;
+            }
+            for (var j = 0; j < SHORTCUT_KEYS.length; j++) {
+                if (SHORTCUT_KEYS[j] === keyText) keyIndex = j;
+            }
+        }
+        var isAssigned = (modifierIndex >= 0 && keyIndex >= 0);
+        modifierList.selection = isAssigned ? modifierIndex + 1 : 0;
+        keyList.selection = isAssigned ? keyIndex : 0;
+        keyList.enabled = isAssigned;
+        modifierList.onChange = function () { keyList.enabled = (modifierList.selection.index > 0); };
+
+        return { modifierList: modifierList, keyList: keyList };
+    }
+
+    /**
+     * キーボードショートカットを設定する管理画面を表示する
+     * @param {Object<string, string>} shortcuts 今の割り当て（機能 ID → 「修飾キー+キー」）
+     * @returns {Object<string, string>|null} OK なら新しい割り当て、キャンセルなら null
+     */
+    function showManageDialog(shortcuts) {
+        var shortcutActions = getShortcutActions();
+
+        var manageDialog = new Window("dialog", getLabel(LABELS.manageDialog.title));
+        manageDialog.orientation = "column";
+        manageDialog.alignChildren = "fill";
+        manageDialog.margins = PALETTE_MARGINS;
+        manageDialog.spacing = PALETTE_SPACING;
+
+        /* パレットと同じ並び（左：増減＋幅に合わせる／右：プリセット）/ Same layout as the palette */
+        var columnsGroup = manageDialog.add("group");
+        columnsGroup.orientation = "row";
+        columnsGroup.alignChildren = ["fill", "top"];
+        columnsGroup.spacing = COLUMN_SPACING;
+        var leftColumnGroup = columnsGroup.add("group");
+        leftColumnGroup.orientation = "column";
+        leftColumnGroup.alignChildren = ["fill", "top"];
+        leftColumnGroup.spacing = COLUMN_SPACING;
+        var groupPanels = {};
+        groupPanels.step = addColumnPanel(leftColumnGroup, LABELS.field.step);
+        groupPanels.fit = addColumnPanel(leftColumnGroup, LABELS.field.fitWidth);
+        groupPanels.preset = addColumnPanel(columnsGroup, LABELS.field.preset);
+
+        var shortcutRows = [];
+        for (var i = 0; i < shortcutActions.length; i++) {
+            shortcutRows.push(addShortcutRow(groupPanels[shortcutActions[i].kind], shortcutActions[i], shortcuts[shortcutActions[i].id] || ""));
+        }
+
+        var btnRowGroup = manageDialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = btnRightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+
+        var nextShortcuts = null;
+
+        /**
+         * 選択欄から割り当てを読む
+         * @returns {Object<string, string>} 機能 ID → 「修飾キー+キー」
+         */
+        function readShortcutRows() {
+            var readShortcuts = {};
+            for (var k = 0; k < shortcutActions.length; k++) {
+                var modifierIndex = shortcutRows[k].modifierList.selection.index;
+                readShortcuts[shortcutActions[k].id] = (modifierIndex > 0)
+                    ? SHORTCUT_MODIFIERS[modifierIndex - 1] + "+" + shortcutRows[k].keyList.selection.text
+                    : "";
+            }
+            return readShortcuts;
+        }
+
+        /* 同じキーの重複があれば閉じずに知らせる / Keep the dialog open on duplicates */
+        btnOK.onClick = function () {
+            var readShortcuts = readShortcutRows();
+            var ownerLabels = {};
+            var duplicateLines = [];
+            for (var k = 0; k < shortcutActions.length; k++) {
+                var shortcut = readShortcuts[shortcutActions[k].id];
+                if (shortcut === "") continue;
+                var actionName = getLabel(shortcutActions[k].groupLabel) + " " + shortcutActions[k].labelText;
+                if (ownerLabels.hasOwnProperty(shortcut)) {
+                    duplicateLines.push(shortcut + "\uFF1A" + ownerLabels[shortcut] + " / " + actionName);
+                } else {
+                    ownerLabels[shortcut] = actionName;
+                }
+            }
+            if (duplicateLines.length > 0) {
+                alert(getLabel(LABELS.alert.duplicateShortcut) + "\n" + duplicateLines.join("\n"));
+                return;
+            }
+            nextShortcuts = readShortcuts;
+            manageDialog.close(1);
+        };
+
+        manageDialog.show();
+        return nextShortcuts;
+    }
+
+    /**
      * 縮尺率を入力するパレットを表示する（変更はその場でドキュメントに反映）
      * InDesign はモーダルダイアログの表示中にドキュメントを変更できない（Error 30486）ため、パレットにしている
      * @param {object} initialState readSelectionState() の戻り値
@@ -715,11 +989,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
         btnFitMargin.helpTip = getLabel(LABELS.tooltip.fitMargin);
         btnFitTextFrame.helpTip = getLabel(LABELS.tooltip.fitTextFrame);
 
-        /* パレットの一番下 / At the bottom of the palette */
-        var roundCheckbox = scalePalette.add("checkbox", undefined, getLabel(LABELS.checkbox.roundToInteger));
+        /* パレットの一番下（左：丸め／右：管理）/ At the bottom: rounding on the left, Manage on the right */
+        var btnRowGroup = scalePalette.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.alignChildren = ["left", "center"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var roundCheckbox = btnLeftGroup.add("checkbox", undefined, getLabel(LABELS.checkbox.roundToInteger));
         roundCheckbox.value = true;
         roundCheckbox.helpTip = getLabel(LABELS.tooltip.roundToInteger);
 
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        var btnManage = btnRightGroup.add("button", undefined, getLabel(LABELS.button.manage));
+        btnManage.helpTip = getLabel(LABELS.tooltip.manage);
+        btnManage.onClick = function () {
+            var nextShortcuts = showManageDialog(shortcuts);
+            if (nextShortcuts === null) return;
+            shortcuts = nextShortcuts;
+            saveShortcuts(shortcuts);
+        };
+
+        var shortcuts = loadShortcuts();
         var scalePreview = null;
         var isChangingDocument = false;   /* 変更・取り消しの最中は選択の変更イベントを無視する / ignore selection events while applying or undoing */
         var anchorWidget = addAnchorWidget(anchorPanel, function () { refreshPreview(); });
@@ -821,6 +1118,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
         }
 
         /**
+         * 縮尺率を増減して掛け直す（欄が空・無効なら今の縮尺率から）
+         * @param {number} delta 増減量
+         * @returns {void}
+         */
+        function stepScale(delta) {
+            var value = Number(scaleInput.text);
+            setScaleValue(stepScaleValue(isNaN(value) ? selectionState.initialPercent : value, delta, roundCheckbox.value));
+        }
+
+        /**
          * 幅に合わせる基準を選び、掛け直す
          * @param {string} fitMode FIT_MODE の値
          * @returns {void}
@@ -881,10 +1188,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
         addValueButtons(stepPanel, SCALE_STEPS,
             function (delta) { return (delta > 0 ? "+" : "\u2212") + Math.abs(delta); },
             getLabel(LABELS.tooltip.step),
-            function (delta) {
-                var value = Number(scaleInput.text);
-                setScaleValue(stepScaleValue(isNaN(value) ? selectionState.initialPercent : value, delta, roundCheckbox.value));
-            },
+            stepScale,
             STEPS_PER_ROW);
         addValueButtons(presetPanel, SCALE_PRESETS,
             function (presetPercent) { return presetPercent + "%"; },
@@ -901,6 +1205,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
         }, function () {
             activeFitMode = null;
             refreshPreview();
+        });
+
+        /* 管理画面で割り当てたショートカット（欄に「¡」などが入らないよう既定の入力は止める） */
+        /* Shortcuts set in the Manage dialog (suppress the typed character such as "¡") */
+        scalePalette.addEventListener("keydown", function (event) {
+            var shortcutAction = findShortcutAction(shortcuts, getPressedShortcut(event));
+            if (shortcutAction === null) return;
+            event.preventDefault();
+            if (shortcutAction.kind === "step") {
+                stepScale(shortcutAction.value);
+            } else if (shortcutAction.kind === "fit") {
+                /* ボタンが使えない選択では何もしない / skip when the fit button is disabled */
+                if (!canFitAny(selectionState.scaleTargets, shortcutAction.value)) return;
+                selectFitMode(shortcutAction.value);
+            } else {
+                setScaleValue(shortcutAction.value);
+            }
         });
 
         /* 選択が変わったら自動で読み込み直す（対象が同じなら何もしない。警告も出さない） */

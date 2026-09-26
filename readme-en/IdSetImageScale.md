@@ -24,7 +24,7 @@ Changes are applied to the document as you edit, so you can check the look and r
 - **PPI**: "actual PPI → [effective PPI field]" (e.g. 144 → [360]), matching Actual PPI and Effective PPI (horizontal) in the Links panel. Type a PPI to scale each image to that resolution
 - **Pixel size**: width × height of the image in pixels
 
-The Scale, Width, Height and PPI fields are linked: changing one updates the others. In every field, Up/Down arrow keys change the value by 1, add Shift to change it by 10.
+The Scale, Width, Height and PPI fields are linked: changing one updates the others. In every field, Up/Down arrow keys change the value by 1, add Shift to change it by 10. With Manage at the bottom of the palette, you can assign keyboard shortcuts (Option/Control + a letter or digit) to the Adjust, Fit width and Preset buttons. By default, Option+1 sets the scale to 100% and Option+0 fits to the margins.
 
 ### Setting the scale
 
@@ -73,13 +73,22 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdSetImageScale.jsx` |
-| Version | v1.1.1 |
+| Version | v1.3.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-26 |
 | Last updated | 2026-09-26 |
 | Article | https://note.com/dtp_tranist/n/n91c6a628b7ed |
 
 ## Change log
+
+### v1.3.0 (2026-09-26)
+
+- Added the Manage window for assigning keyboard shortcuts to the Adjust, Fit width and Preset buttons
+- Option+0 fits to the margins (default)
+
+### v1.2.0 (2026-09-26)
+
+- Option+1 sets the scale to 100%
 
 ### v1.1.1 (2026-09-26)
 
