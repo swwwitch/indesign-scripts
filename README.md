@@ -49,3 +49,15 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 - ［番号を削除］ボタンを追加 （クリックすると末尾の番号を削除）
 
 ![](png/ss-1330-1002-72-20250702-034808.png)
+
+## フレーム
+
+### 画像の縮尺率を変更してフレームを合わせる
+
+選択したフレーム内の画像の縮尺率を、パレットで数値・プリセット・マージン幅・親フレームの段幅から指定して変更し、フレームを画像に合わせます。値を変えるとその場でドキュメントに反映され、元のPPI・編集後のPPI・ピクセル寸法も確かめられます。
+
+<img alt="" src="png/ss-642-990-144-20260926-103616.png" width="40%" />
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdSetImageScale.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSetImageScale.md)／[note記事](https://note.com/dtp_tranist/n/n91c6a628b7ed)

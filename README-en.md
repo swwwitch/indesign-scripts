@@ -46,3 +46,15 @@ When the same text is repeated with the same paragraph style, this script append
 ![](png/ss-860-722-72-20250630-045123.png)
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagraphNumbering.jsx
+
+## Frames
+
+### Change image scale and fit the frame
+
+Changes the scale of the image in each selected frame, set from a palette by value, preset, margin width or parent column width, and fits the frame to the image. Changes are applied as you edit, and the palette shows the actual PPI, effective PPI and pixel size.
+
+<img alt="" src="png/ss-642-990-144-20260926-103616.png" width="40%" />
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdSetImageScale.jsx
+
+Details: [README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetImageScale.md) / [Article on note (Japanese)](https://note.com/dtp_tranist/n/n91c6a628b7ed)
