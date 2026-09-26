@@ -54,9 +54,9 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 
 ### 画像の縮尺率を変更してフレームを合わせる
 
-選択したフレーム内の画像の縮尺率を、パレットで数値・プリセット・マージン幅・親フレームの段幅から指定して変更し、フレームを画像に合わせます。値を変えるとその場でドキュメントに反映され、元のPPI・編集後のPPI・ピクセル寸法も確かめられます。
+選択したフレーム内の画像の縮尺率を、パレットで数値・幅・高さ・PPI・プリセット・マージン幅・親フレームの段幅から指定して変更し、フレームを画像に合わせます。値を変えるとその場でドキュメントに反映され、画像を選び替えるだけで次々に作業できます。
 
-<img alt="" src="png/ss-642-990-144-20260926-103616.png" width="40%" />
+<img alt="" src="png/ss-630-1214-144-20260926-111514.png" width="40%" />
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdSetImageScale.jsx
 
