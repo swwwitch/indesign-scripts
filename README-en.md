@@ -53,7 +53,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 
 Changes the scale of the image in each selected frame, set from a palette by value, width, height, PPI, preset, margin width or parent column width, and fits the frame to the image. Changes are applied as you edit, and you can move on just by selecting the next image.
 
-<img alt="" src="png/ss-630-1214-144-20260926-111514.png" width="40%" />
+<img alt="" src="png/ss-630-1214-144-20260926-112121.png" width="40%" />
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdSetImageScale.jsx
 

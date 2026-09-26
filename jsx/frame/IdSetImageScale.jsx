@@ -26,7 +26,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetImageScale
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdSetImageScale";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-26";                   /* 更新日 / last updated */
@@ -733,7 +733,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n91c6a628b7ed"; /* 紹�
          */
         function setTextFitWidth(textControl, displayText) {
             textControl.text = displayText;
-            textControl.preferredSize.width = Math.ceil(textControl.graphics.measureString(displayText)[0]);
+            var measuredSize = textControl.graphics.measureString(displayText);
+            var fitSize = [Math.ceil(measuredSize[0]), Math.ceil(measuredSize[1])];
+            /* 一度配置されたあとは preferredSize だけでは幅が変わらない（0 のまま残る）ので size も入れる */
+            /* After the first layout, preferredSize alone does not resize the control (it stays 0), so set size too */
+            textControl.preferredSize = fitSize;
+            textControl.size = fitSize;
             scalePalette.layout.layout(true);
         }
 

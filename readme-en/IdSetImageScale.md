@@ -10,7 +10,7 @@
 
 Changes the scale of the image in each selected frame, set from a palette by value, width, height, PPI, preset, margin width or parent column width, and fits the frame to the image.
 
-![Palette with Scale, Width, Height, PPI and Pixel size at the top, Adjust, Fit width and Reference point on the left, Presets on the right, and Round scale to whole numbers at the bottom](../png/ss-630-1214-144-20260926-111514.png)
+![Palette with Scale, Width, Height, PPI and Pixel size at the top, Adjust, Fit width and Reference point on the left, Presets on the right, and Round scale to whole numbers at the bottom](../png/ss-630-1214-144-20260926-112121.png)
 
 ## Features
 
@@ -73,13 +73,17 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdSetImageScale.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-26 |
 | Last updated | 2026-09-26 |
 | Article | https://note.com/dtp_tranist/n/n91c6a628b7ed |
 
 ## Change log
+
+### v1.1.1 (2026-09-26)
+
+- Fixed the actual PPI sometimes not being shown
 
 ### v1.1.0 (2026-09-26)
 
