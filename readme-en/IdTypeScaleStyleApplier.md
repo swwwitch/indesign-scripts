@@ -37,13 +37,17 @@ Builds a type scale from a base size and ratio, then applies it to the body, hea
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdTypeScaleStyleApplier.jsx` |
-| Version | v1.6.1 |
+| Version | v1.7.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-05 |
-| Last updated | 2026-09-20 |
+| Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n4f9b0666db66 |
 
 ## Changelog
+
+### v1.7.0 (2026-09-27)
+
+- Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
 ### v1.6.1 (2026-09-20)
 

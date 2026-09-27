@@ -20,7 +20,7 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 - Rows and Columns, in the Skip panel, leave a number of rows from the top, and columns from the left, out of the fill
 - Every change is previewed on the document right away
 - The button at the bottom left switches the document window between the Normal and Preview screen modes
-- Fields step by 1 with the arrow keys and by 10 with Shift; the tint slider steps by 1%, 10% with Shift and 5% with Option
+- Fields step by 1 with the stepper buttons and the arrow keys, and to the next multiple of 10 with Shift; the tint slider steps by 1%, 10% with Shift and 5% with Option
 - Selecting None or Paper dims the tint controls automatically
 - Every control carries a tooltip
 
@@ -53,11 +53,17 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdZebraRowFill.jsx` |
-| Version | v1.2.1 |
+| Version | v1.3.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n20ff60f6b508 |
+
+## Changelog
+
+### v1.3.0 (2026-09-27)
+
+- Added stepper buttons to the Tint and skip-count fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
 ## License
 

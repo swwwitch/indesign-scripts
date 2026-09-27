@@ -14,7 +14,7 @@ Draws and clears table-cell borders with a live preview, letting you set the mod
 
 - Modes: all, outer only, inner only, horizontal only, vertical only, bottom only, right only, header row, header column, clear left/right, clear all
 - Keyboard shortcuts for mode switching (A/E/I/H/V/B/U/L/R/C)
-- The weight follows the document's stroke-weight unit, with presets and arrow-key stepping
+- The weight follows the document's stroke-weight unit, with presets, stepper buttons and arrow-key stepping
 - Border colour from a document swatch, plus a 0-100 tint
 - A Normal / Preview toggle button switches the screen mode
 - Remembers the settings confirmed with OK and restores them on the next run
@@ -36,11 +36,17 @@ Draws and clears table-cell borders with a live preview, letting you set the mod
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdSmartBorderBuilder.jsx` |
-| Version | v1.6.8 |
+| Version | v1.7.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-11 |
-| Last updated | 2026-09-15 |
+| Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n8c1bcb9a2844 |
+
+## Changelog
+
+### v1.7.0 (2026-09-27)
+
+- Added stepper buttons to the Weight and Tint fields. The arrow keys now share the steppers' logic (weight by 0.1, tint to the next whole number; Shift to the next multiple of ten)
 
 ## License
 

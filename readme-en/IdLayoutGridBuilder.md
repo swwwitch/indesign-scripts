@@ -66,12 +66,16 @@ Everything the script creates can be undone in a single step.
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdLayoutGridBuilder.jsx` |
-| Version | v1.0.0 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-13 |
-| Last updated | 2026-09-25 |
+| Last updated | 2026-09-27 |
 
 ## Changelog
+
+### v1.1.0 (2026-09-27)
+
+- Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten; Option by 0.1; the column, row and character counts take whole numbers only)
 
 ### v1.0.0 (2026-09-25)
 

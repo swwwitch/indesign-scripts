@@ -14,7 +14,7 @@ Sets a paragraph style's "Spacing (Same Style)" at the style-definition level.
 
 - Collects paragraph styles recursively, including those inside style groups
 - Spacing can be Ignore, 0, or a specific value
-- The value follows the document display units and supports arrow-key stepping (Shift snaps to multiples of 10, Option steps by 0.1)
+- The value follows the document display units and steps with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2; Shift snaps to the next multiple of 10, Option steps by 0.1)
 - With text selected, the applied paragraph style is preselected and its current value shown
 
 ## Usage
@@ -32,10 +32,16 @@ Sets a paragraph style's "Spacing (Same Style)" at the style-definition level.
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdSetSameParaStyleSpacing.jsx` |
-| Version | v1.0.0 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-06-30 |
-| Last updated | 2026-06-30 |
+| Last updated | 2026-09-27 |
+
+## Change log
+
+### v1.1.0 (2026-09-27)
+
+- Added stepper buttons to the value field. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten, Option by 0.1)
 
 ## License
 

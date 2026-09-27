@@ -33,10 +33,14 @@ Inserts a given number of pages right after the current page, carrying over the 
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdAddPagesUsingCurrentMaster.jsx` |
-| Version | v1.2.2 |
+| Version | v1.3.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-06-26 |
-| Last updated | 2026-08-14 |
+| Last updated | 2026-09-27 |
+
+## Changelog
+
+- v1.3.0 (2026-09-27): Added stepper buttons to the page count field. The arrow keys step it as well (to the next whole number; Shift to the next multiple of ten; never below 1)
 
 ## License
 

@@ -36,10 +36,16 @@ Adjusts table column widths, either per column or through a single batch entry.
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTableColumnWidthAdjuster.jsx` |
-| Version | v1.1.0 |
+| Version | v1.2.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-19 |
-| Last updated | 2026-04-19 |
+| Last updated | 2026-09-27 |
+
+## Changelog
+
+### v1.2.0 (2026-09-27)
+
+- Added stepper buttons to each column's Width, Character Count and Left/Right Inset fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten; Option by 0.1)
 
 ## License
 

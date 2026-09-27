@@ -15,6 +15,7 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 - Choose between inline (anchored) placement and a graphic frame on the page
 - Pick the frame width from selected text, column width, parent frame or page margins
 - With no text selected, specify the height in lines or millimetres
+- The height field steps with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1
 - Set the paragraph style of the inserted line, the object style and the text wrap
 
 ## Usage
@@ -33,11 +34,17 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdCreateFrameFromSelectedText.jsx` |
-| Version | v2.6 |
+| Version | v2.7.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-17 |
-| Last updated | 2026-03-17 |
+| Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/ndd1b7c5246a3 |
+
+## Change log
+
+### v2.7.0 (2026-09-27)
+
+- Added stepper buttons to the height field. The arrow keys step it the same way (to the next whole number; Shift to the next multiple of ten, Option by 0.1)
 
 ## License
 

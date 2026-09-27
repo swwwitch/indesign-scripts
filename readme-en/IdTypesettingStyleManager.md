@@ -17,6 +17,7 @@ Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and mo
 - Apply presets (Western typesetting, grid-first, ignore grid, source code, InDesign defaults)
 - Export the current settings to the Desktop as a preset code snippet
 - Hyphenation-related controls enable and disable with the hyphenation checkbox
+- The number fields step with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1
 
 ## Usage
 
@@ -35,11 +36,18 @@ Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and mo
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdTypesettingStyleManager.jsx` |
-| Version | v1.1.1 |
+| Version | v1.2.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-06 |
-| Last updated | 2026-05-07 |
+| Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n7f67e8da571f |
+
+## Change log
+
+### v1.2.0 (2026-09-27)
+
+- Added stepper buttons to the number fields (Auto leading and hyphenation). The arrow keys step them the same way (to the next whole number; Shift to the next multiple of ten)
+- Fixed an error on load that kept the script from starting
 
 ## License
 

@@ -15,7 +15,7 @@ Resolves the table from the current selection and adjusts the table width and co
 - Table width: do not change, auto, fit to parent frame, or custom
 - Column width: equal widths, fit to content, fit to content+, adjust last column, or custom
 - Always-on preview, and the original selection is restored afterwards
-- Custom values use the current ruler unit and support arrow-key stepping (Shift: ±10, Option: ±0.1)
+- Custom values use the current ruler unit and support stepper buttons and arrow-key stepping (Shift: to the next multiple of 10, Option: ±0.1)
 
 ## Usage
 
@@ -34,10 +34,16 @@ Resolves the table from the current selection and adjusts the table width and co
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTableWidthColumnWidthManager.jsx` |
-| Version | v1.1.0 |
+| Version | v1.2.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-18 |
-| Last updated | 2026-05-05 |
+| Last updated | 2026-09-27 |
+
+## Changelog
+
+### v1.2.0 (2026-09-27)
+
+- Added stepper buttons to the Custom fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten; Option by 0.1)
 
 ## License
 

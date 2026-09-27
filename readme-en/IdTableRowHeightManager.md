@@ -38,11 +38,17 @@ Sets table row heights with a live preview, choosing the scope (selection / stor
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTableRowHeightManager.jsx` |
-| Version | v1.3.2 |
+| Version | v1.4.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-20 |
-| Last updated | 2026-09-25 |
+| Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n9f95f8e98db6 |
+
+## Changelog
+
+### v1.4.0 (2026-09-27)
+
+- Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
 ## License
 
