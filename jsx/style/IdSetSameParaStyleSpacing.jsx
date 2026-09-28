@@ -7,12 +7,14 @@
 段落スタイルの「同一スタイル間の段落間隔」を、スタイル定義そのものに対して設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSetSameParaStyleSpacing.md
 
 ### Overview
 
 Sets "space between paragraphs using same style" on the paragraph style definition itself.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetSameParaStyleSpacing.md
 
 */
 

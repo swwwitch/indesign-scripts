@@ -8,6 +8,10 @@
 上から／左から指定した数の行・列は、塗りの対象外にできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdZebraRowFill.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n20ff60f6b508
 
 ### Overview
 
@@ -15,6 +19,7 @@ Applies alternating fills (zebra striping) to the selected table cells, based on
 A given number of rows from the top, and columns from the left, can be left out of the fill.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdZebraRowFill.md
 
 */
 

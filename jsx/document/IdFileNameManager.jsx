@@ -8,6 +8,10 @@
 保存形式は常に InDesign 形式（.indd）なので、.indd 以外の書類では「別名で保存」だけが使えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFileNameManager.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nc88dd887eb1c
 
 ### Overview
 
@@ -15,6 +19,7 @@ Edits the active document's file name segment by segment - base, subtext, status
 The output is always InDesign format (.indd), so only "Save As" is available for a non-.indd document.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFileNameManager.md
 
 */
 
@@ -76,12 +81,6 @@ function setupPanel(panel, spacing) {
            doScript でのラップは行わない
            / Saving, renaming and deleting files are file-system operations outside InDesign's undo,
              so this script is not wrapped in doScript */
-
-        // =========================================
-        // バージョン / Version
-        // =========================================
-
-        var SCRIPT_VERSION = "v1.3.2";
 
         // =========================================
         // ユーザー設定 / User Settings

@@ -7,12 +7,17 @@
 選択した複数のテキストフレームを、選択順に連結して1つのストーリーにします。連結後の処理はダイアログで選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTextFrameLinker.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n04ceaf4955a0
 
 ### Overview
 
 Links the selected text frames, in selection order, so that they share a single story. What happens after linking is chosen in a dialog.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTextFrameLinker.md
 
 */
 

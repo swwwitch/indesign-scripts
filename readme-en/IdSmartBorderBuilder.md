@@ -10,7 +10,7 @@
 
 Draws and clears table-cell borders with a live preview, letting you set the mode, weight, colour and tint.
 
-## Features
+### Features
 
 - Modes: all, outer only, inner only, horizontal only, vertical only, bottom only, right only, header row, header column, clear left/right, clear all
 - Keyboard shortcuts for mode switching (A/E/I/H/V/B/U/L/R/C)
@@ -19,19 +19,19 @@ Draws and clears table-cell borders with a live preview, letting you set the mod
 - A Normal / Preview toggle button switches the screen mode
 - Remembers the settings confirmed with OK and restores them on the next run
 
-## Usage
+### Usage
 
 1. Select the table cells you want to change
 2. Run the script
 3. Set the mode, weight, colour and tint, then click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - Partial selections are rebuilt from the selection rectangle; merged cells that partly overlap the rectangle are included.
 - Turn off Clear Existing Borders First to overwrite while keeping the current borders.
 - The selection state from before the run is restored when the dialog closes.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -42,12 +42,12 @@ Draws and clears table-cell borders with a live preview, letting you set the mod
 | Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n8c1bcb9a2844 |
 
-## Changelog
+### Update History
 
-### v1.7.0 (2026-09-27)
+#### v1.7.0 (2026-09-27)
 
 - Added stepper buttons to the Weight and Tint fields. The arrow keys now share the steppers' logic (weight by 0.1, tint to the next whole number; Shift to the next multiple of ten)
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

@@ -7,12 +7,14 @@
 任意の ExtendScript ファイル（.jsx / .jsxbin / .js）をダイアログで選んで実行するランチャーです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdScriptRunner.md
 
 ### Overview
 
 A launcher that runs any ExtendScript file (.jsx / .jsxbin / .js) chosen from a dialog.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdScriptRunner.md
 
 */
 

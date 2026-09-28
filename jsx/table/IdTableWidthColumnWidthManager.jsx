@@ -7,12 +7,14 @@
 選択位置から対象の表を特定し、表全体の幅と列の幅をプレビュー付きでまとめて調整します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableWidthColumnWidthManager.md
 
 ### Overview
 
 Finds the target table from the current selection and adjusts the overall table width and the column widths together, with a live preview.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableWidthColumnWidthManager.md
 
 */
 

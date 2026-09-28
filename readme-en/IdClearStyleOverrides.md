@@ -12,7 +12,7 @@ Clears style overrides — manual formatting applied on top of a style — from 
 
 ![Dialog with four panels: Scope, Text (paragraph and character styles), Table and cell styles, and Object styles](../png/ss-992-1142-144-20260920-142250.png)
 
-## Features
+### Features
 
 - Scope can be Document, Story, or Selection
 - Text, table & cell styles, and object styles can each be switched on or off independently
@@ -23,13 +23,13 @@ Clears style overrides — manual formatting applied on top of a style — from 
 - The run button is disabled when nothing is set to be processed
 - The whole run is a single undo step
 
-## Usage
+### Usage
 
 1. Open a document (select something first if you plan to use Story or Selection)
 2. Run the script
 3. Choose the scope, what to process, the overrides to clear and any style filters, then click **Clear overrides**
 
-## Scope
+### Scope
 
 | Choice | Text and tables | Objects |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ Clears style overrides — manual formatting applied on top of a style — from 
 
 With the scope set to Selection and cells selected, the cell style overrides of those cells are cleared, along with the table style overrides of the table they belong to. Other cells in the table are left alone. To process every cell, select the frame holding the table or choose Story instead.
 
-## Overrides to clear
+### Overrides to clear
 
 InDesign keeps deviations from a paragraph style at two levels.
 
@@ -57,7 +57,7 @@ The split matches the modifier keys on the Clear Overrides button at the bottom 
 | Paragraph only | Cmd (Ctrl) + click |
 | Character only | Cmd+Shift (Ctrl+Shift) + click |
 
-### Example
+#### Example
 
 A paragraph with the paragraph style "Body" applied, then manually centered with part of it set in bold:
 
@@ -67,7 +67,7 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 
 **Character only** is the one to reach for when you want to keep the alignment and spacing you set deliberately during layout, but strip the font settings that came in with pasted text.
 
-## Notes and limitations
+### Notes and limitations
 
 - Applied character styles are not removed. Only manual formatting — the overrides themselves — is cleared. To remove a character style, apply `[None]` separately.
 - Locked layers and locked stories are skipped.
@@ -75,7 +75,7 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 - The style dropdowns also list `[None]`, which lets you process only the places where no style is applied.
 - Documents with a lot of content take a while.
 
-## Script information
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -86,14 +86,14 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 | First release | 2020-06-09 |
 | Last updated | 2026-09-20 |
 
-## Version history
+### Update History
 
 - **v1.3.2** (2026-09-20) — Fixed an error (`Object does not support the property or method 'appliedTableStyle'`) that stopped the script when cells were selected with the scope set to Selection.
 - **v1.3.1** (2026-09-20) — Fixed a bug where only some of the selected cells were processed when several cells were selected.
 - **v1.3.0** (2026-09-20) — Added scope (Document / Story / Selection), override type (Both / Paragraph only / Character only) and filtering by cell style. Japanese and English localization.
 - **v1.2.0** (2020-06-09) — Original work (Gregor Fellenz / grefel/clearOverrides)
 
-## License
+### License
 
 GNU General Public License v3.0 — <https://www.gnu.org/licenses/gpl-3.0.txt>
 

@@ -8,6 +8,7 @@ MS Word から取り込んだ段落スタイル名（Heading 1 / Normal / Quote 
 スタイルグループの中も再帰的にたどり、リネーム先の名前の段落スタイルがすでにある場合は、そのスタイルに置き換えて統合します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdConvertWordStyleNamesToHtml.md
 
 ### Overview
 
@@ -15,6 +16,7 @@ Renames paragraph styles imported from MS Word (Heading 1 / Normal / Quote and t
 Style groups are traversed recursively, and a style whose target name already exists in the document is merged into that existing style.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdConvertWordStyleNamesToHtml.md
 
 */
 

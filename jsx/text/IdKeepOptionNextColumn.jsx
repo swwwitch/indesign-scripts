@@ -7,12 +7,14 @@
 選択した段落の「段落の開始位置」を「次の段（フレーム）」に設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdKeepOptionNextColumn.md
 
 ### Overview
 
 Sets "Start Paragraph" to "In Next Column" (next frame) on the selected paragraphs.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdKeepOptionNextColumn.md
 
 */
 

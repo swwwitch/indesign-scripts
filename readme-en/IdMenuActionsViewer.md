@@ -14,7 +14,7 @@ Based on Peter Kahrel's `menu_actions.jsx`.
 
 ![Dialog with Category, Area, Name / ID, and Sort by at the top, a list in the middle, and Key strings and Invoke code fields at the bottom](../png/ss-1184-1698-144-20260925-094953.png)
 
-## Features
+### Features
 
 - Shows menu actions in a two-column list: Name | Area
 - Filters
@@ -30,7 +30,7 @@ Based on Peter Kahrel's `menu_actions.jsx`.
 - A progress bar is shown while loading
 - The dialog title shows the number of listed actions
 
-## Usage
+### Usage
 
 1. Run the script
 2. Narrow down the actions by category, area, name, or ID (Name / ID filters as you type)
@@ -44,7 +44,7 @@ app.menuActions.itemByID(18694).invoke();
 app.menuActions.item("$ID/Find/Change...").invoke();
 ```
 
-## Notes
+### Notes
 
 - Font and style names (IDs 57603–61066), recent files and scripts (`.indd`, `.jsx`, `.jsxbin`), names without any letter or digit (such as "(" or ")"), document names in the Window menu, and the English "Text Selection" and "Menu:Insert" areas are not listed.
 - Names longer than 20 characters are shortened with "…" in the list, because ScriptUI on Mac widens the first column to its longest text. Filtering uses the full name.
@@ -54,7 +54,7 @@ app.menuActions.item("$ID/Find/Change...").invoke();
 - Name / ID rebuilds the list on every keystroke. With many actions listed, each keystroke may take a moment.
 - Enter / Return and Esc close the dialog.
 
-## Original / Credits
+### Original / Credits
 
 Based on Peter Kahrel's `menu_actions.jsx`. Many thanks to Peter Kahrel for sharing his scripts.
 
@@ -69,7 +69,7 @@ Main changes from the original:
 - Shows and copies the selected action's key strings and invoke code (`app.menuActions.itemByID(…).invoke();`)
 - Japanese / English UI
 
-## Script info
+### Script info
 
 | Item | Details |
 | --- | --- |
@@ -81,11 +81,11 @@ Main changes from the original:
 | Last updated | 2026-09-25 |
 | Article | https://note.com/dtp_tranist/n/n5038c9d2cc85 |
 
-## Update history
+### Update History
 
 - v1.0.24 (2026-09-25): Initial release
 
-## License
+### License
 
 The original `menu_actions.jsx` is copyright Peter Kahrel. Permission to publish this modified version is currently being requested from the original author. Once granted, the modifications will be released under the MIT License.
 

@@ -12,7 +12,7 @@ Adds or removes sequential numbers at the end of paragraphs that repeat the same
 
 ![Dialog with paragraph styles and scope on the left, and the list of repeated text on the right](../png/ss-1154-1016-144-20260813-223137.png)
 
-## Features
+### Features
 
 - Lists the repeated text by descending occurrence count, with multi-select to pick the targets
 - Narrows that list with a checkbox per paragraph style
@@ -20,7 +20,7 @@ Adds or removes sequential numbers at the end of paragraphs that repeat the same
 - Switches between full-width and half-width brackets (Japanese UI only)
 - Includes a Remove Numbers button that strips existing numbering
 
-## Usage
+### Usage
 
 1. Open the target document
 2. Run the script (the dialog opens once the analysis finishes)
@@ -29,13 +29,13 @@ Adds or removes sequential numbers at the end of paragraphs that repeat the same
 
 To strip existing numbers, select the entries the same way and click Remove Numbers.
 
-## How duplicates are judged
+### How duplicates are judged
 
 Paragraphs are grouped when their paragraph style, their text, and their nearest parent heading all match. Only groups that occur at least twice appear in the list.
 
 Only the paragraph style names defined in `HEADING_LEVEL_MAP` (`h1`–`h6` / `Heading 1`–`Heading 6`) count as parent headings. Documents using any other naming are treated as having no parent, so grouping falls back to paragraph style plus text. Add your own heading style names to `HEADING_LEVEL_MAP` if needed.
 
-## Notes and limitations
+### Notes and limitations
 
 - Targets the active document.
 - Text on parent (master) pages is excluded.
@@ -44,7 +44,7 @@ Only the paragraph style names defined in `HEADING_LEVEL_MAP` (`h1`–`h6` / `He
 - If Selection is chosen with nothing selected, the script reports it and falls back to a wider scope.
 - Both numbering and removal are a single undo step.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -55,9 +55,9 @@ Only the paragraph style names defined in `HEADING_LEVEL_MAP` (`h1`–`h6` / `He
 | Last updated | 2026-09-25 |
 | Article | https://note.com/dtp_tranist/n/nc96549bb60f9 |
 
-## Changelog
+### Update History
 
-### v1.2.1 (2026-09-25)
+#### v1.2.1 (2026-09-25)
 
 - Renamed the dialog to "Number Repeated Paragraphs"
 - Renamed the buttons to Add Numbers / Remove Numbers, and the Target panel to Scope
@@ -66,7 +66,7 @@ Only the paragraph style names defined in `HEADING_LEVEL_MAP` (`h1`–`h6` / `He
 - Reworded messages to match what actually happens (nothing selected, no text selected, numbers removed, nothing found)
 - Cleaned up the internal code (no change in behavior)
 
-### v1.2.0 (2026-08-13)
+#### v1.2.0 (2026-08-13)
 
 - Added a Selection scope, so numbering can be limited to the selected text range
 - Fixed paragraphs without a recognized parent heading being dropped. Only the names in `HEADING_LEVEL_MAP` count as headings, so documents using any other heading style found no targets at all
@@ -78,6 +78,6 @@ Only the paragraph style names defined in `HEADING_LEVEL_MAP` (`h1`–`h6` / `He
 - Renamed OK to Add and rearranged the buttons into left (Delete) and right (Cancel, Add)
 - Sped up the analysis pass
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

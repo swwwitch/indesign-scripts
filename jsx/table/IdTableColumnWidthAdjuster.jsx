@@ -7,12 +7,14 @@
 選択したセルや表の列幅を、列ごとの個別指定または一括入力でまとめて調整します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableColumnWidthAdjuster.md
 
 ### Overview
 
 Adjusts the column widths of the selected cells or table, either per column or with a single value applied to all.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnWidthAdjuster.md
 
 */
 

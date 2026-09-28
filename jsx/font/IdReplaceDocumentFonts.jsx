@@ -9,6 +9,7 @@
 段落スタイル・文字スタイルのフォントも同時に更新できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdReplaceDocumentFonts.md
 
 ### Overview
 
@@ -17,6 +18,7 @@ the selected ones with another font in a single pass. Paragraph and
 character styles can be updated at the same time.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdReplaceDocumentFonts.md
 
 */
 

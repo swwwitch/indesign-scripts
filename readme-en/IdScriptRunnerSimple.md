@@ -10,21 +10,21 @@
 
 A minimal launcher that simply runs one ExtendScript file chosen from a file dialog.
 
-## Features
+### Features
 
 - Pick the script to run from a file dialog
 - Runs the selected file as is
 
-## Usage
+### Usage
 
 1. Run the script
 2. Choose the ExtendScript file you want to run
 
-## Notes and limitations
+### Notes and limitations
 
 - There is no error handling or extension check; use IdScriptRunner.jsx when you need those.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -34,6 +34,6 @@ A minimal launcher that simply runs one ExtendScript file chosen from a file dia
 | First release | 2026-04-17 |
 | Last updated | 2026-04-17 |
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

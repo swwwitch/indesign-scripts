@@ -7,12 +7,14 @@
 ExtendScript ファイルを 1 つ選んで実行するだけの最小構成のランチャーです。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdScriptRunnerSimple.md
 
 ### Overview
 
 A minimal launcher that just picks a single ExtendScript file and runs it.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdScriptRunnerSimple.md
 
 */
 

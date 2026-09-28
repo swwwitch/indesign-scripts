@@ -8,6 +8,10 @@
 縦組みにも対応しています。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSplitParagraph.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n8793ea71526b
 
 ### Overview
 
@@ -15,6 +19,7 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 Vertical text frames are supported as well.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSplitParagraph.md
 
 */
 

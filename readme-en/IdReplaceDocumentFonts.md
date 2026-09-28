@@ -10,7 +10,7 @@
 
 Lists the fonts used in the document by family and style, and replaces the selected ones with another font in a single pass. Paragraph and character styles can be updated at the same time.
 
-## Features
+### Features
 
 - Two lists (source and target) of the fonts in use, with multiple selection on the source side
 - Selecting a family row selects every style in that family
@@ -20,7 +20,7 @@ Lists the fonts used in the document by family and style, and replaces the selec
 - Replace All unifies every font in use on a single font
 - Master pages, hidden layers, footnotes and table cells are all covered (the script uses InDesign's own find engine)
 
-## Usage
+### Usage
 
 1. Open the target document
 2. Run the script
@@ -29,7 +29,7 @@ Lists the fonts used in the document by family and style, and replaces the selec
 
 Replace All unifies every font in use on the target font when one is selected, or on the first source font when none is.
 
-## Notes and limitations
+### Notes and limitations
 
 - Only fonts already used in the document can be chosen as the target.
 - Locked layers and locked stories are left untouched, although they are included in the counts.
@@ -38,7 +38,7 @@ Replace All unifies every font in use on the target font when one is selected, o
 - Members of a composite font cannot be replaced.
 - Usage counts come from one search per font, so building the list takes a while on documents with many fonts or pages. Set `SHOW_USAGE_COUNT` to `false` near the top of the script to skip the counts.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -48,6 +48,6 @@ Replace All unifies every font in use on the target font when one is selected, o
 | First release | 2026-09-20 |
 | Last updated | 2026-09-20 |
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

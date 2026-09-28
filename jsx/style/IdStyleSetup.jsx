@@ -8,6 +8,10 @@
 スタイル名は HTML（h1 / p）と Word 対応（Heading 1 / Normal）から選べ、既定では既存の同名スタイルには手を触れません。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdStyleSetup.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nfe87ec253780
 
 ### Overview
 
@@ -15,6 +19,7 @@ Registers paragraph and character styles together with their groups, inheritance
 Style names can follow either HTML (h1 / p) or Word (Heading 1 / Normal), and existing same-named styles are left untouched by default.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdStyleSetup.md
 
 */
 

@@ -7,12 +7,14 @@
 複数行入力ダイアログでテキストを編集し、選択範囲の置換・カーソル位置への挿入・新規テキストフレーム作成を行います。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdEditTextsByDialog.md
 
 ### Overview
 
 Edits text in a multi-line dialog, then replaces the selection, inserts at the cursor, or creates a new text frame.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdEditTextsByDialog.md
 
 */
 

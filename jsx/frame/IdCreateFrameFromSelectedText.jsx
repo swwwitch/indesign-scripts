@@ -7,12 +7,17 @@
 選択したテキストのサイズを基準に、インライン（アンカー付き）またはページ上へグラフィックフレームを作成します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCreateFrameFromSelectedText.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ndd1b7c5246a3
 
 ### Overview
 
 Creates a graphic frame sized from the selected text, either inline (anchored) or placed on the page.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCreateFrameFromSelectedText.md
 
 */
 

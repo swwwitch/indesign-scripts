@@ -7,12 +7,17 @@
 フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて切り替え、選択範囲やドキュメント全体へ適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFontConverter.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n261c771b4b41
 
 ### Overview
 
 Switches font variants (character set, P, UD, N, NT and weight) in one pass and applies them to the selection or to the whole document.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFontConverter.md
 
 */
 

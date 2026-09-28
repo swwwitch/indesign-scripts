@@ -10,23 +10,23 @@
 
 A launcher that runs any ExtendScript file (.jsx / .jsxbin / .js) chosen from a file dialog.
 
-## Features
+### Features
 
 - Pick the script to run from a file dialog
 - Checks that the file exists and has a supported extension before running
 - On error, shows the filename, line number, error number and message
 
-## Usage
+### Usage
 
 1. Run the script
 2. Choose the ExtendScript file you want to run
 
-## Notes and limitations
+### Notes and limitations
 
 - Undo grouping is left to the launched script.
 - See IdScriptRunnerSimple.jsx for a minimal variant.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -36,6 +36,6 @@ A launcher that runs any ExtendScript file (.jsx / .jsxbin / .js) chosen from a 
 | First release | 2026-04-17 |
 | Last updated | 2026-04-17 |
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

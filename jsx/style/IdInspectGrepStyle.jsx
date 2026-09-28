@@ -7,12 +7,14 @@
 ドキュメント内の段落スタイルに設定された正規表現スタイル（GREPスタイル）を一覧表示し、テキストファイルへ書き出します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInspectGrepStyle.md
 
 ### Overview
 
 Lists the GREP styles defined in the paragraph styles of a document and exports them to a text file.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInspectGrepStyle.md
 
 */
 

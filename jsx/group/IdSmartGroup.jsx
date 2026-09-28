@@ -7,12 +7,14 @@
 選択したオブジェクトを水平方向（行）または垂直方向（列）の近さでまとめてグループ化します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSmartGroup.md
 
 ### Overview
 
 Groups the selected objects by proximity, either horizontally (rows) or vertically (columns).
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSmartGroup.md
 
 */
 

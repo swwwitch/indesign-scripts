@@ -10,7 +10,7 @@
 
 Rotates the selected image frames, moving either the linked images alone or the frames together with their positions.
 
-## Features
+### Features
 
 - Move the images only removes each existing graphic and re-places the linked images in rotating order
 - Move the frames keeps every frame's content and rotates only the positions
@@ -19,20 +19,20 @@ Rotates the selected image frames, moving either the linked images alone or the 
 - Every option carries a tooltip describing what it does
 - The whole run is a single undo step (Cmd+Z)
 
-## Usage
+### Usage
 
 1. Select two or more frames containing placed images
 2. Run the script
 3. Choose the swap mode and options, then click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - A frame is processed only once, even when it is selected twice or selected together with the graphic inside it.
 - Move the images only assumes each frame holds a single primary graphic. Frames whose graphic has no link (embedded images, for example) cannot be processed.
 - Move the frames never resizes a frame. With frames of different sizes the result depends on the anchor you pick (top left or centre).
 - If removal, placement or fitting fails, the run stops at that point and an error is shown. Whatever has already been swapped can be reverted with undo.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -43,9 +43,9 @@ Rotates the selected image frames, moving either the linked images alone or the 
 | Last updated | 2026-09-09 |
 | Article | https://note.com/dtp_tranist/n/n6dee03ae96e2 |
 
-## Change log
+### Update History
 
-### v1.0.1 (2026-09-09)
+#### v1.0.1 (2026-09-09)
 
 - Reworded the dialog so it reads as a rotation rather than a two-way swap, and aligned the fit options with the standard InDesign terms
 - Error messages now state that the run stopped partway and can be reverted with undo
@@ -54,6 +54,6 @@ Rotates the selected image frames, moving either the linked images alone or the 
 - Added the link to the introductory article
 - Internal cleanup (consistent naming, shared rotation helper, tidier error handling)
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

@@ -8,6 +8,10 @@
 フォルダーとファイル名を左右のリストに分けて表示し、絞り込んだ結果によく出てくる語をワンクリックのボタンとして自動で並べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdScriptLauncher.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n86fe7e6251ec
 
 ### Overview
 
@@ -15,6 +19,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 Folders and file names are shown in two side-by-side lists, and words that appear often in the filtered results become one-click buttons automatically.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdScriptLauncher.md
 
 */
 

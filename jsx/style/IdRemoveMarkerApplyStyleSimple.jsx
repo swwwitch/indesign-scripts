@@ -7,12 +7,14 @@
 指定した検索文字列を手がかりに段落スタイルを適用し、その文字列を削除します。検索対象はストーリー・ドキュメント・すべてのドキュメントから選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdRemoveMarkerApplyStyleSimple.md
 
 ### Overview
 
 Applies a paragraph style to paragraphs containing the given text, then deletes that text. The search target can be the story, the document or all open documents.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerApplyStyleSimple.md
 
 */
 

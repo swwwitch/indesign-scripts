@@ -7,12 +7,17 @@
 表の中を選択して実行すると、その表全体の行と列を入れ替えます。ヘッダー行の指定を引き継ぐかと、セル結合の扱いをダイアログで選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTransposeTableRowsCols.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nc6dbdb3af6a1
 
 ### Overview
 
 Transposes the whole table the selection sits in, however much of it is selected. The dialog chooses whether to keep the header row setting and how merged cells are handled.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTransposeTableRowsCols.md
 
 */
 

@@ -7,12 +7,14 @@
 ［基本段落］などスタイル未設定の段落をフォント・サイズ・行送りごとにまとめ、段落スタイルを自動生成して適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAutoParagraphStyleGenerator.md
 
 ### Overview
 
 Groups unstyled paragraphs such as [Basic Paragraph] by font, size and leading, then generates and applies paragraph styles for them.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAutoParagraphStyleGenerator.md
 
 */
 

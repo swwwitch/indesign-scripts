@@ -8,6 +8,7 @@
 処理する範囲はドキュメント全体・ストーリー・選択範囲から選べ、特定のスタイルが適用された箇所だけに絞り込むこともできます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdClearStyleOverrides.md
 
 ### Overview
 
@@ -15,6 +16,7 @@ Clears style overrides from text, tables and objects in one pass.
 The scope can be the whole document, a story or the current selection, and processing can be narrowed to where a particular style is applied.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdClearStyleOverrides.md
 
 */
 

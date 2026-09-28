@@ -10,7 +10,7 @@
 
 Deletes from the cursor to the end of the current paragraph, or deletes just a trailing mark when the cursor sits right before one.
 
-## Features
+### Features
 
 - Never crosses a cell boundary inside a table
 - When the character after the cursor is one of 。！？,.、，． and is the paragraph's last character, only that character is deleted
@@ -18,17 +18,17 @@ Deletes from the cursor to the end of the current paragraph, or deletes just a t
 - A 。 immediately before the cursor is included in the deletion
 - Uses cut by default so the deleted text goes to the clipboard (toggle with `COPY_TO_CLIPBOARD`)
 
-## Usage
+### Usage
 
 1. Place the cursor inside a text frame
 2. Run the script
 
-## Notes and limitations
+### Notes and limitations
 
 - A trailing line break is not treated as the last character; the character before it is used instead.
 - The whole run is a single undo step.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -39,6 +39,6 @@ Deletes from the cursor to the end of the current paragraph, or deletes just a t
 | Last updated | 2026-07-05 |
 | Article | https://note.com/dtp_tranist/n/nf0b1e27e1f81 |
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

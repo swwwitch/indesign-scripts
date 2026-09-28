@@ -7,12 +7,17 @@
 選択した表について、内容が同じ隣接セルを自動で結合します。結合する方向（水平・垂直・両方向）と、対象（表全体・選択セルのみ）をダイアログで選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCellMergeAuto.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na84f68305844
 
 ### Overview
 
 Merges adjacent cells with identical contents in the selected table. The dialog picks the merge direction (horizontal, vertical, or both) and the scope (the whole table or only the selected cells).
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCellMergeAuto.md
 
 */
 

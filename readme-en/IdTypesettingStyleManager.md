@@ -10,7 +10,7 @@
 
 Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and more) for paragraph styles from a single dialog.
 
-## Features
+### Features
 
 - Target the selection, all styles, or a specified set
 - Reads the current typesetting, language and hyphenation settings from the selected paragraph as defaults
@@ -19,19 +19,19 @@ Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and mo
 - Hyphenation-related controls enable and disable with the hyphenation checkbox
 - The number fields step with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1
 
-## Usage
+### Usage
 
 1. Open the target document (place the cursor in a paragraph to seed the defaults)
 2. Run the script
 3. Choose the settings and click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - [No Paragraph Style], [Basic Paragraph] and styles inside groups whose name starts with "_" are excluded.
 - Overrides in the selection are always cleared after applying.
 - Quotes, language and units are written to the application preferences.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -42,13 +42,13 @@ Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and mo
 | Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n7f67e8da571f |
 
-## Change log
+### Update History
 
-### v1.2.0 (2026-09-27)
+#### v1.2.0 (2026-09-27)
 
 - Added stepper buttons to the number fields (Auto leading and hyphenation). The arrow keys step them the same way (to the next whole number; Shift to the next multiple of ten)
 - Fixed an error on load that kept the script from starting
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

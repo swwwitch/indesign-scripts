@@ -10,7 +10,7 @@
 
 Deletes unused styles (paragraph, character, object, table, cell), parent pages, empty pages, swatches, and composite fonts in the active document. Before deleting, the candidates are listed so you can uncheck anything you want to keep.
 
-## Features
+### Features
 
 - Choose what to delete with checkboxes grouped into Styles, Pages, and Other panels (only swatches are checked on first run)
   - Styles: paragraph / character / object / table / cell styles
@@ -24,13 +24,13 @@ Deletes unused styles (paragraph, character, object, table, cell), parent pages,
 - The dialog settings are remembered and used as the defaults next time
 - Shows how many items were deleted per kind, plus the total
 
-## Usage
+### Usage
 
 1. Open a document and run the script
 2. Choose what to delete and options, then click [OK]
 3. In the confirmation list, uncheck anything you want to keep, then click [Delete]
 
-### Mouse
+#### Mouse
 
 | Action | Result |
 | --- | --- |
@@ -39,7 +39,7 @@ Deletes unused styles (paragraph, character, object, table, cell), parent pages,
 | Double-click a row in the confirmation list | Toggle its check |
 | [Check All] / [Uncheck All] in the confirmation list | Toggle all rows |
 
-## What counts as "in use"
+### What counts as "in use"
 
 | Kind | Counted as in use |
 | --- | --- |
@@ -53,7 +53,7 @@ Deletes unused styles (paragraph, character, object, table, cell), parent pages,
 | Empty pages | Pages with any object on them (parent page objects do not count) |
 | Composite fonts | Applied to text; font of a paragraph or character style; text default font |
 
-## Notes and limitations
+### Notes and limitations
 
 - Default styles in [ ] such as [No Paragraph Style], [Basic Paragraph], and [None] are never deleted.
 - Unnamed colors are not listed. If a default swatch that cannot be deleted (such as [Paper]) is listed, it is kept.
@@ -68,7 +68,7 @@ Deletes unused styles (paragraph, character, object, table, cell), parent pages,
 - Everything can be restored with a single undo.
 - Dialog settings are saved to `IdDeleteUnused-prefs.txt` in the user data folder.
 
-## Script info
+### Script info
 
 | Item | Details |
 | --- | --- |
@@ -79,10 +79,10 @@ Deletes unused styles (paragraph, character, object, table, cell), parent pages,
 | Last updated | 2026-09-24 |
 | Article | https://note.com/dtp_tranist/n/n879f09b72808 |
 
-## Update history
+### Update History
 
 - v1.0.0 (2026-09-24): Initial release
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

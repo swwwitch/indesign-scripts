@@ -7,12 +7,17 @@
 段落スタイルの文字組版設定（禁則・文字組み・グリッド揃え・ハイフネーションなど）をダイアログでまとめて設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTypesettingStyleManager.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n7f67e8da571f
 
 ### Overview
 
 Configures the composition settings of paragraph styles (kinsoku, mojikumi, grid alignment, hyphenation and more) from a single dialog.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypesettingStyleManager.md
 
 */
 

@@ -10,7 +10,7 @@
 
 Builds a type scale from a base size and ratio, then applies it to the body, heading, list and table paragraph styles.
 
-## Features
+### Features
 
 - Lists default to 100% and tables to 94% of the body size
 - Set leading (%) per body and heading, the kerning method, and the size rounding step
@@ -20,19 +20,19 @@ Builds a type scale from a base size and ratio, then applies it to the body, hea
 - With "Size only" on, everything but the point size (font, leading, spacing, kerning) keeps its original value
 - The font list is loaded at startup and cached on disk
 
-## Usage
+### Usage
 
 1. Open the target document
 2. Run the script
 3. Set the base size and ratio, adjust rows in the preview, then click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - sameParaStyleSpacing follows per-style rules: 0 for ul-li, the same value as spaceBefore for p and ol-li, and unchanged otherwise.
 - Forcing the justification is off by default (`ENABLE_JUSTIFICATION`).
 - The whole run is a single undo step.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -43,13 +43,13 @@ Builds a type scale from a base size and ratio, then applies it to the body, hea
 | Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n4f9b0666db66 |
 
-## Changelog
+### Update History
 
-### v1.7.0 (2026-09-27)
+#### v1.7.0 (2026-09-27)
 
 - Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
-### v1.6.1 (2026-09-20)
+#### v1.6.1 (2026-09-20)
 
 - "Size only" now defaults to off. With the previous default, leading and paragraph spacing were never applied unless the box was cleared first
 - "Include fonts & styles" became a checkbox and moved into the Font Assignment panel. Clearing it means what "Do not change fonts" used to mean, so that radio button was removed
@@ -57,6 +57,6 @@ Builds a type scale from a base size and ratio, then applies it to the body, hea
 - Fixed space before and after being read in the document's ruler units, which made them about 2.83x too large in millimeter documents
 - Fixed the default base size being off when the text size unit is not points (Q, for example); the unit now comes from the document rather than the application preferences
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

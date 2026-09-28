@@ -12,7 +12,7 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 
 ![Dialog with the color and tint of the odd- and even-numbered rows at the top, and the Options and Skip panels below](../png/ss-848-786-144-20260916-133719.png)
 
-## Features
+### Features
 
 - Separate colour and tint (0-100%) for the Odd-numbered Rows and Even-numbered Rows panels
 - The most frequent colour and tint combinations in the selection become the starting values
@@ -24,13 +24,13 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 - Selecting None or Paper dims the tint controls automatically
 - Every control carries a tooltip
 
-## Usage
+### Usage
 
 1. Select the table cells you want to fill
 2. Run the script
 3. Set the colours, tints and skip counts, then click OK
 
-## Options
+### Options
 
 | Item | Description |
 | --- | --- |
@@ -40,7 +40,7 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 | Skip: Columns | Leaves the given number of columns at the left of the selection out of the fill |
 | Normal / Preview | Switches the screen mode of the document window. The button shows the mode you are switching to |
 
-## Notes and limitations
+### Notes and limitations
 
 - Registration is always hidden from the colour list; Paper, None and Black are shown with localized names.
 - Skipped cells are restored to the colour and tint they had before the script ran.
@@ -48,7 +48,7 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 - Cancelling rolls back everything the preview applied.
 - The steps are recorded for undo as Fill Preview and Apply Alternating Fills.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -59,12 +59,12 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 | Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n20ff60f6b508 |
 
-## Changelog
+### Update History
 
-### v1.3.0 (2026-09-27)
+#### v1.3.0 (2026-09-27)
 
 - Added stepper buttons to the Tint and skip-count fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten)
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

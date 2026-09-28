@@ -7,12 +7,17 @@
 Markdown 記法をまとめて検索・置換し、対応する段落スタイルと文字スタイルを適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFindChangeByListMarkdown.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n8c0211d92c96
 
 ### Overview
 
 Runs a batch find/change over Markdown notation and applies the matching paragraph and character styles.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFindChangeByListMarkdown.md
 
 */
 

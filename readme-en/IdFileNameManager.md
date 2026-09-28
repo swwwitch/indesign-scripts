@@ -71,7 +71,7 @@ The folder listing is read once while the dialog is open and reused for the prev
 | Last updated | 2026-09-12 |
 | Article | https://note.com/dtp_tranist/n/nc88dd887eb1c |
 
-### Changelog
+### Update History
 
 - v1.3.1 (2026-05-29) Segment editing, ordering and formatting in place
 - v1.3.2 (2026-09-12) Restored `setupPanel`, which was called from five places while undefined, and fixed two leftover `L()` calls to `getLabel()` — either one prevented the dialog from opening. Fixed the three "Segment Order" radio buttons not being mutually exclusive. Fixed an argument mismatch that passed `prefs` into the sort panel's `currentOrderAvailable` (leaving "Match Current" always enabled). Fixed a case where a rename differing only in letter case or kana composition sent the freshly saved file to the Trash. Rename and Save a Copy are now unavailable for non-.indd documents. Moved the empty-name check to run **after** formatting. Moved numbering to run after formatting. Fixed "Save a Copy" failing after an overwrite was approved, because `File.copy()` does not overwrite. Version and sequence numbers are now matched as delimited segments. Turning on "Append HHMM" now selects a timestamp format automatically. The destination folder is now fixed before the dialog opens. Unified the formatting pipeline shared by the preview and the actual save, and cached the folder listing. Aligned the JSDoc with the real signatures and removed unused layout helpers.

@@ -7,12 +7,14 @@
 選択テキストの各段落に、段落背景色の高さに合わせた不可視の段落境界線（前境界線）をスペーサーとして設定します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphShadingMatchRule.md
 
 ### Overview
 
 Sets an invisible paragraph rule above on each selected paragraph, sized to the paragraph shading height so it acts as a spacer.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphShadingMatchRule.md
 
 */
 

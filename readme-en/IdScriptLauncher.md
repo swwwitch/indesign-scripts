@@ -10,7 +10,7 @@
 
 A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword and runs the selected script on the spot. Folders and file names are shown in two side-by-side lists.
 
-## Features
+### Features
 
 - Typing in the keyword field filters both the folder list and the file name list instantly (space-separated terms are AND-matched)
 - Matching ignores case, full-width vs. half-width, hiragana vs. katakana, and voiced/small kana differences
@@ -22,14 +22,14 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 - The target folder and keyword button settings are restored the next time you run the script
 - While "Remember the search" is on, the keyword, "Include subdirectories", "Full path" and the list selections carry over until InDesign quits (on by default)
 
-## Usage
+### Usage
 
 1. Run the script
 2. On the first run, choose the script folder to search (later runs reopen the last folder)
 3. Type a keyword or click a keyword button to filter
 4. Select a file name and click [Run], or double-click it
 
-### Keyboard
+#### Keyboard
 
 | Key | Action |
 | --- | --- |
@@ -37,7 +37,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | `Enter` | Run the selected script (from anywhere in the dialog) |
 | `↑` `↓` in a Preferences number field | ±1 (`shift` for ±10, `option` for ±0.1) |
 
-### Mouse
+#### Mouse
 
 | Action | Result |
 | --- | --- |
@@ -47,7 +47,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | `option` + keyword button | Append the word to the current keyword instead of replacing it (AND search) |
 | Click the × in the keyword field | Clear the keyword and drop the filter |
 
-## Notes and limitations
+### Notes and limitations
 
 - Undo grouping is left to the launched script (it is not wrapped in `doScript`).
 - Only ASCII words of three characters or more become keyword buttons. Japanese file names can still be filtered, but they never become buttons.
@@ -57,7 +57,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 - Settings are stored in `IdScriptLauncher-prefs.txt` in the user data folder.
 - While "Remember the search" is on, the keyword, the "Include subdirectories" and "Full path" states and the list selections are stored in `IdScriptLauncher.session.txt` in the temp folder, tagged with the name of a working file InDesign only keeps while it runs, so a restart changes that name and brings back the defaults (macOS only). Changing the target folder drops the list selections only.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -68,7 +68,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
-## Update history
+### Update History
 
 - v1.2.0 (2026-09-27): Added stepper buttons to the Occurrences and Keywords fields in Preferences. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten; kept between 1 and the limit)
 - v1.1.0 (2026-09-20): Added "Remember the search". While it is on, the keyword and the list selections carry over between runs within an InDesign session
@@ -76,6 +76,6 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 - v1.0.1 (2026-08-27): Added a clear (×) button to the keyword field
 - v1.0.0 (2026-08-26): Initial release
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

@@ -10,7 +10,7 @@
 
 Links the selected text frames, in selection order, so that they share a single story, then optionally fits the height of the first frame and removes the frames left empty.
 
-## Features
+### Features
 
 - Links two or more selected text frames through `nextTextFrame`, in selection order
 - "Fit the height of the first text frame": grows the frame vertically until the text fits, keeping its width
@@ -19,13 +19,13 @@ Links the selected text frames, in selection order, so that they share a single 
 - Reports when fewer than two items, or anything other than text frames, are selected
 - Reports and stops when linking would create a circular thread
 
-## Usage
+### Usage
 
 1. Select two or more text frames, in the order they should be linked
 2. Run the script
 3. Choose what to do after linking with the checkboxes, then click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - The order follows the selection order: the frame selected first becomes the head of the thread. A marquee selection returns the frames in stacking order, so click them one by one.
 - Text already in the later frames is not lost: the stories are merged in selection order.
@@ -33,7 +33,7 @@ Links the selected text frames, in selection order, so that they share a single 
 - Only empty frames after the first are deleted; the first frame and any frame that still holds text are kept.
 - The checkbox defaults live in the "Default settings" block at the top of the script (`DEFAULT_FIT_FIRST_HEIGHT` / `DEFAULT_DELETE_EMPTY_FRAME`).
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -44,6 +44,6 @@ Links the selected text frames, in selection order, so that they share a single 
 | Last updated | 2026-09-20 |
 | Article | https://note.com/dtp_tranist/n/n04ceaf4955a0 |
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

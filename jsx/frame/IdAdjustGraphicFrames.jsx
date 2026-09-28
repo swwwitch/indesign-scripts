@@ -7,12 +7,14 @@
 テキストにアンカーされたグラフィックフレームを集め、フレーム幅・フレームサイズ・画像の縮尺率をまとめて調整します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAdjustGraphicFrames.md
 
 ### Overview
 
 Collects graphic frames anchored in text and adjusts their frame width, frame size and image scale together.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAdjustGraphicFrames.md
 
 */
 

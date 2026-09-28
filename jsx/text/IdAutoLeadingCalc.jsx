@@ -7,12 +7,14 @@
 選択テキストの現在の行送り（絶対値）と文字サイズから行送り％を段落ごとに逆算し、自動行送りに切り替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAutoLeadingCalc.md
 
 ### Overview
 
 Derives the leading percentage of each paragraph from its current absolute leading and font size, then switches it to auto leading.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAutoLeadingCalc.md
 
 */
 

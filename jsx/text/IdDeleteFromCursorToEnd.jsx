@@ -7,12 +7,17 @@
 カーソル位置からその段落の末尾までをまとめて削除します。段落末尾の記号の直前では、その記号 1 文字だけを削除します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteFromCursorToEnd.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf0b1e27e1f81
 
 ### Overview
 
 Deletes everything from the cursor to the end of its paragraph. Right before a trailing symbol, only that single character is removed.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteFromCursorToEnd.md
 
 */
 

@@ -7,12 +7,14 @@
 段落スタイルの日本語組版設定（禁則処理セット・禁則調整方式・文字組みアキ量・コンポーザー）をマトリックス UI で確認・一括適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdJapaneseParagraphTypesettingManager.md
 
 ### Overview
 
 Reviews and batch-applies the Japanese composition settings of paragraph styles (kinsoku set, kinsoku adjustment, mojikumi and composer) through a matrix UI.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdJapaneseParagraphTypesettingManager.md
 
 */
 

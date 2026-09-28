@@ -10,25 +10,25 @@
 
 Groups the selected objects by horizontal (row) or vertical (column) proximity, with a live red-frame preview of each group while the dialog is open.
 
-## Features
+### Features
 
 - Switch the direction between horizontal and vertical with radio buttons
 - Adjust the tolerance from 0 to 50 with a slider (in ruler units)
 - Group extents are drawn live as red frames on a non-printing layer at the top (toggle with Show preview)
 - The preview is removed automatically when the dialog closes
 
-## Usage
+### Usage
 
 1. Select the objects you want to group
 2. Run the script
 3. Adjust the direction and tolerance, check the preview, then click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - The preview lives on a non-printing layer named "SmartGroup Preview" and is deleted on exit.
 - A group needs at least two objects.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -38,6 +38,6 @@ Groups the selected objects by horizontal (row) or vertical (column) proximity, 
 | First release | 2026-04-11 |
 | Last updated | 2026-09-25 |
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

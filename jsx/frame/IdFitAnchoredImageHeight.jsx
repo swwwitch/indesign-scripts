@@ -7,12 +7,14 @@
 インラインアンカーされた画像フレームの高さを、同じ段落の文字サイズに合わせて縦横比を保ったまま調整します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFitAnchoredImageHeight.md
 
 ### Overview
 
 Resizes an inline anchored image frame to the font size of its paragraph while keeping the aspect ratio.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFitAnchoredImageHeight.md
 
 */
 

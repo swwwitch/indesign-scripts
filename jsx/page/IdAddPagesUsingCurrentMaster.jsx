@@ -7,12 +7,17 @@
 現在のページに適用されている親（マスター）ページを引き継いだまま、指定した枚数のページを直後に挿入します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAddPagesUsingCurrentMaster.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n2d1a76097a39
 
 ### Overview
 
 Inserts the requested number of pages right after the current page, keeping the parent (master) page that the current page uses.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAddPagesUsingCurrentMaster.md
 
 */
 

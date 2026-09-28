@@ -10,7 +10,7 @@
 
 Applies a paragraph style and a character style to paragraphs carrying a leading marker — Markdown headings, bullets, numbered lists and the like — then deletes the marker together with the spaces that follow it. Markers can be detected from the search target, and the number of matches is shown before the run.
 
-## Features
+### Features
 
 - The search text comes either from a text field or from automatic detection
 - Detection walks the paragraphs of the search target and lists every marker that repeats at least twice, most frequent first, with its count. Changing the search target runs the detection again
@@ -27,13 +27,13 @@ Applies a paragraph style and a character style to paragraphs carrying a leading
 - Every control carries a tooltip describing what it does
 - The whole run is a single undo step (Cmd+Z)
 
-## Usage
+### Usage
 
 1. Place the cursor in text that contains the markers (opening the document is enough when the whole document is the target)
 2. Run the script
 3. Choose the search text, the styles and the options, then click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - A marker chosen by automatic detection is searched at the line head (GREP `^`), so the same symbol in the middle of a paragraph is left alone. Bold `**` is the exception, since it encloses the text rather than starting the line.
 - Text entered by hand is not anchored to the line head, but it never matches part of a longer run of the same character: `##` does not match `### Heading`.
@@ -56,7 +56,7 @@ Applies a paragraph style and a character style to paragraphs carrying a leading
 - Counts come in two kinds. The detection list, and Matches while a detected marker is selected, are paragraph counts: `##Heading` and `## Heading` are the same marker, and a paragraph with two bold spans still counts as one. Matches for text entered by hand, and the completion message, count the markers to delete, so each bold span adds two.
 - The character style is applied to the whole paragraph that carries the marker, not to the enclosed text alone.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -67,9 +67,9 @@ Applies a paragraph style and a character style to paragraphs carrying a leading
 | Last updated | 2026-09-10 |
 | Article | https://note.com/dtp_tranist/n/n3a0d4c0dacdb |
 
-## Change log
+### Update History
 
-### v1.1.1 (2026-09-10)
+#### v1.1.1 (2026-09-10)
 
 Behaviour
 
@@ -85,7 +85,7 @@ Dialog
 - OK stays disabled while Matches is 0 for text entered by hand
 - The Markdown panel is unavailable while GREP is on
 
-### v1.1.0 (2026-09-10)
+#### v1.1.0 (2026-09-10)
 
 Behaviour
 
@@ -107,10 +107,10 @@ Wording
 - The heading checkbox is now Match the heading level, and the scope panel Search In
 - The completion message reports the markers deleted
 
-### v1.0 (2026-09-09)
+#### v1.0 (2026-09-09)
 
 - First release
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

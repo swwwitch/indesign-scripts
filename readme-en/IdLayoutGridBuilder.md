@@ -10,7 +10,7 @@
 
 Builds a type area border, title area, footer column area, page frame, a column/row grid and dividers on the active page in one pass, with a live preview.
 
-## Features
+### Features
 
 The dialog has three tabs.
 
@@ -45,7 +45,7 @@ The dialog has three tabs.
 - The Auto buttons in each panel and Auto All at the bottom snap lengths to temp grid lines or multiples of the font size
 - The preview is redrawn every time a setting changes
 
-## Usage
+### Usage
 
 1. Make the target page active
 2. Run the script
@@ -53,7 +53,7 @@ The dialog has three tabs.
 
 Everything the script creates can be undone in a single step.
 
-## Notes and limitations
+### Notes and limitations
 
 - Length fields use the document ruler unit. The default margins come from the page; other defaults are defined in mm and converted to the ruler unit.
 - Positions are calculated in spread coordinates so right-hand pages of spreads line up. The page frame bleed is not extended on the spine side.
@@ -61,7 +61,7 @@ Everything the script creates can be undone in a single step.
 - The sample text uses Hiragino Kaku Gothic W3 (ProN, Pro, then Sans). If none is installed, the font is left unchanged.
 - The preview is drawn on a "__QuickLayoutPreview__" layer, which is removed when the dialog closes.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -71,13 +71,13 @@ Everything the script creates can be undone in a single step.
 | First release | 2026-03-13 |
 | Last updated | 2026-09-27 |
 
-## Changelog
+### Update History
 
-### v1.1.0 (2026-09-27)
+#### v1.1.0 (2026-09-27)
 
 - Added stepper buttons to the number fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten; Option by 0.1; the column, row and character counts take whole numbers only)
 
-### v1.0.0 (2026-09-25)
+#### v1.0.0 (2026-09-25)
 
 **Interface**
 
@@ -107,6 +107,6 @@ Everything the script creates can be undone in a single step.
 - Fixed Corner Radius and the stroke weight being disabled when the type area border is off, although the title area also uses them
 - Fixed the missing dashed/dotted stroke style warning appearing on every preview update (it now appears once on OK)
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

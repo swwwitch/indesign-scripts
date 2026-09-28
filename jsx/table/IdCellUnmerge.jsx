@@ -7,12 +7,17 @@
 表の結合セルを解除します。解除後のセルへ元のテキストを複製するかどうかと、対象範囲（表全体・選択セルのみ）をダイアログで選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCellUnmerge.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n175525637a3d
 
 ### Overview
 
 Unmerges merged cells in a table. The dialog picks whether to copy the original text into the resulting cells and the scope (the whole table or only the selected cells).
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCellUnmerge.md
 
 */
 

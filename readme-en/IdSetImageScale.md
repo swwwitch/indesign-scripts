@@ -12,11 +12,11 @@ Changes the scale of the image in each selected frame, set from a palette by val
 
 ![Palette with Scale, Width, Height, PPI and Pixel size at the top, Adjust, Fit width and Reference point on the left, Presets on the right, and Round scale to whole numbers at the bottom](../png/ss-630-1214-144-20260926-112121.png)
 
-## Features
+### Features
 
 Changes are applied to the document as you edit, so you can check the look and resolution while choosing the scale. The palette can stay open; just select the next image to keep going.
 
-### Display and input
+#### Display and input
 
 - **Scale**: "current scale → [field] %" (e.g. 30% → [57] %)
   - The current scale shows "25% / 30%" when horizontal and vertical differ, or "Mixed" when the images differ
@@ -26,7 +26,7 @@ Changes are applied to the document as you edit, so you can check the look and r
 
 The Scale, Width, Height and PPI fields are linked: changing one updates the others. Every field steps with the ∧∨ buttons on its left or the arrow keys to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1. With Manage at the bottom of the palette, you can assign keyboard shortcuts (Option/Control + a letter or digit) to the Adjust, Fit width and Preset buttons. By default, Option+1 sets the scale to 100% and Option+0 fits to the margins.
 
-### Setting the scale
+#### Setting the scale
 
 - **Adjust**: −10/+10, −5/+5, −1/+1
 - **Presets**: 10%, 15%, 20%, 25%, 30%, 35%, 40%, 50%, 100%, 200%, 300%
@@ -36,14 +36,14 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 - **Reference point**: the point of the frame chosen on the 9-point grid (top-left by default) stays where it was after scaling
 - **Round scale to whole numbers** (at the bottom of the palette, on by default): makes the applied scale a whole number
 
-### Keeping and reverting
+#### Keeping and reverting
 
 - Changing the selection keeps the changes so far and loads the newly selected frames automatically
 - Close the window with its close button (the changes are kept)
 - The changes to one set of targets are a single undo step (Cmd+Z)
 - Every option carries a tooltip describing what it does
 
-## Usage
+### Usage
 
 1. Select frames that contain placed images (you can also open the palette with nothing selected and select them afterwards)
 2. Run the script
@@ -51,7 +51,7 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 4. Select the next image and repeat step 3
 5. When you are done, close the window with its close button
 
-## Notes and limitations
+### Notes and limitations
 
 - Targets are rectangle frames that each contain a single image or PDF. Ellipse and polygon frames, and images selected directly, are not covered.
 - Images with different horizontal and vertical scales become uniform when changed. When the current scales differ between axes or between images, the Scale field starts at 10%.
@@ -68,7 +68,7 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 - Running the script again while the palette is open closes the old palette (keeping its changes) and opens a new one.
 - InDesign cannot change a document while a modal dialog is open, so the script uses a palette.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -79,26 +79,26 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 | Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/n91c6a628b7ed |
 
-## Change log
+### Update History
 
-### v1.4.0 (2026-09-27)
+#### v1.4.0 (2026-09-27)
 
 - Added stepper buttons to the Scale, Width, Height and PPI fields. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten, Option by 0.1)
 
-### v1.3.0 (2026-09-26)
+#### v1.3.0 (2026-09-26)
 
 - Added the Manage window for assigning keyboard shortcuts to the Adjust, Fit width and Preset buttons
 - Option+0 fits to the margins (default)
 
-### v1.2.0 (2026-09-26)
+#### v1.2.0 (2026-09-26)
 
 - Option+1 sets the scale to 100%
 
-### v1.1.1 (2026-09-26)
+#### v1.1.1 (2026-09-26)
 
 - Fixed the actual PPI sometimes not being shown
 
-### v1.1.0 (2026-09-26)
+#### v1.1.0 (2026-09-26)
 
 - Removed the Refresh and Cancel buttons; the palette now loads the selection automatically when it changes
 - Scale can be set by typing a width, height (mm) or PPI
@@ -107,10 +107,10 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 - Added Round scale to whole numbers (when off, the fit buttons do not round either)
 - Revised the presets (removed 45%, 400% and 500%) and arranged them in one column
 
-### v1.0.0 (2026-09-26)
+#### v1.0.0 (2026-09-26)
 
 - First release
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

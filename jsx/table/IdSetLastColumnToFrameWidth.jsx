@@ -7,12 +7,14 @@
 カーソルのある表の最終列幅を調整し、表全体の幅を親テキストフレームの幅に合わせます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSetLastColumnToFrameWidth.md
 
 ### Overview
 
 Adjusts the last column of the table at the cursor so that the whole table matches the width of its parent text frame.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetLastColumnToFrameWidth.md
 
 */
 

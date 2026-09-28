@@ -7,12 +7,17 @@
 行頭の目印（Markdown の見出し・箇条書き・番号リストなど）を手がかりに段落スタイルと文字スタイルを適用し、その目印を後ろに続くスペースごと削除します。目印は検索対象から自動判別でき、対象箇所の件数を確かめてから実行できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdRemoveMarkerApplyStyle.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n3a0d4c0dacdb
 
 ### Overview
 
 Applies a paragraph style and a character style to paragraphs carrying a leading marker — Markdown headings, bullets, numbered lists and the like — then deletes the marker together with the spaces that follow it. Markers can be detected from the search target, and the number of matches is shown before the run.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerApplyStyle.md
 
 */
 

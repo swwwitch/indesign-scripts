@@ -7,12 +7,14 @@
 カーソルのある表の幅を、親テキストフレームの幅にそろえます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableColumnEqualizer.md
 
 ### Overview
 
 Fits the width of the table at the cursor to the width of its parent text frame.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnEqualizer.md
 
 */
 

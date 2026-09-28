@@ -7,12 +7,14 @@
 アクティブページが親（マスター）ページかドキュメントページかを判定し、対応するもう一方へ切り替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSwitchToMasterOrDocument.md
 
 ### Overview
 
 Detects whether the active page is a parent (master) page or a document page and switches to its counterpart.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSwitchToMasterOrDocument.md
 
 */
 

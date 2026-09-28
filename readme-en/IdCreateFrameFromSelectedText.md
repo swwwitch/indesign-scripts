@@ -10,7 +10,7 @@
 
 Creates a graphic frame sized from the selected text, either inline (anchored) or placed on the page.
 
-## Features
+### Features
 
 - Choose between inline (anchored) placement and a graphic frame on the page
 - Pick the frame width from selected text, column width, parent frame or page margins
@@ -18,18 +18,18 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 - The height field steps with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1
 - Set the paragraph style of the inserted line, the object style and the text wrap
 
-## Usage
+### Usage
 
 1. Select the text you want to size the frame from (running with no selection also works)
 2. Run the script
 3. Choose the placement and size, then click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - Text wrap applies only to page placement with the None object style.
 - Line-count height is approximate: first-line point size plus leading for the remaining lines.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -40,12 +40,12 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 | Last updated | 2026-09-27 |
 | Article | https://note.com/dtp_tranist/n/ndd1b7c5246a3 |
 
-## Change log
+### Update History
 
-### v2.7.0 (2026-09-27)
+#### v2.7.0 (2026-09-27)
 
 - Added stepper buttons to the height field. The arrow keys step it the same way (to the next whole number; Shift to the next multiple of ten, Option by 0.1)
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

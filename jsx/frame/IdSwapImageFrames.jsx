@@ -7,12 +7,17 @@
 選択した画像入りフレームを、リンク画像だけ／フレームの位置ごと、いずれかの方法で順送りに入れ替えます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSwapImageFrames.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n6dee03ae96e2
 
 ### Overview
 
 Rotates the selected image frames, moving either the linked images alone or the frames together with their positions.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSwapImageFrames.md
 
 */
 

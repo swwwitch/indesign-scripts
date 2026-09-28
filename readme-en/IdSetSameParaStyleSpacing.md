@@ -10,24 +10,24 @@
 
 Sets a paragraph style's "Spacing (Same Style)" at the style-definition level.
 
-## Features
+### Features
 
 - Collects paragraph styles recursively, including those inside style groups
 - Spacing can be Ignore, 0, or a specific value
 - The value follows the document display units and steps with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2; Shift snaps to the next multiple of 10, Option steps by 0.1)
 - With text selected, the applied paragraph style is preselected and its current value shown
 
-## Usage
+### Usage
 
 1. Open the target document (place the cursor in the target paragraph for a convenient default)
 2. Run the script
 3. Choose the paragraph style and spacing, then click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - The change is written to the style definition, so it affects every paragraph using that style.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -37,12 +37,12 @@ Sets a paragraph style's "Spacing (Same Style)" at the style-definition level.
 | First release | 2026-06-30 |
 | Last updated | 2026-09-27 |
 
-## Change log
+### Update History
 
-### v1.1.0 (2026-09-27)
+#### v1.1.0 (2026-09-27)
 
 - Added stepper buttons to the value field. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten, Option by 0.1)
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

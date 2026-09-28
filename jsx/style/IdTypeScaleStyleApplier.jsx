@@ -7,12 +7,17 @@
 基準サイズとスケール倍率からタイプスケールを組み立て、本文・見出し・リスト・表の段落スタイルへ一括適用します。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTypeScaleStyleApplier.md
+
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4f9b0666db66
 
 ### Overview
 
 Builds a type scale from a base size and a scale ratio, then applies it to the body, heading, list and table paragraph styles at once.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypeScaleStyleApplier.md
 
 */
 

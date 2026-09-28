@@ -10,23 +10,23 @@
 
 Scans every story in the active document, including table cells and nested tables, and resets horizontal and vertical text scaling to 100%.
 
-## Features
+### Features
 
 - Resets any style range whose horizontal or vertical scale is not 100%
 - Recurses into table cells and nested tables
 - Reports the number of changed text ranges when finished
 
-## Usage
+### Usage
 
 1. Open the target document
 2. Run the script
 
-## Notes and limitations
+### Notes and limitations
 
 - The whole run is a single undo step.
 - Every story in the active document is processed; the scope cannot be narrowed.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -36,6 +36,6 @@ Scans every story in the active document, including table cells and nested table
 | First release | 2026-07-19 |
 | Last updated | 2026-07-19 |
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

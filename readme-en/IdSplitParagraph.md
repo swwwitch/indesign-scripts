@@ -10,7 +10,7 @@
 
 Splits each paragraph in the selected text frame into its own text frame, keeping the original position and width (height for vertical text). Vertical text frames are supported as well.
 
-## Features
+### Features
 
 - Places each frame on the original paragraph baseline (vertically for horizontal text, horizontally for vertical text)
 - Keeps the original width (height for vertical text)
@@ -18,13 +18,13 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 - Supports vertical text frames (overset is resolved by growing the frame leftward)
 - When overset text exists, offers Expand to resolve or Run anyway
 
-## Usage
+### Usage
 
 1. Select exactly one text frame
 2. Run the script
 3. If there is overset text, choose how to proceed and click OK
 
-## Notes and limitations
+### Notes and limitations
 
 - Threaded text frames, anchored frames, and frames nested inside another object are not supported; the script reports this and stops.
 - Rotated frames are out of scope (the split uses the unrotated bounding box).
@@ -33,7 +33,7 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 - If the overset text cannot be resolved, the frame is restored to its original size and the run is cancelled.
 - The whole operation reverts in a single undo.
 
-## Script info
+### Script info
 
 | Item | Value |
 | --- | --- |
@@ -44,6 +44,6 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 | Last updated | 2026-09-04 |
 | Article | https://note.com/dtp_tranist/n/n8793ea71526b |
 
-## License
+### License
 
 MIT License — <http://opensource.org/licenses/mit-license.php>

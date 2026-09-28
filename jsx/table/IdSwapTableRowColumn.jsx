@@ -7,12 +7,14 @@
 選択した表の行と列を入れ替えます。ヘッダー行の扱いとセル結合の処理方法をダイアログで選べます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSwapTableRowColumn.md
 
 ### Overview
 
 Transposes the rows and columns of the selected table. The dialog picks how header rows and merged cells are handled.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSwapTableRowColumn.md
 
 */
 

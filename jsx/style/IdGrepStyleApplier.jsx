@@ -7,12 +7,14 @@
 段落スタイルに正規表現スタイル（GREP スタイル）を適用・管理します。ルールと文字スタイルを選び、複数の段落スタイルへまとめて反映できます。
 
 詳細は README を参照してください。
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdGrepStyleApplier.md
 
 ### Overview
 
 Applies and manages GREP styles on paragraph styles. Pick a rule and a character style and push it to several paragraph styles at once.
 
 See the README for details.
+https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdGrepStyleApplier.md
 
 */
 
