@@ -4,7 +4,7 @@
 
 ### 概要
 
-段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイルまでを一括で登録します。
+段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイル（説明付き）までを一括で登録します。フォントは base-font（全体）・base-heading（見出し系）・base-text（本文系）で一括変更できます。
 スタイル名は HTML（h1 / p）と Word 対応（Heading 1 / Normal）から選べ、既定では既存の同名スタイルには手を触れません。
 
 詳細は README を参照してください。
@@ -15,7 +15,7 @@ https://note.com/dtp_tranist/n/nfe87ec253780
 
 ### Overview
 
-Registers paragraph and character styles together with their groups, inheritance and GREP styles in one pass.
+Registers paragraph and character styles together with their groups, inheritance and GREP styles (with comments) in one pass. Fonts can be changed in one place through base-font (everything), base-heading (headings) or base-text (body text).
 Style names can follow either HTML (h1 / p) or Word (Heading 1 / Normal), and existing same-named styles are left untouched by default.
 
 See the README for details.
@@ -27,7 +27,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdStyleSetup.md
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdStyleSetup";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -388,8 +388,8 @@ function trimButtonHeight(targetButton, trimPixels) {
     /**
      * HTML 側の名前を、選択中の体系でのスタイル名に読み替える
      * ※ 読み替えの対象はグループに入れていないスタイルだけ。グループ内のスタイル
-     *   （base-regex、th、toc-h1、lang-US など）はどちらの体系でも名前を変えません /
-     *   Only root-level styles are renamed; grouped styles (base-regex, th, toc-h1, lang-US, …)
+     *   （base-font、td-left、toc-h1、lang-US など）はどちらの体系でも名前を変えません /
+     *   Only root-level styles are renamed; grouped styles (base-font, td-left, toc-h1, lang-US, …)
      *   keep the same name in both schemes.
      * @param {string} htmlStyleName HTML 側のスタイル名（例: "h1"）
      * @returns {string} 選択中の体系でのスタイル名。対応が無ければ引数をそのまま返す
@@ -526,8 +526,8 @@ function trimButtonHeight(targetButton, trimPixels) {
         ];
 
         var paragraphStylesInGroups = [
-            { group: "basestyle", styles: ["base-regex", "body-text", "heading", "base-toc"] },
-            { group: "table", styles: ["th", "th-left", "th-center", "th-right", "td", "td-left", "td-center", "td-right"] },
+            { group: "basestyle", styles: ["base-font", "base-heading", "base-text", "base-table", "base-toc"] },
+            { group: "table", styles: ["td-left", "td-justify", "td-justify-all", "td-center", "td-right", "th-left", "th-center", "th-center-W"] },
             { group: "toc", styles: ["toc-title", "toc-h1", "toc-h2", "toc-h3"] },
             { group: "book", styles: ["page-number", "running-head", "thumb-index"] }
         ];
@@ -658,19 +658,19 @@ function trimButtonHeight(targetButton, trimPixels) {
             var baseGroup = doc.paragraphStyleGroups.itemByName("basestyle");
             if (!baseGroup.isValid) return;
 
-            if (shouldApplyAttributesToParagraphStyle(baseGroup, "body-text")) {
-                var bodyTextStyle = baseGroup.paragraphStyles.itemByName("body-text");
-                if (bodyTextStyle.isValid) {
-                    setKerningMethodByNames(bodyTextStyle, KERNING_METHOD_MOJIKUMI_NAMES);
-                    bodyTextStyle.justification = Justification.LEFT_JUSTIFIED;
-                    bodyTextStyle.keepLinesTogether = true;
-                    bodyTextStyle.keepAllLinesTogether = true;
-                    bodyTextStyle.hyphenation = false;
+            if (shouldApplyAttributesToParagraphStyle(baseGroup, "base-text")) {
+                var baseTextStyle = baseGroup.paragraphStyles.itemByName("base-text");
+                if (baseTextStyle.isValid) {
+                    setKerningMethodByNames(baseTextStyle, KERNING_METHOD_MOJIKUMI_NAMES);
+                    baseTextStyle.justification = Justification.LEFT_JUSTIFIED;
+                    baseTextStyle.keepLinesTogether = true;
+                    baseTextStyle.keepAllLinesTogether = true;
+                    baseTextStyle.hyphenation = false;
                 }
             }
 
-            if (shouldApplyAttributesToParagraphStyle(baseGroup, "heading")) {
-                var headingStyle = baseGroup.paragraphStyles.itemByName("heading");
+            if (shouldApplyAttributesToParagraphStyle(baseGroup, "base-heading")) {
+                var headingStyle = baseGroup.paragraphStyles.itemByName("base-heading");
                 if (headingStyle.isValid) {
                     setKerningMethodByNames(headingStyle, KERNING_METHOD_METRICS_NAMES);
                     headingStyle.justification = Justification.LEFT_ALIGN;
@@ -701,33 +701,52 @@ function trimButtonHeight(targetButton, trimPixels) {
         function applyBaseStyleBasedOn(doc) {
             var baseGroup = doc.paragraphStyleGroups.itemByName("basestyle");
             if (!baseGroup.isValid) return;
-            var baseStyle = baseGroup.paragraphStyles.itemByName("base-regex");
+            var baseStyle = baseGroup.paragraphStyles.itemByName("base-font");
             if (!baseStyle.isValid) return;
 
-            // body-text を base-regex 基準に（heading も base-regex を基準にする。base-toc は基準にしない）/
-            // body-text → base-regex (heading is also based on base-regex; base-toc is not)
-            var bodyTextStyle = baseGroup.paragraphStyles.itemByName("body-text");
-            if (bodyTextStyle.isValid &&
-                shouldApplyAttributesToParagraphStyle(baseGroup, "body-text")) {
-                bodyTextStyle.basedOn = baseStyle;
+            // base-font はすべての段落スタイルの親。見出し系は base-heading、本文系は base-text を経由する /
+            // base-font is the root of every paragraph style; headings go through base-heading, body text through base-text
+            // base-text → base-font（本文・リスト・表セル・目次項目の親）/ (parent of body, lists, table cells, TOC entries)
+            var baseTextStyle = baseGroup.paragraphStyles.itemByName("base-text");
+            if (baseTextStyle.isValid &&
+                shouldApplyAttributesToParagraphStyle(baseGroup, "base-text")) {
+                baseTextStyle.basedOn = baseStyle;
             }
 
-            // heading を base-regex 基準に（h1〜h6 から継承させるための中間スタイル）/
-            // heading → base-regex (intermediate style inherited by h1–h6)
-            var headingStyle = baseGroup.paragraphStyles.itemByName("heading");
+            // base-heading → base-font（h1〜h6 と目次タイトルの親）/ (parent of h1–h6 and the TOC title)
+            var headingStyle = baseGroup.paragraphStyles.itemByName("base-heading");
             if (headingStyle.isValid &&
-                shouldApplyAttributesToParagraphStyle(baseGroup, "heading")) {
+                shouldApplyAttributesToParagraphStyle(baseGroup, "base-heading")) {
                 headingStyle.basedOn = baseStyle;
             }
 
-            // p / ul-li / ol-li / p.caption → body-text
-            if (bodyTextStyle.isValid) {
-                var basedOnBaseStyleNames = [styleName("p"), styleName("ul-li"), styleName("ol-li"), styleName("p.caption")];
+            // base-toc → base-text（目次項目 toc-h1〜toc-h3 の親）/ (parent of TOC entries toc-h1–toc-h3)
+            var tocBaseStyle = baseGroup.paragraphStyles.itemByName("base-toc");
+            if (tocBaseStyle.isValid && baseTextStyle.isValid &&
+                shouldApplyAttributesToParagraphStyle(baseGroup, "base-toc")) {
+                tocBaseStyle.basedOn = baseTextStyle;
+            }
+
+            // book グループ（ノンブル・柱・ツメ）→ base-font / book group (folio, running head, thumb index) → base-font
+            var bookGroup = doc.paragraphStyleGroups.itemByName("book");
+            if (bookGroup.isValid) {
+                var bookStyleNames = ["page-number", "running-head", "thumb-index"];
+                for (var bookIndex = 0; bookIndex < bookStyleNames.length; bookIndex++) {
+                    if (!shouldApplyAttributesToParagraphStyle(bookGroup, bookStyleNames[bookIndex])) continue;
+                    var bookStyle = bookGroup.paragraphStyles.itemByName(bookStyleNames[bookIndex]);
+                    if (bookStyle.isValid) bookStyle.basedOn = baseStyle;
+                }
+            }
+
+            // p / ul-li / ol-li / p.caption / p.code / p.img → base-text
+            if (baseTextStyle.isValid) {
+                var basedOnBaseStyleNames = [styleName("p"), styleName("ul-li"), styleName("ol-li"), styleName("p.caption"),
+                                             styleName("p.code"), styleName("p.img")];
                 for (var basedOnIndex = 0; basedOnIndex < basedOnBaseStyleNames.length; basedOnIndex++) {
                     var basedOnStyleName = basedOnBaseStyleNames[basedOnIndex];
                     if (!shouldApplyAttributesToParagraphStyle(doc, basedOnStyleName)) continue;
                     var basedOnTargetStyle = doc.paragraphStyles.itemByName(basedOnStyleName);
-                    if (basedOnTargetStyle.isValid) basedOnTargetStyle.basedOn = bodyTextStyle;
+                    if (basedOnTargetStyle.isValid) basedOnTargetStyle.basedOn = baseTextStyle;
                 }
             }
 
@@ -739,7 +758,7 @@ function trimButtonHeight(targetButton, trimPixels) {
                 if (tableParagraphStyle.isValid) tableParagraphStyle.basedOn = bodyParagraphStyle;
             }
 
-            // h1〜h6 → heading
+            // h1〜h6 → base-heading
             if (headingStyle.isValid) {
                 var headingBasedOnNames = [styleName("h1"), styleName("h2"), styleName("h3"),
                                            styleName("h4"), styleName("h5"), styleName("h6")];
@@ -786,18 +805,8 @@ function trimButtonHeight(targetButton, trimPixels) {
                 }
             }
 
-            // body-text を継承しない p.code は単独で「すべての行を分離禁止」を設定 /
-            // p.code does not inherit from body-text, so set keep-all-lines-together directly
-            if (shouldApplyAttributesToParagraphStyle(doc, styleName("p.code"))) {
-                var codeKeepStyle = doc.paragraphStyles.itemByName(styleName("p.code"));
-                if (codeKeepStyle.isValid) {
-                    codeKeepStyle.keepLinesTogether = true;
-                    codeKeepStyle.keepAllLinesTogether = true;
-                }
-            }
-
-            // p は分離禁止オプションをすべて OFF（body-text からの継承も含めて打ち消す）/
-            // p turns off all keep options (also overriding what is inherited from body-text)
+            // p は分離禁止オプションをすべて OFF（base-text からの継承も含めて打ち消す）/
+            // p turns off all keep options (also overriding what is inherited from base-text)
             if (shouldApplyAttributesToParagraphStyle(doc, styleName("p"))) {
                 var bodyKeepStyle = doc.paragraphStyles.itemByName(styleName("p"));
                 if (bodyKeepStyle.isValid) {
@@ -819,6 +828,22 @@ function trimButtonHeight(targetButton, trimPixels) {
             var imageParagraphStyle = doc.paragraphStyles.itemByName(styleName("p.img"));
             if (imageParagraphStyle.isValid) {
                 imageParagraphStyle.justification = Justification.CENTER_ALIGN;
+            }
+        }
+
+        /**
+         * ノンブル用段落スタイルの設定を適用する
+         * @param {Document} doc 対象ドキュメント
+         * @returns {void}
+         */
+        function applyPageNumberSettings(doc) {
+            var bookGroup = doc.paragraphStyleGroups.itemByName("book");
+            if (!bookGroup.isValid) return;
+            if (!shouldApplyAttributesToParagraphStyle(bookGroup, "page-number")) return;
+            var pageNumberStyle = bookGroup.paragraphStyles.itemByName("page-number");
+            if (pageNumberStyle.isValid) {
+                // 小口揃え / Align away from spine
+                pageNumberStyle.justification = Justification.AWAY_FROM_BINDING_SIDE;
             }
         }
 
@@ -862,59 +887,47 @@ function trimButtonHeight(targetButton, trimPixels) {
          */
         function applyTableCellSettings(doc) {
             var tableGroup = doc.paragraphStyleGroups.itemByName("table");
-            if (!tableGroup.isValid) return;
-
-            // body-text（basestyle グループ）を th / td の基準にし、th-* / td-* へ basedOn 経由で継承させる /
-            // body-text (basestyle group) is the base of th/td; th-*/td-* inherit via basedOn
             var baseGroup = doc.paragraphStyleGroups.itemByName("basestyle");
-            var bodyTextStyle = baseGroup.isValid ? baseGroup.paragraphStyles.itemByName("body-text") : null;
+            if (!tableGroup.isValid || !baseGroup.isValid) return;
 
-            // th / td を body-text ベースに（「すべての行を分離禁止」は body-text から継承するため個別設定しない）/
-            // basedOn=body-text on th/td (keep-all-lines-together inherited from body-text)
-            var tableBaseStyleNames = ["th", "td"];
-            for (var tableBaseIndex = 0; tableBaseIndex < tableBaseStyleNames.length; tableBaseIndex++) {
-                var tableBaseName = tableBaseStyleNames[tableBaseIndex];
-                if (!shouldApplyAttributesToParagraphStyle(tableGroup, tableBaseName)) continue;
-                var tableBaseStyle = tableGroup.paragraphStyles.itemByName(tableBaseName);
-                if (tableBaseStyle.isValid) {
-                    if (bodyTextStyle && bodyTextStyle.isValid) {
-                        tableBaseStyle.basedOn = bodyTextStyle;
-                    }
-                }
+            // base-table: 表共通の基本テキスト（base-text → base-table、水平・垂直比率 92%）/
+            // base-table: shared text for tables (base-text → base-table, horizontal/vertical scale 92%)
+            var baseTableStyle = baseGroup.paragraphStyles.itemByName("base-table");
+            if (!baseTableStyle.isValid) return;
+            if (shouldApplyAttributesToParagraphStyle(baseGroup, "base-table")) {
+                var baseTextStyle = baseGroup.paragraphStyles.itemByName("base-text");
+                if (baseTextStyle.isValid) baseTableStyle.basedOn = baseTextStyle;
+                baseTableStyle.horizontalScale = 92;
+                baseTableStyle.verticalScale = 92;
             }
 
-            var thBaseStyle = tableGroup.paragraphStyles.itemByName("th");
-            var thAlignmentTargets = [
-                { name: "th-left", justification: Justification.LEFT_ALIGN },
-                { name: "th-center", justification: Justification.CENTER_ALIGN },
-                { name: "th-right", justification: Justification.RIGHT_ALIGN }
+            // 親 → 子の順に並べる（子の basedOn を張る時点で親の basedOn が確定しているように）/
+            // Listed parent-first so a parent's basedOn is settled before its children point at it
+            // td-left: 本文セルの基準 / base of body cells, th-left: 表内の見出しの基準 / base of header cells
+            var paperSwatch = doc.swatches.itemByName("Paper");
+            var tableCellDefinitions = [
+                { name: "td-left", parent: "base-table", justification: Justification.LEFT_ALIGN },
+                { name: "td-justify", parent: "td-left", justification: Justification.LEFT_JUSTIFIED },
+                { name: "td-justify-all", parent: "td-left", justification: Justification.FULLY_JUSTIFIED },
+                { name: "td-center", parent: "td-left", justification: Justification.CENTER_ALIGN },
+                { name: "td-right", parent: "td-left", justification: Justification.RIGHT_ALIGN },
+                { name: "th-left", parent: "base-table", justification: Justification.LEFT_ALIGN },
+                { name: "th-center", parent: "th-left", justification: Justification.CENTER_ALIGN },
+                { name: "th-center-W", parent: "th-left", justification: Justification.CENTER_ALIGN, fillColor: paperSwatch }
             ];
-            for (var thIndex = 0; thIndex < thAlignmentTargets.length; thIndex++) {
-                var thTarget = thAlignmentTargets[thIndex];
-                if (!shouldApplyAttributesToParagraphStyle(tableGroup, thTarget.name)) continue;
-                var thTargetStyle = tableGroup.paragraphStyles.itemByName(thTarget.name);
-                if (!thTargetStyle.isValid) continue;
-                if (thBaseStyle.isValid) {
-                    thTargetStyle.basedOn = thBaseStyle;
+            for (var cellIndex = 0; cellIndex < tableCellDefinitions.length; cellIndex++) {
+                var cellDefinition = tableCellDefinitions[cellIndex];
+                if (!shouldApplyAttributesToParagraphStyle(tableGroup, cellDefinition.name)) continue;
+                var cellStyle = tableGroup.paragraphStyles.itemByName(cellDefinition.name);
+                if (!cellStyle.isValid) continue;
+                var cellParentStyle = (cellDefinition.parent === "base-table")
+                    ? baseTableStyle
+                    : tableGroup.paragraphStyles.itemByName(cellDefinition.parent);
+                if (cellParentStyle.isValid) cellStyle.basedOn = cellParentStyle;
+                cellStyle.justification = cellDefinition.justification;
+                if (cellDefinition.fillColor && cellDefinition.fillColor.isValid) {
+                    cellStyle.fillColor = cellDefinition.fillColor;
                 }
-                thTargetStyle.justification = thTarget.justification;
-            }
-
-            var tdBaseStyle = tableGroup.paragraphStyles.itemByName("td");
-            var tdAlignmentTargets = [
-                { name: "td-left", justification: Justification.LEFT_ALIGN },
-                { name: "td-center", justification: Justification.CENTER_ALIGN },
-                { name: "td-right", justification: Justification.RIGHT_ALIGN }
-            ];
-            for (var tdIndex = 0; tdIndex < tdAlignmentTargets.length; tdIndex++) {
-                var tdTarget = tdAlignmentTargets[tdIndex];
-                if (!shouldApplyAttributesToParagraphStyle(tableGroup, tdTarget.name)) continue;
-                var tdTargetStyle = tableGroup.paragraphStyles.itemByName(tdTarget.name);
-                if (!tdTargetStyle.isValid) continue;
-                if (tdBaseStyle.isValid) {
-                    tdTargetStyle.basedOn = tdBaseStyle;
-                }
-                tdTargetStyle.justification = tdTarget.justification;
             }
         }
 
@@ -928,15 +941,21 @@ function trimButtonHeight(targetButton, trimPixels) {
             if (!tocGroup.isValid) return;
             var baseGroup = doc.paragraphStyleGroups.itemByName("basestyle");
             if (!baseGroup.isValid) return;
-            var tocBaseStyle = baseGroup.paragraphStyles.itemByName("base-toc");
-            if (!tocBaseStyle.isValid) return;
 
-            var tocSubheadingNames = ["toc-title", "toc-h1", "toc-h2", "toc-h3"];
-            for (var tocIndex = 0; tocIndex < tocSubheadingNames.length; tocIndex++) {
-                var tocSubheadingName = tocSubheadingNames[tocIndex];
+            // toc-title は見出し系（base-heading）、toc-h1〜toc-h3 は本文系（base-toc → base-text）/
+            // toc-title follows the headings (base-heading); toc-h1–toc-h3 follow body text (base-toc → base-text)
+            var tocParentByName = {
+                "toc-title": baseGroup.paragraphStyles.itemByName("base-heading"),
+                "toc-h1": baseGroup.paragraphStyles.itemByName("base-toc"),
+                "toc-h2": baseGroup.paragraphStyles.itemByName("base-toc"),
+                "toc-h3": baseGroup.paragraphStyles.itemByName("base-toc")
+            };
+            for (var tocSubheadingName in tocParentByName) {
+                var tocParentStyle = tocParentByName[tocSubheadingName];
+                if (!tocParentStyle.isValid) continue;
                 if (!shouldApplyAttributesToParagraphStyle(tocGroup, tocSubheadingName)) continue;
                 var tocSubheadingStyle = tocGroup.paragraphStyles.itemByName(tocSubheadingName);
-                if (tocSubheadingStyle.isValid) tocSubheadingStyle.basedOn = tocBaseStyle;
+                if (tocSubheadingStyle.isValid) tocSubheadingStyle.basedOn = tocParentStyle;
             }
         }
 
@@ -1135,10 +1154,10 @@ function trimButtonHeight(targetButton, trimPixels) {
         function applyAllStyleAttributes(doc) {
             // 先に継承関係（basedOn）を確定させてから属性を適用する。逆順だと、親と同値の代入が
             //   override として残らず、後から張った basedOn の継承値で打ち消されることがある
-            //   （例: p の分離禁止 OFF が body-text の ON に戻る）/
+            //   （例: p の分離禁止 OFF が base-text の ON に戻る）/
             // Set inheritance (basedOn) first, then attributes: assigning a value equal to the parent's
             //   may not register as an override, so a basedOn applied afterwards can undo it
-            //   (e.g. p's keep options going back to body-text's ON).
+            //   (e.g. p's keep options going back to base-text's ON).
             // ※ applyTableCellSettings は関数内で basedOn → 属性の順になっているため、この並びのままでよい /
             //   applyTableCellSettings already does basedOn → attributes internally, so it stays put.
             applyBaseStyleBasedOn(doc);
@@ -1152,6 +1171,7 @@ function trimButtonHeight(targetButton, trimPixels) {
             applyKeepTogetherSettings(doc);
             applyListSettings(doc);
             applyImageParagraphSettings(doc);
+            applyPageNumberSettings(doc);
             applyTableCellSettings(doc);
             applyTocLeafOverrides(doc);
             applyInlineGraphicSpacing(doc);
@@ -1167,31 +1187,45 @@ function trimButtonHeight(targetButton, trimPixels) {
         // =========================================
 
         /**
-         * 基準スタイルと ul-li に正規表現スタイルを設定する
+         * 見出し・本文・リスト・表セルに正規表現スタイルを設定する
          * @param {Document} doc 対象ドキュメント
          * @returns {void}
          */
         function applyNestedGrepStyleSettings(doc) {
             // group: 段落スタイルの所属グループ名（null はルート）/ owning group name (null = root)
-            // base-regex: 共通3つ。own GREP を持たない子（p / ol-li / p.caption / h1〜h6 / 表セル）へ basedOn で継承 /
-            //   base-regex: 3 shared rules, inherited via basedOn by children that have no own GREP.
-            // ul-li: own GREP（li-label）を1つでも持つと InDesign は GREP の継承を切る（own リストが継承分を置き換える）ため、
-            //   共通3つも ul-li に直接設定する。継承は切れているので二重にはならない /
-            //   ul-li: once a style has any own GREP, InDesign stops inheriting (the own list replaces the
-            //   inherited one), so set the 3 shared rules directly on ul-li too. No duplication, since inheritance is off.
+            // 割り当て / Assignment:
+            //   lang-US        … base-heading（h1〜h6・toc-title へ継承）、p、ul-li、ol-li
+            //   no-break       … p、ul-li、ol-li
+            //   inline-graphic … p、ul-li、ol-li、base-table
+            //   li-label       … ul-li のみ
+            //   p.table は p を、td-* / th-* は base-table を継承する（own GREP を持たないので継承される）/
+            //   p.table inherits from p, td-*/th-* from base-table (they have no own GREP, so the rules carry over).
+            // 独自の GREP を1つでも持つと InDesign は GREP の継承を切る（own リストが継承分を置き換える）ため、
+            //   GREP を持つスタイルには必要なものをすべて直接設定する。継承は切れているので二重にはならない /
+            //   Once a style has any own GREP, InDesign stops inheriting (the own list replaces the inherited one),
+            //   so every style that carries GREP gets all of its rules directly. No duplication, since inheritance is off.
             //   ※ 手動で GREP を足すと UI が継承分を own へコピーしてから追加するので継承が残って見えるが、
-            //     スクリプトの nestedGrepStyles.add() はコピーしないため継承が切れる（h1 等は own GREP が無いので継承表示される）/
+            //     スクリプトの nestedGrepStyles.add() はコピーしないため継承が切れる /
             //   NOTE: manual add copies inherited rules into the own list first (so they appear to persist), but
-            //     scripted add() does not copy them, so inheritance is severed (h1 etc. have no own GREP, so they still inherit).
+            //     scripted add() does not copy them, so inheritance is severed.
             //   li-label は最後に置き、重なる範囲で優先させる / li-label is last so it wins on overlapping ranges.
+            var GREP_LANG_US = "(?#欧文)[\\u\\l]";
+            var GREP_NO_BREAK = "(?#行末分離禁止)..[。」』？！…]?$";
+            var GREP_INLINE_GRAPHIC = "(?#アンカー)~a";
+            var GREP_LI_LABEL = "(?#ラベル)^.+?(?=：)";
             var nestedGrepRules = [
-                { group: "basestyle", paragraph: "base-regex", character: "lang-US", expression: "[\\u\\l]" },
-                { group: "basestyle", paragraph: "base-regex", character: "no-break", expression: "..[。」』？！…]?$" },
-                { group: "basestyle", paragraph: "base-regex", character: "inline-graphic", expression: "~a" },
-                { group: null, paragraph: styleName("ul-li"), character: "lang-US", expression: "[\\u\\l]" },
-                { group: null, paragraph: styleName("ul-li"), character: "no-break", expression: "..[。」』？！…]?$" },
-                { group: null, paragraph: styleName("ul-li"), character: "inline-graphic", expression: "~a" },
-                { group: null, paragraph: styleName("ul-li"), character: "li-label", expression: "^.+?(?=：)" }
+                { group: "basestyle", paragraph: "base-heading", character: "lang-US", expression: GREP_LANG_US },
+                { group: null, paragraph: styleName("p"), character: "lang-US", expression: GREP_LANG_US },
+                { group: null, paragraph: styleName("p"), character: "no-break", expression: GREP_NO_BREAK },
+                { group: null, paragraph: styleName("p"), character: "inline-graphic", expression: GREP_INLINE_GRAPHIC },
+                { group: null, paragraph: styleName("ul-li"), character: "lang-US", expression: GREP_LANG_US },
+                { group: null, paragraph: styleName("ul-li"), character: "no-break", expression: GREP_NO_BREAK },
+                { group: null, paragraph: styleName("ul-li"), character: "inline-graphic", expression: GREP_INLINE_GRAPHIC },
+                { group: null, paragraph: styleName("ul-li"), character: "li-label", expression: GREP_LI_LABEL },
+                { group: null, paragraph: styleName("ol-li"), character: "lang-US", expression: GREP_LANG_US },
+                { group: null, paragraph: styleName("ol-li"), character: "no-break", expression: GREP_NO_BREAK },
+                { group: null, paragraph: styleName("ol-li"), character: "inline-graphic", expression: GREP_INLINE_GRAPHIC },
+                { group: "basestyle", paragraph: "base-table", character: "inline-graphic", expression: GREP_INLINE_GRAPHIC }
             ];
 
             // 置き換えモード（OVERWRITE_EXISTING_STYLES）では、各対象スタイルの既存 GREP を
