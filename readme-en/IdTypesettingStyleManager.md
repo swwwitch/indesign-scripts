@@ -36,13 +36,17 @@ Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and mo
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdTypesettingStyleManager.jsx` |
-| Version | v1.3.0 |
+| Version | v1.3.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-06 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n7f67e8da571f |
 
 ### Update History
+
+#### v1.3.1 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.3.0 (2026-09-30)
 

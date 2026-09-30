@@ -32,12 +32,16 @@ Sets a paragraph style's "Spacing (Same Style)" at the style-definition level.
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdSetSameParaStyleSpacing.jsx` |
-| Version | v1.1.1 |
+| Version | v1.1.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-06-30 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 
 ### Update History
+
+#### v1.1.2 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.1.1 (2026-09-30)
 

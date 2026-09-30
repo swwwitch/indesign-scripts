@@ -74,14 +74,18 @@ Main changes from the original:
 | Item | Details |
 | --- | --- |
 | File | `jsx/misc/IdMenuActionsViewer.jsx` |
-| Version | v1.0.25 |
+| Version | v1.0.26 |
 | Original author | Peter Kahrel |
 | Modified by | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-25 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n5038c9d2cc85 |
 
 ### Update History
+
+#### v1.0.26 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.0.25 (2026-09-30)
 

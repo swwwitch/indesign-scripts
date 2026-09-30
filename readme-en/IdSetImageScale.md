@@ -73,13 +73,17 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdSetImageScale.jsx` |
-| Version | v1.4.1 |
+| Version | v1.4.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-26 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n91c6a628b7ed |
 
 ### Update History
+
+#### v1.4.2 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.4.1 (2026-09-30)
 

@@ -65,13 +65,17 @@ The folder listing is read once while the dialog is open and reused for the prev
 | Item | Value |
 | --- | --- |
 | File | `jsx/document/IdFileNameManager.jsx` |
-| Version | v1.3.3 |
+| Version | v1.3.4 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-27 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/nc88dd887eb1c |
 
 ### Update History
+
+#### v1.3.4 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.3.3 (2026-09-30)
 

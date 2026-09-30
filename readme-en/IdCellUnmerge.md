@@ -40,13 +40,17 @@ Unmerges merged table cells, with dialog options for what happens to the origina
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdCellUnmerge.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n175525637a3d |
 
 ### Update History
+
+#### v1.1.1 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.1.0 (2026-09-30)
 

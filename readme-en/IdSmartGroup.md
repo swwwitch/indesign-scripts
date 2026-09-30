@@ -33,12 +33,16 @@ Groups the selected objects by horizontal (row) or vertical (column) proximity, 
 | Item | Value |
 | --- | --- |
 | File | `jsx/group/IdSmartGroup.jsx` |
-| Version | v1.1.1 |
+| Version | v1.1.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-11 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 
 ### Update History
+
+#### v1.1.2 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.1.1 (2026-09-30)
 

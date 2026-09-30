@@ -38,13 +38,17 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdSplitParagraph.jsx` |
-| Version | v1.1.2 |
+| Version | v1.1.3 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-16 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n8793ea71526b |
 
 ### Update History
+
+#### v1.1.3 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.1.2 (2026-09-30)
 

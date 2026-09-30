@@ -73,13 +73,17 @@ Deletes unused styles (paragraph, character, object, table, cell), parent pages,
 | Item | Details |
 | --- | --- |
 | File | `jsx/misc/IdDeleteUnused.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-24 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n879f09b72808 |
 
 ### Update History
+
+#### v1.1.1 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.1.0 (2026-09-30)
 

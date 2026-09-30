@@ -51,13 +51,17 @@ Choosing Word means a Word file placed with "Preserve Styles and Formatting from
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdStyleSetup.jsx` |
-| Version | v1.4.1 |
+| Version | v1.4.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-03 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/nfe87ec253780 |
 
 ### Update History
+
+#### v1.4.2 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.4.1 (2026-09-30)
 

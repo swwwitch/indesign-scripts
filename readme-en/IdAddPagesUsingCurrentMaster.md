@@ -33,13 +33,17 @@ Inserts a given number of pages right after the current page, carrying over the 
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdAddPagesUsingCurrentMaster.jsx` |
-| Version | v1.3.1 |
+| Version | v1.3.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-06-26 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n2d1a76097a39 |
 
 ### Update History
+
+#### v1.3.2 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.3.1 (2026-09-30)
 

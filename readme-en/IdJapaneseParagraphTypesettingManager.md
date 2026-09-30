@@ -35,12 +35,16 @@ Reviews and bulk-applies Japanese typesetting settings (kinsoku set, kinsoku adj
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdJapaneseParagraphTypesettingManager.jsx` |
-| Version | v1.3.0 |
+| Version | v1.3.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-05 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 
 ### Update History
+
+#### v1.3.1 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.3.0 (2026-09-30)
 

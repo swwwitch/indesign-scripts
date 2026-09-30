@@ -31,12 +31,16 @@ Transposes the rows and columns of the selected table. Identical to IdTransposeT
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdSwapTableRowColumn.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-11-25 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 
 ### Update History
+
+#### v1.1.1 (2026-10-01)
+
+- A button row with only right-side buttons is now centered in dialogs up to 200 px wide (inside the margins) and right-aligned in wider ones
 
 #### v1.1.0 (2026-09-30)
 

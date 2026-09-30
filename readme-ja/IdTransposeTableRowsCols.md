@@ -45,13 +45,17 @@ Original: Table Transpose v1.0 by Iain Anderson
 | 項目 | 内容 |
 | --- | --- |
 | ファイル | `jsx/table/IdTransposeTableRowsCols.jsx` |
-| バージョン | v1.0.2 |
+| バージョン | v1.0.3 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2025-11-25 |
-| 最終更新 | 2026-09-30 |
+| 最終更新 | 2026-10-01 |
 | 紹介記事 | https://note.com/dtp_tranist/n/nc6dbdb3af6a1 |
 
 ### 更新履歴
+
+#### v1.0.3（2026-10-01）
+
+- 右側のボタンだけの行は、ダイアログの内側の幅（左右の余白を除く）が 200px 以内なら中央、それより広ければ右揃えに変更
 
 #### v1.0.2（2026-09-30）
 
