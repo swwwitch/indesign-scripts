@@ -27,7 +27,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdScriptLaunche
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -1778,7 +1778,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         applyButtonSize(btnOK, DIALOG_BUTTON_WIDTH);
         alignRightOnlyButtonRow(buttonRow);
 
-        settingsDialog.center();
         minCountInput.active = true;
         if (settingsDialog.show() !== 1) return null;
 
@@ -2404,7 +2403,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         refreshFolderList();
         lastNormalizedQuery = splitSearchTerms(keywordInput.text).join(" ");
         updateClearButtonState();
-        launcherDialog.center();
 
         /* 検索欄を先頭の操作部品にしたうえで、表示時にも明示的にフォーカスする / Focus the keyword field on show */
         keywordInput.active = true;

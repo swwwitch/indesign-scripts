@@ -80,13 +80,17 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdClearStyleOverrides.jsx` |
-| Version | v1.3.4 |
+| Version | v1.3.5 |
 | Original author | Gregor Fellenz (grefel) |
 | Modified by | Masahiro Takano (@swwwitch) |
 | First release | 2020-06-09 |
 | Last updated | 2026-10-01 |
 
 ### Update History
+
+#### v1.3.5 (2026-10-01)
+
+- Removed the explicit center() so the dialog uses the default position like the other scripts
 
 #### v1.3.4 (2026-10-01)
 

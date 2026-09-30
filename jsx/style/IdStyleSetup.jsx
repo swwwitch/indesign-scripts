@@ -27,7 +27,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdStyleSetup.md
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdStyleSetup";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -174,7 +174,7 @@ function trimButtonHeight(targetButton, trimPixels) {
     var SCHEME_SAMPLE_INDENT = 18;
 
     /* ダイアログの不透明度 / Dialog opacity */
-    var DIALOG_OPACITY = 0.97;
+    var DIALOG_OPACITY = 0.98;
 
     // =========================================
     // ラベル定義 / Labels
@@ -467,15 +467,7 @@ function trimButtonHeight(targetButton, trimPixels) {
      * @returns {object} 更新と終了を行うオブジェクト
      */
     function createProgressWindow(totalSteps) {
-        var progressWindow = null;
-        try {
-            progressWindow = new Window("palette", getLabel("progress.title") + "  " + SCRIPT_VERSION, undefined, { closeButton: false });
-        } catch (e) {
-            progressWindow = null;
-        }
-        if (!progressWindow) {
-            return { step: function () {}, close: function () {} };
-        }
+        var progressWindow = new Window("palette", getLabel("progress.title") + "  " + SCRIPT_VERSION);
         setupWindow(progressWindow, 10);
 
         var progressMessage = progressWindow.add("statictext", undefined, "");

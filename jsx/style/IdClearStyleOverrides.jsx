@@ -24,7 +24,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdClearStyleOve
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdClearStyleOverrides";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Gregor Fellenz (grefel)";      /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2020-06-09";                   /* 最初のリリース日 / first release date */
@@ -1082,7 +1082,6 @@ function showSettingsDialog(targetDocument) {
     }
     updateRunButton();
 
-    settingsDialog.center();
     if (settingsDialog.show() !== 1) return null;
 
     return {

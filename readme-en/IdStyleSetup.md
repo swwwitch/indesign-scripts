@@ -51,13 +51,17 @@ Choosing Word means a Word file placed with "Preserve Styles and Formatting from
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdStyleSetup.jsx` |
-| Version | v1.4.2 |
+| Version | v1.4.3 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-03 |
 | Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/nfe87ec253780 |
 
 ### Update History
+
+#### v1.4.3 (2026-10-01)
+
+- Unified the dialog opacity to 0.98 and aligned the progress palette with the other scripts
 
 #### v1.4.2 (2026-10-01)
 

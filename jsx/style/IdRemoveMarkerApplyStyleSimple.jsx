@@ -22,10 +22,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdRemoveMarkerApplyStyleSimple"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";    /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-09";                     /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                     /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                     /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdRemoveMarkerApplyStyleSimple.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerApplyStyleSimple.md"; /* README (English) */
@@ -167,6 +167,78 @@ function setupColumn(group, horizontalAlignment) {
     group.alignChildren = ["fill", "top"];
     group.spacing = ROW_SPACING;
 }
+
+// ボタン行（再利用パーツ） / Button row (reusable)
+
+var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
+
+/**
+ * ダイアログ下部のボタン行を作る。
+ * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+ * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+ * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+ * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+ */
+function addButtonRow(parent, rowOptions) {
+    var isCentered = !!(rowOptions && rowOptions.centered);
+    var btnRowGroup = parent.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+    if (isCentered) {
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+    }
+
+    btnRowGroup.alignment = ["fill", "bottom"];
+
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.alignChildren = ["left", "center"];
+    btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+    /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+    return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+}
+
+/**
+ * 左のグループにボタンが無い（右のボタンだけの）行を、ダイアログの幅に合わせて揃える。
+ * 内側の幅（左右の余白を除く）が BUTTON_ROW_CENTER_MAX_WIDTH 以下なら左右中央、それより広ければ右揃えのまま。
+ * 幅はレイアウトが決まるまで分からないので、ダイアログを表示した時点（show イベント）で判定する。
+ * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+ * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+ * @returns {void}
+ */
+function alignRightOnlyButtonRow(buttonRow) {
+    if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+    var dialogWindow = buttonRow.rowGroup.window;
+    dialogWindow.addEventListener("show", function () {
+        if (!buttonRow.leftGroup) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 行の幅＝ダイアログの内側の幅（左右の余白を除く）/ The row spans the dialog's inner width (margins excluded) */
+        if (!btnRowGroup.size || btnRowGroup.size.width > BUTTON_ROW_CENTER_MAX_WIDTH) return;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+        dialogWindow.layout.layout(true);
+    });
+}
+
+// ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
 // =========================================
 // ラベル定義 / Labels
@@ -715,12 +787,8 @@ function showDialog(activeDoc) {
     var dialog = new Window("dialog", getLabel("dialog.title"));
     setupWindow(dialog);
 
-    var mainGroup = dialog.add("group");
-    setupRow(mainGroup, "fill", COLUMN_SPACING);
-    mainGroup.alignChildren = ["fill", "top"];
-
     /* 入力欄 / Fields */
-    var fieldGroup = mainGroup.add("group");
+    var fieldGroup = dialog.add("group");
     setupColumn(fieldGroup, "fill");
 
     var searchTextRow = addLabeledRow(fieldGroup, "field.searchText");
@@ -741,23 +809,23 @@ function showDialog(activeDoc) {
         ["scope.allDocuments", "scope.document", "scope.story"],
         getInitialScope(activeDoc), "tooltip.scope");
 
-    /* ボタンエリア / Button column */
-    var btnColumnGroup = mainGroup.add("group");
-    setupColumn(btnColumnGroup, "right");
-
-    var btnOK = btnColumnGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-    var btnCancel = btnColumnGroup.add(
-        "button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    btnOK.preferredSize.width = BUTTON_WIDTH;
-    btnCancel.preferredSize.width = BUTTON_WIDTH;
-    btnOK.helpTip = getLabel("tooltip.ok");
-    btnCancel.helpTip = getLabel("tooltip.cancel");
-
     /* 対象箇所（ほかの行と同じラベル付きの行。検索文字列・検索対象を変えるたびに数え直す） /
        Match count, shown as a labeled row and refreshed on every change */
     var matchCountRow = addLabeledRow(dialog, "field.matchCount");
     var matchCountValue = matchCountRow.add("statictext", undefined, "0");
     matchCountValue.preferredSize.width = COUNT_WIDTH;
+
+    /* ボタン行（キャンセル → OK）/ Button row (Cancel, then OK) */
+    var buttonRow = addButtonRow(dialog);
+    var btnCancel = buttonRow.rightGroup.add(
+        "button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    var btnOK = buttonRow.rightGroup.add(
+        "button", undefined, getLabel("button.ok"), { name: "ok" });
+    btnCancel.preferredSize.width = BUTTON_WIDTH;
+    btnOK.preferredSize.width = BUTTON_WIDTH;
+    btnCancel.helpTip = getLabel("tooltip.cancel");
+    btnOK.helpTip = getLabel("tooltip.ok");
+    alignRightOnlyButtonRow(buttonRow);
 
     var paragraphTextCache = {};
 

@@ -27,10 +27,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdZebraRowFill.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdZebraRowFill";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdZebraRowFill.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdZebraRowFill.md"; /* README (English) */
@@ -167,7 +167,7 @@ var SKIP_CHECKBOX_WIDTH = 80;
 var SWATCH_CHIP_SIZE = 18;
 
 /* ダイアログの不透明度 / Dialog opacity */
-var DIALOG_OPACITY = 0.97;
+var DIALOG_OPACITY = 0.98;
 
 /**
  * 行に「∧∨＋入力欄」を隙間0で突き合わせる group を足し、∧∨を置く。入力欄は戻り値の .parent に続けて追加する

@@ -53,13 +53,17 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdZebraRowFill.jsx` |
-| Version | v1.4.0 |
+| Version | v1.4.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n20ff60f6b508 |
 
 ### Update History
+
+#### v1.4.1 (2026-10-01)
+
+- Unified the dialog opacity to 0.98
 
 #### v1.4.0 (2026-09-30)
 

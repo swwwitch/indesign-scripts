@@ -62,13 +62,17 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Item | Value |
 | --- | --- |
 | File | `jsx/runner/IdScriptLauncher.jsx` |
-| Version | v1.2.2 |
+| Version | v1.2.3 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-08-26 |
 | Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
 ### Update History
+
+#### v1.2.3 (2026-10-01)
+
+- Removed the explicit center() so the dialogs use the default position like the other scripts
 
 #### v1.2.2 (2026-10-01)
 

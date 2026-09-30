@@ -39,12 +39,16 @@ Applies a paragraph style to paragraphs that contain the given search text (a ma
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdRemoveMarkerApplyStyleSimple.jsx` |
-| Version | v1.1.0 |
+| Version | v1.2.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-09 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 
 ### Update History
+
+#### v1.2.0 (2026-10-01)
+
+- Moved OK / Cancel from the right-hand column to the standard button row at the bottom of the dialog (Cancel, then OK)
 
 #### v1.1.0 (2026-09-30)
 
