@@ -17,7 +17,7 @@
 - basedOn による継承関係を先に確定させてから属性を適用し、共通の組版設定は基準スタイルへ集約
 - フォントは基準スタイルで一括変更：`base-font` はすべて、`base-heading` は見出しと目次タイトル、`base-text` は本文・リスト・表セル・目次項目に反映
 - 正規表現スタイルは用途別に設定：欧文は見出し・p・リスト、行末分離禁止は p・リスト、アンカーは p・リスト・表セル、ラベルは ul-li のみ
-- 表セルは `base-table`（水平・垂直比率 92%）を基準に、本文セル `td-left`（その下に td-justify / td-justify-all / td-center / td-right）と見出しセル `th-left`（その下に th-center / 紙色文字の th-center-W）に分けて登録
+- 表セルは `base-table`（水平・垂直比率 92%）を基準に、本文セル `td-left`（その下に td-justify / td-justify-all / td-center / td-right / 箇条書きの td-left ul-li）と見出しセル `th-left`（その下に th-center / 紙色文字の th-center-W）に分けて登録
 - 各正規表現の先頭に `(?#欧文)` などの説明を付けて登録
 - 処理中はプログレスバーを表示
 
@@ -39,7 +39,7 @@
    │  ├─ p.caption         前の段落と連動、次のスタイル：p
    │  ├─ p.code            言語なし、合字オフ、左揃え
    │  ├─ p.img             中央揃え
-   │  ├─ ul-li             箇条書き（記号は li-bullet）、前の段落と連動、同じスタイル間のスペース 0
+   │  ├─ ul-li             箇条書き（記号は li-bullet）、前の段落と連動、同じスタイル間のスペース 0、タブ位置：文字サイズ
    │  │                    正規表現：欧文、行末分離禁止、アンカー、ラベル
    │  ├─ ol-li             番号付き（番号は li-num）
    │  │                    正規表現：欧文、行末分離禁止、アンカー
@@ -49,7 +49,8 @@
    │  │  │  ├─ td-justify      均等配置（最終行左揃え）
    │  │  │  ├─ td-justify-all  両端揃え
    │  │  │  ├─ td-center       中央揃え
-   │  │  │  └─ td-right        右揃え
+   │  │  │  ├─ td-right        右揃え
+   │  │  │  └─ td-left ul-li   表セル内の箇条書き（記号は li-bullet）、前の段落と連動、同じスタイル間のスペース 0、タブ位置：文字サイズ
    │  │  └─ th-left        見出しセルの親。左揃え
    │  │     ├─ th-center       中央揃え
    │  │     └─ th-center-W     中央揃え、文字色：紙色
@@ -94,13 +95,18 @@
 | 項目 | 内容 |
 | --- | --- |
 | ファイル | `jsx/style/IdStyleSetup.jsx` |
-| バージョン | v1.5.0 |
+| バージョン | v1.5.1 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-05-03 |
 | 最終更新 | 2026-10-01 |
 | 紹介記事 | https://note.com/dtp_tranist/n/nfe87ec253780 |
 
 ### 更新履歴
+
+#### v1.5.1（2026-10-01）
+
+- 表セル内の箇条書き用に `td-left ul-li`（`td-left` を継承）を追加
+- `ul-li` と `td-left ul-li` のタブ位置を文字サイズ（1字分）に設定
 
 #### v1.5.0（2026-10-01）
 

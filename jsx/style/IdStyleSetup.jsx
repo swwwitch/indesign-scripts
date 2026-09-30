@@ -27,7 +27,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdStyleSetup.md
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdStyleSetup";                 /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
@@ -527,7 +527,7 @@ function trimButtonHeight(targetButton, trimPixels) {
 
         var paragraphStylesInGroups = [
             { group: "basestyle", styles: ["base-font", "base-heading", "base-text", "base-table", "base-toc"] },
-            { group: "table", styles: ["td-left", "td-justify", "td-justify-all", "td-center", "td-right", "th-left", "th-center", "th-center-W"] },
+            { group: "table", styles: ["td-left", "td-justify", "td-justify-all", "td-center", "td-right", "td-left ul-li", "th-left", "th-center", "th-center-W"] },
             { group: "toc", styles: ["toc-title", "toc-h1", "toc-h2", "toc-h3"] },
             { group: "book", styles: ["page-number", "running-head", "thumb-index"] }
         ];
@@ -855,17 +855,15 @@ function trimButtonHeight(targetButton, trimPixels) {
         function applyListSettings(doc) {
             if (shouldApplyAttributesToParagraphStyle(doc, styleName("ul-li"))) {
                 var bulletListStyle = doc.paragraphStyles.itemByName(styleName("ul-li"));
-                if (bulletListStyle.isValid) {
-                    bulletListStyle.bulletsAndNumberingListType = ListType.BULLET_LIST;
-                    var bulletCharacterStyle = resolveCharacterStyle(doc, "li-bullet");
-                    if (bulletCharacterStyle) {
-                        bulletListStyle.bulletsCharacterStyle = bulletCharacterStyle.style;
-                    }
-                    // 同じスタイルが連続する段落間のスペースを 0 に（対応バージョンのみ。
-                    //   プロパティ名はバージョン差があるため候補から存在するものを設定）/
-                    // Space between paragraphs using the same style = 0 (only on supporting versions)
-                    setOptionalProperty(bulletListStyle,
-                        ["sameParaStyleSpacing", "spaceBetweenParagraphsUsingSameStyle", "spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
+                if (bulletListStyle.isValid) applyBulletListSettings(doc, bulletListStyle);
+            }
+            // td-left ul-li: 表セル内の箇条書き（td-left を継承）/ bullets inside table cells (based on td-left)
+            var tableGroup = doc.paragraphStyleGroups.itemByName("table");
+            if (tableGroup.isValid && shouldApplyAttributesToParagraphStyle(tableGroup, "td-left ul-li")) {
+                var cellBulletListStyle = tableGroup.paragraphStyles.itemByName("td-left ul-li");
+                if (cellBulletListStyle.isValid) {
+                    applyBulletListSettings(doc, cellBulletListStyle);
+                    cellBulletListStyle.keepWithPrevious = true;
                 }
             }
             if (shouldApplyAttributesToParagraphStyle(doc, styleName("ol-li"))) {
@@ -877,6 +875,46 @@ function trimButtonHeight(targetButton, trimPixels) {
                         numberedListStyle.numberingCharacterStyle = numberingCharacterStyle.style;
                     }
                 }
+            }
+        }
+
+        /**
+         * 箇条書きの設定（記号・同じスタイル間のスペース・タブ位置）を段落スタイルへ適用する
+         * @param {Document} doc 対象ドキュメント
+         * @param {ParagraphStyle} bulletListStyle 対象の段落スタイル
+         * @returns {void}
+         */
+        function applyBulletListSettings(doc, bulletListStyle) {
+            bulletListStyle.bulletsAndNumberingListType = ListType.BULLET_LIST;
+            var bulletCharacterStyle = resolveCharacterStyle(doc, "li-bullet");
+            if (bulletCharacterStyle) {
+                bulletListStyle.bulletsCharacterStyle = bulletCharacterStyle.style;
+            }
+            // 同じスタイルが連続する段落間のスペースを 0 に（対応バージョンのみ。
+            //   プロパティ名はバージョン差があるため候補から存在するものを設定）/
+            // Space between paragraphs using the same style = 0 (only on supporting versions)
+            setOptionalProperty(bulletListStyle,
+                ["sameParaStyleSpacing", "spaceBetweenParagraphsUsingSameStyle", "spaceBetweenParagraphs", "spaceBetweenSameParagraphStyles", "spaceBetweenSameStyleParagraphs"], 0);
+            setTabStopAtFontSize(bulletListStyle);
+        }
+
+        /**
+         * 段落スタイルのタブ位置を、そのスタイルの文字サイズ（1字分）に置き直す
+         * ※ 文字サイズの単位（pt / Q）に左右されないよう、読み書きの間だけスクリプトの単位をポイントにする /
+         *   Script units are switched to points while reading and writing, so the text-size unit (pt / Q) doesn't matter.
+         * @param {ParagraphStyle} paragraphStyle 対象の段落スタイル
+         * @returns {void}
+         */
+        function setTabStopAtFontSize(paragraphStyle) {
+            var savedMeasurementUnit = app.scriptPreferences.measurementUnit;
+            app.scriptPreferences.measurementUnit = MeasurementUnits.POINTS;
+            try {
+                for (var tabStopIndex = paragraphStyle.tabStops.length - 1; tabStopIndex >= 0; tabStopIndex--) {
+                    paragraphStyle.tabStops[tabStopIndex].remove();
+                }
+                paragraphStyle.tabStops.add({ alignment: TabStopAlignment.LEFT_ALIGN, position: paragraphStyle.pointSize });
+            } finally {
+                app.scriptPreferences.measurementUnit = savedMeasurementUnit;
             }
         }
 
@@ -911,6 +949,7 @@ function trimButtonHeight(targetButton, trimPixels) {
                 { name: "td-justify-all", parent: "td-left", justification: Justification.FULLY_JUSTIFIED },
                 { name: "td-center", parent: "td-left", justification: Justification.CENTER_ALIGN },
                 { name: "td-right", parent: "td-left", justification: Justification.RIGHT_ALIGN },
+                { name: "td-left ul-li", parent: "td-left" },
                 { name: "th-left", parent: "base-table", justification: Justification.LEFT_ALIGN },
                 { name: "th-center", parent: "th-left", justification: Justification.CENTER_ALIGN },
                 { name: "th-center-W", parent: "th-left", justification: Justification.CENTER_ALIGN, fillColor: paperSwatch }
@@ -924,7 +963,7 @@ function trimButtonHeight(targetButton, trimPixels) {
                     ? baseTableStyle
                     : tableGroup.paragraphStyles.itemByName(cellDefinition.parent);
                 if (cellParentStyle.isValid) cellStyle.basedOn = cellParentStyle;
-                cellStyle.justification = cellDefinition.justification;
+                if (cellDefinition.justification) cellStyle.justification = cellDefinition.justification;
                 if (cellDefinition.fillColor && cellDefinition.fillColor.isValid) {
                     cellStyle.fillColor = cellDefinition.fillColor;
                 }
@@ -1158,8 +1197,11 @@ function trimButtonHeight(targetButton, trimPixels) {
             // Set inheritance (basedOn) first, then attributes: assigning a value equal to the parent's
             //   may not register as an override, so a basedOn applied afterwards can undo it
             //   (e.g. p's keep options going back to base-text's ON).
-            // ※ applyTableCellSettings は関数内で basedOn → 属性の順になっているため、この並びのままでよい /
+            // ※ applyTableCellSettings は関数内で basedOn → 属性の順になっているため、この並びのままでよい。
+            //   applyListSettings は td-left ul-li の basedOn（applyTableCellSettings で設定）が済んでから、
+            //   継承後の文字サイズでタブ位置を決めるため、その後に置く /
             //   applyTableCellSettings already does basedOn → attributes internally, so it stays put.
+            //   applyListSettings follows it so td-left ul-li's tab stop uses the font size inherited via its basedOn.
             applyBaseStyleBasedOn(doc);
             applyTocSubheadingBasedOn(doc);
             applyCharacterStyleBasedOn(doc, styleName("highlighter"), styleName("strong-bold"));
@@ -1169,10 +1211,10 @@ function trimButtonHeight(targetButton, trimPixels) {
             applyBaseGroupStyleSettings(doc);
             applyNextStyleSettings(doc);
             applyKeepTogetherSettings(doc);
-            applyListSettings(doc);
             applyImageParagraphSettings(doc);
             applyPageNumberSettings(doc);
             applyTableCellSettings(doc);
+            applyListSettings(doc);
             applyTocLeafOverrides(doc);
             applyInlineGraphicSpacing(doc);
             applyLinkSettings(doc);

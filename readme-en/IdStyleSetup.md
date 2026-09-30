@@ -17,7 +17,7 @@ Registers paragraph and character styles, their groups, inheritance and GREP sty
 - basedOn relationships are established before attributes are applied, and shared typesetting settings live on the base styles
 - Fonts change in one place per family: `base-font` reaches everything, `base-heading` the headings and TOC title, `base-text` body text, lists, table cells and TOC entries
 - GREP styles are assigned by role: Latin text on headings, p and lists; line-end no-break on p and lists; anchors on p, lists and table cells; the label only on ul-li
-- Table cells build on `base-table` (92% horizontal and vertical scale), split into body cells under `td-left` (td-justify / td-justify-all / td-center / td-right) and header cells under `th-left` (th-center / th-center-W with Paper-colored text)
+- Table cells build on `base-table` (92% horizontal and vertical scale), split into body cells under `td-left` (td-justify / td-justify-all / td-center / td-right / td-left ul-li for bullets) and header cells under `th-left` (th-center / th-center-W with Paper-colored text)
 - Each GREP expression is prefixed with a short comment such as `(?#欧文)`
 - A progress bar is shown while running
 
@@ -39,7 +39,7 @@ No style sets a font. Changing `base-font`, `base-heading` or `base-text` update
    │  ├─ p.caption         keep with previous, next style: p
    │  ├─ p.code            no language, ligatures off, align left
    │  ├─ p.img             align center
-   │  ├─ ul-li             bullets (li-bullet), keep with previous, space between same-style paragraphs 0
+   │  ├─ ul-li             bullets (li-bullet), keep with previous, space between same-style paragraphs 0, tab stop at the font size
    │  │                    GREP: Latin, line-end no-break, anchor, label
    │  ├─ ol-li             numbering (li-num)
    │  │                    GREP: Latin, line-end no-break, anchor
@@ -49,7 +49,8 @@ No style sets a font. Changing `base-font`, `base-heading` or `base-text` update
    │  │  │  ├─ td-justify      justify, last line left
    │  │  │  ├─ td-justify-all  justify all lines
    │  │  │  ├─ td-center       align center
-   │  │  │  └─ td-right        align right
+   │  │  │  ├─ td-right        align right
+   │  │  │  └─ td-left ul-li   bullets inside cells (li-bullet), keep with previous, space between same-style paragraphs 0, tab stop at the font size
    │  │  └─ th-left        parent of header cells. Align left
    │  │     ├─ th-center       align center
    │  │     └─ th-center-W     align center, Paper text
@@ -94,13 +95,18 @@ Choosing Word means a Word file placed with "Preserve Styles and Formatting from
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdStyleSetup.jsx` |
-| Version | v1.5.0 |
+| Version | v1.5.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-03 |
 | Last updated | 2026-10-01 |
 | Article | https://note.com/dtp_tranist/n/nfe87ec253780 |
 
 ### Update History
+
+#### v1.5.1 (2026-10-01)
+
+- Added `td-left ul-li` (based on `td-left`) for bulleted lists inside table cells
+- Set the tab stop of `ul-li` and `td-left ul-li` to the font size (one em)
 
 #### v1.5.0 (2026-10-01)
 
