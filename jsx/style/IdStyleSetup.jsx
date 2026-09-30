@@ -857,15 +857,6 @@ function trimButtonHeight(targetButton, trimPixels) {
                 var bulletListStyle = doc.paragraphStyles.itemByName(styleName("ul-li"));
                 if (bulletListStyle.isValid) applyBulletListSettings(doc, bulletListStyle);
             }
-            // td-left ul-li: 表セル内の箇条書き（td-left を継承）/ bullets inside table cells (based on td-left)
-            var tableGroup = doc.paragraphStyleGroups.itemByName("table");
-            if (tableGroup.isValid && shouldApplyAttributesToParagraphStyle(tableGroup, "td-left ul-li")) {
-                var cellBulletListStyle = tableGroup.paragraphStyles.itemByName("td-left ul-li");
-                if (cellBulletListStyle.isValid) {
-                    applyBulletListSettings(doc, cellBulletListStyle);
-                    cellBulletListStyle.keepWithPrevious = true;
-                }
-            }
             if (shouldApplyAttributesToParagraphStyle(doc, styleName("ol-li"))) {
                 var numberedListStyle = doc.paragraphStyles.itemByName(styleName("ol-li"));
                 if (numberedListStyle.isValid) {
@@ -919,11 +910,13 @@ function trimButtonHeight(targetButton, trimPixels) {
         }
 
         /**
-         * 表セル用スタイルの設定を適用する
+         * 表のスタイル（base-table と table グループの td-* / th-*）の継承関係と属性を適用する
+         * ※ 関数内で basedOn → 属性の順に処理する。td-left ul-li のタブ位置は継承後の文字サイズで決まる /
+         *   Handles basedOn before attributes internally, so td-left ul-li's tab stop uses the inherited font size.
          * @param {Document} doc 対象ドキュメント
          * @returns {void}
          */
-        function applyTableCellSettings(doc) {
+        function applyTableStyleSettings(doc) {
             var tableGroup = doc.paragraphStyleGroups.itemByName("table");
             var baseGroup = doc.paragraphStyleGroups.itemByName("basestyle");
             if (!tableGroup.isValid || !baseGroup.isValid) return;
@@ -942,6 +935,7 @@ function trimButtonHeight(targetButton, trimPixels) {
             // 親 → 子の順に並べる（子の basedOn を張る時点で親の basedOn が確定しているように）/
             // Listed parent-first so a parent's basedOn is settled before its children point at it
             // td-left: 本文セルの基準 / base of body cells, th-left: 表内の見出しの基準 / base of header cells
+            // bulletList: 箇条書き（ul-li と同じ設定＋前の段落と連動）/ bullets (same as ul-li, plus keep with previous)
             var paperSwatch = doc.swatches.itemByName("Paper");
             var tableCellDefinitions = [
                 { name: "td-left", parent: "base-table", justification: Justification.LEFT_ALIGN },
@@ -949,7 +943,7 @@ function trimButtonHeight(targetButton, trimPixels) {
                 { name: "td-justify-all", parent: "td-left", justification: Justification.FULLY_JUSTIFIED },
                 { name: "td-center", parent: "td-left", justification: Justification.CENTER_ALIGN },
                 { name: "td-right", parent: "td-left", justification: Justification.RIGHT_ALIGN },
-                { name: "td-left ul-li", parent: "td-left" },
+                { name: "td-left ul-li", parent: "td-left", bulletList: true },
                 { name: "th-left", parent: "base-table", justification: Justification.LEFT_ALIGN },
                 { name: "th-center", parent: "th-left", justification: Justification.CENTER_ALIGN },
                 { name: "th-center-W", parent: "th-left", justification: Justification.CENTER_ALIGN, fillColor: paperSwatch }
@@ -966,6 +960,10 @@ function trimButtonHeight(targetButton, trimPixels) {
                 if (cellDefinition.justification) cellStyle.justification = cellDefinition.justification;
                 if (cellDefinition.fillColor && cellDefinition.fillColor.isValid) {
                     cellStyle.fillColor = cellDefinition.fillColor;
+                }
+                if (cellDefinition.bulletList) {
+                    applyBulletListSettings(doc, cellStyle);
+                    cellStyle.keepWithPrevious = true;
                 }
             }
         }
@@ -1035,7 +1033,7 @@ function trimButtonHeight(targetButton, trimPixels) {
         }
 
         /**
-         * 名前から文字スタイルを取得する
+         * 名前から文字スタイルを取得する（ルート → characterStyleGroupNames の各グループの順に探す）
          * @param {Document} doc 対象ドキュメント
          * @param {string} styleName 文字スタイル名
          * @returns {object|null} { style: 文字スタイル, container: 所属コンテナ }。見つからない場合は null
@@ -1043,10 +1041,11 @@ function trimButtonHeight(targetButton, trimPixels) {
         function resolveCharacterStyle(doc, styleName) {
             var rootStyle = doc.characterStyles.itemByName(styleName);
             if (rootStyle.isValid) return { style: rootStyle, container: doc };
-            var autoApplyGroup = doc.characterStyleGroups.itemByName("auto-apply");
-            if (autoApplyGroup.isValid) {
-                var groupedStyle = autoApplyGroup.characterStyles.itemByName(styleName);
-                if (groupedStyle.isValid) return { style: groupedStyle, container: autoApplyGroup };
+            for (var groupNameIndex = 0; groupNameIndex < characterStyleGroupNames.length; groupNameIndex++) {
+                var characterGroup = doc.characterStyleGroups.itemByName(characterStyleGroupNames[groupNameIndex]);
+                if (!characterGroup.isValid) continue;
+                var groupedStyle = characterGroup.characterStyles.itemByName(styleName);
+                if (groupedStyle.isValid) return { style: groupedStyle, container: characterGroup };
             }
             return null;
         }
@@ -1197,24 +1196,22 @@ function trimButtonHeight(targetButton, trimPixels) {
             // Set inheritance (basedOn) first, then attributes: assigning a value equal to the parent's
             //   may not register as an override, so a basedOn applied afterwards can undo it
             //   (e.g. p's keep options going back to base-text's ON).
-            // ※ applyTableCellSettings は関数内で basedOn → 属性の順になっているため、この並びのままでよい。
-            //   applyListSettings は td-left ul-li の basedOn（applyTableCellSettings で設定）が済んでから、
-            //   継承後の文字サイズでタブ位置を決めるため、その後に置く /
-            //   applyTableCellSettings already does basedOn → attributes internally, so it stays put.
-            //   applyListSettings follows it so td-left ul-li's tab stop uses the font size inherited via its basedOn.
+            // ※ applyTableStyleSettings は関数内で basedOn → 属性の順になっているため、この並びのままでよい /
+            //   applyTableStyleSettings already does basedOn → attributes internally, so it stays put.
             applyBaseStyleBasedOn(doc);
             applyTocSubheadingBasedOn(doc);
             applyCharacterStyleBasedOn(doc, styleName("highlighter"), styleName("strong-bold"));
             applyCharacterStyleBasedOn(doc, styleName("code-strong"), styleName("code-normal"));
             applyCharacterStyleBasedOn(doc, "li-label", styleName("strong-bold"));
+            applyCharacterStyleBasedOn(doc, "td-bold", styleName("strong-bold"));
 
             applyBaseGroupStyleSettings(doc);
             applyNextStyleSettings(doc);
             applyKeepTogetherSettings(doc);
+            applyListSettings(doc);
             applyImageParagraphSettings(doc);
             applyPageNumberSettings(doc);
-            applyTableCellSettings(doc);
-            applyListSettings(doc);
+            applyTableStyleSettings(doc);
             applyTocLeafOverrides(doc);
             applyInlineGraphicSpacing(doc);
             applyLinkSettings(doc);
@@ -1236,12 +1233,15 @@ function trimButtonHeight(targetButton, trimPixels) {
         function applyNestedGrepStyleSettings(doc) {
             // group: 段落スタイルの所属グループ名（null はルート）/ owning group name (null = root)
             // 割り当て / Assignment:
-            //   lang-US        … base-heading（h1〜h6・toc-title へ継承）、p、ul-li、ol-li
+            //   strong-bold    … base-heading（h1〜h6・toc-title へ継承）、th-left（th-center・th-center-W へ継承）
+            //   lang-US        … base-heading、p、ul-li、ol-li
             //   no-break       … p、ul-li、ol-li
-            //   inline-graphic … p、ul-li、ol-li、base-table
+            //   inline-graphic … p、ul-li、ol-li、base-table、th-left
             //   li-label       … ul-li のみ
-            //   p.table は p を、td-* / th-* は base-table を継承する（own GREP を持たないので継承される）/
-            //   p.table inherits from p, td-*/th-* from base-table (they have no own GREP, so the rules carry over).
+            //   p.table は p を、td-* は base-table を継承する（own GREP を持たないので継承される）。
+            //   th-left は太字を持つので base-table の継承が切れ、アンカーも直接持たせる /
+            //   p.table inherits from p, td-* from base-table (they have no own GREP, so the rules carry over).
+            //   th-left carries its own bold rule, which cuts off base-table's, so it also gets the anchor directly.
             // 独自の GREP を1つでも持つと InDesign は GREP の継承を切る（own リストが継承分を置き換える）ため、
             //   GREP を持つスタイルには必要なものをすべて直接設定する。継承は切れているので二重にはならない /
             //   Once a style has any own GREP, InDesign stops inheriting (the own list replaces the inherited one),
@@ -1251,11 +1251,13 @@ function trimButtonHeight(targetButton, trimPixels) {
             //   NOTE: manual add copies inherited rules into the own list first (so they appear to persist), but
             //     scripted add() does not copy them, so inheritance is severed.
             //   li-label は最後に置き、重なる範囲で優先させる / li-label is last so it wins on overlapping ranges.
+            var GREP_BOLD = "(?#太字)(.+)";
             var GREP_LANG_US = "(?#欧文)[\\u\\l]";
             var GREP_NO_BREAK = "(?#行末分離禁止)..[。」』？！…]?$";
             var GREP_INLINE_GRAPHIC = "(?#アンカー)~a";
             var GREP_LI_LABEL = "(?#ラベル)^.+?(?=：)";
             var nestedGrepRules = [
+                { group: "basestyle", paragraph: "base-heading", character: styleName("strong-bold"), expression: GREP_BOLD },
                 { group: "basestyle", paragraph: "base-heading", character: "lang-US", expression: GREP_LANG_US },
                 { group: null, paragraph: styleName("p"), character: "lang-US", expression: GREP_LANG_US },
                 { group: null, paragraph: styleName("p"), character: "no-break", expression: GREP_NO_BREAK },
@@ -1267,7 +1269,9 @@ function trimButtonHeight(targetButton, trimPixels) {
                 { group: null, paragraph: styleName("ol-li"), character: "lang-US", expression: GREP_LANG_US },
                 { group: null, paragraph: styleName("ol-li"), character: "no-break", expression: GREP_NO_BREAK },
                 { group: null, paragraph: styleName("ol-li"), character: "inline-graphic", expression: GREP_INLINE_GRAPHIC },
-                { group: "basestyle", paragraph: "base-table", character: "inline-graphic", expression: GREP_INLINE_GRAPHIC }
+                { group: "basestyle", paragraph: "base-table", character: "inline-graphic", expression: GREP_INLINE_GRAPHIC },
+                { group: "table", paragraph: "th-left", character: styleName("strong-bold"), expression: GREP_BOLD },
+                { group: "table", paragraph: "th-left", character: "inline-graphic", expression: GREP_INLINE_GRAPHIC }
             ];
 
             // 置き換えモード（OVERWRITE_EXISTING_STYLES）では、各対象スタイルの既存 GREP を
@@ -1285,7 +1289,7 @@ function trimButtonHeight(targetButton, trimPixels) {
                 if (!paragraphContainer.isValid) continue;
                 if (!shouldApplyAttributesToParagraphStyle(paragraphContainer, grepRuleDefinition.paragraph)) continue;
                 var targetParagraphStyle = paragraphContainer.paragraphStyles.itemByName(grepRuleDefinition.paragraph);
-                // 文字スタイルはルート → auto-apply グループの順で解決 / Resolve character style across root and "auto-apply" group
+                // 文字スタイルはルート → 各グループの順で解決 / Resolve character style across root and the style groups
                 var resolvedCharacter = resolveCharacterStyle(doc, grepRuleDefinition.character);
                 if (!targetParagraphStyle.isValid || !resolvedCharacter) continue;
 
