@@ -36,13 +36,19 @@ Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and mo
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdTypesettingStyleManager.jsx` |
-| Version | v1.2.0 |
+| Version | v1.3.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-06 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n7f67e8da571f |
 
 ### Update History
+
+#### v1.3.0 (2026-09-30)
+
+- Fixed field labels in the Japanese UI showing key strings such as "field.autoKerning"
+- Shared the kinsoku, mojikumi and composer lists with IdJapaneseParagraphTypesettingManager, and localized the remaining hard-coded Japanese text
+- Unified the button row, spacing and localization code with the shared parts
 
 #### v1.2.0 (2026-09-27)
 

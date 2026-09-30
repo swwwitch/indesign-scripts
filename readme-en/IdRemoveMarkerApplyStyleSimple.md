@@ -39,12 +39,18 @@ Applies a paragraph style to paragraphs that contain the given search text (a ma
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdRemoveMarkerApplyStyleSimple.jsx` |
-| Version | v1.0 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-09 |
-| Last updated | 2026-09-10 |
+| Last updated | 2026-09-30 |
 
 ### Update History
+
+#### v1.1.0 (2026-09-30)
+
+- OK is now disabled when nothing matches (a search string of only spaces could delete spaces in the text)
+- Trailing spaces and tabs in the search string are now ignored
+- Shared the search code with IdRemoveMarkerApplyStyle and unified localization and spacing with the shared parts
 
 - v1.0 (2026-09-10) Initial version
 

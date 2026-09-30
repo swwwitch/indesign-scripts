@@ -22,10 +22,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAutoLeadingCa
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdAutoLeadingCalc";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-07-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-09";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAutoLeadingCalc.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAutoLeadingCalc.md"; /* README (English) */
@@ -42,25 +42,94 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 /* 逆算した行送り％の丸め桁数（小数第 1 位）/ Rounding of the back-calculated leading percentage (1 decimal) */
 var LEADING_PERCENT_ROUND_FACTOR = 10;
 
-/* 段落を取り出せる選択オブジェクトの型 / Selection types that expose paragraphs */
+/* テキストとして扱う選択の型 / Selection types treated as text */
 var TEXT_SELECTION_TYPES = {
-    Character: true, Word: true, TextStyleRange: true, Paragraph: true,
-    Line: true, TextColumn: true, Text: true, InsertionPoint: true, Story: true
+    InsertionPoint: true, Character: true, Word: true, Line: true,
+    TextStyleRange: true, Paragraph: true, TextColumn: true, Text: true
 };
 
 // =========================================
 // ラベル定義 / Labels
 // =========================================
 
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * UI 言語を判定する
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
  * @returns {string} "ja" または "en"
  */
 function getCurrentLang() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var currentLang = getCurrentLang();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
 var LABELS = {
     alert: {
@@ -71,15 +140,6 @@ var LABELS = {
         applyAutoLeading: { ja: "自動行送りに変換", en: "Convert to Auto Leading" }
     }
 };
-
-/**
- * ラベルを現在の言語で取得する
- * @param {object} labelEntry ja / en を持つラベルオブジェクト
- * @returns {string} 現在の言語のラベル文字列
- */
-function localize(labelEntry) {
-    return labelEntry[currentLang];
-}
 
 // =========================================
 // 段落の収集 / Paragraph collection
@@ -96,6 +156,16 @@ function getConstructorName(targetObject) {
     } catch (e) {
         return "";
     }
+}
+
+/**
+ * 選択がテキスト（キャレット・文字範囲）かどうかを判定する
+ * @param {object} selectionItem 選択オブジェクト
+ * @returns {boolean} テキスト上の選択なら true
+ */
+function isTextSelection(selectionItem) {
+    if (selectionItem == null) return false;
+    return TEXT_SELECTION_TYPES[selectionItem.constructor.name] === true;
 }
 
 /**
@@ -124,7 +194,7 @@ function collectParagraphsFromItem(selectionItem, paragraphTargets) {
     var typeName = getConstructorName(selectionItem);
 
     /* テキスト編集モード：選択が触れている段落全体が対象 / Text-edit mode: every touched paragraph */
-    if (TEXT_SELECTION_TYPES[typeName]) {
+    if (isTextSelection(selectionItem)) {
         addParagraphs(selectionItem, paragraphTargets);
         return;
     }
@@ -202,13 +272,13 @@ function applyAutoLeadingToParagraph(paragraph) {
  */
 function main() {
     if (app.documents.length === 0) {
-        alert(localize(LABELS.alert.noDocument));
+        alert(getLabel(LABELS.alert.noDocument));
         return;
     }
 
     var selectionItems = app.selection;
     if (!selectionItems || selectionItems.length === 0) {
-        alert(localize(LABELS.alert.noSelection));
+        alert(getLabel(LABELS.alert.noSelection));
         return;
     }
 
@@ -218,7 +288,7 @@ function main() {
     }
 
     if (paragraphTargets.length === 0) {
-        alert(localize(LABELS.alert.noSelection));
+        alert(getLabel(LABELS.alert.noSelection));
         return;
     }
 
@@ -235,6 +305,6 @@ function main() {
 }
 
 /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
-app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, localize(LABELS.undo.applyAutoLeading));
+app.doScript(main, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undo.applyAutoLeading));
 
 })();

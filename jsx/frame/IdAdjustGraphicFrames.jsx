@@ -22,10 +22,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAdjustGraphic
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdAdjustGraphicFrames";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-02";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-06-02";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAdjustGraphicFrames.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAdjustGraphicFrames.md"; /* README (English) */
@@ -37,52 +37,84 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 // UIレイアウトの共通設定 / Shared UI layout
 // ==============================
 
+// UIレイアウト（再利用パーツ） / UI layout (reusable)
+
 /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
 var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
 var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
 /**
- * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
- * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * ウィンドウの共通設定
+ * @param {Window} targetWindow - 対象のウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
  * @returns {void}
  */
-function setupWindow(win, spacing) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
 
 /**
- * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+ * @param {Panel} targetPanel - 対象のパネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
  * @returns {void}
  */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 /**
- * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
- * @param {string} [alignment] 配置。省略時は "left"
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * タブの共通設定
+ * @param {Tab} targetTab - 対象のタブ
+ * @param {number} [spacing] - 要素間隔（省略時は変えない）
  * @returns {void}
  */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupTab(targetTab, spacing) {
+    targetTab.orientation = "column";
+    targetTab.alignChildren = "fill";
+    targetTab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") targetTab.spacing = spacing;
 }
+
+/**
+ * 横並びの行グループの共通設定（ボタン列など）。
+ * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+ * @param {Group} rowGroup - 対象のグループ
+ * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(rowGroup, rowAlignment, spacing) {
+    rowGroup.orientation = "row";
+    rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+    rowGroup.alignChildren = ["left", "center"];
+    rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+ * @param {Button} targetButton - 対象のボタン
+ * @param {number} trimPixels - 詰める量（px）
+ * @returns {void}
+ */
+function trimButtonHeight(targetButton, trimPixels) {
+    /* レイアウト前は size が無い / size is not set until the layout runs */
+    if (!targetButton.size) return;
+    targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+}
+
+// UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
 (function () {
 
@@ -122,14 +154,146 @@ function setupRow(group, alignment, spacing) {
     // ラベル定義 / Labels
     // =========================================
 
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
     /**
-     * UI 言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
     function getCurrentLang() {
-        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     var LABELS = {
         dialog: {
@@ -160,10 +324,11 @@ function setupRow(group, alignment, spacing) {
             round: { ja: "縮尺率を切り捨てる", en: "Round Scale Down" },
             precision: { ja: "単位", en: "Step" },
             refit: { ja: "調整後にフレームを内容へ合わせる", en: "Fit Frame to Content After Adjusting" },
-            only7296144: { ja: "スクショのみ（72{slash}96{slash}144 ppi の画像）", en: "Screenshots only (72{slash}96{slash}144 ppi images)" }
+            only7296144: { ja: "スクショのみ（72／96／144 ppi の画像）", en: "Screenshots only (72/96/144 ppi images)" }
         },
         button: {
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
         tip: {
             targetDocument: { ja: "ドキュメント内の、テキストにアンカーされたすべてのグラフィックフレーム", en: "All text-anchored graphic frames in the document" },
@@ -189,40 +354,6 @@ function setupRow(group, alignment, spacing) {
             doneNone: { ja: "調整対象のフレームはありませんでした。", en: "No frames needed adjustment." }
         }
     };
-
-    /**
-     * ドット区切りキーでラベルを取得する（{slash} は言語別のスラッシュに置換）
-     * @param {string} key 例: "dialog.title"
-     * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
-     */
-    function getLabel(key) {
-        var pathParts = key.split(".");
-        var labelNode = LABELS;
-        for (var i = 0; i < pathParts.length; i++) {
-            if (labelNode === undefined || labelNode === null) return key;
-            labelNode = labelNode[pathParts[i]];
-        }
-        if (labelNode === undefined || labelNode === null) return key;
-
-        /* 現在の言語が無ければ英語→キーの順にフォールバック / Fall back to English, then the key */
-        var labelString = labelNode[currentLanguage];
-        if (labelString === undefined || labelString === null) labelString = labelNode.en;
-        if (labelString === undefined || labelString === null) return key;
-
-        var slash = (currentLanguage === "ja") ? "／" : "/";
-        return ("" + labelString).replace(/\{slash\}/g, slash);
-    }
-
-    /**
-     * ラベル内の {count} を件数で置き換える
-     * @param {string} key 置換対象のラベルキー
-     * @param {number} count 埋め込む件数
-     * @returns {string} 置換後の文字列
-     */
-    function labelWithCount(key, count) {
-        return getLabel(key).replace(/\{count\}/g, count);
-    }
-
 
     main();
 
@@ -268,26 +399,12 @@ function setupRow(group, alignment, spacing) {
         );
 
         /* 完了メッセージ（0 件は専用文言）/ Completion message (dedicated text for zero) */
-        alert(processedCount > 0 ? labelWithCount("alert.done", processedCount) : getLabel("alert.doneNone"));
+        alert(processedCount > 0 ? getLabel("alert.done", { count: processedCount }) : getLabel("alert.doneNone"));
     }
 
     // =========================================
     // ダイアログ / Dialog
     // =========================================
-
-    /**
-     * グループの共通設定を適用する（orientation は呼び出し側で指定）
-     * @param {Group} group 対象グループ
-     * @param {string} [orientation] 並び方向。省略時は "column"
-     * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
-     * @returns {void}
-     */
-    function setupGroup(group, orientation, spacing) {
-        group.orientation = orientation || "column";
-        group.alignChildren = ["fill", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
 
     /**
      * 調整内容を指定するダイアログを表示する
@@ -307,10 +424,10 @@ function setupRow(group, alignment, spacing) {
         var scaleControls = buildScalePanel(dialog);
 
         /* ボタン / Buttons (Mac: Cancel → OK) */
-        var dialogButtons = dialog.add("group");
-        dialogButtons.alignment = "right";
-        dialogButtons.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        dialogButtons.add("button", undefined, "OK", { name: "ok" });
+        var buttonRow = addButtonRow(dialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        centerButtonRowIfRightOnly(buttonRow);
 
         if (dialog.show() !== 1) return null;
 
@@ -329,9 +446,7 @@ function setupRow(group, alignment, spacing) {
 
         /* ラジオを横並び＋左右中央に / Radios in a row, centered horizontally */
         var radioGroup = panel.add("group");
-        setupGroup(radioGroup, "row");
-        radioGroup.alignChildren = ["center", "center"];
-        radioGroup.alignment = ["center", "top"];
+        setupRow(radioGroup, "center");
 
         var documentRadio = radioGroup.add("radiobutton", undefined, getLabel("target.document"));
         var storyRadio = radioGroup.add("radiobutton", undefined, getLabel("target.story"));
@@ -350,7 +465,6 @@ function setupRow(group, alignment, spacing) {
         return { documentRadio: documentRadio, storyRadio: storyRadio, selectionRadio: selectionRadio };
     }
 
-
     /**
      * フレームサイズのパネルを組み立てる
      * @param {Window} dialog 対象のダイアログ
@@ -358,7 +472,7 @@ function setupRow(group, alignment, spacing) {
      */
     function buildFrameToContentPanel(parent) {
         var panel = parent.add("panel", undefined, getLabel("panel.frameSize"));
-        setupPanel(panel);
+        setupPanel(panel, 6);
 
         var frameToContentCheckbox = panel.add("checkbox", undefined, getLabel("fit.frameToContent"));
         frameToContentCheckbox.value = DEFAULT_FIT_FRAME_TO_CONTENT;
@@ -381,7 +495,7 @@ function setupRow(group, alignment, spacing) {
      */
     function buildWidthPanel(parent) {
         var panel = parent.add("panel", undefined, getLabel("panel.width"));
-        setupPanel(panel);
+        setupPanel(panel, 6);
 
         var keepRadio = panel.add("radiobutton", undefined, getLabel("width.keep"));
         var fitToParentRadio = panel.add("radiobutton", undefined, getLabel("width.fitToParent"));
@@ -421,15 +535,16 @@ function setupRow(group, alignment, spacing) {
      */
     function buildScalePanel(parent) {
         var panel = parent.add("panel", undefined, getLabel("panel.scale"));
-        setupPanel(panel);
+        setupPanel(panel, 6);
 
         var roundCheckbox = panel.add("checkbox", undefined, getLabel("scale.round"));
         roundCheckbox.value = DEFAULT_ROUND_SCALE;
         roundCheckbox.helpTip = getLabel("tip.round");
 
         var precisionGroup = panel.add("group");
+        setupRow(precisionGroup);
         /* コロンは日本語は全角、英語は半角 / Colon: full-width JA, half-width EN */
-        var precisionLabel = precisionGroup.add("statictext", undefined, getLabel("scale.precision") + (currentLanguage === "ja" ? "：" : ":"));
+        var precisionLabel = precisionGroup.add("statictext", undefined, labelText("scale.precision"));
         precisionLabel.helpTip = getLabel("tip.precision");
 
         var precisionRadios = [];
@@ -477,7 +592,6 @@ function setupRow(group, alignment, spacing) {
         var target = "document";
         if (targetControls.storyRadio.value) target = "story";
         else if (targetControls.selectionRadio.value) target = "selection";
-
 
         /* 丸め精度 / Rounding precision */
         var roundPrecision = DEFAULT_ROUND_PRECISION;
@@ -559,11 +673,11 @@ function setupRow(group, alignment, spacing) {
 
     /**
      * 編集できるフレームかどうかを判定する
-     * @param {PageItem} frame 対象のフレーム
+     * @param {PageItem} item 対象のオブジェクト
      * @returns {boolean} 編集できるなら true
      */
     function isEditableFrame(item) {
-        if (!isFrameItem(item)) return false;
+        if (!isGraphicFrameType(item)) return false;
         /* テキストにアンカーされたフレームのみ対象（独立配置は対象外）/ Only frames anchored into text (free-floating frames are excluded) */
         if (getOwningStory(item) === null) return false;
         try {
@@ -583,12 +697,12 @@ function setupRow(group, alignment, spacing) {
     }
 
     /**
-     * グラフィックフレームとして扱える種別かを判定する
-     * @param {PageItem} pageItem 対象のオブジェクト
-     * @returns {boolean} 対象なら true
+     * グラフィックフレーム（長方形・楕円・多角形）の種別かどうか
+     * @param {PageItem} pageItem 判定するオブジェクト
+     * @returns {boolean} グラフィックフレームなら true
      */
-    function isFrameItem(item) {
-        var typeName = item.constructor.name;
+    function isGraphicFrameType(pageItem) {
+        var typeName = pageItem.constructor.name;
         return typeName === "Rectangle" || typeName === "Oval" || typeName === "Polygon";
     }
 
@@ -829,7 +943,7 @@ function setupRow(group, alignment, spacing) {
      * フィット処理を例外を握りつぶして実行する
      * @param {PageItem} frame 対象のフレーム
      * @param {FitOptions} fitOption フィット方法
-     * @returns {void}
+     * @returns {boolean} フィットできたら true
      */
     function safeFit(frame, fitOption) {
         try {
@@ -1067,7 +1181,6 @@ function setupRow(group, alignment, spacing) {
         }
     }
 
-
     /**
      * インライン画像の高さを同じ段落の文字サイズに合わせる
      * @param {PageItem} frame 対象のフレーム
@@ -1075,13 +1188,9 @@ function setupRow(group, alignment, spacing) {
      */
     function matchInlineHeightToText(frame) {
         try {
-            /* アンカー文字を取得（インラインなら frame.parent が Character）/ Get the anchor character (frame.parent is a Character when inline) */
-            var anchorCharacter = getAnchorCharacter(frame);
-            if (anchorCharacter === null) return false; // インラインでなければ対象外 / Not inline
-
-            var paragraph = anchorCharacter.paragraphs[0];
-            var targetPoint = getSurroundingTextPointSize(paragraph);
-            if (targetPoint <= 0) return false; // 前後に文字が無い（画像のみの段落）/ No surrounding text
+            /* インラインでない・前後に文字が無い（画像のみの段落）ときは 0 / 0 when not inline or when there is no surrounding text */
+            var targetPoint = getInlineSurroundingPointSize(frame);
+            if (targetPoint <= 0) return false;
 
             var graphic = getSingleImage(frame);
             if (graphic === null) return false; // 単一画像でなければ対象外 / Only single-image frames
@@ -1152,24 +1261,30 @@ function setupRow(group, alignment, spacing) {
     }
 
     /**
-     * アンカーオブジェクトを表す文字を取得する
+     * フレームがテキストにアンカーされているか（親が文字なら、インライン・行の上・カスタムのいずれか）
+     * @param {PageItem} pageItem 判定するオブジェクト
+     * @returns {boolean} アンカー付きなら true
+     */
+    function isAnchoredFrame(pageItem) {
+        return pageItem.parent.constructor.name === "Character";
+    }
+
+    /**
+     * インライン配置のアンカー付きオブジェクトについて、アンカーを表す文字を取得する
      * @param {PageItem} frame 対象のフレーム
-     * @returns {Character|null} アンカー文字。取得できない場合は null
+     * @returns {Character|null} アンカー文字。インラインでない・取得できない場合は null
      */
     function getAnchorCharacter(frame) {
         try {
             if (!isInlineAnchored(frame)) return null; // 行揃え・カスタム配置は対象外 / Skip above-line / custom positions
-            var parent = frame.parent;
-            if (parent !== undefined && parent !== null && parent.constructor.name === "Character") {
-                return parent;
-            }
+            if (isAnchoredFrame(frame)) return frame.parent;
         } catch (e) { }
         return null;
     }
 
     /**
-     * アンカー文字の前後にある本文の文字サイズを求める
-     * @param {Character} anchorCharacter アンカー文字
+     * アンカー文字のある段落で、本文の文字サイズ（最大値）を求める
+     * @param {Paragraph} paragraph アンカー文字のある段落
      * @returns {number} 文字サイズ（pt）
      */
     function getSurroundingTextPointSize(paragraph) {

@@ -32,12 +32,16 @@ Sets a paragraph style's "Spacing (Same Style)" at the style-definition level.
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdSetSameParaStyleSpacing.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-06-30 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 
 ### Update History
+
+#### v1.1.1 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts (no change in behavior)
 
 #### v1.1.0 (2026-09-27)
 

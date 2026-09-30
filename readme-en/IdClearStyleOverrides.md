@@ -80,13 +80,17 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdClearStyleOverrides.jsx` |
-| Version | v1.3.2 |
+| Version | v1.3.3 |
 | Original author | Gregor Fellenz (grefel) |
 | Modified by | Masahiro Takano (@swwwitch) |
 | First release | 2020-06-09 |
-| Last updated | 2026-09-20 |
+| Last updated | 2026-09-30 |
 
 ### Update History
+
+#### v1.3.3 (2026-09-30)
+
+- Unified the button row, panel spacing, table selection and localization code with the shared parts. Buttons are now centered
 
 - **v1.3.2** (2026-09-20) — Fixed an error (`Object does not support the property or method 'appliedTableStyle'`) that stopped the script when cells were selected with the scope set to Selection.
 - **v1.3.1** (2026-09-20) — Fixed a bug where only some of the selected cells were processed when several cells were selected.

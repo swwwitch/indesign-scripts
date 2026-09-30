@@ -31,10 +31,16 @@ A launcher that runs any ExtendScript file (.jsx / .jsxbin / .js) chosen from a 
 | Item | Value |
 | --- | --- |
 | File | `jsx/runner/IdScriptRunner.jsx` |
-| Version | v1.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-04-17 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Unified the localization and file-selection code with the shared code (no change in behavior)
 
 ### License
 

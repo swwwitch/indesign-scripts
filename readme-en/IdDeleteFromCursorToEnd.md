@@ -33,11 +33,17 @@ Deletes from the cursor to the end of the current paragraph, or deletes just a t
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdDeleteFromCursorToEnd.jsx` |
-| Version | v1.2.1 |
+| Version | v1.2.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-06-27 |
-| Last updated | 2026-07-05 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/nf0b1e27e1f81 |
+
+### Update History
+
+#### v1.2.2 (2026-09-30)
+
+- Unified the localization and text-selection check with the shared code. A whole text column selection is now accepted
 
 ### License
 

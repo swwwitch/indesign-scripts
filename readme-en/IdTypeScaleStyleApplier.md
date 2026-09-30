@@ -37,13 +37,17 @@ Builds a type scale from a base size and ratio, then applies it to the body, hea
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdTypeScaleStyleApplier.jsx` |
-| Version | v1.7.0 |
+| Version | v1.7.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-05 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n4f9b0666db66 |
 
 ### Update History
+
+#### v1.7.1 (2026-09-30)
+
+- Unified the button row, spacing, UI brightness check and localization code with the shared parts (no change in behavior)
 
 #### v1.7.0 (2026-09-27)
 

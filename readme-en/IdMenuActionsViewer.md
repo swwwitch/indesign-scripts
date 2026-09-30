@@ -74,14 +74,18 @@ Main changes from the original:
 | Item | Details |
 | --- | --- |
 | File | `jsx/misc/IdMenuActionsViewer.jsx` |
-| Version | v1.0.24 |
+| Version | v1.0.25 |
 | Original author | Peter Kahrel |
 | Modified by | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-25 |
-| Last updated | 2026-09-25 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n5038c9d2cc85 |
 
 ### Update History
+
+#### v1.0.25 (2026-09-30)
+
+- Unified the window, row and button-row layout and localization code with the shared parts. The Close button is now centered
 
 - v1.0.24 (2026-09-25): Initial release
 

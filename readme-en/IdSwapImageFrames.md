@@ -37,13 +37,17 @@ Rotates the selected image frames, moving either the linked images alone or the 
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdSwapImageFrames.jsx` |
-| Version | v1.0.1 |
+| Version | v1.0.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-28 |
-| Last updated | 2026-09-09 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n6dee03ae96e2 |
 
 ### Update History
+
+#### v1.0.2 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts. Buttons are now centered
 
 #### v1.0.1 (2026-09-09)
 

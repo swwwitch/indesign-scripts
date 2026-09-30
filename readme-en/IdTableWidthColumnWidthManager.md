@@ -34,12 +34,18 @@ Resolves the table from the current selection and adjusts the table width and co
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTableWidthColumnWidthManager.jsx` |
-| Version | v1.2.0 |
+| Version | v1.3.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-18 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 
 ### Update History
+
+#### v1.3.0 (2026-09-30)
+
+- The table can now be found from any text selection, such as a word or paragraph
+- The screen-mode toggle now shows the mode it switches to, as in the other scripts
+- Unified the button row, table selection and localization code with the shared parts
 
 #### v1.2.0 (2026-09-27)
 

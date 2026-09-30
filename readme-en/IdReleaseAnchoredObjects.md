@@ -56,13 +56,17 @@ Does the same as Object > Anchored Object > Release in one pass, without selecti
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdReleaseAnchoredObjects.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-25 |
-| Last updated | 2026-09-25 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/ne3ee16f466bf |
 
 ### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Unified the dialog layout, button row and localization code with the shared parts. Buttons are now centered
 
 #### v1.0.0 (2026-09-25)
 

@@ -33,10 +33,16 @@ Groups unstyled paragraphs (Basic Paragraph and friends) by font, size and leadi
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdAutoParagraphStyleGenerator.jsx` |
-| Version | v3.4 |
+| Version | v3.4.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-02-13 |
-| Last updated | 2026-03-14 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v3.4.1 (2026-09-30)
+
+- Unified the localization code with the shared part (no change in behavior)
 
 ### License
 

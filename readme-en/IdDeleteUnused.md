@@ -73,13 +73,18 @@ Deletes unused styles (paragraph, character, object, table, cell), parent pages,
 | Item | Details |
 | --- | --- |
 | File | `jsx/misc/IdDeleteUnused.jsx` |
-| Version | v1.0.0 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-24 |
-| Last updated | 2026-09-24 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n879f09b72808 |
 
 ### Update History
+
+#### v1.1.0 (2026-09-30)
+
+- Unified the button row, panel spacing and localization code with the shared parts. The confirmation dialog now places Select All / Deselect All on the left and Cancel / Delete on the right
+- Fixed reading saved settings so surrounding spaces and line breaks are ignored (settings could fail to restore with Windows line endings)
 
 - v1.0.0 (2026-09-24): Initial release
 

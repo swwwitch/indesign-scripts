@@ -33,10 +33,16 @@ Groups the selected objects by horizontal (row) or vertical (column) proximity, 
 | Item | Value |
 | --- | --- |
 | File | `jsx/group/IdSmartGroup.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-11 |
-| Last updated | 2026-09-25 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.1.1 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts (no change in behavior)
 
 ### License
 

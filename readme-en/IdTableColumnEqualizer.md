@@ -29,10 +29,17 @@ Matches the width of the table at the cursor to the width of its parent text fra
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTableColumnEqualizer.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-04-17 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Fixed a warning when a word or paragraph inside a cell was selected
+- Unified the table-selection and localization code with the shared parts
 
 ### License
 

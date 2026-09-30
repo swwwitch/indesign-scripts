@@ -31,10 +31,16 @@ Detects whether the active page is a parent (master) page or a document page and
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdSwitchToMasterOrDocument.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-07-02 |
-| Last updated | 2025-07-02 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Unified the localization code with the shared part (no change in behavior)
 
 ### License
 

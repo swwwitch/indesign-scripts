@@ -66,12 +66,17 @@ Everything the script creates can be undone in a single step.
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdLayoutGridBuilder.jsx` |
-| Version | v1.1.0 |
+| Version | v1.2.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-13 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-10-01 |
 
 ### Update History
+
+#### v1.2.0 (2026-10-01)
+
+- Replaced the Link checkboxes for the margins and the column/row gaps with a link icon
+- Unified the button row, spacing and localization code with the shared parts (no change in behavior)
 
 #### v1.1.0 (2026-09-27)
 

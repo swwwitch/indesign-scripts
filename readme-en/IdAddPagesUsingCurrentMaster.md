@@ -33,13 +33,17 @@ Inserts a given number of pages right after the current page, carrying over the 
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdAddPagesUsingCurrentMaster.jsx` |
-| Version | v1.3.0 |
+| Version | v1.3.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-06-26 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n2d1a76097a39 |
 
 ### Update History
+
+#### v1.3.1 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts (no change in behavior)
 
 - v1.3.0 (2026-09-27): Added stepper buttons to the page count field. The arrow keys step it as well (to the next whole number; Shift to the next multiple of ten; never below 1)
 

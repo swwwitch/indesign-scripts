@@ -35,10 +35,19 @@ Reviews and bulk-applies Japanese typesetting settings (kinsoku set, kinsoku adj
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdJapaneseParagraphTypesettingManager.jsx` |
-| Version | v1.2.0 |
+| Version | v1.3.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-05 |
-| Last updated | 2026-05-06 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.3.0 (2026-09-30)
+
+- Fixed paragraph styles with no mojikumi set silently getting the default mojikumi when you clicked OK (now shown and kept as none)
+- Fixed built-in mojikumi presets not being recognized
+- Shared the kinsoku, mojikumi and composer lists with IdTypesettingStyleManager; composer names now follow the standard naming
+- Unified the button row, spacing and localization code with the shared parts
 
 ### License
 

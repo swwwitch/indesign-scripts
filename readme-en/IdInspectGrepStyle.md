@@ -32,10 +32,17 @@ Lists the GREP styles defined on the document's paragraph styles and exports the
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdInspectGrepStyle.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-04 |
-| Last updated | 2026-08-27 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Fixed slow sorting of the list that could also produce the wrong order
+- Unified the button row with the shared part: Export to Text… on the left, Close on the right
 
 ### License
 

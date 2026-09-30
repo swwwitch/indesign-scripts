@@ -34,13 +34,17 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdCreateFrameFromSelectedText.jsx` |
-| Version | v2.7.0 |
+| Version | v2.7.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-17 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/ndd1b7c5246a3 |
 
 ### Update History
+
+#### v2.7.1 (2026-09-30)
+
+- Unified the button row, spacing, UI brightness check and localization code with the shared parts and merged the text-bounds calculation (no change in behavior)
 
 #### v2.7.0 (2026-09-27)
 

@@ -32,10 +32,16 @@ Back-calculates the leading percentage from each paragraph's absolute leading an
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdAutoLeadingCalc.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-07-09 |
-| Last updated | 2026-07-09 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Unified the localization and text-selection check with the shared code (no change in behavior)
 
 ### License
 

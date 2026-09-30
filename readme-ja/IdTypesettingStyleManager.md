@@ -36,13 +36,19 @@
 | 項目 | 内容 |
 | --- | --- |
 | ファイル | `jsx/style/IdTypesettingStyleManager.jsx` |
-| バージョン | v1.2.0 |
+| バージョン | v1.3.0 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-05-06 |
-| 最終更新 | 2026-09-27 |
+| 最終更新 | 2026-09-30 |
 | 紹介記事 | https://note.com/dtp_tranist/n/n7f67e8da571f |
 
 ### 更新履歴
+
+#### v1.3.0（2026-09-30）
+
+- 日本語 UI の項目名が「field.autoKerning」のようなキー文字列で表示されていた問題を修正
+- 禁則・文字組み・コンポーザーの一覧づくりを IdJapaneseParagraphTypesettingManager と共通化。残っていた日本語の直書きを英語 UI にも対応
+- ボタン行・余白・ローカライズの処理を共通部品に統一
 
 #### v1.2.0（2026-09-27）
 

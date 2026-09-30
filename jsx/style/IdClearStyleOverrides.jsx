@@ -24,11 +24,11 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdClearStyleOve
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdClearStyleOverrides";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Gregor Fellenz (grefel)";      /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2020-06-09";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdClearStyleOverrides.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdClearStyleOverrides.md"; /* README (English) */
@@ -76,20 +76,88 @@ var DEFAULT_OVERRIDE_TYPE_INDEX = 0;
 /* 「対象」の初期選択 / Preselected scope (0:ドキュメント 1:ストーリー 2:選択範囲) */
 var DEFAULT_SCOPE_INDEX = 0;
 
-
 // =========================================
 // ラベル定義 / Labels
 // =========================================
 
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * UI 言語を判定する
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
  * @returns {string} "ja" または "en"
  */
-function getUiLang() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+function getCurrentLang() {
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var uiLang = getUiLang();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
 var LABELS = {
     dialog: {
@@ -165,81 +233,154 @@ var LABELS = {
     }
 };
 
-/**
- * ドット区切りキーでラベルを取得する
- * @param {string} labelKey 例: "dialog.title"
- * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
- */
-function getLabel(labelKey) {
-    var node = LABELS;
-    var keyParts = labelKey.split(".");
-    for (var i = 0; i < keyParts.length; i++) {
-        node = node[keyParts[i]];
-        if (!node) return labelKey;
-    }
-    return node[uiLang] || node.en || labelKey;
-}
-
-/**
- * コロン付きの項目名を返す（日本語は全角、英語は半角）
- * @param {string} labelKey ラベルキー
- * @returns {string} コロンを付けた項目名
- */
-function labelText(labelKey) {
-    return getLabel(labelKey) + (uiLang === "ja" ? "：" : ":");
-}
-
 // =========================================
 // レイアウト / Layout
 // =========================================
 
+// UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
 var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
-var LABEL_WIDTH    = 200;                /* 項目名の幅 / field label width */
-var DROPDOWN_WIDTH = 220;                /* ドロップダウンの幅 / dropdown width */
-var BUTTON_ROW_TOP_MARGIN = 4;           /* ボタン行の上余白 / button row top margin */
-var BUTTON_SPACING = 8;                  /* ボタン間の間隔 / gap between buttons */
-var RADIO_SPACING  = 12;                 /* ラジオボタン間の間隔 / gap between radio buttons */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
 /**
- * ウィンドウの共通設定を適用する
- * @param {Window} targetWindow 対象ウィンドウ
+ * ウィンドウの共通設定
+ * @param {Window} targetWindow - 対象のウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
  * @returns {void}
  */
-function setupWindow(targetWindow) {
+function setupWindow(targetWindow, spacing) {
     targetWindow.orientation = "column";
     targetWindow.alignChildren = "fill";
     targetWindow.margins = WINDOW_MARGINS;
-    targetWindow.spacing = WINDOW_SPACING;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
 
 /**
- * パネルの共通設定を適用する
- * @param {Panel} targetPanel 対象パネル
+ * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+ * @param {Panel} targetPanel - 対象のパネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
  * @returns {void}
  */
-function setupPanel(targetPanel) {
+function setupPanel(targetPanel, spacing) {
     targetPanel.orientation = "column";
     targetPanel.alignChildren = ["fill", "top"];
     targetPanel.alignment = "fill";
     targetPanel.margins = PANEL_MARGINS;
-    targetPanel.spacing = PANEL_SPACING;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 /**
- * 行グループの共通設定を適用する
- * @param {Group} targetGroup 対象グループ
- * @param {string} [alignment] 横方向の配置。省略時は "left"
+ * タブの共通設定
+ * @param {Tab} targetTab - 対象のタブ
+ * @param {number} [spacing] - 要素間隔（省略時は変えない）
  * @returns {void}
  */
-function setupRow(targetGroup, alignment) {
-    targetGroup.orientation = "row";
-    targetGroup.alignment = [alignment || "left", "center"];
-    targetGroup.alignChildren = ["left", "center"];
-    targetGroup.spacing = PANEL_SPACING;
+function setupTab(targetTab, spacing) {
+    targetTab.orientation = "column";
+    targetTab.alignChildren = "fill";
+    targetTab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") targetTab.spacing = spacing;
 }
+
+/**
+ * 横並びの行グループの共通設定（ボタン列など）。
+ * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+ * @param {Group} rowGroup - 対象のグループ
+ * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(rowGroup, rowAlignment, spacing) {
+    rowGroup.orientation = "row";
+    rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+    rowGroup.alignChildren = ["left", "center"];
+    rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+ * @param {Button} targetButton - 対象のボタン
+ * @param {number} trimPixels - 詰める量（px）
+ * @returns {void}
+ */
+function trimButtonHeight(targetButton, trimPixels) {
+    /* レイアウト前は size が無い / size is not set until the layout runs */
+    if (!targetButton.size) return;
+    targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+}
+
+// UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+// ボタン行（再利用パーツ） / Button row (reusable)
+
+var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+/**
+ * ダイアログ下部のボタン行を作る。
+ * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+ * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+ * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+ * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+ */
+function addButtonRow(parent, rowOptions) {
+    var isCentered = !!(rowOptions && rowOptions.centered);
+    var btnRowGroup = parent.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+    if (isCentered) {
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+    }
+
+    btnRowGroup.alignment = ["fill", "bottom"];
+
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.alignChildren = ["left", "center"];
+    btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+    /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+    return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+}
+
+/**
+ * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+ * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+ * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+ * @returns {void}
+ */
+function centerButtonRowIfRightOnly(buttonRow) {
+    if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+    var btnRowGroup = buttonRow.rowGroup;
+    /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+    btnRowGroup.remove(buttonRow.leftGroup);
+    btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+    btnRowGroup.alignment = ["center", "bottom"];
+    btnRowGroup.alignChildren = ["center", "center"];
+    buttonRow.leftGroup = null;
+}
+
+// ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
+var LABEL_WIDTH    = 200;                /* 項目名の幅 / field label width */
+var DROPDOWN_WIDTH = 220;                /* ドロップダウンの幅 / dropdown width */
+var RADIO_SPACING  = 12;                 /* ラジオボタン間の間隔 / gap between radio buttons */
 
 /**
  * 右揃えの項目名を行に追加する
@@ -261,7 +402,6 @@ function addRowLabel(parentGroup, labelKey) {
 var ALL_TEXT_GREP   = "(?s).+";   /* 改行を含むすべてのテキストにマッチ / Match every text run, newlines included */
 var TABLE_MARKER    = "<0016>";   /* 表のアンカー文字 U+0016 / Table anchor character U+0016 */
 var ALL_STYLES      = null;       /* スタイルで絞り込まないことを表す値 / Sentinel meaning "do not filter by style" */
-var PARENT_TABLE_SEARCH_DEPTH = 5;   /* セルから表までさかのぼる上限 / How far to walk up from a cell to its table */
 
 /* 検索の種類ごとの app プロパティ名 / app property names per search kind */
 var SEARCH_MODES = {
@@ -368,20 +508,95 @@ var TEXT_SELECTION_TYPES = {
     InsertionPoint: true
 };
 
+// 表の選択（再利用パーツ） / Table selection (reusable)
+
+var TABLE_PARENT_LOOKUP_LIMIT = 20; /* 親をたどる上限（無限ループよけ） / max parent hops (guards against loops) */
+
 /**
- * 選択されたセル範囲を個々のセルへ展開する
- * 複数セルを選んでも Cell 1つとして返り、cells.length は実際の要素数と合わないことがある
- * @param {Cell} selectedCell 選択されたセル（範囲のこともある）
- * @returns {Array<Cell>} 個々のセル
+ * 親をたどって、いちばん近い表を返す（セル・行・列・セル内のテキストや挿入点に対応）
+ * @param {Object} startItem - たどり始めるオブジェクト
+ * @returns {Table|null} 見つかった表。表の中でなければ null
  */
-function resolveCellElements(selectedCell) {
-    try {
-        /* 単一セルでは cells を辿れないことがあるので保護する / A single cell may not expose .cells */
-        var cellElements = selectedCell.cells.everyItem().getElements();
-        if (cellElements && cellElements.length > 1) return cellElements;
-    } catch (err) {}
-    return [selectedCell];
+function findParentTable(startItem) {
+    var node = startItem;
+    for (var i = 0; i < TABLE_PARENT_LOOKUP_LIMIT && node; i++) {
+        try {
+            var typeName = node.constructor.name;
+            if (typeName === "Table") return node;
+            if (typeName === "Document" || typeName === "Application") return null;
+            node = node.parent;
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
 }
+
+/**
+ * 選択から対象の表を返す。表の中の選択ならその表、表を含むテキストフレームやテキストなら最初の表
+ * @param {Object} selectionItem - app.selection[0] など
+ * @returns {Table|null} 対象の表。見つからなければ null
+ */
+function getTableFromSelection(selectionItem) {
+    if (!selectionItem) return null;
+    var parentTable = findParentTable(selectionItem);
+    if (parentTable) return parentTable;
+    try {
+        if (selectionItem.tables && selectionItem.tables.length > 0) return selectionItem.tables[0];
+    } catch (e) {
+        /* tables を持たない選択（画像など） / Selections without tables (images, etc.) */
+    }
+    return null;
+}
+
+/**
+ * 選択からセルを1つずつの配列にして返す。セル選択・表の選択はその全セル、セル内のテキストや挿入点はそのセル
+ * @param {Object} selectionItem - app.selection[0] など
+ * @returns {Cell[]} セルの配列。表の外なら空配列
+ */
+function getSelectedCells(selectionItem) {
+    var selectedCells = [];
+    if (!selectionItem) return selectedCells;
+    try {
+        var typeName = selectionItem.constructor.name;
+        if (typeName === "Cell" || typeName === "Table") {
+            /* 複数セルの選択も1つの Cell で返るので .cells で展開する / A multi-cell selection is one Cell; expand it via .cells */
+            var cellCollection = selectionItem.cells;
+            for (var i = 0; i < cellCollection.length; i++) selectedCells.push(cellCollection[i]);
+            return selectedCells;
+        }
+        var node = selectionItem;
+        for (var j = 0; j < TABLE_PARENT_LOOKUP_LIMIT && node; j++) {
+            var nodeType = node.constructor.name;
+            if (nodeType === "Cell") {
+                selectedCells.push(node);
+                break;
+            }
+            if (nodeType === "Table" || nodeType === "Document" || nodeType === "Application") break;
+            node = node.parent;
+        }
+    } catch (e) {
+        /* 親をたどれない選択は空のまま / Leave empty when the parent chain cannot be followed */
+    }
+    return selectedCells;
+}
+
+/**
+ * 2つの表が同じ表かどうかを返す
+ * @param {Table} tableA - 表
+ * @param {Table} tableB - 表
+ * @returns {boolean} 同じ表なら true
+ */
+function isSameTable(tableA, tableB) {
+    if (!tableA || !tableB) return false;
+    try {
+        return tableA.id === tableB.id && tableA.parent.id === tableB.parent.id;
+    } catch (e) {
+        return false;
+    }
+}
+
+// 表の選択（再利用パーツ）ここまで / End of the reusable table selection
 
 /**
  * 現在の選択を、テキストとページアイテムに振り分ける
@@ -402,7 +617,7 @@ function collectSelectionTargets() {
         } else if (typeName === "Cell") {
             /* 複数セル選択は1つの Cell として返るので展開する /
                A multi-cell selection arrives as one Cell; expand it */
-            var resolvedCells = resolveCellElements(selectedObject);
+            var resolvedCells = getSelectedCells(selectedObject);
             for (var c = 0; c < resolvedCells.length; c++) {
                 cellTargets.push(resolvedCells[c]);
                 textTargets.push(resolvedCells[c].texts[0]);
@@ -536,21 +751,6 @@ function clearTextOverrides(textTargets, settings) {
         /* フレームやセルの中身が表だけの場合、GREP検索では拾えないので別途処理 / A frame or cell holding only a table is not matched by GREP */
         clearFoundTextOverrides(findInTarget(textTargets[i], "text", buildTextFindProperties(TABLE_MARKER, settings)), settings.overrideType);
     }
-}
-
-/**
- * セルが属する表をさかのぼって探す
- * 選択範囲から展開したセルの parent は表とはかぎらないので、階層を決め打ちしない
- * @param {Cell} targetCell 起点のセル
- * @returns {Table} 見つかった表。届かなければ null
- */
-function findParentTable(targetCell) {
-    var container = targetCell;
-    for (var depth = 0; depth < PARENT_TABLE_SEARCH_DEPTH && container; depth++) {
-        if (container.hasOwnProperty("appliedTableStyle")) return container;
-        container = container.parent;
-    }
-    return null;
 }
 
 /**
@@ -831,22 +1031,6 @@ function addOverrideTypeRow(overrideSection) {
 }
 
 /**
- * ダイアログ下部のボタン行を追加する
- * @param {Window} parentWindow 追加先のウィンドウ
- * @returns {Button} 実行ボタン
- */
-function addButtonRow(parentWindow) {
-    var btnRowGroup = parentWindow.add("group");
-    btnRowGroup.orientation = "row";
-    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-    btnRowGroup.alignment = ["right", "bottom"];
-    btnRowGroup.alignChildren = ["right", "center"];
-    btnRowGroup.spacing = BUTTON_SPACING;
-    btnRowGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    return btnRowGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
-}
-
-/**
  * 設定ダイアログを表示する
  * @param {Document} targetDocument 対象ドキュメント
  * @returns {object} 設定オブジェクト。キャンセルされた場合は null
@@ -869,7 +1053,10 @@ function showSettingsDialog(targetDocument) {
     var objectSection = addOverrideSection(settingsDialog, "panel.object", "checkbox.object", "tooltip.clearObject", DEFAULT_PROCESS_OBJECTS);
     var objectStyleDropdown = addStyleFilterRow(objectSection, "fieldLabel.objectStyle", targetDocument.allObjectStyles);
 
-    var btnRun = addButtonRow(settingsDialog);
+    var buttonRow = addButtonRow(settingsDialog);
+    var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    var btnRun = buttonRow.rightGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+    centerButtonRowIfRightOnly(buttonRow);
 
     /* 3つとも処理しない設定では実行できないようにする / Nothing to process means nothing to run */
     var overrideSections = [textSection, tableSection, objectSection];

@@ -22,10 +22,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnWi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTableColumnWidthAdjuster";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableColumnWidthAdjuster.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnWidthAdjuster.md"; /* README (English) */
@@ -41,84 +41,172 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 // UIレイアウトの共通設定 / Shared UI layout
 // ==============================
 
+// UIレイアウト（再利用パーツ） / UI layout (reusable)
+
 /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
 var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
 var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
 /**
- * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
- * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * ウィンドウの共通設定
+ * @param {Window} targetWindow - 対象のウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
  * @returns {void}
  */
-function setupWindow(win, spacing) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
 
 /**
- * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+ * @param {Panel} targetPanel - 対象のパネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
  * @returns {void}
  */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 /**
- * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
- * @param {string} [alignment] 配置。省略時は "left"
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * タブの共通設定
+ * @param {Tab} targetTab - 対象のタブ
+ * @param {number} [spacing] - 要素間隔（省略時は変えない）
  * @returns {void}
  */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupTab(targetTab, spacing) {
+    targetTab.orientation = "column";
+    targetTab.alignChildren = "fill";
+    targetTab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") targetTab.spacing = spacing;
 }
+
+/**
+ * 横並びの行グループの共通設定（ボタン列など）。
+ * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+ * @param {Group} rowGroup - 対象のグループ
+ * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(rowGroup, rowAlignment, spacing) {
+    rowGroup.orientation = "row";
+    rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+    rowGroup.alignChildren = ["left", "center"];
+    rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+ * @param {Button} targetButton - 対象のボタン
+ * @param {number} trimPixels - 詰める量（px）
+ * @returns {void}
+ */
+function trimButtonHeight(targetButton, trimPixels) {
+    /* レイアウト前は size が無い / size is not set until the layout runs */
+    if (!targetButton.size) return;
+    targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+}
+
+// UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+// ボタン行（再利用パーツ） / Button row (reusable)
+
+var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+/**
+ * ダイアログ下部のボタン行を作る。
+ * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+ * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+ * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+ * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+ */
+function addButtonRow(parent, rowOptions) {
+    var isCentered = !!(rowOptions && rowOptions.centered);
+    var btnRowGroup = parent.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+    if (isCentered) {
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+    }
+
+    btnRowGroup.alignment = ["fill", "bottom"];
+
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.alignChildren = ["left", "center"];
+    btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+    /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+    return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+}
+
+/**
+ * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+ * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+ * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+ * @returns {void}
+ */
+function centerButtonRowIfRightOnly(buttonRow) {
+    if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+    var btnRowGroup = buttonRow.rowGroup;
+    /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+    btnRowGroup.remove(buttonRow.leftGroup);
+    btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+    btnRowGroup.alignment = ["center", "bottom"];
+    btnRowGroup.alignChildren = ["center", "center"];
+    buttonRow.leftGroup = null;
+}
+
+// ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
 
 (function () {
 
 	app.scriptPreferences.userInteractionLevel = UserInteractionLevels.INTERACT_WITH_ALL;
 
-	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+	// UI の明暗（再利用パーツ） / UI theme (reusable)
+
+	/**
+	 * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+	 * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+	 */
+	function isDarkUI() {
+	    try {
+	        if (app.preferences && app.preferences.getRealPreference) {
+	            return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+	        }
+	        return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+	    } catch (e) {
+	        return false;
+	    }
+	}
+
+	// UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
 	// ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-	//
-	// 【移植手順 / How to port】
-	// 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-	//    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-	// 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-	//    getLabel() と uiLang はコピー先のものをそのまま使う
-	// 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-	//      var widthInput = addSteppedField(parentPanel, {
-	//          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-	//          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-	//          onStep: function (numberInput) { updatePreview(); }
-	//      });
-	//    値の種類は options で切り分ける:
-	//      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-	//      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-	//      整数・0以上（間隔の数など）  … integer: true, min: 0
-	//      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-	// 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-	//    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-	//    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-	// 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-	// 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-	// 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-	// bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-	// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
 	// -----------------------------------------
 	// ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -134,22 +222,7 @@ function setupRow(group, alignment, spacing) {
 	// -----------------------------------------
 	// ステップボタンの配色 / Stepper colors
 	// -----------------------------------------
-	/**
-	 * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-	 * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-	 */
-	function isDarkStepperUI() {
-		try {
-			if (app.preferences && app.preferences.getRealPreference) {
-				return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-			}
-			return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-		} catch (e) {
-			return false;
-		}
-	}
-
-	var STEPPER_UI_DARK           = isDarkStepperUI();
+	var STEPPER_UI_DARK           = isDarkUI();
 	/* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
 	   ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
 	   UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -175,45 +248,45 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {EditText} 入力欄（項目名は .fieldLabel、∧∨は .stepperGroup で参照できる）
 	 */
 	function addSteppedField(parent, fieldOptions) {
-		var fieldRowGroup = parent.add("group");
-		fieldRowGroup.orientation = "row";
-		fieldRowGroup.alignChildren = ["left", "center"];
-		fieldRowGroup.spacing = STEPPER_FIELD_SPACING;
+	    var fieldRowGroup = parent.add("group");
+	    fieldRowGroup.orientation = "row";
+	    fieldRowGroup.alignChildren = ["left", "center"];
+	    fieldRowGroup.spacing = STEPPER_FIELD_SPACING;
 
-		var fieldLabel = fieldRowGroup.add("statictext", undefined, fieldOptions.label || "");
-		if (fieldOptions.labelWidth) {
-			fieldLabel.preferredSize.width = fieldOptions.labelWidth;
-			fieldLabel.justify = "right";
-		}
+	    var fieldLabel = fieldRowGroup.add("statictext", undefined, fieldOptions.label || "");
+	    if (fieldOptions.labelWidth) {
+	        fieldLabel.preferredSize.width = fieldOptions.labelWidth;
+	        fieldLabel.justify = "right";
+	    }
 
-		/* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-		var stepperInputGroup = fieldRowGroup.add("group");
-		stepperInputGroup.orientation = "row";
-		stepperInputGroup.alignChildren = ["left", "center"];
-		stepperInputGroup.spacing = 0;
-		stepperInputGroup.margins = 0;
+	    /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
+	    var stepperInputGroup = fieldRowGroup.add("group");
+	    stepperInputGroup.orientation = "row";
+	    stepperInputGroup.alignChildren = ["left", "center"];
+	    stepperInputGroup.spacing = 0;
+	    stepperInputGroup.margins = 0;
 
-		var numberInput;
-		var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, fieldOptions);
-		numberInput = stepperInputGroup.add("edittext", undefined, fieldOptions.text || "");
-		numberInput.characters = fieldOptions.characters || 6;
-		numberInput.fieldLabel = fieldLabel;
-		numberInput.stepperGroup = stepperGroup;
+	    var numberInput;
+	    var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, fieldOptions);
+	    numberInput = stepperInputGroup.add("edittext", undefined, fieldOptions.text || "");
+	    numberInput.characters = fieldOptions.characters || 6;
+	    numberInput.fieldLabel = fieldLabel;
+	    numberInput.stepperGroup = stepperGroup;
 
-		/* ↑↓キーも∧∨と同じ処理で増減する（増減量・下限・上限・単位・修飾キーをそろえる） / arrow keys share the stepper's logic */
-		bindSteppedArrowKeys(numberInput, stepperGroup);
+	    /* ↑↓キーも∧∨と同じ処理で増減する（増減量・下限・上限・単位・修飾キーをそろえる） / arrow keys share the stepper's logic */
+	    bindSteppedArrowKeys(numberInput, stepperGroup);
 
-		/* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
-		numberInput.lastValidText = numberInput.text;
-		numberInput.onChange = function () {
-			var value = parseFloat(numberInput.text);
-			if (isNaN(value)) {
-				numberInput.text = numberInput.lastValidText;
-				return;
-			}
-			writeSteppedValue(numberInput, value, fieldOptions);
-		};
-		return numberInput;
+	    /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
+	    numberInput.lastValidText = numberInput.text;
+	    numberInput.onChange = function () {
+	        var value = parseFloat(numberInput.text);
+	        if (isNaN(value)) {
+	            numberInput.text = numberInput.lastValidText;
+	            return;
+	        }
+	        writeSteppedValue(numberInput, value, fieldOptions);
+	    };
+	    return numberInput;
 	}
 
 	/**
@@ -223,13 +296,13 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {void}
 	 */
 	function setSteppedFieldEnabled(numberInput, isEnabled) {
-		numberInput.enabled = isEnabled;
-		numberInput.fieldLabel.enabled = isEnabled;
-		numberInput.stepperGroup.enabled = isEnabled;
-		/* ∧∨は自作描画なので、描き直してディム表示を切り替える / redraw the custom-drawn buttons to update the dimming */
-		for (var i = 0; i < numberInput.stepperGroup.children.length; i++) {
-			redrawStepperGroup(numberInput.stepperGroup.children[i]);
-		}
+	    numberInput.enabled = isEnabled;
+	    numberInput.fieldLabel.enabled = isEnabled;
+	    numberInput.stepperGroup.enabled = isEnabled;
+	    /* ∧∨は自作描画なので、描き直してディム表示を切り替える / redraw the custom-drawn buttons to update the dimming */
+	    for (var i = 0; i < numberInput.stepperGroup.children.length; i++) {
+	        redrawStepperGroup(numberInput.stepperGroup.children[i]);
+	    }
 	}
 
 	/**
@@ -240,33 +313,33 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {Group} ∧∨をまとめた group（.stepBy(direction) で同じ増減を呼べる）
 	 */
 	function addStepper(parent, getNumberInput, stepOptions) {
-		var stepperGroup = parent.add("group");
-		stepperGroup.orientation = "column";
-		stepperGroup.spacing = 0; /* 2つのボタンをつなげて1つの枠に見せる / join the buttons into one frame */
-		stepperGroup.margins = [STEPPER_SIDE_MARGIN, 0, 0, 0]; /* 右は入力欄に突き合わせる / butt against the field on the right */
-		stepperGroup.alignment = ["left", "center"];
+	    var stepperGroup = parent.add("group");
+	    stepperGroup.orientation = "column";
+	    stepperGroup.spacing = 0; /* 2つのボタンをつなげて1つの枠に見せる / join the buttons into one frame */
+	    stepperGroup.margins = [STEPPER_SIDE_MARGIN, 0, 0, 0]; /* 右は入力欄に突き合わせる / butt against the field on the right */
+	    stepperGroup.alignment = ["left", "center"];
 
-		/**
-		 * 入力欄の値を増減する（shift を押しながらなら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ。下限・上限で止める）
-		 * @param {number} direction - 増やすなら 1、減らすなら -1
-		 * @returns {void}
-		 */
-		function stepBy(direction) {
-			var numberInput = getNumberInput();
-			if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
-			var value = parseFloat(numberInput.text);
-			if (isNaN(value)) value = 0;
-			writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
-			if (stepOptions.onStep) stepOptions.onStep(numberInput);
-		}
+	    /**
+	     * 入力欄の値を増減する（shift を押しながらなら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ。下限・上限で止める）
+	     * @param {number} direction - 増やすなら 1、減らすなら -1
+	     * @returns {void}
+	     */
+	    function stepBy(direction) {
+	        var numberInput = getNumberInput();
+	        if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
+	        var value = parseFloat(numberInput.text);
+	        if (isNaN(value)) value = 0;
+	        writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
+	        if (stepOptions.onStep) stepOptions.onStep(numberInput);
+	    }
 
-		/* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-		var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-		var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
-		makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
-		makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
-		stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
-		return stepperGroup;
+	    /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
+	    var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+	    var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
+	    makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
+	    makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
+	    stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
+	    return stepperGroup;
 	}
 
 	/**
@@ -276,11 +349,11 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {void}
 	 */
 	function bindSteppedArrowKeys(numberInput, stepperGroup) {
-		numberInput.addEventListener("keydown", function (event) {
-			if (event.keyName !== "Up" && event.keyName !== "Down") return;
-			stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
-			event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
-		});
+	    numberInput.addEventListener("keydown", function (event) {
+	        if (event.keyName !== "Up" && event.keyName !== "Down") return;
+	        stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
+	        event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
+	    });
 	}
 
 	// -----------------------------------------
@@ -296,10 +369,10 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {number} 増減した値（下限・上限は未適用）
 	 */
 	function computeSteppedValue(value, direction, stepOptions) {
-		var keyState = ScriptUI.environment.keyboardState;
-		if (keyState.shiftKey) return snapStepperToNextMultiple(value, STEPPER_SHIFT_MULTIPLE, direction);
-		if (keyState.altKey && !stepOptions.integer) return value + direction * STEPPER_OPTION_STEP;
-		return snapStepperToNextMultiple(value, stepOptions.step || 1, direction);
+	    var keyState = ScriptUI.environment.keyboardState;
+	    if (keyState.shiftKey) return snapStepperToNextMultiple(value, STEPPER_SHIFT_MULTIPLE, direction);
+	    if (keyState.altKey && !stepOptions.integer) return value + direction * STEPPER_OPTION_STEP;
+	    return snapStepperToNextMultiple(value, stepOptions.step || 1, direction);
 	}
 
 	/**
@@ -310,11 +383,11 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {number} 移した値
 	 */
 	function snapStepperToNextMultiple(value, multiple, direction) {
-		/* 0.29 / 0.01 = 28.999… のような浮動小数の誤差で同じ値に戻らないよう、商を丸めてから切り捨て・切り上げる
-		   round the quotient first so float error (0.29 / 0.01 = 28.999…) does not step back to the same value */
-		var quotient = Math.round(value / multiple * 1e6) / 1e6;
-		if (direction > 0) return Math.round((Math.floor(quotient) + 1) * multiple * 1e6) / 1e6;
-		return Math.round((Math.ceil(quotient) - 1) * multiple * 1e6) / 1e6;
+	    /* 0.29 / 0.01 = 28.999… のような浮動小数の誤差で同じ値に戻らないよう、商を丸めてから切り捨て・切り上げる
+	       round the quotient first so float error (0.29 / 0.01 = 28.999…) does not step back to the same value */
+	    var quotient = Math.round(value / multiple * 1e6) / 1e6;
+	    if (direction > 0) return Math.round((Math.floor(quotient) + 1) * multiple * 1e6) / 1e6;
+	    return Math.round((Math.ceil(quotient) - 1) * multiple * 1e6) / 1e6;
 	}
 
 	/**
@@ -324,9 +397,9 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {number} 範囲に収めた値
 	 */
 	function clampSteppedValue(value, rangeOptions) {
-		if (rangeOptions.min !== undefined && value < rangeOptions.min) return rangeOptions.min;
-		if (rangeOptions.max !== undefined && value > rangeOptions.max) return rangeOptions.max;
-		return value;
+	    if (rangeOptions.min !== undefined && value < rangeOptions.min) return rangeOptions.min;
+	    if (rangeOptions.max !== undefined && value > rangeOptions.max) return rangeOptions.max;
+	    return value;
 	}
 
 	/**
@@ -337,8 +410,8 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {void}
 	 */
 	function writeSteppedValue(numberInput, value, valueOptions) {
-		numberInput.text = formatSteppedValue(value, valueOptions);
-		numberInput.lastValidText = numberInput.text;
+	    numberInput.text = formatSteppedValue(value, valueOptions);
+	    numberInput.lastValidText = numberInput.text;
 	}
 
 	/**
@@ -349,8 +422,8 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {string} 入力欄に入れる文字列（例 "20 mm"）
 	 */
 	function formatSteppedValue(value, valueOptions) {
-		if (valueOptions.integer) value = Math.round(value);
-		return formatStepperNumber(clampSteppedValue(value, valueOptions)) + (valueOptions.unit || "");
+	    if (valueOptions.integer) value = Math.round(value);
+	    return formatStepperNumber(clampSteppedValue(value, valueOptions)) + (valueOptions.unit || "");
 	}
 
 	/**
@@ -359,7 +432,7 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {string} 表示用の数値文字列
 	 */
 	function formatStepperNumber(value) {
-		return String(Math.round(value * 100) / 100);
+	    return String(Math.round(value * 100) / 100);
 	}
 
 	// -----------------------------------------
@@ -375,53 +448,53 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {Group} ボタンとして使う group
 	 */
 	function makeStepperChevronButton(parent, direction, onClickFn) {
-		var buttonWidth = STEPPER_BUTTON_WIDTH;
-		var buttonHeight = STEPPER_BUTTON_HEIGHT;
-		var isUp = (direction === "up");
-		var chevronBox = parent.add("group");
-		chevronBox.margins = 0;
-		chevronBox.spacing = 0;
-		chevronBox.preferredSize = [buttonWidth, buttonHeight];
-		chevronBox.minimumSize = [buttonWidth, buttonHeight];
-		chevronBox.maximumSize = [buttonWidth, buttonHeight];
-		chevronBox.isPressed = false;
-		chevronBox.isStepperButton = true; /* redrawSteppersIn() の目印 / marker for redrawSteppersIn() */
+	    var buttonWidth = STEPPER_BUTTON_WIDTH;
+	    var buttonHeight = STEPPER_BUTTON_HEIGHT;
+	    var isUp = (direction === "up");
+	    var chevronBox = parent.add("group");
+	    chevronBox.margins = 0;
+	    chevronBox.spacing = 0;
+	    chevronBox.preferredSize = [buttonWidth, buttonHeight];
+	    chevronBox.minimumSize = [buttonWidth, buttonHeight];
+	    chevronBox.maximumSize = [buttonWidth, buttonHeight];
+	    chevronBox.isPressed = false;
+	    chevronBox.isStepperButton = true; /* redrawSteppersIn() の目印 / marker for redrawSteppersIn() */
 
-		chevronBox.onDraw = function () {
-			var boxGraphics = chevronBox.graphics;
-			/* 自作描画は自動でディムにならないため、無効なら薄い色で描く。親の無効化は子の enabled に出ないので親も見る
-			   Custom drawing is not dimmed automatically; the parent's state does not reach the child's enabled */
-			var isDimmed = !isStepperEnabledInTree(chevronBox);
+	    chevronBox.onDraw = function () {
+	        var boxGraphics = chevronBox.graphics;
+	        /* 自作描画は自動でディムにならないため、無効なら薄い色で描く。親の無効化は子の enabled に出ないので親も見る
+	           Custom drawing is not dimmed automatically; the parent's state does not reach the child's enabled */
+	        var isDimmed = !isStepperEnabledInTree(chevronBox);
 
-			/* 枠線の内側の地（押下中は押下色） / background inside the frame, pressed color while pressed */
-			var fillColor = isDimmed ? STEPPER_DIM_FILL_COLOR : (chevronBox.isPressed ? STEPPER_PRESSED_COLOR : STEPPER_FILL_COLOR);
-			boxGraphics.newPath();
-			boxGraphics.rectPath(1, isUp ? 1 : 0, buttonWidth - 2, buttonHeight - 1);
-			boxGraphics.fillPath(boxGraphics.newBrush(boxGraphics.BrushType.SOLID_COLOR, fillColor));
+	        /* 枠線の内側の地（押下中は押下色） / background inside the frame, pressed color while pressed */
+	        var fillColor = isDimmed ? STEPPER_DIM_FILL_COLOR : (chevronBox.isPressed ? STEPPER_PRESSED_COLOR : STEPPER_FILL_COLOR);
+	        boxGraphics.newPath();
+	        boxGraphics.rectPath(1, isUp ? 1 : 0, buttonWidth - 2, buttonHeight - 1);
+	        boxGraphics.fillPath(boxGraphics.newBrush(boxGraphics.BrushType.SOLID_COLOR, fillColor));
 
-			drawStepperFrame(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_FRAME_COLOR : STEPPER_FRAME_COLOR);
-			drawStepperChevron(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_CHEVRON_COLOR : STEPPER_CHEVRON_COLOR);
-		};
+	        drawStepperFrame(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_FRAME_COLOR : STEPPER_FRAME_COLOR);
+	        drawStepperChevron(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_CHEVRON_COLOR : STEPPER_CHEVRON_COLOR);
+	    };
 
-		/**
-		 * 押下状態を変えて描き直す
-		 * @param {boolean} isPressed - 押下中なら true
-		 * @returns {void}
-		 */
-		function repaint(isPressed) {
-			if (chevronBox.isPressed === isPressed) return;
-			chevronBox.isPressed = isPressed;
-			redrawStepperGroup(chevronBox);
-		}
-		chevronBox.addEventListener("mousedown", function () {
-			if (!isStepperEnabledInTree(chevronBox)) return;
-			repaint(true);
-			if (onClickFn) onClickFn();
-		});
-		chevronBox.addEventListener("mouseup", function () { repaint(false); });
-		/* 押したまま外へ出たときも押下色を残さない / reset when the pointer leaves while pressed */
-		chevronBox.addEventListener("mouseout", function () { repaint(false); });
-		return chevronBox;
+	    /**
+	     * 押下状態を変えて描き直す
+	     * @param {boolean} isPressed - 押下中なら true
+	     * @returns {void}
+	     */
+	    function repaint(isPressed) {
+	        if (chevronBox.isPressed === isPressed) return;
+	        chevronBox.isPressed = isPressed;
+	        redrawStepperGroup(chevronBox);
+	    }
+	    chevronBox.addEventListener("mousedown", function () {
+	        if (!isStepperEnabledInTree(chevronBox)) return;
+	        repaint(true);
+	        if (onClickFn) onClickFn();
+	    });
+	    chevronBox.addEventListener("mouseup", function () { repaint(false); });
+	    /* 押したまま外へ出たときも押下色を残さない / reset when the pointer leaves while pressed */
+	    chevronBox.addEventListener("mouseout", function () { repaint(false); });
+	    return chevronBox;
 	}
 
 	/**
@@ -435,29 +508,29 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {void}
 	 */
 	function drawStepperFrame(boxGraphics, boxWidth, boxHeight, isUp, frameColor) {
-		var frameLeft = 0.5;
-		var frameRight = boxWidth - 0.5;
-		var outerY = isUp ? 0.5 : boxHeight - 0.5;
-		var seamY = isUp ? boxHeight : 0;
-		var towardSeam = isUp ? 1 : -1; /* 外側の辺から継ぎ目へ向かう向き / direction from the outer edge to the seam */
-		var radius = STEPPER_CORNER_RADIUS;
-		var arcSteps = 4; /* 角丸1つを何本の線分で近似するか / segments per corner */
-		var angle, k;
+	    var frameLeft = 0.5;
+	    var frameRight = boxWidth - 0.5;
+	    var outerY = isUp ? 0.5 : boxHeight - 0.5;
+	    var seamY = isUp ? boxHeight : 0;
+	    var towardSeam = isUp ? 1 : -1; /* 外側の辺から継ぎ目へ向かう向き / direction from the outer edge to the seam */
+	    var radius = STEPPER_CORNER_RADIUS;
+	    var arcSteps = 4; /* 角丸1つを何本の線分で近似するか / segments per corner */
+	    var angle, k;
 
-		boxGraphics.newPath();
-		boxGraphics.moveTo(frameLeft, seamY);
-		/* 左の角丸 / left corner */
-		for (k = 0; k <= arcSteps; k++) {
-			angle = (Math.PI / 2) * k / arcSteps;
-			boxGraphics.lineTo(frameLeft + radius - radius * Math.cos(angle), outerY + towardSeam * (radius - radius * Math.sin(angle)));
-		}
-		/* 右の角丸 / right corner */
-		for (k = 0; k <= arcSteps; k++) {
-			angle = (Math.PI / 2) * k / arcSteps;
-			boxGraphics.lineTo(frameRight - radius + radius * Math.sin(angle), outerY + towardSeam * (radius - radius * Math.cos(angle)));
-		}
-		boxGraphics.lineTo(frameRight, seamY);
-		boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, frameColor, 1));
+	    boxGraphics.newPath();
+	    boxGraphics.moveTo(frameLeft, seamY);
+	    /* 左の角丸 / left corner */
+	    for (k = 0; k <= arcSteps; k++) {
+	        angle = (Math.PI / 2) * k / arcSteps;
+	        boxGraphics.lineTo(frameLeft + radius - radius * Math.cos(angle), outerY + towardSeam * (radius - radius * Math.sin(angle)));
+	    }
+	    /* 右の角丸 / right corner */
+	    for (k = 0; k <= arcSteps; k++) {
+	        angle = (Math.PI / 2) * k / arcSteps;
+	        boxGraphics.lineTo(frameRight - radius + radius * Math.sin(angle), outerY + towardSeam * (radius - radius * Math.cos(angle)));
+	    }
+	    boxGraphics.lineTo(frameRight, seamY);
+	    boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, frameColor, 1));
 	}
 
 	/**
@@ -470,15 +543,15 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {void}
 	 */
 	function drawStepperChevron(boxGraphics, boxWidth, boxHeight, isUp, chevronColor) {
-		var centerX = boxWidth / 2;
-		var centerY = isUp ? boxHeight / 2 + 0.5 : boxHeight / 2 - 0.5; /* 継ぎ目から少し離す / nudged away from the seam */
-		var halfWidth = 3.6; /* 山形の半幅（高さ1.8に対して開き約127°） / half width of the chevron */
-		var tipOffsetY = isUp ? -1.8 : 1.8; /* 頂点の中心からのずれ（上向きは上、下向きは下） */
-		boxGraphics.newPath();
-		boxGraphics.moveTo(centerX - halfWidth, centerY - tipOffsetY);
-		boxGraphics.lineTo(centerX, centerY + tipOffsetY);
-		boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
-		boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
+	    var centerX = boxWidth / 2;
+	    var centerY = isUp ? boxHeight / 2 + 0.5 : boxHeight / 2 - 0.5; /* 継ぎ目から少し離す / nudged away from the seam */
+	    var halfWidth = 3.6; /* 山形の半幅（高さ1.8に対して開き約127°） / half width of the chevron */
+	    var tipOffsetY = isUp ? -1.8 : 1.8; /* 頂点の中心からのずれ（上向きは上、下向きは下） */
+	    boxGraphics.newPath();
+	    boxGraphics.moveTo(centerX - halfWidth, centerY - tipOffsetY);
+	    boxGraphics.lineTo(centerX, centerY + tipOffsetY);
+	    boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
+	    boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
 	}
 
 	/**
@@ -487,10 +560,10 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {boolean} すべて有効なら true
 	 */
 	function isStepperEnabledInTree(control) {
-		for (var node = control; node; node = node.parent) {
-			if (!node.enabled) return false;
-		}
-		return true;
+	    for (var node = control; node; node = node.parent) {
+	        if (!node.enabled) return false;
+	    }
+	    return true;
 	}
 
 	/**
@@ -499,12 +572,12 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {void}
 	 */
 	function redrawSteppersIn(container) {
-		if (!container.children) return;
-		for (var i = 0; i < container.children.length; i++) {
-			var child = container.children[i];
-			if (child.isStepperButton) redrawStepperGroup(child);
-			else redrawSteppersIn(child);
-		}
+	    if (!container.children) return;
+	    for (var i = 0; i < container.children.length; i++) {
+	        var child = container.children[i];
+	        if (child.isStepperButton) redrawStepperGroup(child);
+	        else redrawSteppersIn(child);
+	    }
 	}
 
 	/**
@@ -513,13 +586,11 @@ function setupRow(group, alignment, spacing) {
 	 * @returns {void}
 	 */
 	function redrawStepperGroup(targetGroup) {
-		targetGroup.hide();
-		targetGroup.show();
+	    targetGroup.hide();
+	    targetGroup.show();
 	}
 
-	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 	// ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-	// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 	/**
 	 * 行に「∧∨＋入力欄」を隙間0で突き合わせる group を足し、∧∨と入力欄を置く
@@ -556,14 +627,232 @@ function setupRow(group, alignment, spacing) {
 	// ラベル定義 / Labels
 	// =========================================
 
+	// ローカライズ（再利用パーツ） / Localization (reusable)
+
 	/**
-	 * UI 言語を判定する
+	 * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
 	 * @returns {string} "ja" または "en"
 	 */
 	function getCurrentLang() {
-		return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+	    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 	}
-	var currentLang = getCurrentLang();
+
+	var uiLang = getCurrentLang();
+
+	/**
+	 * LABELS から今の UI 言語の文言を取り出す。
+	 * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+	 * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+	 * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+	 */
+	function getLabel(labelRef, placeholderValues) {
+	    var labelEntry = labelRef;
+	    if (typeof labelRef === "string") {
+	        var labelPathKeys = labelRef.split(".");
+	        labelEntry = LABELS;
+	        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+	            labelEntry = labelEntry[labelPathKeys[i]];
+	        }
+	    }
+	    var labelString;
+	    if (typeof labelEntry === "string") labelString = labelEntry;
+	    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+	    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+	    else return (typeof labelRef === "string") ? labelRef : "";
+	    return fillLabelPlaceholders(String(labelString), placeholderValues);
+	}
+
+	/**
+	 * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+	 * @param {string|Object} labelRef - getLabel と同じ
+	 * @param {Object|Array} [placeholderValues] - getLabel と同じ
+	 * @returns {string} コロン付きの文言
+	 */
+	function labelText(labelRef, placeholderValues) {
+	    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+	}
+
+	/**
+	 * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+	 * @param {string|Object} labelRef - getLabel と同じ
+	 * @param {string|number} value - コロンのあとに続ける値
+	 * @returns {string} 項目名と値をつないだ文字列
+	 */
+	function labelValueText(labelRef, value) {
+	    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+	}
+
+	/**
+	 * 文言の {name} や %1 に値を差し込む
+	 * @param {string} labelString - 文言
+	 * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+	 * @returns {string} 差し込んだ文言
+	 */
+	function fillLabelPlaceholders(labelString, placeholderValues) {
+	    if (placeholderValues == null) return labelString;
+	    if (placeholderValues instanceof Array) {
+	        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+	        for (var i = placeholderValues.length; i >= 1; i--) {
+	            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+	        }
+	        return labelString;
+	    }
+	    for (var placeholderKey in placeholderValues) {
+	        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+	        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+	    }
+	    return labelString;
+	}
+
+	// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+	// プレビュー画面モード（再利用パーツ） / Preview screen mode (reusable)
+
+	/**
+	 * 作業中のウィンドウがプレビュー画面モードかどうかを返す
+	 * @returns {boolean} プレビューなら true。ストーリーエディターなど screenMode の無いウィンドウでは false
+	 */
+	function isPreviewScreenMode() {
+	    try {
+	        var docWindow = app.activeWindow;
+	        return !!(docWindow && docWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE);
+	    } catch (e) {
+	        /* ストーリーエディターのウィンドウには screenMode が無い / Story editor windows have no screenMode */
+	        return false;
+	    }
+	}
+
+	/**
+	 * 作業中のウィンドウの画面モードを、標準モードとプレビューで切り替える
+	 * @returns {void}
+	 */
+	function togglePreviewScreenMode() {
+	    try {
+	        var docWindow = app.activeWindow;
+	        if (!docWindow) return;
+	        docWindow.screenMode = isPreviewScreenMode() ? ScreenModeOptions.PREVIEW_OFF : ScreenModeOptions.PREVIEW_TO_PAGE;
+	    } catch (e) {
+	        /* screenMode の無いウィンドウでは何もしない / Nothing to do for windows without a screenMode */
+	    }
+	}
+
+	/**
+	 * 画面モードの切り替えボタンの文字（押すと切り替わる先）を返す
+	 * @returns {string} プレビュー中は「標準モード」、それ以外は「プレビュー」
+	 */
+	function getScreenModeButtonLabel() {
+	    return getLabel(isPreviewScreenMode() ? LABELS.button.screenModeNormal : LABELS.button.screenModePreview);
+	}
+
+	/**
+	 * 画面モードの切り替えボタンを足す
+	 * @param {Group} parent - ボタンを足す先（ふつうはボタン行の左のグループ）
+	 * @param {Function} [onToggle] - 切り替えたあとに呼ぶ関数
+	 * @returns {Button} 足したボタン
+	 */
+	function addScreenModeButton(parent, onToggle) {
+	    var btnScreenMode = parent.add("button", undefined, getScreenModeButtonLabel());
+	    btnScreenMode.helpTip = getLabel(LABELS.tooltip.screenMode);
+	    btnScreenMode.onClick = function () {
+	        togglePreviewScreenMode();
+	        btnScreenMode.text = getScreenModeButtonLabel();
+	        if (onToggle) onToggle();
+	    };
+	    return btnScreenMode;
+	}
+
+	// プレビュー画面モード（再利用パーツ）ここまで / End of the reusable preview screen mode
+
+	// 表の選択（再利用パーツ） / Table selection (reusable)
+
+	var TABLE_PARENT_LOOKUP_LIMIT = 20; /* 親をたどる上限（無限ループよけ） / max parent hops (guards against loops) */
+
+	/**
+	 * 親をたどって、いちばん近い表を返す（セル・行・列・セル内のテキストや挿入点に対応）
+	 * @param {Object} startItem - たどり始めるオブジェクト
+	 * @returns {Table|null} 見つかった表。表の中でなければ null
+	 */
+	function findParentTable(startItem) {
+	    var node = startItem;
+	    for (var i = 0; i < TABLE_PARENT_LOOKUP_LIMIT && node; i++) {
+	        try {
+	            var typeName = node.constructor.name;
+	            if (typeName === "Table") return node;
+	            if (typeName === "Document" || typeName === "Application") return null;
+	            node = node.parent;
+	        } catch (e) {
+	            return null;
+	        }
+	    }
+	    return null;
+	}
+
+	/**
+	 * 選択から対象の表を返す。表の中の選択ならその表、表を含むテキストフレームやテキストなら最初の表
+	 * @param {Object} selectionItem - app.selection[0] など
+	 * @returns {Table|null} 対象の表。見つからなければ null
+	 */
+	function getTableFromSelection(selectionItem) {
+	    if (!selectionItem) return null;
+	    var parentTable = findParentTable(selectionItem);
+	    if (parentTable) return parentTable;
+	    try {
+	        if (selectionItem.tables && selectionItem.tables.length > 0) return selectionItem.tables[0];
+	    } catch (e) {
+	        /* tables を持たない選択（画像など） / Selections without tables (images, etc.) */
+	    }
+	    return null;
+	}
+
+	/**
+	 * 選択からセルを1つずつの配列にして返す。セル選択・表の選択はその全セル、セル内のテキストや挿入点はそのセル
+	 * @param {Object} selectionItem - app.selection[0] など
+	 * @returns {Cell[]} セルの配列。表の外なら空配列
+	 */
+	function getSelectedCells(selectionItem) {
+	    var selectedCells = [];
+	    if (!selectionItem) return selectedCells;
+	    try {
+	        var typeName = selectionItem.constructor.name;
+	        if (typeName === "Cell" || typeName === "Table") {
+	            /* 複数セルの選択も1つの Cell で返るので .cells で展開する / A multi-cell selection is one Cell; expand it via .cells */
+	            var cellCollection = selectionItem.cells;
+	            for (var i = 0; i < cellCollection.length; i++) selectedCells.push(cellCollection[i]);
+	            return selectedCells;
+	        }
+	        var node = selectionItem;
+	        for (var j = 0; j < TABLE_PARENT_LOOKUP_LIMIT && node; j++) {
+	            var nodeType = node.constructor.name;
+	            if (nodeType === "Cell") {
+	                selectedCells.push(node);
+	                break;
+	            }
+	            if (nodeType === "Table" || nodeType === "Document" || nodeType === "Application") break;
+	            node = node.parent;
+	        }
+	    } catch (e) {
+	        /* 親をたどれない選択は空のまま / Leave empty when the parent chain cannot be followed */
+	    }
+	    return selectedCells;
+	}
+
+	/**
+	 * 2つの表が同じ表かどうかを返す
+	 * @param {Table} tableA - 表
+	 * @param {Table} tableB - 表
+	 * @returns {boolean} 同じ表なら true
+	 */
+	function isSameTable(tableA, tableB) {
+	    if (!tableA || !tableB) return false;
+	    try {
+	        return tableA.id === tableB.id && tableA.parent.id === tableB.parent.id;
+	    } catch (e) {
+	        return false;
+	    }
+	}
+
+	// 表の選択（再利用パーツ）ここまで / End of the reusable table selection
+
 
 	var LABELS = {
 		dialog: {
@@ -604,7 +893,9 @@ function setupRow(group, alignment, spacing) {
 		button: {
 			ok:     { ja: "OK", en: "OK" },
 			cancel: { ja: "キャンセル", en: "Cancel" },
-			apply:  { ja: "適用", en: "Apply" }
+			apply:  { ja: "適用", en: "Apply" },
+			screenModePreview: { ja: "プレビュー", en: "Preview" },
+			screenModeNormal:  { ja: "標準モード", en: "Normal Mode" }
 		},
 		hint: {
 			batch: {
@@ -622,7 +913,6 @@ function setupRow(group, alignment, spacing) {
 			negativeInset:       { ja: "左右の余白には 0 以上の数値を入力してください", en: "Left/right inset must be 0 or greater." },
 			insetTooLarge:       { ja: "左右の余白が大きすぎます。内容幅が 0 以下になります", en: "Left/right inset is too large. Content width would become 0 or less." }
 		},
-		/* ステップボタン用 / for the stepper */
 		tooltip: {
 			stepUp: {
 				ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
@@ -633,85 +923,16 @@ function setupRow(group, alignment, spacing) {
 				en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
 			},
 			stepUpInteger:   { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
-			stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+			stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
+			screenMode: {
+				ja: "ドキュメントウィンドウの画面モードを、標準モードとプレビューで切り替えます。",
+				en: "Switches the document window between the Normal and Preview screen modes."
+			}
 		},
 		undo: {
 			adjustColumnWidths: { ja: "列幅の調整", en: "Adjust Column Widths" }
 		}
 	};
-
-	/**
-	 * ドット区切りキーでラベルを取得する
-	 * @param {string} labelKey 例: "dialog.title"
-	 * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
-	 */
-	function getLabel(labelKey) {
-		var node = LABELS;
-		var keyParts = labelKey.split(".");
-		for (var i = 0; i < keyParts.length; i++) {
-			node = node[keyParts[i]];
-			if (!node) return labelKey;
-		}
-		return node[currentLang] || node.en || labelKey;
-	}
-
-	/**
-	 * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
-	 * @param {string} labelKey 例: "field.inputMethod"
-	 * @returns {string} コロンを付与したラベル文字列
-	 */
-	function getLabelWithColon(labelKey) {
-		return getLabel(labelKey) + (currentLang === "ja" ? "：" : ":");
-	}
-
-	/**
-	 * 現在プレビュー表示になっているかを判定する
-	 * @returns {boolean} プレビュー表示なら true
-	 */
-	function isPreviewScreenMode() {
-		try {
-			return app.activeWindow && app.activeWindow.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE;
-		} catch (e) {
-			return false;
-		}
-	}
-
-	/**
-	 * 標準表示とプレビュー表示を切り替える
-	 * @returns {void}
-	 */
-	function togglePreviewScreenMode() {
-		try {
-			var w = app.activeWindow;
-			if (!w) return;
-			if (w.screenMode === ScreenModeOptions.PREVIEW_TO_PAGE) {
-				w.screenMode = ScreenModeOptions.PREVIEW_OFF;
-			} else {
-				w.screenMode = ScreenModeOptions.PREVIEW_TO_PAGE;
-			}
-		} catch (e) { }
-	}
-
-	/**
-	 * 画面モードに応じたトグルボタンのラベルを返す
-	 * @param {string} currentLang UI 言語
-	 * @returns {string} ボタンに表示する文字列
-	 */
-	function getPreviewToggleButtonLabel(currentLang) {
-		return isPreviewScreenMode()
-			? (currentLang === "ja" ? "プレビュー" : "Preview")
-			: (currentLang === "ja" ? "標準モード" : "Normal Mode");
-	}
-
-	/**
-	 * トグルボタンのラベルを現在の画面モードに合わせて更新する
-	 * @param {Button} btn 対象のボタン
-	 * @param {string} currentLang UI 言語
-	 * @returns {void}
-	 */
-	function updatePreviewToggleButtonLabel(btn, currentLang) {
-		btn.text = getPreviewToggleButtonLabel(currentLang);
-	}
 
 	/* 実行とエラー対策 / Execution and error handling */
 	main();
@@ -732,8 +953,11 @@ function setupRow(group, alignment, spacing) {
 	 */
 	function adjustColumnWidths() {
 		var selection = app.activeDocument.selection;
-		var targetTable = resolveTableFromSelection(selection);
-		if (!targetTable) return;
+		var targetTable = getTableFromSelection(selection[0]);
+		if (!targetTable) {
+			alert(getLabel("alert.selectCellOrTable"));
+			return;
+		}
 
 		// 選択を記憶し、ダイアログ中はハイライトを消す / Save selection and hide highlight while dialog is open
 		var savedSelection = [];
@@ -743,18 +967,6 @@ function setupRow(group, alignment, spacing) {
 		try {
 			app.select(NothingEnum.NOTHING);
 		} catch (e) { }
-
-		/**
-		 * 実行前の選択状態を復元する
-		 * @returns {void}
-		 */
-		function restoreSelection() {
-			try {
-				if (savedSelection.length > 0) {
-					app.selection = savedSelection;
-				}
-			} catch (e) { }
-		}
 
 		var columnCount = targetTable.columns.length;
 		var originalWidths = getColumnWidths(targetTable);
@@ -778,7 +990,6 @@ function setupRow(group, alignment, spacing) {
 		var batchModeRadio = inputMethodGroup.add("radiobutton", undefined, getLabel("radio.inputMethodBatch"));
 		perColumnRadio.value = true;
 
-
 		var panelUnitLabel = getRulerUnitString();
 		var perColumnPanel = dialog.add("panel", undefined, getLabel("panel.perColumn"));
 		setupPanel(perColumnPanel, 10);
@@ -795,11 +1006,10 @@ function setupRow(group, alignment, spacing) {
 		var characterBasedRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeCharacterBased"));
 		absoluteRadio.value = true;
 
-
 		var columnSettingsPanel = perColumnPanel.add(
 			"panel",
 			undefined,
-			getLabel("panel.columnWidths") + (currentLang === "ja" ? "（" + panelUnitLabel + "）" : " (" + panelUnitLabel + ")")
+			getLabel("panel.columnWidths") + (uiLang === "ja" ? "（" + panelUnitLabel + "）" : " (" + panelUnitLabel + ")")
 		);
 		setupPanel(columnSettingsPanel, 6);
 		columnSettingsPanel.alignChildren = "left";
@@ -852,35 +1062,15 @@ function setupRow(group, alignment, spacing) {
 		batchRightGroup.alignment = ["right", "center"];
 		batchRightGroup.alignChildren = ["right", "center"];
 
-		var batchApplyButton = batchRightGroup.add("button", undefined, getLabel("button.apply"));
+		var btnBatchApply = batchRightGroup.add("button", undefined, getLabel("button.apply"));
 
 		var batchHintText = batchInputPanel.add("statictext", undefined, getLabel("hint.batch"));
 
-		var footerGroup = dialog.add("group");
-		setupRow(footerGroup, "fill", 8);
-		footerGroup.alignChildren = ["left", "center"];
-		footerGroup.margins = [0, 10, 0, 0];
-
-		// 左：プレビューモード切替
-		var footerLeft = footerGroup.add("group");
-		footerLeft.orientation = "row";
-		footerLeft.alignment = ["left", "center"];
-		footerLeft.alignChildren = ["left", "center"];
-
-		var previewModeButton = footerLeft.add("button", undefined, getPreviewToggleButtonLabel(currentLang));
-
-		// 中央：spacer
-		var footerCenter = footerGroup.add("group");
-		footerCenter.alignment = ["fill", "center"];
-
-		// 右：ボタン
-		/* ボタン行（幅いっぱいには広げない）/ Button row (never stretched to full width) */
-		var footerRight = footerGroup.add("group");
-		setupRow(footerRight, "right", 8);
-		footerRight.alignChildren = ["right", "center"];
-
-		footerRight.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-		footerRight.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+		var buttonRow = addButtonRow(dialog);
+		addScreenModeButton(buttonRow.leftGroup);
+		var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+		var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+		centerButtonRowIfRightOnly(buttonRow);
 
 		var primaryInputMode = "absolute";
 		var currentInputMethod = "perColumn";
@@ -916,7 +1106,7 @@ function setupRow(group, alignment, spacing) {
 			batchInputPanel.visible = true;
 
 			setControlEnabled(batchInput, !isPerColumnMode);
-			setControlEnabled(batchApplyButton, !isPerColumnMode);
+			setControlEnabled(btnBatchApply, !isPerColumnMode);
 			setControlEnabled(batchHintText, !isPerColumnMode);
 
 			setControlEnabled(absoluteRadio, isPerColumnMode);
@@ -1162,16 +1352,11 @@ function setupRow(group, alignment, spacing) {
 			refreshControlStates();
 		};
 
-		previewModeButton.onClick = function () {
-			togglePreviewScreenMode();
-			updatePreviewToggleButtonLabel(previewModeButton, currentLang);
-		};
-
 		for (var i = 0; i < columnCount; i++) {
 			(function (idx) {
 				widthInputs[idx].onChanging = function () {
 					updateCharCountFromWidth(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt);
-					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, "absolute", autoFitCheckboxes);
+					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, "absolute", autoFitCheckboxes, columnStates);
 				};
 				widthInputs[idx].onChange = function () {
 					var validation = validatePerColumnRow(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], "absolute");
@@ -1195,7 +1380,7 @@ function setupRow(group, alignment, spacing) {
 				};
 				charCountInputs[idx].onChanging = function () {
 					updateWidthFromCharCount(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt);
-					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, "characterBased", autoFitCheckboxes);
+					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, "characterBased", autoFitCheckboxes, columnStates);
 				};
 				charCountInputs[idx].onChange = function () {
 					var validation = validatePerColumnRow(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], "characterBased");
@@ -1224,7 +1409,7 @@ function setupRow(group, alignment, spacing) {
 					else {
 						syncWidthAndCharCountFromInset(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt, primaryInputMode);
 					}
-					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, primaryInputMode, autoFitCheckboxes);
+					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, primaryInputMode, autoFitCheckboxes, columnStates);
 				};
 				sideInsetInputs[idx].onChange = function () {
 					var validation = validatePerColumnRow(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], primaryInputMode);
@@ -1309,7 +1494,7 @@ function setupRow(group, alignment, spacing) {
 
 		// 自動適用は無効 / Auto-apply disabled
 		// batchInput.onChange = applyBatchInput;
-		batchApplyButton.onClick = applyBatchInput;
+		btnBatchApply.onClick = applyBatchInput;
 
 		setInputMode("absolute");
 		setInputMethod("perColumn");
@@ -1319,12 +1504,12 @@ function setupRow(group, alignment, spacing) {
 
 		if (dialogResult != 1) {
 			if (isPreviewCurrentlyApplied) restoreOriginalColumnSettings();
-			restoreSelection();
+			restoreSelection(savedSelection);
 			return;
 		}
 
 		applyColumnSettings();
-		restoreSelection();
+		restoreSelection(savedSelection);
 	}
 
 	// =========================================
@@ -1332,39 +1517,20 @@ function setupRow(group, alignment, spacing) {
 	// =========================================
 
 	/**
-	 * 選択から対象の表を特定する
-	 * @param {Array} selection 選択オブジェクトの配列
-	 * @returns {Table|null} 対象の表。特定できない場合は null
+	 * 控えておいた選択を復元する。無効になった項目は除き、何も残らなければ選択は変えない
+	 * @param {Array} selectionItems 実行前に控えた選択
+	 * @returns {void}
 	 */
-	function resolveTableFromSelection(selection) {
-		if (!selection || selection.length === 0) {
-			alert(getLabel("alert.selectCellOrTable"));
-			return null;
+	function restoreSelection(selectionItems) {
+		var validItems = [];
+		for (var i = 0; i < selectionItems.length; i++) {
+			if (selectionItems[i] && selectionItems[i].isValid !== false) validItems.push(selectionItems[i]);
 		}
-
-		var node = selection[0];
-		if (node == null) {
-			alert(getLabel("alert.selectCellOrTable"));
-			return null;
-		}
-
-		while (node) {
-			try {
-				if (node instanceof Table) return node;
-				if (node instanceof Cell) return node.parent;
-				if (node instanceof TextFrame) {
-					if (node.tables.length > 0) {
-						return node.tables[0];
-					}
-				}
-				node = node.parent;
-			} catch (e) {
-				break;
-			}
-		}
-
-		alert(getLabel("alert.selectCellOrTable"));
-		return null;
+		if (validItems.length === 0) return;
+		/* 復元できない選択（削除済みの文字など）は諦める / Give up on selections that can no longer be restored */
+		try {
+			app.select(validItems);
+		} catch (e) { }
 	}
 
 	/**
@@ -1689,9 +1855,10 @@ function setupRow(group, alignment, spacing) {
 	 * @param {number} fontSizePt 基準の文字サイズ（pt）
 	 * @param {string} primaryInputMode 現在の指定方法
 	 * @param {Array<Checkbox>} autoFitCheckboxes 自動調整のチェックボックス
+	 * @param {Array<Object>} columnStates 列ごとの状態（書き換える）
 	 * @returns {void}
 	 */
-	function syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, sourceIdx, fontSizePt, primaryInputMode, autoFitCheckboxes) {
+	function syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, sourceIdx, fontSizePt, primaryInputMode, autoFitCheckboxes, columnStates) {
 		var sourceWidth = parseFloat(widthInputs[sourceIdx].text);
 		var sourceChar = parseFloat(charCountInputs[sourceIdx].text);
 		var sourceInset = parseFloat(sideInsetInputs[sourceIdx].text);
@@ -1747,7 +1914,6 @@ function setupRow(group, alignment, spacing) {
 			}
 		}
 	}
-
 
 	/**
 	 * コントロールの有効／無効を切り替える

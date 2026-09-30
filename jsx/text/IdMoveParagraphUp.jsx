@@ -25,7 +25,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdMoveParagraph
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdMoveParagraphUp";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
@@ -45,16 +45,20 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 (function () {
 
     /* テキストとして扱う選択の型 / Selection types treated as text */
-    var TEXT_TYPENAMES = {
-        "InsertionPoint": true,
-        "Character": true,
-        "Word": true,
-        "Line": true,
-        "TextStyleRange": true,
-        "Paragraph": true,
-        "TextColumn": true,
-        "Text": true
+    var TEXT_SELECTION_TYPES = {
+        InsertionPoint: true, Character: true, Word: true, Line: true,
+        TextStyleRange: true, Paragraph: true, TextColumn: true, Text: true
     };
+
+    /**
+     * 選択がテキスト（キャレット・文字範囲）かどうかを判定する
+     * @param {object} selectionItem 選択オブジェクト
+     * @returns {boolean} テキスト上の選択なら true
+     */
+    function isTextSelection(selectionItem) {
+        if (selectionItem == null) return false;
+        return TEXT_SELECTION_TYPES[selectionItem.constructor.name] === true;
+    }
 
     /**
      * 選択中のテキストを確かめ、1回の取り消しで戻せるように段落を移動する
@@ -66,7 +70,7 @@ var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/r
 
         /* 文字ツールでテキストを選択、またはテキスト内にカーソルがあるときだけ実行する / Run only when text is selected or the caret is inside text */
         var selectedText = app.selection[0];
-        if (!TEXT_TYPENAMES[selectedText.constructor.name]) return;
+        if (!isTextSelection(selectedText)) return;
 
         app.doScript(function () {
             moveCurrentParagraphUp(selectedText);

@@ -43,10 +43,16 @@ Replace All unifies every font in use on the target font when one is selected, o
 | Item | Value |
 | --- | --- |
 | File | `jsx/font/IdReplaceDocumentFonts.jsx` |
-| Version | v1.0.1 |
+| Version | v1.0.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-20 |
-| Last updated | 2026-09-20 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.2 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts (no change in behavior)
 
 ### License
 

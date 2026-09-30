@@ -31,10 +31,16 @@ Sets an invisible paragraph rule above on each selected paragraph, sized to matc
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdParagraphShadingMatchRule.jsx` |
-| Version | v1.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-12 |
-| Last updated | 2026-04-12 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Unified the localization code with the shared part (no change in behavior)
 
 ### License
 

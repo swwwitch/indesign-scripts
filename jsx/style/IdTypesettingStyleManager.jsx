@@ -25,10 +25,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypesettingSt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTypesettingStyleManager";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTypesettingStyleManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypesettingStyleManager.md"; /* README (English) */
@@ -44,80 +44,105 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n7f67e8da571f"; /* 紹�
 // UIレイアウトの共通設定 / Shared UI layout
 // ==============================
 
+// UIレイアウト（再利用パーツ） / UI layout (reusable)
+
 /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
 var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
 var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
 /**
- * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
- * @param {number} [spacing] 要素間隔。省略時は WINDOW_SPACING
+ * ウィンドウの共通設定
+ * @param {Window} targetWindow - 対象のウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
  * @returns {void}
  */
-function setupWindow(win, spacing) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
 
 /**
- * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+ * @param {Panel} targetPanel - 対象のパネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
  * @returns {void}
  */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 /**
- * 行グループの共通設定を適用する（ボタン列など）
- * @param {Group} group 対象グループ
- * @param {string} [alignment] 配置。省略時は "left"
- * @param {number} [spacing] 要素間隔。省略時は PANEL_SPACING
+ * タブの共通設定
+ * @param {Tab} targetTab - 対象のタブ
+ * @param {number} [spacing] - 要素間隔（省略時は変えない）
  * @returns {void}
  */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupTab(targetTab, spacing) {
+    targetTab.orientation = "column";
+    targetTab.alignChildren = "fill";
+    targetTab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") targetTab.spacing = spacing;
 }
 
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+/**
+ * 横並びの行グループの共通設定（ボタン列など）。
+ * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+ * @param {Group} rowGroup - 対象のグループ
+ * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(rowGroup, rowAlignment, spacing) {
+    rowGroup.orientation = "row";
+    rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+    rowGroup.alignChildren = ["left", "center"];
+    rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+ * @param {Button} targetButton - 対象のボタン
+ * @param {number} trimPixels - 詰める量（px）
+ * @returns {void}
+ */
+function trimButtonHeight(targetButton, trimPixels) {
+    /* レイアウト前は size が無い / size is not set until the layout runs */
+    if (!targetButton.size) return;
+    targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+}
+
+// UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+// UI の明暗（再利用パーツ） / UI theme (reusable)
+
+/**
+ * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+ * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+ */
+function isDarkUI() {
+    try {
+        if (app.preferences && app.preferences.getRealPreference) {
+            return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+        }
+        return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+    } catch (e) {
+        return false;
+    }
+}
+
+// UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
 // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-//
-// 【移植手順 / How to port】
-// 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-//    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-// 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-//    getLabel() と uiLang はコピー先のものをそのまま使う
-// 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-//      var widthInput = addSteppedField(parentPanel, {
-//          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-//          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-//          onStep: function (numberInput) { updatePreview(); }
-//      });
-//    値の種類は options で切り分ける:
-//      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-//      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-//      整数・0以上（間隔の数など）  … integer: true, min: 0
-//      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-// 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-//    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-//    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-// 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-// 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-// 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-// bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
 // -----------------------------------------
 // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -133,22 +158,7 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-
 // -----------------------------------------
 // ステップボタンの配色 / Stepper colors
 // -----------------------------------------
-/**
- * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
- * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
- */
-function isDarkStepperUI() {
-    try {
-        if (app.preferences && app.preferences.getRealPreference) {
-            return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-        }
-        return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-    } catch (e) {
-        return false;
-    }
-}
-
-var STEPPER_UI_DARK           = isDarkStepperUI();
+var STEPPER_UI_DARK           = isDarkUI();
 /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
    ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
    UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -260,8 +270,8 @@ function addStepper(parent, getNumberInput, stepOptions) {
     }
 
     /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-    var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-    var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+    var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+    var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
     makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
     makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
     stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -516,23 +526,153 @@ function redrawStepperGroup(targetGroup) {
     targetGroup.show();
 }
 
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 // =========================================
 // ラベル定義 / Labels
 // =========================================
 
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * UI 言語を判定する
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
  * @returns {string} "ja" または "en"
  */
 function getCurrentLang() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var currentLang = getCurrentLang();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+// ボタン行（再利用パーツ） / Button row (reusable)
+
+var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+/**
+ * ダイアログ下部のボタン行を作る。
+ * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+ * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+ * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+ * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+ */
+function addButtonRow(parent, rowOptions) {
+    var isCentered = !!(rowOptions && rowOptions.centered);
+    var btnRowGroup = parent.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+    if (isCentered) {
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+    }
+
+    btnRowGroup.alignment = ["fill", "bottom"];
+
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.alignChildren = ["left", "center"];
+    btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+    /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+    return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+}
+
+/**
+ * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+ * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+ * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+ * @returns {void}
+ */
+function centerButtonRowIfRightOnly(buttonRow) {
+    if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+    var btnRowGroup = buttonRow.rowGroup;
+    /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+    btnRowGroup.remove(buttonRow.leftGroup);
+    btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+    btnRowGroup.alignment = ["center", "bottom"];
+    btnRowGroup.alignChildren = ["center", "center"];
+    buttonRow.leftGroup = null;
+}
+
+// ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
 
 var LABELS = {
     dialog: {
@@ -551,28 +691,29 @@ var LABELS = {
         hyphenateBreak:   { ja: "ハイフンで区切る", en: "Hyphenate" }
     },
     field: {
-        autoKerning:      { ja: getLabel("field.autoKerning"), en: "Kerning: " },
-        autoLeading:      { ja: getLabel("field.autoLeading"), en: "Auto Leading: " },
-        characterAlign:   { ja: getLabel("field.characterAlign"), en: "Character Alignment: " },
-        leadingModel:     { ja: getLabel("field.leadingModel"), en: "Leading Model: " },
-        gridAlignment:    { ja: getLabel("field.gridAlignment"), en: "Align to Grid: " },
-        composer:         { ja: getLabel("field.composer"), en: "Composer: " },
-        doubleQuote:      { ja: getLabel("field.doubleQuote"), en: "Double Quotes: " },
-        singleQuote:      { ja: getLabel("field.singleQuote"), en: "Quotes: " },
-        textSize:         { ja: getLabel("field.textSize"), en: "Text Size: " },
-        typography:       { ja: getLabel("field.typography"), en: "Typography: " },
-        language:         { ja: getLabel("field.language"), en: "Language: " },
-        kinsokuSet:       { ja: getLabel("field.kinsokuSet"), en: "Kinsoku Set: " },
-        kinsokuType:      { ja: getLabel("field.kinsokuType"), en: "Kinsoku Adjustment: " },
-        kinsokuHangType:  { ja: getLabel("field.kinsokuHangType"), en: "Hanging Punctuation: " },
-        mojikumi:         { ja: getLabel("field.mojikumi"), en: "Mojikumi: " },
-        minWordLength:    { ja: getLabel("field.minWordLength"), en: "Shortest Word: " },
-        afterFirst:       { ja: getLabel("field.afterFirst"), en: "After First: " },
-        beforeLast:       { ja: getLabel("field.beforeLast"), en: "Before Last: " },
-        maxHyphens:       { ja: getLabel("field.maxHyphens"), en: "Hyphen Limit: " },
-        hyphenationZone:  { ja: getLabel("field.hyphenationZone"), en: "Hyphenation Zone: " },
-        presetName:       { ja: "プリセット名（書き出しファイル名にも使用）：", en: "Preset name (also used as the export filename): " },
-        targetCount:      { ja: "対象: ", en: "Targets: " }
+        autoKerning:      { ja: "自動カーニング", en: "Kerning" },
+        autoLeading:      { ja: "自動行送り", en: "Auto Leading" },
+        characterAlign:   { ja: "文字揃え", en: "Character Alignment" },
+        leadingModel:     { ja: "行送りの基準位置", en: "Leading Model" },
+        gridAlignment:    { ja: "グリッド揃え", en: "Align to Grid" },
+        composer:         { ja: "コンポーザー", en: "Composer" },
+        doubleQuote:      { ja: "二重引用符", en: "Double Quotes" },
+        singleQuote:      { ja: "引用符", en: "Quotes" },
+        textSize:         { ja: "テキストサイズ", en: "Text Size" },
+        typography:       { ja: "組版", en: "Typography" },
+        language:         { ja: "言語", en: "Language" },
+        kinsokuSet:       { ja: "禁則処理セット", en: "Kinsoku Set" },
+        kinsokuType:      { ja: "禁則調整方式", en: "Kinsoku Adjustment" },
+        kinsokuHangType:  { ja: "ぶら下がり方法", en: "Hanging Punctuation" },
+        mojikumi:         { ja: "文字組みアキ量", en: "Mojikumi" },
+        minWordLength:    { ja: "単語の最初文字数", en: "Shortest Word" },
+        afterFirst:       { ja: "先頭の後", en: "After First" },
+        beforeLast:       { ja: "最後の前", en: "Before Last" },
+        maxHyphens:       { ja: "最大のハイフン数", en: "Hyphen Limit" },
+        hyphenationZone:  { ja: "領域", en: "Hyphenation Zone" },
+        presetName:       { ja: "プリセット名（書き出しファイル名にも使用）", en: "Preset name (also used as the export filename)" },
+        targetCount:      { ja: "対象", en: "Targets" },
+        fileName:         { ja: "ファイル名", en: "File name" }
     },
     radio: {
         targetSelection:  { ja: "選択中", en: "Selection" },
@@ -646,22 +787,6 @@ var LABELS = {
     }
 };
 
-/**
- * ドット区切りキーでラベルを取得する
- * @param {string} labelKey 例: "dialog.title"
- * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
- */
-function getLabel(labelKey) {
-    var node = LABELS;
-    var keyParts = labelKey.split(".");
-    for (var i = 0; i < keyParts.length; i++) {
-        node = node[keyParts[i]];
-        if (!node) return labelKey;
-    }
-    return node[currentLang] || node.en || labelKey;
-}
-
-
 // =========================================
 // ユーザー設定 / User settings
 // =========================================
@@ -692,14 +817,18 @@ var SINGLE_QUOTE_OPTIONS = [
     "''"
 ];
 
+/* 対象から除外する段落スタイルグループの接頭辞 / Prefix marking style groups to skip */
+var EXCLUDED_STYLE_GROUP_PREFIX = "_";
+
 // ドロップダウン幅 / Dropdown widths
 var W_DROP = 130;
-
-// パネルの共通マージン / Shared panel margins
 
 // =========================================
 // 文字組みアキ量プリセット定義 / Mojikumi preset definitions
 // =========================================
+
+/* 文字組み「なし」の表示名（プリセットや読み取り結果と名前で照合する） / Display name of "no mojikumi" (matched by name against presets and read values) */
+var MOJIKUMI_NONE_NAME = "なし";
 
 /*
 組み込みの文字組みアキ量 preset enum と表示名の対応表。
@@ -728,8 +857,32 @@ var MOJIKUMI_LABELS = {
 };
 
 // =========================================
-// UI 共通設定 / Shared UI setup
+// 配列の検索 / Array lookup
 // =========================================
+
+/**
+ * 配列の中で値が一致する（===）最初の位置を探す
+ * @param {Array} items 探す配列（表示名・列挙値・オブジェクト参照など）
+ * @param {*} target 探す値
+ * @returns {number} 見つかった位置。なければ -1
+ */
+function findIndexInArray(items, target) {
+    for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        if (items[itemIndex] === target) return itemIndex;
+    }
+    return -1;
+}
+
+/**
+ * 既定値の名前から選択位置を求める（見つからなければ先頭）
+ * @param {Array<string>} names 表示名の一覧
+ * @param {string} defaultName 既定値の名前
+ * @returns {number} 選択する位置
+ */
+function getDefaultIndexByName(names, defaultName) {
+    var foundIndex = findIndexInArray(names, defaultName);
+    return foundIndex >= 0 ? foundIndex : 0;
+}
 
 // =========================================
 // ドキュメント情報の取得 / Document data collection
@@ -738,7 +891,7 @@ var MOJIKUMI_LABELS = {
 /**
  * ドキュメント内の禁則処理セットを集める
  * @param {Document} documentObject 対象ドキュメント
- * @returns {object} 禁則処理セットと表示名
+ * @returns {{tables: Array, names: Array<string>}} 禁則処理セットと表示名
  */
 function collectKinsokuTables(documentObject) {
     var tables = [];
@@ -753,7 +906,7 @@ function collectKinsokuTables(documentObject) {
 
 /**
  * 禁則調整方式の選択肢を作る
- * @returns {object} 調整方式と表示名
+ * @returns {{values: Array, names: Array<string>}} 調整方式と表示名
  */
 function createKinsokuTypeOptions() {
     return {
@@ -768,28 +921,13 @@ function createKinsokuTypeOptions() {
 }
 
 /**
- * ぶら下がり方法の選択肢を作る
- * @returns {object} ぶら下がり方法と表示名
- */
-function createKinsokuHangTypeOptions() {
-    return {
-        names: ["なし", "標準", "強制"],
-        values: [
-            KinsokuHangTypes.NONE,
-            KinsokuHangTypes.KINSOKU_HANG_REGULAR,
-            KinsokuHangTypes.KINSOKU_HANG_FORCE
-        ]
-    };
-}
-
-/**
- * ドキュメント内の文字組みアキ量設定を集める
+ * ドキュメント内の文字組みアキ量設定を集める（先頭は「なし」）
  * @param {Document} documentObject 対象ドキュメント
- * @returns {object} 文字組み設定と表示名
+ * @returns {{tables: Array, names: Array<string>}} 文字組み設定と表示名（「なし」の設定は null）
  */
 function collectMojikumiTables(documentObject) {
     var tables = [null];
-    var names = ["なし"];
+    var names = [MOJIKUMI_NONE_NAME];
     for (var mojikumiTableIndex = 0; mojikumiTableIndex < documentObject.mojikumiTables.length; mojikumiTableIndex++) {
         var mojikumiTable = documentObject.mojikumiTables.item(mojikumiTableIndex);
         tables.push(mojikumiTable);
@@ -801,7 +939,7 @@ function collectMojikumiTables(documentObject) {
 /**
  * 対象にする段落スタイルをグループ込みで集める
  * @param {Document} documentObject 対象ドキュメント
- * @returns {object} 段落スタイルと表示名
+ * @returns {{styles: Array<ParagraphStyle>, names: Array<string>}} 段落スタイルと表示名
  */
 function collectTargetParagraphStyles(documentObject) {
     var styles = [];
@@ -824,13 +962,143 @@ function collectTargetParagraphStyles(documentObject) {
         }
         for (var styleGroupIndex = 0; styleGroupIndex < container.paragraphStyleGroups.length; styleGroupIndex++) {
             var styleGroup = container.paragraphStyleGroups.item(styleGroupIndex);
-            if (styleGroup.name.charAt(0) === "_") continue;
+            if (styleGroup.name.charAt(0) === EXCLUDED_STYLE_GROUP_PREFIX) continue;
             walk(styleGroup, prefix + styleGroup.name + " / ");
         }
     }
 
     walk(documentObject, "");
     return { styles: styles, names: names };
+}
+
+/**
+ * コンポーザーの選択肢と適用用エイリアスを作る
+ * @returns {{names: Array<string>, aliases: Array<Array<string>>}} 表示名と、ロケール・バージョン違いの名前の候補
+ */
+function createComposerOptions() {
+    var entries = [
+        { name: "日本語段落コンポーザー", aliases: ["Adobe 日本語段落コンポーザー", "Adobe Japanese Paragraph Composer"] },
+        { name: "日本語単数行コンポーザー", aliases: ["Adobe 日本語単数行コンポーザー", "Adobe Japanese Single-line Composer"] },
+        { name: "多言語対応段落コンポーザー", aliases: ["$ID/HL Composer Optyca", "Adobe World-Ready Paragraph Composer", "Adobe 多言語対応段落コンポーザー", "Adobe World-Ready 段落コンポーザー"] },
+        { name: "多言語対応単数行コンポーザー", aliases: ["$ID/HL Single Optyca", "Adobe World-Ready Single-line Composer", "Adobe 多言語対応単数行コンポーザー", "Adobe World-Ready 単数行コンポーザー"] },
+        { name: "欧文段落コンポーザー", aliases: ["$ID/HL Composer", "Adobe Paragraph Composer", "Adobe 欧文段落コンポーザー", "Adobe 段落コンポーザー"] },
+        { name: "欧文単数行コンポーザー", aliases: ["$ID/HL Single", "Adobe Single-line Composer", "Adobe 欧文単数行コンポーザー", "Adobe 単数行コンポーザー"] }
+    ];
+    var names = [];
+    var aliases = [];
+    for (var entryIndex = 0; entryIndex < entries.length; entryIndex++) {
+        names.push(entries[entryIndex].name);
+        aliases.push(entries[entryIndex].aliases);
+    }
+    return { names: names, aliases: aliases };
+}
+
+// =========================================
+// 設定値と選択肢の照合 / Matching setting values to options
+// =========================================
+
+/**
+ * コンポーザー名（エイリアスのどれか）から選択位置を探す
+ * @param {Array<Array<string>>} aliasesList createComposerOptions() の aliases
+ * @param {string} target 探すコンポーザー名
+ * @returns {number} 見つかった位置。なければ -1
+ */
+function findIndexByComposerAliases(aliasesList, target) {
+    if (!target) return -1;
+    for (var listIndex = 0; listIndex < aliasesList.length; listIndex++) {
+        if (findIndexInArray(aliasesList[listIndex], target) >= 0) return listIndex;
+    }
+    return -1;
+}
+
+/**
+ * エイリアスを順に試して段落スタイルにコンポーザーを設定する
+ * @param {ParagraphStyle} targetParagraphStyle 対象の段落スタイル
+ * @param {Array<string>} aliases コンポーザー名の候補
+ * @returns {boolean} 設定できたら true
+ */
+function applyComposerAliases(targetParagraphStyle, aliases) {
+    if (!aliases) return false;
+    for (var aliasIndex = 0; aliasIndex < aliases.length; aliasIndex++) {
+        try {
+            targetParagraphStyle.composer = aliases[aliasIndex];
+            return true;
+        } catch (composerAliasError) { }
+    }
+    return false;
+}
+
+/**
+ * 禁則処理セットの設定値から選択位置を探す（参照・ID・名前の順に照合）
+ * @param {*} kinsokuValue 禁則処理セットの設定値
+ * @param {Array} kinsokuTables 禁則処理セットの一覧
+ * @param {Array<string>} kinsokuNames 禁則処理セットの表示名
+ * @returns {number} 見つかった位置。なければ -1
+ */
+function findKinsokuIndexFromValue(kinsokuValue, kinsokuTables, kinsokuNames) {
+    if (kinsokuValue === null || kinsokuValue === undefined) return -1;
+    for (var refIndex = 0; refIndex < kinsokuTables.length; refIndex++) {
+        if (kinsokuTables[refIndex] === kinsokuValue) return refIndex;
+        try {
+            if (kinsokuTables[refIndex].id !== undefined && kinsokuValue.id !== undefined && kinsokuTables[refIndex].id === kinsokuValue.id) return refIndex;
+        } catch (eKinsokuIdCompare) { }
+    }
+    var kinsokuValueName = null;
+    try { kinsokuValueName = kinsokuValue.name; } catch (eKinsokuValueName) { }
+    if (typeof kinsokuValueName === "string" && kinsokuValueName.length > 0) {
+        return findIndexInArray(kinsokuNames, kinsokuValueName);
+    }
+    return -1;
+}
+
+/**
+ * 文字組みアキ量設定の表示名を求める
+ * @param {*} mojikumiValue 文字組みの設定値（MojikumiTable・文字列・NothingEnum・組み込みプリセットの列挙値）
+ * @returns {string} 表示名。求められなければ空文字
+ */
+function resolveMojikumiName(mojikumiValue) {
+    if (mojikumiValue === null || mojikumiValue === undefined || mojikumiValue === NothingEnum.NOTHING) {
+        return MOJIKUMI_NONE_NAME;
+    }
+    if (typeof mojikumiValue === "string") {
+        return mojikumiValue;
+    }
+
+    /* MojikumiTable は .name を持つ。プリセットの列挙値は持たないため toString() で照合 / MojikumiTable has .name; preset enums are matched via toString() */
+    try {
+        if (mojikumiValue.isValid && typeof mojikumiValue.name === "string" && mojikumiValue.name.length > 0) {
+            return mojikumiValue.name;
+        }
+    } catch (mojikumiNameError) { }
+
+    var mojikumiKey = "";
+    try { mojikumiKey = mojikumiValue.toString(); } catch (mojikumiStringError) { }
+    for (var enumKey in MOJIKUMI_LABELS) {
+        if (mojikumiKey.indexOf(enumKey) !== -1) {
+            return MOJIKUMI_LABELS[enumKey];
+        }
+    }
+
+    return "";
+}
+
+// =========================================
+// 選択肢の定義 / Option definitions
+// =========================================
+
+/**
+ * ぶら下がり方法の選択肢を作る
+ * @returns {object} ぶら下がり方法と表示名
+ */
+function createKinsokuHangTypeOptions() {
+    return {
+        names: ["なし", "標準", "強制"],
+        values: [
+            KinsokuHangTypes.NONE,
+            KinsokuHangTypes.KINSOKU_HANG_REGULAR,
+            KinsokuHangTypes.KINSOKU_HANG_FORCE
+        ]
+    };
 }
 
 /**
@@ -910,93 +1178,6 @@ function createCharacterAlignmentOptions() {
     };
 }
 
-/**
- * コンポーザーの選択肢と適用用エイリアスを作る
- * @returns {object} 表示名と定義
- */
-function createComposerOptions() {
-    var entries = [
-        { name: "多言語対応単数行コンポーザー", aliases: ["$ID/HL Single Optyca", "Adobe World-Ready Single-line Composer", "Adobe 多言語対応単数行コンポーザー", "Adobe World-Ready 単数行コンポーザー"] },
-        { name: "多言語対応段落コンポーザー", aliases: ["$ID/HL Composer Optyca", "Adobe World-Ready Paragraph Composer", "Adobe 多言語対応段落コンポーザー", "Adobe World-Ready 段落コンポーザー"] },
-        { name: "日本語単数行コンポーザー", aliases: ["Adobe 日本語単数行コンポーザー", "Adobe Japanese Single-line Composer"] },
-        { name: "日本語段落コンポーザー", aliases: ["Adobe 日本語段落コンポーザー", "Adobe Japanese Paragraph Composer"] },
-        { name: "欧文段落コンポーザー", aliases: ["$ID/HL Composer", "Adobe Paragraph Composer", "Adobe 欧文段落コンポーザー", "Adobe 段落コンポーザー"] },
-        { name: "欧文単数行コンポーザー", aliases: ["$ID/HL Single", "Adobe Single-line Composer", "Adobe 欧文単数行コンポーザー", "Adobe 単数行コンポーザー"] }
-    ];
-    var names = [];
-    var aliases = [];
-    for (var entryIndex = 0; entryIndex < entries.length; entryIndex++) {
-        names.push(entries[entryIndex].name);
-        aliases.push(entries[entryIndex].aliases);
-    }
-    return { names: names, aliases: aliases };
-}
-
-/**
- * コンポーザー名から選択位置を探す
- * @param {Array<object>} composerTable コンポーザーの定義
- * @param {string} composerName 探すコンポーザー名
- * @returns {number} 見つかった位置。なければ -1
- */
-function findIndexByComposerAliases(aliasesList, target) {
-    if (!target) return -1;
-    for (var listIndex = 0; listIndex < aliasesList.length; listIndex++) {
-        var aliases = aliasesList[listIndex];
-        for (var aliasIndex = 0; aliasIndex < aliases.length; aliasIndex++) {
-            if (aliases[aliasIndex] === target) return listIndex;
-        }
-    }
-    return -1;
-}
-
-/**
- * エイリアスを順に試して段落スタイルにコンポーザーを設定する
- * @param {ParagraphStyle} paragraphStyle 対象の段落スタイル
- * @param {Array<string>} aliases コンポーザー名の候補
- * @returns {void}
- */
-function applyComposerAliases(targetParagraphStyle, aliases) {
-    if (!aliases) return false;
-    for (var aliasIndex = 0; aliasIndex < aliases.length; aliasIndex++) {
-        try {
-            targetParagraphStyle.composer = aliases[aliasIndex];
-            return true;
-        } catch (composerAliasError) { }
-    }
-    return false;
-}
-
-// =========================================
-// デフォルト値の解決 / Default value resolution
-// =========================================
-
-/**
- * 既定値の名前から選択位置を求める
- * @param {Array<string>} names 表示名の一覧
- * @param {string} defaultName 既定値の名前
- * @returns {number} 選択する位置
- */
-function getDefaultIndexByName(names, defaultName) {
-    for (var nameIndex = 0; nameIndex < names.length; nameIndex++) {
-        if (names[nameIndex] === defaultName) return nameIndex;
-    }
-    return 0;
-}
-
-/**
- * 名前または値から既定の選択位置を求める
- * @param {object} options 選択肢の定義
- * @param {*} defaultNameOrValue 既定の名前または値
- * @returns {number} 選択する位置
- */
-function getDefaultIndexByNameOrValue(names, values, defaultName) {
-    for (var itemIndex = 0; itemIndex < names.length; itemIndex++) {
-        if (names[itemIndex] === defaultName) return itemIndex;
-        if (values && itemIndex < values.length && values[itemIndex] === defaultName) return itemIndex;
-    }
-    return 0;
-}
-
 // =========================================
 // ダイアログ UI / Dialog UI
 // =========================================
@@ -1004,18 +1185,16 @@ function getDefaultIndexByNameOrValue(names, values, defaultName) {
 /**
  * ラベル付きドロップダウンの行を追加する
  * @param {object} parent 追加先のコンテナ
- * @param {string} labelText ラベルの文字列
+ * @param {string} labelString ラベルの文字列（コロン付き）
  * @param {Array<string>} items 選択肢
- * @param {number} defaultIndex 既定の選択位置
+ * @param {number} selectionIndex 既定の選択位置
  * @returns {DropDownList} 追加したドロップダウン
  */
-function addDropdownRow(parent, labelText, items, selectionIndex) {
+function addDropdownRow(parent, labelString, items, selectionIndex) {
     var row = parent.add("group");
-    row.orientation = "row";
-    row.alignChildren = ["left", "center"];
-    row.spacing = 8;
+    setupRow(row, "left", 8);
 
-    var label = row.add("statictext", undefined, labelText);
+    var label = row.add("statictext", undefined, labelString);
     label.preferredSize.width = 120;
 
     var dropdown = row.add("dropdownlist", undefined, items);
@@ -1028,19 +1207,17 @@ function addDropdownRow(parent, labelText, items, selectionIndex) {
 /**
  * ラベル付き数値入力の行を追加する
  * @param {object} parent 追加先のコンテナ
- * @param {string} labelText ラベルの文字列
+ * @param {string} labelString ラベルの文字列（コロン付き）
  * @param {*} defaultValue 初期値
- * @param {string} unitText 単位の文字列
+ * @param {string} suffixText 単位の文字列
  * @param {object} stepOptions ∧∨の増減の設定（addStepper() に渡す step / min / max / integer）
  * @returns {EditText} 追加した入力欄
  */
-function addNumberRow(parent, labelText, defaultValue, suffixText, stepOptions) {
+function addNumberRow(parent, labelString, defaultValue, suffixText, stepOptions) {
     var row = parent.add("group");
-    row.orientation = "row";
-    row.alignChildren = ["left", "center"];
-    row.spacing = 8;
+    setupRow(row, "left", 8);
 
-    var label = row.add("statictext", undefined, labelText);
+    var label = row.add("statictext", undefined, labelString);
     label.preferredSize.width = 120;
 
     /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
@@ -1074,7 +1251,7 @@ function showParagraphStylePicker(paragraphStyleNames, currentSelectedIndexes) {
     var picker = new Window("dialog", getLabel("dialog.stylePicker"));
     setupWindow(picker, 10);
 
-    var targetCountText = picker.add("statictext", undefined, getLabel("field.targetCount") + paragraphStyleNames.length + getLabel("unit.item"));
+    var targetCountText = picker.add("statictext", undefined, labelValueText("field.targetCount", paragraphStyleNames.length + getLabel("unit.item")));
     targetCountText.alignment = "left";
 
     // listbox はスタイル数が多くても自動でスクロールバーが付く /
@@ -1089,10 +1266,7 @@ function showParagraphStylePicker(paragraphStyleNames, currentSelectedIndexes) {
      */
     function isCurrentlySelected(index) {
         if (!currentSelectedIndexes) return true;
-        for (var selectedIndexPosition = 0; selectedIndexPosition < currentSelectedIndexes.length; selectedIndexPosition++) {
-            if (currentSelectedIndexes[selectedIndexPosition] === index) return true;
-        }
-        return false;
+        return findIndexInArray(currentSelectedIndexes, index) >= 0;
     }
 
     var initialSelectionIndexes = [];
@@ -1102,27 +1276,26 @@ function showParagraphStylePicker(paragraphStyleNames, currentSelectedIndexes) {
     if (initialSelectionIndexes.length > 0) styleListbox.selection = initialSelectionIndexes;
 
     var toolRow = picker.add("group");
-    toolRow.alignment = "left";
-    toolRow.spacing = 6;
-    var selectAllButton = toolRow.add("button", undefined, getLabel("button.selectAll"));
-    var clearAllButton = toolRow.add("button", undefined, getLabel("button.clearAll"));
+    setupRow(toolRow, "left", 6);
+    var btnSelectAll = toolRow.add("button", undefined, getLabel("button.selectAll"));
+    var btnClearAll = toolRow.add("button", undefined, getLabel("button.clearAll"));
 
-    selectAllButton.onClick = function () {
+    btnSelectAll.onClick = function () {
         var allIndexes = [];
         for (var allIndex = 0; allIndex < styleListbox.items.length; allIndex++) allIndexes.push(allIndex);
         styleListbox.selection = allIndexes;
     };
-    clearAllButton.onClick = function () {
+    btnClearAll.onClick = function () {
         styleListbox.selection = null;
     };
 
     var hint = picker.add("statictext", undefined, getLabel("hint.multiSelect"));
     hint.alignment = "left";
 
-    var buttonGroup = picker.add("group");
-    buttonGroup.alignment = "right";
-    buttonGroup.add("button", undefined, "キャンセル", { name: "cancel" });
-    buttonGroup.add("button", undefined, "OK", { name: "ok" });
+    var buttonRow = addButtonRow(picker);
+    var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    centerButtonRowIfRightOnly(buttonRow);
 
     if (picker.show() !== 1) return null;
 
@@ -1136,40 +1309,14 @@ function showParagraphStylePicker(paragraphStyleNames, currentSelectedIndexes) {
 }
 
 /**
- * 表示名から選択位置を探す
- * @param {object} options 選択肢の定義
- * @param {string} displayName 探す表示名
- * @returns {number} 見つかった位置。なければ -1
- */
-function findIndexByDisplayName(names, target) {
-    for (var nameIndex = 0; nameIndex < names.length; nameIndex++) {
-        if (names[nameIndex] === target) return nameIndex;
-    }
-    return -1;
-}
-
-/**
- * 列挙値から選択位置を探す
- * @param {object} options 選択肢の定義
- * @param {*} enumValue 探す列挙値
- * @returns {number} 見つかった位置。なければ -1
- */
-function findIndexByEnumValue(values, target) {
-    for (var valueIndex = 0; valueIndex < values.length; valueIndex++) {
-        if (values[valueIndex] === target) return valueIndex;
-    }
-    return -1;
-}
-
-/**
  * 列挙値からドロップダウンを安全に選択する
  * @param {DropDownList} dropdown 対象のドロップダウン
- * @param {object} options 選択肢の定義
- * @param {*} enumValue 設定する列挙値
- * @returns {void}
+ * @param {Array} values 選択肢の列挙値
+ * @param {*} target 設定する列挙値
+ * @returns {boolean} 選択できたら true
  */
 function safeAssignDropdownFromEnum(dropdown, values, target) {
-    var foundIndex = findIndexByEnumValue(values, target);
+    var foundIndex = findIndexInArray(values, target);
     if (foundIndex < 0) return false;
     dropdown.selection = foundIndex;
     return true;
@@ -1180,11 +1327,11 @@ function safeAssignDropdownFromEnum(dropdown, values, target) {
  * @param {DropDownList} dropdown 対象のドロップダウン
  * @param {Array<string>} names 表示名の一覧
  * @param {string} targetName 設定する名前
- * @returns {void}
+ * @returns {boolean} 選択できたら true
  */
 function safeAssignDropdownFromName(dropdown, names, targetName) {
     if (!targetName) return false;
-    var foundIndex = findIndexByDisplayName(names, targetName);
+    var foundIndex = findIndexInArray(names, targetName);
     if (foundIndex < 0) return false;
     dropdown.selection = foundIndex;
     return true;
@@ -1202,7 +1349,7 @@ function safeAssignCheckbox(checkbox, value) {
 
 /**
  * 数値入力欄へ値を安全に設定する
- * @param {EditText} editText 対象の入力欄
+ * @param {EditText} input 対象の入力欄
  * @param {*} value 設定する値
  * @returns {void}
  */
@@ -1552,36 +1699,6 @@ function getFirstParagraphFromSelection() {
 }
 
 /**
- * 文字組みアキ量設定の表示名を求める
- * @param {*} mojikumiValue 文字組みの設定値
- * @returns {string} 表示名
- */
-function resolveMojikumiName(mojikumiValue) {
-    if (mojikumiValue === null || mojikumiValue === undefined || mojikumiValue === NothingEnum.NOTHING) {
-        return "なし";
-    }
-    if (typeof mojikumiValue === "string") {
-        return mojikumiValue;
-    }
-
-    try {
-        if (mojikumiValue.isValid && typeof mojikumiValue.name === "string" && mojikumiValue.name.length > 0) {
-            return mojikumiValue.name;
-        }
-    } catch (mojikumiNameError) { }
-
-    var mojikumiKey = "";
-    try { mojikumiKey = mojikumiValue.toString(); } catch (mojikumiStringError) { }
-    for (var enumKey in MOJIKUMI_LABELS) {
-        if (mojikumiKey.indexOf(enumKey) !== -1) {
-            return MOJIKUMI_LABELS[enumKey];
-        }
-    }
-
-    return "";
-}
-
-/**
  * 言語オブジェクトから言語キーを求める
  * @param {*} languageValue 言語の設定値
  * @returns {string} 言語のキー
@@ -1597,39 +1714,10 @@ function resolveLanguageKey(appliedLanguage) {
     }
 
     for (var languageKey in LANGUAGE_CANDIDATES) {
-        var languageCandidates = LANGUAGE_CANDIDATES[languageKey];
-        for (var candidateIndex = 0; candidateIndex < languageCandidates.length; candidateIndex++) {
-            if (languageCandidates[candidateIndex] === languageName) {
-                return languageKey;
-            }
-        }
+        if (findIndexInArray(LANGUAGE_CANDIDATES[languageKey], languageName) >= 0) return languageKey;
     }
 
     return null;
-}
-
-/**
- * 禁則処理セットの設定値から選択位置を探す
- * @param {object} kinsokuTableData 禁則処理セットの一覧
- * @param {*} kinsokuValue 禁則処理セットの設定値
- * @returns {number} 見つかった位置。なければ -1
- */
-function findKinsokuIndexFromValue(kinsokuValue, kinsokuTables, kinsokuNames) {
-    if (kinsokuValue === null || kinsokuValue === undefined) return -1;
-    for (var refIndex = 0; refIndex < kinsokuTables.length; refIndex++) {
-        if (kinsokuTables[refIndex] === kinsokuValue) return refIndex;
-        try {
-            if (kinsokuTables[refIndex].id !== undefined && kinsokuValue.id !== undefined && kinsokuTables[refIndex].id === kinsokuValue.id) return refIndex;
-        } catch (eKinsokuIdCompare) { }
-    }
-    var kinsokuValueName = null;
-    try { kinsokuValueName = kinsokuValue.name; } catch (eKinsokuValueName) { }
-    if (typeof kinsokuValueName === "string" && kinsokuValueName.length > 0) {
-        for (var nameIndex = 0; nameIndex < kinsokuNames.length; nameIndex++) {
-            if (kinsokuNames[nameIndex] === kinsokuValueName) return nameIndex;
-        }
-    }
-    return -1;
 }
 
 /**
@@ -1805,15 +1893,15 @@ function showPresetNameInputDialog() {
     var nameDialog = new Window("dialog", getLabel("dialog.presetNameInput"));
     setupWindow(nameDialog, 10);
 
-    nameDialog.add("statictext", undefined, getLabel("field.presetName"));
+    nameDialog.add("statictext", undefined, labelText("field.presetName"));
     var nameInput = nameDialog.add("edittext", undefined, "");
     nameInput.preferredSize = [320, -1];
     nameInput.active = true;
 
-    var buttonGroup = nameDialog.add("group");
-    buttonGroup.alignment = "right";
-    buttonGroup.add("button", undefined, "キャンセル", { name: "cancel" });
-    buttonGroup.add("button", undefined, "OK", { name: "ok" });
+    var buttonRow = addButtonRow(nameDialog);
+    var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    centerButtonRowIfRightOnly(buttonRow);
 
     if (nameDialog.show() !== 1) return null;
     var presetName = nameInput.text;
@@ -1911,7 +1999,7 @@ function exportPresetCode(presetFields, dialogUi) {
             file.close();
             var savedMessage = getLabel("export.savedPrefix") + presetName + getLabel("export.savedSuffix");
             if (safeFileName !== presetName) {
-                savedMessage += "\nファイル名: " + safeFileName + ".jsx";
+                savedMessage += "\n" + labelValueText("field.fileName", safeFileName + ".jsx");
             }
             alert(savedMessage);
         } else {
@@ -1936,7 +2024,7 @@ function createDialogUI(dialogData) {
     var topColumnsGroup = dialog.add("group");
     topColumnsGroup.orientation = "row";
     topColumnsGroup.alignChildren = ["fill", "top"];
-    topColumnsGroup.spacing = 10;
+    topColumnsGroup.spacing = COLUMN_SPACING;
 
     var targetPanel = topColumnsGroup.add("panel", undefined, getLabel("panel.targetStyles"));
     setupPanel(targetPanel, 8);
@@ -1946,7 +2034,7 @@ function createDialogUI(dialogData) {
     var targetSelectedParagraphsRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.targetSelection"));
     var targetAllRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.targetAll"));
     var targetSelectionRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.targetSpecified"));
-    var targetSelectionButton = targetPanel.add("button", undefined, getLabel("button.select"));
+    var btnSelectStyles = targetPanel.add("button", undefined, getLabel("button.select"));
     targetSelectedParagraphsRadio.value = true;
 
     var presetPanel = topColumnsGroup.add("panel", undefined, getLabel("panel.preset"));
@@ -1956,12 +2044,12 @@ function createDialogUI(dialogData) {
     var presetDropdown = presetPanel.add("dropdownlist", undefined, ["欧文組版", "グリッド優先", "グリッド無視", "ソースコード", "InDesignのデフォルト"]);
     presetDropdown.selection = null;
     presetDropdown.preferredSize.width = W_DROP;
-    var presetExportButton = presetPanel.add("button", undefined, getLabel("button.export"));
+    var btnExportPreset = presetPanel.add("button", undefined, getLabel("button.export"));
 
     var columnsGroup = dialog.add("group");
     columnsGroup.orientation = "row";
     columnsGroup.alignChildren = ["fill", "top"];
-    columnsGroup.spacing = 10;
+    columnsGroup.spacing = COLUMN_SPACING;
 
     var leftColumn = columnsGroup.add("group");
     leftColumn.orientation = "column";
@@ -1976,12 +2064,12 @@ function createDialogUI(dialogData) {
     var compositionExtraPanel = leftColumn.add("panel", undefined, getLabel("panel.basicSettings"));
     setupPanel(compositionExtraPanel, 8);
 
-    var kerningMethodDropdown = addDropdownRow(compositionExtraPanel, getLabel("field.autoKerning"), dialogData.kerningMethodNames, defaultIndexes.kerningMethodIndex);
-    var autoLeadingInput = addNumberRow(compositionExtraPanel, getLabel("field.autoLeading"), defaultIndexes.autoLeadingPercent, "%", { step: 1, min: 0, max: 500 });
-    var characterAlignmentDropdown = addDropdownRow(compositionExtraPanel, getLabel("field.characterAlign"), dialogData.characterAlignmentNames, defaultIndexes.characterAlignmentIndex);
-    var leadingModelDropdown = addDropdownRow(compositionExtraPanel, getLabel("field.leadingModel"), dialogData.leadingModelNames, defaultIndexes.leadingModelIndex);
-    var gridAlignmentDropdown = addDropdownRow(compositionExtraPanel, getLabel("field.gridAlignment"), dialogData.gridAlignmentNames, defaultIndexes.gridAlignmentIndex);
-    var composerDropdown = addDropdownRow(compositionExtraPanel, getLabel("field.composer"), dialogData.composerNames, defaultIndexes.composerIndex);
+    var kerningMethodDropdown = addDropdownRow(compositionExtraPanel, labelText("field.autoKerning"), dialogData.kerningMethodNames, defaultIndexes.kerningMethodIndex);
+    var autoLeadingInput = addNumberRow(compositionExtraPanel, labelText("field.autoLeading"), defaultIndexes.autoLeadingPercent, "%", { step: 1, min: 0, max: 500 });
+    var characterAlignmentDropdown = addDropdownRow(compositionExtraPanel, labelText("field.characterAlign"), dialogData.characterAlignmentNames, defaultIndexes.characterAlignmentIndex);
+    var leadingModelDropdown = addDropdownRow(compositionExtraPanel, labelText("field.leadingModel"), dialogData.leadingModelNames, defaultIndexes.leadingModelIndex);
+    var gridAlignmentDropdown = addDropdownRow(compositionExtraPanel, labelText("field.gridAlignment"), dialogData.gridAlignmentNames, defaultIndexes.gridAlignmentIndex);
+    var composerDropdown = addDropdownRow(compositionExtraPanel, labelText("field.composer"), dialogData.composerNames, defaultIndexes.composerIndex);
 
     var compositionOptionalPanel = rightColumn.add("panel", undefined, getLabel("panel.quotes"));
     setupPanel(compositionOptionalPanel, 8);
@@ -1994,24 +2082,20 @@ function createDialogUI(dialogData) {
         useTypographersQuotesInitial = true;
     }
 
-    var useTypographersQuotesCheckbox = compositionOptionalPanel.add(
-        "checkbox",
-        undefined,
-        "英文引用符を使用"
-    );
+    var useTypographersQuotesCheckbox = compositionOptionalPanel.add("checkbox", undefined, getLabel("checkbox.typographersQuotes"));
 
     useTypographersQuotesCheckbox.value = useTypographersQuotesInitial;
 
     var smartQuoteDropdown = addDropdownRow(
         compositionOptionalPanel,
-        getLabel("field.doubleQuote"),
+        labelText("field.doubleQuote"),
         DOUBLE_QUOTE_OPTIONS,
         0
     );
 
     var smartSingleQuoteDropdown = addDropdownRow(
         compositionOptionalPanel,
-        getLabel("field.singleQuote"),
+        labelText("field.singleQuote"),
         SINGLE_QUOTE_OPTIONS,
         0
     );
@@ -2020,19 +2104,17 @@ function createDialogUI(dialogData) {
     setupPanel(unitsPanel, 8);
 
     var textSizeUnitNames = ["ポイント", "級", "アメリカ式ポイント"];
-    var textSizeUnitDropdown = addDropdownRow(unitsPanel, getLabel("field.textSize"), textSizeUnitNames, 0);
+    var textSizeUnitDropdown = addDropdownRow(unitsPanel, labelText("field.textSize"), textSizeUnitNames, 0);
     textSizeUnitDropdown.preferredSize.width = W_DROP;
 
     var compositionUnitNames = ["ポイント", "歯", "U", "倍", "ミルス", "アメリカ式ポイント"];
-    var compositionUnitDropdown = addDropdownRow(unitsPanel, getLabel("field.typography"), compositionUnitNames, 0);
+    var compositionUnitDropdown = addDropdownRow(unitsPanel, labelText("field.typography"), compositionUnitNames, 0);
     compositionUnitDropdown.preferredSize.width = W_DROP;
 
     var languageRow = compositionExtraPanel.add("group");
-    languageRow.orientation = "row";
-    languageRow.alignChildren = ["left", "center"];
-    languageRow.spacing = 8;
+    setupRow(languageRow, "left", 8);
 
-    var languageLabel = languageRow.add("statictext", undefined, getLabel("field.language"));
+    var languageLabel = languageRow.add("statictext", undefined, labelText("field.language"));
     languageLabel.preferredSize.width = 120;
 
     var languageJapaneseRadio = languageRow.add("radiobutton", undefined, getLabel("radio.languageJapanese"));
@@ -2048,14 +2130,14 @@ function createDialogUI(dialogData) {
     var compositionPanel = leftColumn.add("panel", undefined, getLabel("panel.japaneseTypeset"));
     setupPanel(compositionPanel, 8);
 
-    var kinsokuDropdown = addDropdownRow(compositionPanel, getLabel("field.kinsokuSet"), dialogData.kinsokuNames, defaultIndexes.kinsokuIndex);
-    var kinsokuTypeDropdown = addDropdownRow(compositionPanel, getLabel("field.kinsokuType"), dialogData.kinsokuTypeNames, defaultIndexes.kinsokuTypeIndex);
-    var kinsokuHangTypeDropdown = addDropdownRow(compositionPanel, getLabel("field.kinsokuHangType"), dialogData.kinsokuHangTypeNames, defaultIndexes.kinsokuHangTypeIndex);
+    var kinsokuDropdown = addDropdownRow(compositionPanel, labelText("field.kinsokuSet"), dialogData.kinsokuNames, defaultIndexes.kinsokuIndex);
+    var kinsokuTypeDropdown = addDropdownRow(compositionPanel, labelText("field.kinsokuType"), dialogData.kinsokuTypeNames, defaultIndexes.kinsokuTypeIndex);
+    var kinsokuHangTypeDropdown = addDropdownRow(compositionPanel, labelText("field.kinsokuHangType"), dialogData.kinsokuHangTypeNames, defaultIndexes.kinsokuHangTypeIndex);
 
     var bunriKinshiCheckbox = compositionPanel.add("checkbox", undefined, getLabel("checkbox.noBreak"));
     bunriKinshiCheckbox.value = defaultIndexes.bunriKinshi;
 
-    var mojikumiDropdown = addDropdownRow(compositionPanel, getLabel("field.mojikumi"), dialogData.mojikumiNames, defaultIndexes.mojikumiIndex);
+    var mojikumiDropdown = addDropdownRow(compositionPanel, labelText("field.mojikumi"), dialogData.mojikumiNames, defaultIndexes.mojikumiIndex);
 
     var compositionCheckboxesGroup = compositionPanel.add("group");
     compositionCheckboxesGroup.orientation = "row";
@@ -2082,16 +2164,15 @@ function createDialogUI(dialogData) {
     var latinWordBreakCheckbox = compositionCheckboxesRight.add("checkbox", undefined, getLabel("checkbox.arbitraryHyphen"));
     latinWordBreakCheckbox.value = defaultIndexes.latinWordBreak;
 
-
     var hyphenationPanel = rightColumn.add("panel", undefined, getLabel("panel.hyphenation"));
     setupPanel(hyphenationPanel, 8);
     var hyphenationCheckbox = hyphenationPanel.add("checkbox", undefined, getLabel("checkbox.hyphenation"));
     hyphenationCheckbox.value = defaultIndexes.hyphenation;
-    var hyphenateWordsLongerThanInput = addNumberRow(hyphenationPanel, getLabel("field.minWordLength"), defaultIndexes.hyphenateWordsLongerThan, "文字", { step: 1, min: 3, integer: true });
-    var hyphenateAfterFirstInput = addNumberRow(hyphenationPanel, getLabel("field.afterFirst"), defaultIndexes.hyphenateAfterFirst, "文字", { step: 1, min: 1, integer: true });
-    var hyphenateBeforeLastInput = addNumberRow(hyphenationPanel, getLabel("field.beforeLast"), defaultIndexes.hyphenateBeforeLast, "文字", { step: 1, min: 1, integer: true });
-    var hyphenateLadderLimitInput = addNumberRow(hyphenationPanel, getLabel("field.maxHyphens"), defaultIndexes.hyphenateLadderLimit, "ハイフン", { step: 1, min: 0, integer: true });
-    var hyphenationZoneInput = addNumberRow(hyphenationPanel, getLabel("field.hyphenationZone"), defaultIndexes.hyphenationZoneMm, "mm", { step: 1, min: 0 });
+    var hyphenateWordsLongerThanInput = addNumberRow(hyphenationPanel, labelText("field.minWordLength"), defaultIndexes.hyphenateWordsLongerThan, getLabel("unit.character"), { step: 1, min: 3, integer: true });
+    var hyphenateAfterFirstInput = addNumberRow(hyphenationPanel, labelText("field.afterFirst"), defaultIndexes.hyphenateAfterFirst, getLabel("unit.character"), { step: 1, min: 1, integer: true });
+    var hyphenateBeforeLastInput = addNumberRow(hyphenationPanel, labelText("field.beforeLast"), defaultIndexes.hyphenateBeforeLast, getLabel("unit.character"), { step: 1, min: 1, integer: true });
+    var hyphenateLadderLimitInput = addNumberRow(hyphenationPanel, labelText("field.maxHyphens"), defaultIndexes.hyphenateLadderLimit, getLabel("unit.hyphen"), { step: 1, min: 0, integer: true });
+    var hyphenationZoneInput = addNumberRow(hyphenationPanel, labelText("field.hyphenationZone"), defaultIndexes.hyphenationZoneMm, "mm", { step: 1, min: 0 });
 
     var hyphenateBreakPanel = hyphenationPanel.add("panel", undefined, getLabel("panel.hyphenateBreak"));
     setupPanel(hyphenateBreakPanel, 8);
@@ -2103,20 +2184,19 @@ function createDialogUI(dialogData) {
     var hyphenateLastWordCheckbox = hyphenateBreakPanel.add("checkbox", undefined, getLabel("checkbox.lastWord"));
     hyphenateLastWordCheckbox.value = defaultIndexes.hyphenateLastWord;
 
-    var buttonGroup = dialog.add("group");
-    buttonGroup.alignment = "right";
-    buttonGroup.margins = [0, 10, 0, 0];
-    buttonGroup.add("button", undefined, "キャンセル", { name: "cancel" });
-    buttonGroup.add("button", undefined, "OK", { name: "ok" });
+    var buttonRow = addButtonRow(dialog);
+    var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    centerButtonRowIfRightOnly(buttonRow);
 
     return {
         dialog: dialog,
         targetSelectedParagraphsRadio: targetSelectedParagraphsRadio,
         targetAllRadio: targetAllRadio,
         targetSelectionRadio: targetSelectionRadio,
-        targetSelectionButton: targetSelectionButton,
+        btnSelectStyles: btnSelectStyles,
         presetDropdown: presetDropdown,
-        presetExportButton: presetExportButton,
+        btnExportPreset: btnExportPreset,
         kinsokuDropdown: kinsokuDropdown,
         kinsokuTypeDropdown: kinsokuTypeDropdown,
         kinsokuHangTypeDropdown: kinsokuHangTypeDropdown,
@@ -2170,14 +2250,13 @@ function bindDialogEvents(dialogUi, dialogData, presetFields) {
         loadSettingsFromParagraph(getFirstParagraphFromSelection(), dialogUi, dialogData);
     };
 
-    dialogUi.targetSelectionButton.onClick = function () {
+    dialogUi.btnSelectStyles.onClick = function () {
         var pickerResult = showParagraphStylePicker(dialogData.paragraphStyleNames, dialogUi.selectedStyleIndexes);
         if (pickerResult !== null) {
             dialogUi.selectedStyleIndexes = pickerResult;
             activateTargetRadio(dialogUi, dialogUi.targetSelectionRadio);
         }
     };
-
 
     dialogUi.languageJapaneseRadio.onClick = function () { activateLanguageRadio(dialogUi, dialogUi.languageJapaneseRadio); };
     dialogUi.languageEnglishRadio.onClick = function () { activateLanguageRadio(dialogUi, dialogUi.languageEnglishRadio); };
@@ -2190,7 +2269,7 @@ function bindDialogEvents(dialogUi, dialogData, presetFields) {
         if (!dialogUi.presetDropdown.selection) return;
         applyPreset(dialogUi.presetDropdown.selection.text, dialogUi, presetFields);
     };
-    dialogUi.presetExportButton.onClick = function () {
+    dialogUi.btnExportPreset.onClick = function () {
         exportPresetCode(presetFields, dialogUi);
     };
 }
@@ -2350,19 +2429,6 @@ function clearOverridesIfActive() {
 }
 
 /**
- * 配列にその段落スタイルが含まれるかを判定する
- * @param {Array<ParagraphStyle>} styles 段落スタイルの配列
- * @param {ParagraphStyle} targetStyle 探す段落スタイル
- * @returns {boolean} 含まれていれば true
- */
-function containsParagraphStyle(paragraphStyles, targetParagraphStyle) {
-    for (var paragraphStyleIndex = 0; paragraphStyleIndex < paragraphStyles.length; paragraphStyleIndex++) {
-        if (paragraphStyles[paragraphStyleIndex] === targetParagraphStyle) return true;
-    }
-    return false;
-}
-
-/**
  * 適用対象なら選択中の段落スタイルを追加する
  * @param {Array<ParagraphStyle>} styles 収集先の配列
  * @param {ParagraphStyle} paragraphStyle 追加する段落スタイル
@@ -2370,8 +2436,8 @@ function containsParagraphStyle(paragraphStyles, targetParagraphStyle) {
  */
 function addSelectedParagraphStyleIfApplicable(resultStyles, allParagraphStyles, paragraphStyle) {
     if (!paragraphStyle || !paragraphStyle.isValid) return;
-    if (containsParagraphStyle(resultStyles, paragraphStyle)) return;
-    if (!containsParagraphStyle(allParagraphStyles, paragraphStyle)) return;
+    if (findIndexInArray(resultStyles, paragraphStyle) >= 0) return;
+    if (findIndexInArray(allParagraphStyles, paragraphStyle) < 0) return;
     resultStyles.push(paragraphStyle);
 }
 

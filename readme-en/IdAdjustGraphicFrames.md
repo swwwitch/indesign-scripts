@@ -35,10 +35,16 @@ Collects text-anchored graphic frames and adjusts their width, frame size and im
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdAdjustGraphicFrames.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-06-02 |
-| Last updated | 2026-06-02 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Unified the button row, panel spacing and localization code with the shared parts. Buttons are now centered and panels are tighter
 
 ### License
 

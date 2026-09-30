@@ -22,10 +22,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdRemoveMarkerApplyStyleSimple"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0";                           /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";    /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-09";                     /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-10";                     /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                     /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdRemoveMarkerApplyStyleSimple.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerApplyStyleSimple.md"; /* README (English) */
@@ -67,9 +67,85 @@ var DEFAULT_SCOPE = SCOPE_STORY;
 // =========================================
 
 /* ウィンドウの余白と間隔 / Window margins and spacing */
-var WINDOW_MARGINS = 16; /* ウィンドウ外周の余白 / window margin */
-var WINDOW_SPACING = 12; /* ウィンドウ内の要素間隔 / window spacing */
-var COLUMN_SPACING = 16; /* 入力欄とボタン列の間隔 / gap between the fields and the buttons */
+// UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+/**
+ * ウィンドウの共通設定
+ * @param {Window} targetWindow - 対象のウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+ * @returns {void}
+ */
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+ * @param {Panel} targetPanel - 対象のパネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * タブの共通設定
+ * @param {Tab} targetTab - 対象のタブ
+ * @param {number} [spacing] - 要素間隔（省略時は変えない）
+ * @returns {void}
+ */
+function setupTab(targetTab, spacing) {
+    targetTab.orientation = "column";
+    targetTab.alignChildren = "fill";
+    targetTab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") targetTab.spacing = spacing;
+}
+
+/**
+ * 横並びの行グループの共通設定（ボタン列など）。
+ * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+ * @param {Group} rowGroup - 対象のグループ
+ * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(rowGroup, rowAlignment, spacing) {
+    rowGroup.orientation = "row";
+    rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+    rowGroup.alignChildren = ["left", "center"];
+    rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+ * @param {Button} targetButton - 対象のボタン
+ * @param {number} trimPixels - 詰める量（px）
+ * @returns {void}
+ */
+function trimButtonHeight(targetButton, trimPixels) {
+    /* レイアウト前は size が無い / size is not set until the layout runs */
+    if (!targetButton.size) return;
+    targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+}
+
+// UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
 var ROW_SPACING    = 8;  /* 行の間隔 / row spacing */
 var RADIO_SPACING  = 4;  /* ラジオボタンの間隔 / radio button spacing */
 
@@ -78,30 +154,6 @@ var LABEL_WIDTH        = 108; /* ラベルの幅（全角1.5文字分の余裕�
 var SEARCH_TEXT_LENGTH = 24;  /* 検索文字列入力欄の文字数 / search field length */
 var BUTTON_WIDTH       = 90;  /* ダイアログボタンの幅 / dialog button width */
 var COUNT_WIDTH        = 60;  /* 対象箇所の数値の幅 / match count width */
-
-/**
- * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
- * @returns {void}
- */
-function setupWindow(win) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = WINDOW_SPACING;
-}
-
-/**
- * 行グループの共通設定を適用する
- * @param {Group} group 対象グループ
- * @returns {void}
- */
-function setupRow(group) {
-    group.orientation = "row";
-    group.alignment = ["fill", "top"];
-    group.alignChildren = ["left", "center"];
-    group.spacing = ROW_SPACING;
-}
 
 /**
  * 列グループの共通設定を適用する
@@ -120,15 +172,84 @@ function setupColumn(group, horizontalAlignment) {
 // ラベル定義 / Labels
 // =========================================
 
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * UI 言語を判定する
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
  * @returns {string} "ja" または "en"
  */
 function getCurrentLang() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var currentLang = getCurrentLang();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
 var LABELS = {
     dialog: {
@@ -172,66 +293,15 @@ var LABELS = {
     }
 };
 
-/**
- * ドット区切りキーでラベルを取得する
- * @param {string} labelKey 例: "field.paragraphStyle"
- * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
- */
-function getLabel(labelKey) {
-    var labelNode = LABELS;
-    var keyParts = labelKey.split(".");
-    for (var i = 0; i < keyParts.length; i++) {
-        labelNode = labelNode[keyParts[i]];
-        if (!labelNode) return labelKey;
-    }
-    return labelNode[currentLang] || labelNode.en || labelKey;
-}
-
-/**
- * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
- * @param {string} labelKey 例: "field.paragraphStyle"
- * @returns {string} コロンを付与したラベル文字列
- */
-function getLabelWithColon(labelKey) {
-    return getLabel(labelKey) + (currentLang === "ja" ? "：" : ":");
-}
-
 // =========================================
 // 共通処理 / Helpers
 // =========================================
 
 /**
- * GREP 検索用に正規表現の特殊文字をエスケープする
- * @param {string} plainText エスケープする文字列
- * @returns {string} エスケープした文字列
- */
-function escapeGrepText(plainText) {
-    return plainText.replace(/([\\^$.|?*+()\[\]{}])/g, "\\$1");
-}
-
-/**
- * 検索文字列にぴったり一致する GREP パターンを組み立てる
- * @param {string} searchText 検索文字列
- * @returns {string} GREP パターン
- * @description 前後を先読み・後読みで止めることで、同じ文字が続く並びの一部には一致させない。
- *              これが無いと "##" が "### 見出し" の先頭2文字に一致してしまう。
- *              続く区切り（スペース・タブ）は一致範囲に含めて、目印と一緒に削除する
- */
-function buildExactGrep(searchText) {
-    var firstCharacter = searchText.charAt(0);
-    var lastCharacter = searchText.charAt(searchText.length - 1);
-
-    return "(?<!" + escapeGrepText(firstCharacter) + ")" +
-        escapeGrepText(searchText) +
-        "(?!" + escapeGrepText(lastCharacter) + ")" +
-        TRAILING_SEPARATOR_PATTERN;
-}
-
-/**
- * 名前で段落スタイルを探す（スタイルグループ内も対象）
- * @param {array} styleCollection allParagraphStyles
+ * 名前でスタイルを探す（スタイルグループ内も対象）
+ * @param {array} styleCollection allParagraphStyles / allCharacterStyles
  * @param {string} styleName 探すスタイル名
- * @returns {ParagraphStyle} 見つかったスタイル。無い場合は null
+ * @returns {object} 見つかったスタイル。無い場合は null
  */
 function findStyleByName(styleCollection, styleName) {
     for (var i = 0; i < styleCollection.length; i++) {
@@ -243,11 +313,12 @@ function findStyleByName(styleCollection, styleName) {
 
 /**
  * スタイル名の一覧を取得する
- * @param {array} styleCollection allParagraphStyles
+ * @param {array} styleCollection allParagraphStyles / allCharacterStyles
+ * @param {boolean} includeNoneOption 先頭に「（なし）」を追加するかどうか
  * @returns {array} スタイル名の配列
  */
-function getStyleNames(styleCollection) {
-    var styleNames = [];
+function getStyleNames(styleCollection, includeNoneOption) {
+    var styleNames = includeNoneOption ? [getLabel("option.none")] : [];
 
     for (var i = 0; i < styleCollection.length; i++) {
         styleNames.push(styleCollection[i].name);
@@ -257,18 +328,77 @@ function getStyleNames(styleCollection) {
 }
 
 /**
- * ラベル付きの行を追加する（ラベルは幅を固定して右揃え）
+ * GREP 検索用に正規表現の特殊文字をエスケープする
+ * @param {string} plainText エスケープする文字列
+ * @returns {string} エスケープした文字列
+ * @description エスケープの対象は GREP と JavaScript の正規表現で共通なので、件数の集計にも使う
+ */
+function escapeGrepText(plainText) {
+    return plainText.replace(/([\\^$.|?*+()\[\]{}])/g, "\\$1");
+}
+
+/**
+ * 末尾の区切り（半角／全角スペース・タブ）を落とす
+ * @param {string} text 対象の文字列
+ * @returns {string} 末尾の区切りを落とした文字列
+ * @description 区切りは目印と一緒に一致範囲で拾うので、パターンに含めない
+ */
+function trimTrailingSeparators(text) {
+    return text.replace(/[ \t　]+$/, "");
+}
+
+/**
+ * 目印の直後に同じ記号が続くときは一致させない先読みを組み立てる
+ * @param {string} markerText 目印の文字列
+ * @returns {string} 先読みのパターン
+ * @description これが無いと "#" が "## 見出し" の1文字目に一致してしまう
+ */
+function buildRunGuard(markerText) {
+    return "(?!" + escapeGrepText(markerText.charAt(markerText.length - 1)) + ")";
+}
+
+/**
+ * 検索文字列にぴったり一致する GREP パターンを組み立てる
+ * @param {string} searchText 検索文字列
+ * @returns {string} GREP パターン
+ * @description 前後を後読み・先読みで止めることで、同じ文字が続く並びの一部には一致させない。
+ *              これが無いと "##" が "### 見出し" の先頭2文字に一致してしまう。
+ *              続く区切り（スペース・タブ）は一致範囲に含めて、目印と一緒に削除する
+ */
+function buildExactGrep(searchText) {
+    var markerText = trimTrailingSeparators(searchText);
+
+    if (markerText === "") return escapeGrepText(searchText);
+
+    return "(?<!" + escapeGrepText(markerText.charAt(0)) + ")" +
+        escapeGrepText(markerText) + buildRunGuard(markerText) +
+        TRAILING_SEPARATOR_PATTERN;
+}
+
+/**
+ * 行ラベルを追加する（幅を固定して右揃え）
+ * @param {Group} parentGroup 追加先の行グループ
+ * @param {string} labelKey ラベルキー
+ * @returns {StaticText} 追加したラベル
+ */
+function addRowLabel(parentGroup, labelKey) {
+    var rowLabel = parentGroup.add("statictext", undefined, labelText(labelKey));
+    rowLabel.preferredSize.width = LABEL_WIDTH;
+    rowLabel.justify = "right";
+    return rowLabel;
+}
+
+/**
+ * ラベル付きの行を追加する（ラベルは addRowLabel() で幅を固定して右揃え）
  * @param {Group} parentGroup 追加先のグループ
  * @param {string} labelKey ラベルキー
  * @returns {Group} 追加した行グループ
  */
 function addLabeledRow(parentGroup, labelKey) {
     var labeledRow = parentGroup.add("group");
-    setupRow(labeledRow);
+    setupRow(labeledRow, "fill", ROW_SPACING);
 
-    var rowLabel = labeledRow.add("statictext", undefined, getLabelWithColon(labelKey));
-    rowLabel.preferredSize.width = LABEL_WIDTH;
-    rowLabel.justify = "right";
+    addRowLabel(labeledRow, labelKey);
 
     return labeledRow;
 }
@@ -316,6 +446,21 @@ function getSelectedRadioIndex(radioButtons) {
 }
 
 /**
+ * 選択範囲の親ストーリーを取得する
+ * @returns {Story} 選択（またはカーソル位置）のストーリー。取得できない場合は null
+ */
+function getSelectedStory() {
+    if (app.selection.length === 0) return null;
+
+    try {
+        return app.selection[0].parentStory;
+    } catch (e) {
+        /* テキスト以外が選択されている / Selection is not text */
+        return null;
+    }
+}
+
+/**
  * スコープに応じた検索対象を取得する
  * @param {number} searchScope SCOPE_* のいずれか
  * @param {Document} activeDoc アクティブドキュメント
@@ -337,11 +482,8 @@ function getSearchTargets(searchScope, activeDoc) {
     }
 
     /* ストーリーは選択（またはカーソル位置）が必要 / The story scope needs a text selection */
-    try {
-        searchTargets.push({ doc: activeDoc, searchRange: app.selection[0].parentStory });
-    } catch (e) {
-        /* 選択が無い、またはテキスト以外が選択されている / No selection, or it is not text */
-    }
+    var story = getSelectedStory();
+    if (story) searchTargets.push({ doc: activeDoc, searchRange: story });
 
     return searchTargets;
 }
@@ -379,11 +521,11 @@ function getInitialScope(activeDoc) {
 
 /**
  * everyItem() の戻り値を配列に正規化する（要素が1件のときスカラーで返るため）
- * @param {*} value everyItem() で取得した値
+ * @param {*} everyItemValue everyItem() で取得した値
  * @returns {array} 正規化した配列
  */
-function toArray(value) {
-    return (value instanceof Array) ? value : [value];
+function toArray(everyItemValue) {
+    return (everyItemValue instanceof Array) ? everyItemValue : [everyItemValue];
 }
 
 /**
@@ -391,7 +533,8 @@ function toArray(value) {
  * @param {Story} story 対象のストーリー
  * @returns {boolean} 検索対象なら true
  * @description 検索オプションに合わせ、非表示レイヤー・ロックされたレイヤーだけに
- *              置かれているストーリーは対象外にする。フレームを持たないストーリーは対象に含める
+ *              置かれているストーリーは対象外にする。件数の判定を実際の検索とそろえるため。
+ *              フレームを持たないストーリーは対象に含める
  */
 function isSearchableStory(story) {
     var textContainers = story.textContainers;
@@ -446,6 +589,8 @@ function isOnMasterSpread(pageItem) {
  * @returns {array} 段落の文字列の配列
  */
 function getParagraphTexts(searchRange) {
+    /* Story はそのまま段落を持つ。Document はストーリーごとにたどる /
+       A Story exposes paragraphs directly, a Document is walked story by story */
     var isDocumentRange = (searchRange instanceof Document);
     var stories = isDocumentRange ?
         searchRange.stories.everyItem().getElements() : [searchRange];
@@ -469,38 +614,60 @@ function getParagraphTexts(searchRange) {
 }
 
 /**
- * 検索対象に含まれる該当箇所を数える
+ * 検索対象に含まれる段落の文字列をまとめて取得する
  * @param {array} searchTargets 検索対象の配列
+ * @returns {array} 段落の文字列の配列
+ */
+function getParagraphTextsInTargets(searchTargets) {
+    var paragraphTexts = [];
+
+    for (var i = 0; i < searchTargets.length; i++) {
+        paragraphTexts = paragraphTexts.concat(
+            getParagraphTexts(searchTargets[i].searchRange));
+    }
+
+    return paragraphTexts;
+}
+
+/**
+ * 段落の文字列を照合できる形にそろえる
+ * @param {string} paragraphText 段落の文字列
+ * @returns {string} 末尾の改行を外した文字列
+ * @description 表を含む段落は contents が配列で返る。末尾の改行を外して "$" を段落の終わりに合わせる
+ */
+function toPlainParagraphText(paragraphText) {
+    return String(paragraphText).replace(/[\r\n]+$/, "");
+}
+
+/**
+ * 検索文字列（目印）に該当する箇所を数える
+ * @param {array} paragraphTexts 段落の文字列の配列
  * @param {string} searchText 検索文字列
  * @returns {number} 該当箇所の数
  * @description モーダルダイアログの表示中は findGrep() を使えないので、段落の文字列を直接数える。
- *              ExtendScript の正規表現には後読みが無いため、直前の1文字だけ自分で見る
+ *              ExtendScript の正規表現には後読みが無いため、直前の1文字だけ自分で見る。
+ *              末尾の区切りは buildExactGrep() と同じく落として数える
  */
-function countMatches(searchTargets, searchText) {
-    if (searchText === "") return 0;
+function countMarkerMatches(paragraphTexts, searchText) {
+    var markerText = trimTrailingSeparators(searchText);
 
-    var firstCharacter = searchText.charAt(0);
-    var lastCharacter = searchText.charAt(searchText.length - 1);
-    var matchPattern = new RegExp(
-        escapeGrepText(searchText) + "(?!" + escapeGrepText(lastCharacter) + ")", "g");
+    if (markerText === "") return 0;
 
+    var firstCharacter = markerText.charAt(0);
+    var matchPattern = new RegExp(escapeGrepText(markerText) + buildRunGuard(markerText), "g");
     var matchCount = 0;
 
-    for (var i = 0; i < searchTargets.length; i++) {
-        var paragraphTexts = getParagraphTexts(searchTargets[i].searchRange);
+    for (var i = 0; i < paragraphTexts.length; i++) {
+        var paragraphText = toPlainParagraphText(paragraphTexts[i]);
+        var matchResult;
 
-        for (var j = 0; j < paragraphTexts.length; j++) {
-            var paragraphText = paragraphTexts[j];
-            var matched;
+        matchPattern.lastIndex = 0;
 
-            matchPattern.lastIndex = 0;
-
-            while ((matched = matchPattern.exec(paragraphText)) !== null) {
-                /* 同じ文字が続く並びの一部は数えない / Skip a match inside a longer run */
-                if (matched.index === 0 ||
-                    paragraphText.charAt(matched.index - 1) !== firstCharacter) {
-                    matchCount++;
-                }
+        while ((matchResult = matchPattern.exec(paragraphText)) !== null) {
+            /* 同じ文字が続く並びの一部は数えない / Skip a match inside a longer run */
+            if (matchResult.index === 0 ||
+                paragraphText.charAt(matchResult.index - 1) !== firstCharacter) {
+                matchCount++;
             }
         }
     }
@@ -549,9 +716,8 @@ function showDialog(activeDoc) {
     setupWindow(dialog);
 
     var mainGroup = dialog.add("group");
-    setupRow(mainGroup);
+    setupRow(mainGroup, "fill", COLUMN_SPACING);
     mainGroup.alignChildren = ["fill", "top"];
-    mainGroup.spacing = COLUMN_SPACING;
 
     /* 入力欄 / Fields */
     var fieldGroup = mainGroup.add("group");
@@ -579,37 +745,53 @@ function showDialog(activeDoc) {
     var btnColumnGroup = mainGroup.add("group");
     setupColumn(btnColumnGroup, "right");
 
-    var btnOk = btnColumnGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+    var btnOK = btnColumnGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
     var btnCancel = btnColumnGroup.add(
         "button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    btnOk.preferredSize.width = BUTTON_WIDTH;
+    btnOK.preferredSize.width = BUTTON_WIDTH;
     btnCancel.preferredSize.width = BUTTON_WIDTH;
-    btnOk.helpTip = getLabel("tooltip.ok");
+    btnOK.helpTip = getLabel("tooltip.ok");
     btnCancel.helpTip = getLabel("tooltip.cancel");
 
-    /* 対象箇所（検索文字列・検索対象を変えるたびに数え直す） / Match count, refreshed on every change */
-    /* 対象箇所（ほかの行と同じラベル付きの行にそろえる） / Match count, shown as a labeled row */
+    /* 対象箇所（ほかの行と同じラベル付きの行。検索文字列・検索対象を変えるたびに数え直す） /
+       Match count, shown as a labeled row and refreshed on every change */
     var matchCountRow = addLabeledRow(dialog, "field.matchCount");
     var matchCountValue = matchCountRow.add("statictext", undefined, "0");
     matchCountValue.preferredSize.width = COUNT_WIDTH;
 
-    /**
-     * 該当箇所を数え直して表示する
-     * @returns {void}
-     */
-    function updateMatchCount() {
-        var searchTargets = getSearchTargets(
-            getSelectedRadioIndex(searchScopeRadios), activeDoc);
+    var paragraphTextCache = {};
 
-        matchCountValue.text = countMatches(searchTargets, searchTextField.text) + "";
+    /**
+     * 現在の検索対象に含まれる段落の文字列を取得する
+     * @returns {array} 段落の文字列の配列
+     * @description 同じ検索対象を選び直したときや、文字を打つたびには走査し直さない
+     */
+    function getCurrentParagraphTexts() {
+        var searchScope = getSelectedRadioIndex(searchScopeRadios);
+
+        if (!paragraphTextCache[searchScope]) {
+            paragraphTextCache[searchScope] = getParagraphTextsInTargets(
+                getSearchTargets(searchScope, activeDoc));
+        }
+
+        return paragraphTextCache[searchScope];
     }
 
-    /* 検索文字列が空のままでは実行できない / An empty search text cannot be run */
-    searchTextField.onChanging = function () {
-        btnOk.enabled = (searchTextField.text !== "");
-        updateMatchCount();
-    };
-    searchTextField.onChanging();
+    /**
+     * 該当箇所を数え直して表示し、実行できるかどうかを切り替える
+     * @returns {void}
+     * @description 該当箇所が無いまま実行すると、区切りだけの検索文字列（スペースなど）が
+     *              検索対象すべてのスペースを削除してしまうので、0件では実行させない
+     */
+    function updateMatchCount() {
+        var matchCount = countMarkerMatches(getCurrentParagraphTexts(), searchTextField.text);
+
+        matchCountValue.text = matchCount + "";
+        btnOK.enabled = (matchCount > 0);
+    }
+
+    searchTextField.onChanging = updateMatchCount;
+    updateMatchCount();
 
     for (var i = 0; i < searchScopeRadios.length; i++) {
         searchScopeRadios[i].onClick = updateMatchCount;
@@ -675,7 +857,7 @@ function showDialog(activeDoc) {
     /* 検索条件をクリア / Clear the find preferences */
     resetFindPreferences();
 
-    var resultMessage = getLabel("result.processed").replace("%1", processedCount);
+    var resultMessage = getLabel("result.processed", [processedCount]);
 
     if (skippedDocuments.length > 0) {
         resultMessage += "\n\n" + getLabel("result.skipped") +

@@ -62,13 +62,17 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Item | Value |
 | --- | --- |
 | File | `jsx/runner/IdScriptLauncher.jsx` |
-| Version | v1.2.0 |
+| Version | v1.2.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-08-26 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
 ### Update History
+
+#### v1.2.1 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts. The number fields in Preferences now use the shared stepper part with right-aligned labels
 
 - v1.2.0 (2026-09-27): Added stepper buttons to the Occurrences and Keywords fields in Preferences. The arrow keys now share the steppers' logic (to the next whole number; Shift to the next multiple of ten; kept between 1 and the limit)
 - v1.1.0 (2026-09-20): Added "Remember the search". While it is on, the keyword and the list selections carry over between runs within an InDesign session

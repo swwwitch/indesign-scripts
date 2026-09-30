@@ -38,11 +38,17 @@ Links the selected text frames, in selection order, so that they share a single 
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdTextFrameLinker.jsx` |
-| Version | v1.0.1 |
+| Version | v1.0.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2023-12-26 |
-| Last updated | 2026-09-20 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n04ceaf4955a0 |
+
+### Update History
+
+#### v1.0.2 (2026-09-30)
+
+- Unified the button row, panel spacing and localization code with the shared parts. Buttons are now centered
 
 ### License
 

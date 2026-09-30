@@ -30,10 +30,17 @@ Resizes the last column of the table at the cursor so the whole table matches th
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdSetLastColumnToFrameWidth.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-04-17 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Fixed picking the wrong table, or none, when text inside a cell was selected
+- Unified the table-selection and localization code with the shared parts
 
 ### License
 

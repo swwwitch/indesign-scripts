@@ -36,13 +36,18 @@ Merges adjacent cells with identical contents in the selected table. The dialog 
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdCellMergeAuto.jsx` |
-| Version | v1.0.1 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-08-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/na84f68305844 |
 
 ### Update History
+
+#### v1.1.0 (2026-09-30)
+
+- Fixed Selected Cells Only treating a multi-cell selection as just the top-left cell, so nothing was merged
+- Unified the button row and table-selection code with the shared parts. Buttons are now centered
 
 #### v1.0.1 (2026-08-27)
 

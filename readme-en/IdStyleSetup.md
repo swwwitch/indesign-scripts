@@ -51,13 +51,17 @@ Choosing Word means a Word file placed with "Preserve Styles and Formatting from
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdStyleSetup.jsx` |
-| Version | v1.4.0 |
+| Version | v1.4.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-03 |
-| Last updated | 2026-09-19 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/nfe87ec253780 |
 
 ### Update History
+
+#### v1.4.1 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts. Buttons are now centered
 
 #### v1.4.0 (2026-09-19)
 

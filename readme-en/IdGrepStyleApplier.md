@@ -33,10 +33,17 @@ Applies and manages GREP styles on paragraph styles: pick a rule and a character
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdGrepStyleApplier.jsx` |
-| Version | v1.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-03 |
-| Last updated | 2026-05-03 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Fixed the default character style for the language rule being named "currentLang-US" (now "lang-US", matching IdStyleSetup)
+- Unified the button row, spacing and localization code with the shared parts. Buttons are now centered
 
 ### License
 

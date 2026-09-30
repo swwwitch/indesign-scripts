@@ -25,10 +25,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypeScaleStyl
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTypeScaleStyleApplier";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTypeScaleStyleApplier.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypeScaleStyleApplier.md"; /* README (English) */
@@ -41,39 +41,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f9b0666db66"; /* 紹�
 // UIレイアウトの共通設定 / Shared UI layout
 // ==============================
 
+// UIレイアウト（再利用パーツ） / UI layout (reusable)
+
 /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
 var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
 var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
 /**
- * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
- * @param {number} spacing 要素間隔。省略時は WINDOW_SPACING
+ * ウィンドウの共通設定
+ * @param {Window} targetWindow - 対象のウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
  * @returns {void}
  */
-function setupWindow(win, spacing) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
 }
 
 /**
- * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
- * @param {number} spacing 要素間隔。省略時は PANEL_SPACING
+ * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+ * @param {Panel} targetPanel - 対象のパネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
  * @returns {void}
  */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
+
+/**
+ * タブの共通設定
+ * @param {Tab} targetTab - 対象のタブ
+ * @param {number} [spacing] - 要素間隔（省略時は変えない）
+ * @returns {void}
+ */
+function setupTab(targetTab, spacing) {
+    targetTab.orientation = "column";
+    targetTab.alignChildren = "fill";
+    targetTab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") targetTab.spacing = spacing;
+}
+
+/**
+ * 横並びの行グループの共通設定（ボタン列など）。
+ * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+ * @param {Group} rowGroup - 対象のグループ
+ * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(rowGroup, rowAlignment, spacing) {
+    rowGroup.orientation = "row";
+    rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+    rowGroup.alignChildren = ["left", "center"];
+    rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+ * @param {Button} targetButton - 対象のボタン
+ * @param {number} trimPixels - 詰める量（px）
+ * @returns {void}
+ */
+function trimButtonHeight(targetButton, trimPixels) {
+    /* レイアウト前は size が無い / size is not set until the layout runs */
+    if (!targetButton.size) return;
+    targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+}
+
+// UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
 // =========================================
 // ユーザー設定 / User settings
@@ -113,33 +158,26 @@ var ENABLE_SAME_STYLE_SPACING = true;
    / Whether to force the justification; false keeps the original justification */
 var ENABLE_JUSTIFICATION = false;
 
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+// UI の明暗（再利用パーツ） / UI theme (reusable)
+
+/**
+ * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+ * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+ */
+function isDarkUI() {
+    try {
+        if (app.preferences && app.preferences.getRealPreference) {
+            return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+        }
+        return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+    } catch (e) {
+        return false;
+    }
+}
+
+// UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
 // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-//
-// 【移植手順 / How to port】
-// 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-//    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-// 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-//    getLabel() と uiLang はコピー先のものをそのまま使う
-// 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-//      var widthInput = addSteppedField(parentPanel, {
-//          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-//          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-//          onStep: function (numberInput) { updatePreview(); }
-//      });
-//    値の種類は options で切り分ける:
-//      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-//      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-//      整数・0以上（間隔の数など）  … integer: true, min: 0
-//      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-// 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-//    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-//    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-// 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-// 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-// 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-// bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
 // -----------------------------------------
 // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -155,22 +193,7 @@ var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-
 // -----------------------------------------
 // ステップボタンの配色 / Stepper colors
 // -----------------------------------------
-/**
- * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
- * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
- */
-function isDarkStepperUI() {
-    try {
-        if (app.preferences && app.preferences.getRealPreference) {
-            return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-        }
-        return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-    } catch (e) {
-        return false;
-    }
-}
-
-var STEPPER_UI_DARK           = isDarkStepperUI();
+var STEPPER_UI_DARK           = isDarkUI();
 /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
    ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
    UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -282,8 +305,8 @@ function addStepper(parent, getNumberInput, stepOptions) {
     }
 
     /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-    var upTooltip = stepOptions.integer ? "tooltip.stepUpInteger" : "tooltip.stepUp";
-    var downTooltip = stepOptions.integer ? "tooltip.stepDownInteger" : "tooltip.stepDown";
+    var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
+    var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
     makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
     makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
     stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
@@ -538,23 +561,153 @@ function redrawStepperGroup(targetGroup) {
     targetGroup.show();
 }
 
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 // =========================================
 // ラベル定義 / Labels
 // =========================================
 
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * UI 言語を判定する
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
  * @returns {string} "ja" または "en"
  */
 function getCurrentLang() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var currentLang = getCurrentLang();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+// ボタン行（再利用パーツ） / Button row (reusable)
+
+var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+/**
+ * ダイアログ下部のボタン行を作る。
+ * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+ * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+ * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+ * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+ */
+function addButtonRow(parent, rowOptions) {
+    var isCentered = !!(rowOptions && rowOptions.centered);
+    var btnRowGroup = parent.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+    if (isCentered) {
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+    }
+
+    btnRowGroup.alignment = ["fill", "bottom"];
+
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.alignChildren = ["left", "center"];
+    btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+    /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+    return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+}
+
+/**
+ * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+ * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+ * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+ * @returns {void}
+ */
+function centerButtonRowIfRightOnly(buttonRow) {
+    if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+    var btnRowGroup = buttonRow.rowGroup;
+    /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+    btnRowGroup.remove(buttonRow.leftGroup);
+    btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+    btnRowGroup.alignment = ["center", "bottom"];
+    btnRowGroup.alignChildren = ["center", "center"];
+    buttonRow.leftGroup = null;
+}
+
+// ボタン行（再利用パーツ）ここまで / End of the reusable button row
+
 
 /* 日英ラベル定義（カテゴリ別） / Japanese-English labels by category */
 var LABELS = {
@@ -677,50 +830,6 @@ var LABELS = {
     }
 };
 
-/* ドット区切りのキーで多言語ラベルを取得（例：getLabel("dialog.title")） / Resolve a dotted-path label key */
-/**
- * ドット区切りキーでラベルを取得する
- * @param {string} labelKey 例: "dialog.title"
- * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
- */
-function getLabel(labelKey) {
-    var keyParts = labelKey.split(".");
-    var node = LABELS;
-    for (var i = 0; i < keyParts.length; i++) {
-        if (node && typeof node[keyParts[i]] !== "undefined") {
-            node = node[keyParts[i]];
-        } else {
-            return labelKey;
-        }
-    }
-    /* currentLang → en → キーの順でフォールバック / Fall back to en, then to the key itself */
-    if (node) {
-        if (node[currentLang]) return node[currentLang];
-        if (node.en) return node.en;
-    }
-    return labelKey;
-}
-
-/* コロン付きラベル（日本語は全角、英語は半角） / Label with colon (full-width JA, half-width EN) */
-/**
- * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
- * @param {string} labelKey 例: "field.font"
- * @returns {string} コロンを付与したラベル文字列
- */
-function getLabelWithColon(labelKey) {
-    return getLabel(labelKey) + (currentLang === "ja" ? "：" : ":");
-}
-
-/**
- * ラベル内の %1 を値で置き換える
- * @param {string} labelKey 置換対象のラベルキー
- * @param {*} value 埋め込む値
- * @returns {string} 置換後の文字列
- */
-function formatLabel(labelKey, value) {
-    return getLabel(labelKey).replace("%1", value);
-}
-
 /**
  * 進捗表示用のパレットを作る
  * @param {string} message 最初に表示するメッセージ
@@ -728,10 +837,7 @@ function formatLabel(labelKey, value) {
  */
 function createProgressPalette(message) {
     var palette = new Window("palette", getLabel("progress.title"));
-    palette.orientation = "column";
-    palette.alignChildren = ["fill", "center"];
-    palette.margins = WINDOW_MARGINS;
-    palette.spacing = 10;
+    setupWindow(palette, 10);
 
     var messageText = palette.add("statictext", undefined, message);
     messageText.preferredSize.width = 260;
@@ -1626,14 +1732,26 @@ function getStyleWeightRank(styleName, familyName) {
      * @returns {boolean} 選択できたら true
      */
     function selectDropdownByText(dropdownList, text) {
-        for (var itemIndex = 0; itemIndex < dropdownList.items.length; itemIndex++) {
-            if (dropdownList.items[itemIndex].text === text) {
-                dropdownList.selection = itemIndex;
-                return true;
-            }
+        var itemIndex = findDropdownItemIndexByText(dropdownList, text);
+        if (itemIndex >= 0) {
+            dropdownList.selection = itemIndex;
+            return true;
         }
         if (dropdownList.items.length > 0) dropdownList.selection = 0;
         return false;
+    }
+
+    /**
+     * 表示名が一致するドロップダウンの項目の位置を探す
+     * @param {DropDownList} dropdownList 対象のドロップダウン
+     * @param {string} text 探す項目名
+     * @returns {number} 見つかった位置。なければ -1
+     */
+    function findDropdownItemIndexByText(dropdownList, text) {
+        for (var itemIndex = 0; itemIndex < dropdownList.items.length; itemIndex++) {
+            if (dropdownList.items[itemIndex].text === text) return itemIndex;
+        }
+        return -1;
     }
 
     /**
@@ -1680,7 +1798,6 @@ function getStyleWeightRank(styleName, familyName) {
             { label: getLabel("kerning.optical"), value: "オプティカル" }
         ];
 
-
         /**
          * 幅を固定したラベルを追加する
          * @param {object} parent 追加先のコンテナ
@@ -1697,15 +1814,14 @@ function getStyleWeightRank(styleName, familyName) {
         /**
          * ラベル付きの行グループを追加する
          * @param {object} panel 追加先のコンテナ
-         * @param {string} labelText ラベルの文字列
+         * @param {string} labelString ラベルの文字列（コロン付き）
          * @param {number} labelWidth ラベルの幅（px）
          * @returns {Group} 追加したグループ
          */
-        function addLabeledGroup(panel, labelText, labelWidth) {
+        function addLabeledGroup(panel, labelString, labelWidth) {
             var group = panel.add("group");
-            group.orientation = "row";
-            group.alignChildren = ["left", "center"];
-            addFixedWidthLabel(group, labelText, labelWidth);
+            setupRow(group, "left", 10);
+            addFixedWidthLabel(group, labelString, labelWidth);
             return group;
         }
 
@@ -1795,7 +1911,6 @@ function getStyleWeightRank(styleName, familyName) {
             dropdownList.selection = 0;
         }
 
-
         /**
          * 本文設定パネルを組み立てる
          * @param {object} parent 追加先のコンテナ
@@ -1807,21 +1922,21 @@ function getStyleWeightRank(styleName, familyName) {
             setupPanel(bodyPanel, 4);
             bodyPanel.alignment = ["fill", "top"];
 
-            var fontGrp = addLabeledGroup(bodyPanel, getLabelWithColon("field.font"), labelWidth);
+            var fontGrp = addLabeledGroup(bodyPanel, labelText("field.font"), labelWidth);
             var fontDD = fontGrp.add("dropdownlist", undefined, fontOptions);
             fontDD.preferredSize.width = 180;
             fontDD.selection = 0;
 
-            var fontStyleGrp = addLabeledGroup(bodyPanel, getLabelWithColon("field.fontStyle"), labelWidth);
+            var fontStyleGrp = addLabeledGroup(bodyPanel, labelText("field.fontStyle"), labelWidth);
             var fontStyleDD = fontStyleGrp.add("dropdownlist", undefined, [getLabel("option.noFontChange")]);
             fontStyleDD.preferredSize.width = 130;
             fontStyleDD.selection = 0;
 
-            var leadingBodyGrp = addLabeledGroup(bodyPanel, getLabelWithColon("field.bodyLeading"), labelWidth);
+            var leadingBodyGrp = addLabeledGroup(bodyPanel, labelText("field.bodyLeading"), labelWidth);
             var leadingBodyInput = addSteppedInput(leadingBodyGrp, String(DEFAULT_BODY_LEADING_PERCENT), 4, leadingStepOptions);
             leadingBodyGrp.add("statictext", undefined, "%");
 
-            var bodyKerningGrp = addLabeledGroup(bodyPanel, getLabelWithColon("field.kerning"), labelWidth);
+            var bodyKerningGrp = addLabeledGroup(bodyPanel, labelText("field.kerning"), labelWidth);
             var bodyKerningDD = bodyKerningGrp.add("dropdownlist", undefined, getKerningOptionLabels());
             bodyKerningDD.preferredSize.width = 110;
             selectKerningDropdownByValue(bodyKerningDD, "和文等幅");
@@ -1846,22 +1961,22 @@ function getStyleWeightRank(styleName, familyName) {
             headingPanel.alignment = ["fill", "top"];
 
             // Font controls (like body panel)
-            var headingFontGrp = addLabeledGroup(headingPanel, getLabelWithColon("field.font"), labelWidth);
+            var headingFontGrp = addLabeledGroup(headingPanel, labelText("field.font"), labelWidth);
             var headingFontOptions = [getLabel("option.refBodyFont")].concat(fontFamilies);
             var headingFontDD = headingFontGrp.add("dropdownlist", undefined, headingFontOptions);
             headingFontDD.preferredSize.width = 180;
             headingFontDD.selection = 0;
 
-            var headingFontStyleGrp = addLabeledGroup(headingPanel, getLabelWithColon("field.fontStyle"), labelWidth);
+            var headingFontStyleGrp = addLabeledGroup(headingPanel, labelText("field.fontStyle"), labelWidth);
             var headingFontStyleDD = headingFontStyleGrp.add("dropdownlist", undefined, [getLabel("option.noFontChange")]);
             headingFontStyleDD.preferredSize.width = 130;
             headingFontStyleDD.selection = 0;
 
-            var leadingHeadingGrp = addLabeledGroup(headingPanel, getLabelWithColon("field.headingLeading"), labelWidth);
+            var leadingHeadingGrp = addLabeledGroup(headingPanel, labelText("field.headingLeading"), labelWidth);
             var leadingHeadingInput = addSteppedInput(leadingHeadingGrp, String(DEFAULT_HEADING_LEADING_PERCENT), 4, leadingStepOptions);
             leadingHeadingGrp.add("statictext", undefined, "%");
 
-            var headingKerningGrp = addLabeledGroup(headingPanel, getLabelWithColon("field.kerning"), labelWidth);
+            var headingKerningGrp = addLabeledGroup(headingPanel, labelText("field.kerning"), labelWidth);
             var headingKerningDD = headingKerningGrp.add("dropdownlist", undefined, getKerningOptionLabels());
             headingKerningDD.preferredSize.width = 110;
             selectKerningDropdownByValue(headingKerningDD, "メトリクス");
@@ -1890,10 +2005,8 @@ function getStyleWeightRank(styleName, familyName) {
             var HEADING_LABEL_WIDTH = 94;
 
             var textColumnGroup = textSettingsGroup.add("group");
-            textColumnGroup.orientation = "row";
+            setupRow(textColumnGroup, "fill", COLUMN_SPACING);
             textColumnGroup.alignChildren = ["fill", "top"];
-            textColumnGroup.alignment = "fill";
-            textColumnGroup.spacing = 10;
 
             var bodyUi = createBodyTextPanel(textColumnGroup, BODY_LABEL_WIDTH);
             var headingUi = createHeadingTextPanel(textColumnGroup, HEADING_LABEL_WIDTH);
@@ -1963,11 +2076,11 @@ function getStyleWeightRank(styleName, familyName) {
 
             var OPTIONS_LABEL_WIDTH = 110;
 
-            var baseGrp = addLabeledGroup(scaleSettingsPanel, getLabelWithColon("field.baseSize"), OPTIONS_LABEL_WIDTH);
+            var baseGrp = addLabeledGroup(scaleSettingsPanel, labelText("field.baseSize"), OPTIONS_LABEL_WIDTH);
             var baseInput = addSteppedInput(baseGrp, String(defaultBase), 4, baseSizeStepOptions);
             baseGrp.add("statictext", undefined, unitSym);
 
-            var scaleGrp = addLabeledGroup(scaleSettingsPanel, getLabelWithColon("field.scaleMethod"), OPTIONS_LABEL_WIDTH);
+            var scaleGrp = addLabeledGroup(scaleSettingsPanel, labelText("field.scaleMethod"), OPTIONS_LABEL_WIDTH);
             var scaleLabels = [];
             for (var scaleOptionIndex = 0; scaleOptionIndex < scaleOptions.length; scaleOptionIndex++) {
                 var scaleLabel = getLabel(scaleOptions[scaleOptionIndex].key);
@@ -1986,7 +2099,7 @@ function getStyleWeightRank(styleName, familyName) {
             }
             if (!scaleDD.selection) scaleDD.selection = 0;
 
-            var levelGrp = addLabeledGroup(scaleSettingsPanel, getLabelWithColon("field.headingLevels"), OPTIONS_LABEL_WIDTH);
+            var levelGrp = addLabeledGroup(scaleSettingsPanel, labelText("field.headingLevels"), OPTIONS_LABEL_WIDTH);
             levelGrp.alignChildren = ["left", "bottom"];
             var levelRadios = [];
             for (var levelOptionIndex = 0; levelOptionIndex < levelOptions.length; levelOptionIndex++) {
@@ -1999,7 +2112,7 @@ function getStyleWeightRank(styleName, familyName) {
                 levelRadios[0].value = true;
             }
 
-            var roundGrp = addLabeledGroup(scaleSettingsPanel, getLabelWithColon("field.sizeRounding"), OPTIONS_LABEL_WIDTH);
+            var roundGrp = addLabeledGroup(scaleSettingsPanel, labelText("field.sizeRounding"), OPTIONS_LABEL_WIDTH);
             roundGrp.alignChildren = ["left", "bottom"];
             var roundRadios = [];
             for (var roundOptionIndex = 0; roundOptionIndex < roundOptions.length; roundOptionIndex++) {
@@ -2032,16 +2145,15 @@ function getStyleWeightRank(styleName, familyName) {
             var PREVIEW_SPACE_AFTER_WIDTH = 80;
 
             var headerRow = previewPanel.add("group");
-            headerRow.orientation = "row";
-            headerRow.alignChildren = "left";
-            headerRow.add("statictext", undefined, getLabelWithColon("column.level")).preferredSize.width = PREVIEW_LABEL_WIDTH;
-            headerRow.add("statictext", undefined, getLabelWithColon("column.size")).preferredSize.width = PREVIEW_SIZE_WIDTH;
-            var spaceBeforeHeader = headerRow.add("statictext", undefined, getLabelWithColon("column.spaceBefore"));
+            setupRow(headerRow, "left", 10);
+            headerRow.add("statictext", undefined, labelText("column.level")).preferredSize.width = PREVIEW_LABEL_WIDTH;
+            headerRow.add("statictext", undefined, labelText("column.size")).preferredSize.width = PREVIEW_SIZE_WIDTH;
+            var spaceBeforeHeader = headerRow.add("statictext", undefined, labelText("column.spaceBefore"));
             spaceBeforeHeader.preferredSize.width = PREVIEW_SPACE_BEFORE_WIDTH;
-            var spaceAfterHeader = headerRow.add("statictext", undefined, getLabelWithColon("column.spaceAfter"));
+            var spaceAfterHeader = headerRow.add("statictext", undefined, labelText("column.spaceAfter"));
             spaceAfterHeader.preferredSize.width = PREVIEW_SPACE_AFTER_WIDTH;
-            headerRow.add("statictext", undefined, getLabelWithColon("column.paragraphStyle")).preferredSize.width = 100;
-            var fontStyleHeader = headerRow.add("statictext", undefined, getLabelWithColon("column.fontStyle"));
+            headerRow.add("statictext", undefined, labelText("column.paragraphStyle")).preferredSize.width = 100;
+            var fontStyleHeader = headerRow.add("statictext", undefined, labelText("column.fontStyle"));
             fontStyleHeader.preferredSize.width = 100;
             fontStyleHeader.enabled = true;
 
@@ -2056,11 +2168,10 @@ function getStyleWeightRank(styleName, familyName) {
              */
             function selectDropdownByCandidates(dropdownList, candidates) {
                 for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
-                    for (var itemIndex = 0; itemIndex < dropdownList.items.length; itemIndex++) {
-                        if (dropdownList.items[itemIndex].text === candidates[candidateIndex]) {
-                            dropdownList.selection = itemIndex;
-                            return true;
-                        }
+                    var itemIndex = findDropdownItemIndexByText(dropdownList, candidates[candidateIndex]);
+                    if (itemIndex >= 0) {
+                        dropdownList.selection = itemIndex;
+                        return true;
                     }
                 }
                 // 候補が見つからない場合、ルート／組み込みスタイル（[...]）への誤適用（error 516）を避けるため
@@ -2085,10 +2196,9 @@ function getStyleWeightRank(styleName, familyName) {
              */
             function createPreviewRow(parent, label, defaultStyleNames, isHeading) {
                 var row = parent.add("group");
-                row.orientation = "row";
-                row.alignChildren = "center";
-                var labelText = row.add("statictext", undefined, label);
-                labelText.preferredSize.width = PREVIEW_LABEL_WIDTH;
+                setupRow(row, "left", 10);
+                var rowLabel = row.add("statictext", undefined, label);
+                rowLabel.preferredSize.width = PREVIEW_LABEL_WIDTH;
                 var sizeText = row.add("edittext", undefined, "");
                 sizeText.preferredSize.width = PREVIEW_SIZE_WIDTH;
                 var spaceBeforeText = row.add("edittext", undefined, "");
@@ -2106,7 +2216,7 @@ function getStyleWeightRank(styleName, familyName) {
                 fontStyleDD.enabled = true;
 
                 return {
-                    lbl: labelText,
+                    lbl: rowLabel,
                     sizeText: sizeText,
                     spaceBeforeText: spaceBeforeText,
                     spaceAfterText: spaceAfterText,
@@ -2150,29 +2260,20 @@ function getStyleWeightRank(styleName, familyName) {
          * @returns {object} 生成したボタン
          */
         function createButtonRow(dialog) {
-            var bottomRow = dialog.add("group");
-            bottomRow.margins = [0, 10, 0, 0];
-            bottomRow.orientation = "row";
-            bottomRow.alignment = "fill";
-            bottomRow.alignChildren = ["fill", "center"];
+            var buttonRow = addButtonRow(dialog);
 
-            var centerButtonColumn = bottomRow.add("group");
-            centerButtonColumn.alignment = ["fill", "fill"];
-            centerButtonColumn.minimumSize.width = 0;
-            // 「フォント、スタイルを含める」適用中の進捗バー。
+            // 「フォント、スタイルを含める」適用中の進捗バー。左のグループを伸ばしてボタンの左に置く
             // モーダル表示中は別ウィンドウ（パレット）を出すと落ちるため、ダイアログ内に置く
-            var applyProgressBar = centerButtonColumn.add("progressbar", undefined, 0, 100);
+            buttonRow.leftGroup.alignment = ["fill", "center"];
+            var applyProgressBar = buttonRow.leftGroup.add("progressbar", undefined, 0, 100);
             applyProgressBar.alignment = ["fill", "center"];
             applyProgressBar.preferredSize.height = 6;
             applyProgressBar.visible = false;
 
-            var rightButtonColumn = bottomRow.add("group");
-            rightButtonColumn.orientation = "row";
-            rightButtonColumn.alignChildren = ["right", "center"];
-            rightButtonColumn.alignment = ["right", "center"];
-
-            rightButtonColumn.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-            rightButtonColumn.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+            var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+            var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+            /* 左に進捗バーがあるので左右分割のまま / Stays split because the progress bar sits on the left */
+            centerButtonRowIfRightOnly(buttonRow);
 
             return { applyProgressBar: applyProgressBar };
         }
@@ -2188,10 +2289,8 @@ function getStyleWeightRank(styleName, familyName) {
             var textSettingsUi = createTextSettingsPanel(dialogWindow);
 
             var optionColumnGroup = dialogWindow.add("group");
-            optionColumnGroup.orientation = "row";
+            setupRow(optionColumnGroup, "fill", COLUMN_SPACING);
             optionColumnGroup.alignChildren = ["fill", "top"];
-            optionColumnGroup.alignment = "fill";
-            optionColumnGroup.spacing = 10;
 
             var scaleSettingsUi = createScaleSettingsPanel(optionColumnGroup);
             var fontSettingsUi = createFontSettingsPanel(optionColumnGroup);
@@ -3363,7 +3462,7 @@ function getStyleWeightRank(styleName, familyName) {
 
         var style = findParagraphStyle(targetDocument, styleName);
         if (style === null) {
-            if (!silent) alert(formatLabel("error.missingStyle", styleName));
+            if (!silent) alert(getLabel("error.missingStyle", [styleName]));
             return false;
         }
         // ルート／組み込みスタイル（[基本段落] / [Basic Paragraph] / [段落スタイルなし] など）は

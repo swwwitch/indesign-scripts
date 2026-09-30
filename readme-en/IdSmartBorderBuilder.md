@@ -36,13 +36,17 @@ Draws and clears table-cell borders with a live preview, letting you set the mod
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdSmartBorderBuilder.jsx` |
-| Version | v1.7.0 |
+| Version | v1.7.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-11 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n8c1bcb9a2844 |
 
 ### Update History
+
+#### v1.7.1 (2026-09-30)
+
+- Unified the button row, preview screen-mode toggle and localization code with the shared parts
 
 #### v1.7.0 (2026-09-27)
 

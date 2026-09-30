@@ -53,13 +53,18 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdZebraRowFill.jsx` |
-| Version | v1.3.0 |
+| Version | v1.4.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n20ff60f6b508 |
 
 ### Update History
+
+#### v1.4.0 (2026-09-30)
+
+- A cursor or text selection inside a cell now targets that cell
+- Unified the button row, preview screen-mode toggle, cell selection and localization code with the shared parts
 
 #### v1.3.0 (2026-09-27)
 

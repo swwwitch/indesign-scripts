@@ -73,13 +73,17 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdSetImageScale.jsx` |
-| Version | v1.4.0 |
+| Version | v1.4.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-26 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n91c6a628b7ed |
 
 ### Update History
+
+#### v1.4.1 (2026-09-30)
+
+- Unified the palette and manager layout, button row, UI brightness check and localization code with the shared parts. Cancel / OK in the manager are now centered
 
 #### v1.4.0 (2026-09-27)
 

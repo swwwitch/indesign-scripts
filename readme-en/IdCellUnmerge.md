@@ -40,13 +40,18 @@ Unmerges merged table cells, with dialog options for what happens to the origina
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdCellUnmerge.jsx` |
-| Version | v1.0.2 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-09-16 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n175525637a3d |
 
 ### Update History
+
+#### v1.1.0 (2026-09-30)
+
+- Selecting a text frame that contains a table now targets its first table, and a whole-table selection with Selected Cells Only now targets all cells
+- Unified the button row and table-selection code with the shared parts. Buttons are now centered
 
 #### v1.0.2 (2026-09-16)
 

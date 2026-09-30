@@ -54,12 +54,16 @@ Renames paragraph styles imported from MS Word (Heading 1 / Normal / Quote and t
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdConvertWordStyleNamesToHtml.jsx` |
-| Version | v1.0.1 |
+| Version | v1.0.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-20 |
-| Last updated | 2026-09-20 |
+| Last updated | 2026-09-30 |
 
 ### Update History
+
+#### v1.0.2 (2026-09-30)
+
+- Unified the localization code with the shared part (no change in behavior)
 
 - v1.0.1 (2026-09-20) Initial version
 

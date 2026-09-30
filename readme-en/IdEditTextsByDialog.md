@@ -33,12 +33,16 @@ Edits text in a multi-line dialog, then replaces the selection, inserts at the c
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdEditTextsByDialog.jsx` |
-| Version | v0.1.4 |
+| Version | v0.1.5 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-05-28 |
-| Last updated | 2026-09-25 |
+| Last updated | 2026-09-30 |
 
 ### Update History
+
+#### v0.1.5 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts (no change in behavior)
 
 #### v0.1.4 (2026-09-25)
 

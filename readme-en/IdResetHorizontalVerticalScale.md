@@ -31,10 +31,16 @@ Scans every story in the active document, including table cells and nested table
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdResetHorizontalVerticalScale.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-07-19 |
-| Last updated | 2026-07-19 |
+| Last updated | 2026-09-30 |
+
+### Update History
+
+#### v1.0.1 (2026-09-30)
+
+- Unified the localization code with the shared part (no change in behavior)
 
 ### License
 

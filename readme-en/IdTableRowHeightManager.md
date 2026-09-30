@@ -38,13 +38,18 @@ Sets table row heights with a live preview, choosing the scope (selection / stor
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTableRowHeightManager.jsx` |
-| Version | v1.4.0 |
+| Version | v1.4.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-20 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/n9f95f8e98db6 |
 
 ### Update History
+
+#### v1.4.1 (2026-09-30)
+
+- Fixed items in the same table sometimes being treated as different tables
+- Unified the button row, preview screen-mode toggle and localization code with the shared parts. The toggle now reads Preview / Normal Mode
 
 #### v1.4.0 (2026-09-27)
 

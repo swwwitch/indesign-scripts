@@ -45,13 +45,17 @@ Original: Table Transpose v1.0 by Iain Anderson
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTransposeTableRowsCols.jsx` |
-| Version | v1.0.1 |
+| Version | v1.0.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-11-25 |
-| Last updated | 2026-09-07 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/nc6dbdb3af6a1 |
 
 ### Update History
+
+#### v1.0.2 (2026-09-30)
+
+- Unified the table-selection and button-row code with the shared parts. Buttons are now centered
 
 #### v1.0.1 (2026-09-07)
 

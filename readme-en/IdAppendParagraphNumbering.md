@@ -49,13 +49,17 @@ Only the paragraph style names defined in `HEADING_LEVEL_MAP` (`h1`–`h6` / `He
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdAppendParagraphNumbering.jsx` |
-| Version | v1.2.1 |
+| Version | v1.2.2 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-06-30 |
-| Last updated | 2026-09-25 |
+| Last updated | 2026-09-30 |
 | Article | https://note.com/dtp_tranist/n/nc96549bb60f9 |
 
 ### Update History
+
+#### v1.2.2 (2026-09-30)
+
+- Unified the button row, spacing and localization code with the shared parts (no change in behavior)
 
 #### v1.2.1 (2026-09-25)
 

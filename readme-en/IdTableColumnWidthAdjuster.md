@@ -36,12 +36,18 @@ Adjusts table column widths, either per column or through a single batch entry.
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTableColumnWidthAdjuster.jsx` |
-| Version | v1.2.0 |
+| Version | v1.3.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-19 |
-| Last updated | 2026-09-27 |
+| Last updated | 2026-09-30 |
 
 ### Update History
+
+#### v1.3.0 (2026-09-30)
+
+- Fixed an error when applying values to all columns
+- The screen-mode toggle now shows the mode it switches to, as in the other scripts
+- Unified the button row, table selection and localization code with the shared parts
 
 #### v1.2.0 (2026-09-27)
 

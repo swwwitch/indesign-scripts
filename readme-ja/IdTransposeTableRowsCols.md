@@ -45,13 +45,17 @@ Original: Table Transpose v1.0 by Iain Anderson
 | 項目 | 内容 |
 | --- | --- |
 | ファイル | `jsx/table/IdTransposeTableRowsCols.jsx` |
-| バージョン | v1.0.1 |
+| バージョン | v1.0.2 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2025-11-25 |
-| 最終更新 | 2026-09-07 |
+| 最終更新 | 2026-09-30 |
 | 紹介記事 | https://note.com/dtp_tranist/n/nc6dbdb3af6a1 |
 
 ### 更新履歴
+
+#### v1.0.2（2026-09-30）
+
+- 表の選択とボタン行の処理を共通部品に統一。ボタンを中央に配置
 
 #### v1.0.1（2026-09-07）
 

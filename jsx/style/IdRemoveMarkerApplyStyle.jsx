@@ -25,10 +25,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerA
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdRemoveMarkerApplyStyle";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                      /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)"; /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-09";                  /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-10";                  /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                  /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdRemoveMarkerApplyStyle.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdRemoveMarkerApplyStyle.md"; /* README (English) */
@@ -121,11 +121,85 @@ var DEFAULT_SCOPE = SCOPE_STORY;
 // UIレイアウトの共通設定 / Shared UI layout
 // =========================================
 
+// UIレイアウト（再利用パーツ） / UI layout (reusable)
+
 /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-var WINDOW_MARGINS = 16;               /* ウィンドウ外周の余白 / window margin */
-var WINDOW_SPACING = 12;               /* ウィンドウ内の要素間隔 / window spacing */
-var PANEL_MARGINS  = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
-var PANEL_SPACING  = 8;                /* パネル内の要素間隔 / panel spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+/**
+ * ウィンドウの共通設定
+ * @param {Window} targetWindow - 対象のウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+ * @returns {void}
+ */
+function setupWindow(targetWindow, spacing) {
+    targetWindow.orientation = "column";
+    targetWindow.alignChildren = "fill";
+    targetWindow.margins = WINDOW_MARGINS;
+    targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+ * @param {Panel} targetPanel - 対象のパネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupPanel(targetPanel, spacing) {
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["fill", "top"];
+    targetPanel.alignment = "fill";
+    targetPanel.margins = PANEL_MARGINS;
+    targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * タブの共通設定
+ * @param {Tab} targetTab - 対象のタブ
+ * @param {number} [spacing] - 要素間隔（省略時は変えない）
+ * @returns {void}
+ */
+function setupTab(targetTab, spacing) {
+    targetTab.orientation = "column";
+    targetTab.alignChildren = "fill";
+    targetTab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") targetTab.spacing = spacing;
+}
+
+/**
+ * 横並びの行グループの共通設定（ボタン列など）。
+ * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+ * @param {Group} rowGroup - 対象のグループ
+ * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(rowGroup, rowAlignment, spacing) {
+    rowGroup.orientation = "row";
+    rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+    rowGroup.alignChildren = ["left", "center"];
+    rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+ * @param {Button} targetButton - 対象のボタン
+ * @param {number} trimPixels - 詰める量（px）
+ * @returns {void}
+ */
+function trimButtonHeight(targetButton, trimPixels) {
+    /* レイアウト前は size が無い / size is not set until the layout runs */
+    if (!targetButton.size) return;
+    targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+}
+
+// UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
 var RADIO_SPACING  = 4;                /* ラジオボタンの間隔 / radio button spacing */
 
 /* 行の寸法 / Row metrics */
@@ -134,56 +208,150 @@ var SEARCH_TEXT_LENGTH = 16;  /* 検索文字列入力欄の文字数 / search f
 var BUTTON_WIDTH       = 90;  /* ダイアログボタンの幅 / dialog button width */
 var COUNT_WIDTH        = 60;  /* 対象箇所の数値の幅 / match count width */
 
-/**
- * ウィンドウの共通設定を適用する
- * @param {Window} win 対象ウィンドウ
- * @returns {void}
- */
-function setupWindow(win) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = WINDOW_SPACING;
-}
-
-/**
- * パネルの共通設定を適用する
- * @param {Panel} panel 対象パネル
- * @returns {void}
- */
-function setupPanel(panel) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = PANEL_SPACING;
-}
-
-/**
- * 行グループの共通設定を適用する
- * @param {Group} group 対象グループ
- * @returns {void}
- */
-function setupRow(group) {
-    group.orientation = "row";
-    group.alignment = ["fill", "top"];
-    group.alignChildren = ["left", "center"];
-    group.spacing = PANEL_SPACING;
-}
-
 // =========================================
 // ラベル定義 / Labels
 // =========================================
 
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * UI 言語を判定する
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
  * @returns {string} "ja" または "en"
  */
 function getCurrentLang() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var currentLang = getCurrentLang();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+// ボタン行（再利用パーツ） / Button row (reusable)
+
+var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+/**
+ * ダイアログ下部のボタン行を作る。
+ * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+ * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+ * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+ * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+ */
+function addButtonRow(parent, rowOptions) {
+    var isCentered = !!(rowOptions && rowOptions.centered);
+    var btnRowGroup = parent.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+    if (isCentered) {
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+    }
+
+    btnRowGroup.alignment = ["fill", "bottom"];
+
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.alignChildren = ["left", "center"];
+    btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+    /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+    return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+}
+
+/**
+ * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+ * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+ * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+ * @returns {void}
+ */
+function centerButtonRowIfRightOnly(buttonRow) {
+    if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+    var btnRowGroup = buttonRow.rowGroup;
+    /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+    btnRowGroup.remove(buttonRow.leftGroup);
+    btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+    btnRowGroup.alignment = ["center", "bottom"];
+    btnRowGroup.alignChildren = ["center", "center"];
+    buttonRow.leftGroup = null;
+}
+
+// ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
 var LABELS = {
     dialog: {
@@ -285,44 +453,6 @@ var LABELS = {
         apply: { ja: "目印を削除してスタイルを適用", en: "Delete Markers and Apply Styles" }
     }
 };
-
-/**
- * ドット区切りキーでラベルを取得する
- * @param {string} labelKey 例: "field.paragraphStyle"
- * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
- */
-function getLabel(labelKey) {
-    var labelNode = LABELS;
-    var keyParts = labelKey.split(".");
-    for (var i = 0; i < keyParts.length; i++) {
-        labelNode = labelNode[keyParts[i]];
-        if (!labelNode) return labelKey;
-    }
-    return labelNode[currentLang] || labelNode.en || labelKey;
-}
-
-/**
- * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
- * @param {string} labelKey 例: "field.paragraphStyle"
- * @returns {string} コロンを付与したラベル文字列
- */
-function getLabelWithColon(labelKey) {
-    return getLabel(labelKey) + (currentLang === "ja" ? "：" : ":");
-}
-
-/**
- * ラベル内のプレースホルダー（%1, %2 …）を値で置き換える
- * @param {string} template プレースホルダーを含む文字列
- * @param {array} replacementValues 差し込む値
- * @returns {string} 置き換え後の文字列
- */
-function formatLabel(template, replacementValues) {
-    var formattedText = template;
-    for (var i = 0; i < replacementValues.length; i++) {
-        formattedText = formattedText.replace("%" + (i + 1), replacementValues[i]);
-    }
-    return formattedText;
-}
 
 // =========================================
 // 共通処理 / Helpers
@@ -464,7 +594,7 @@ function getHeadingStyleNames(headingLevel) {
     var headingStyleNames = [];
 
     for (var i = 0; i < HEADING_STYLE_NAME_FORMATS.length; i++) {
-        headingStyleNames.push(formatLabel(HEADING_STYLE_NAME_FORMATS[i], [headingLevel]));
+        headingStyleNames.push(fillLabelPlaceholders(HEADING_STYLE_NAME_FORMATS[i], [headingLevel]));
     }
 
     return headingStyleNames;
@@ -598,7 +728,7 @@ function getDetectedMarkerLabels(detectedMarkers) {
             getLabel(detectedMarkers[i].labelKey) :
             detectedMarkers[i].markerText;
 
-        markerLabels.push(formatLabel(getLabel("marker.detected"),
+        markerLabels.push(getLabel("marker.detected",
             [displayText, detectedMarkers[i].count]));
     }
 
@@ -612,7 +742,7 @@ function getDetectedMarkerLabels(detectedMarkers) {
  * @returns {StaticText} 追加したラベル
  */
 function addRowLabel(parentGroup, labelKey) {
-    var rowLabel = parentGroup.add("statictext", undefined, getLabelWithColon(labelKey));
+    var rowLabel = parentGroup.add("statictext", undefined, labelText(labelKey));
     rowLabel.preferredSize.width = LABEL_WIDTH;
     rowLabel.justify = "right";
     return rowLabel;
@@ -813,12 +943,23 @@ function toPlainParagraphText(paragraphText) {
  * @param {string} searchText 検索文字列
  * @param {boolean} useGrep 入力をそのまま GREP として扱うかどうか
  * @returns {number} 該当箇所の数。数えられないパターンは -1
- * @description モーダルダイアログの表示中は findGrep() を使えないので、段落の文字列を直接数える。
- *              ExtendScript の正規表現には後読みが無いため、直前の1文字だけ自分で見る
  */
 function countMatches(paragraphTexts, searchText, useGrep) {
-    if (useGrep) return countGrepMatches(paragraphTexts, searchText);
+    return useGrep ?
+        countGrepMatches(paragraphTexts, searchText) :
+        countMarkerMatches(paragraphTexts, searchText);
+}
 
+/**
+ * 検索文字列（目印）に該当する箇所を数える
+ * @param {array} paragraphTexts 段落の文字列の配列
+ * @param {string} searchText 検索文字列
+ * @returns {number} 該当箇所の数
+ * @description モーダルダイアログの表示中は findGrep() を使えないので、段落の文字列を直接数える。
+ *              ExtendScript の正規表現には後読みが無いため、直前の1文字だけ自分で見る。
+ *              末尾の区切りは buildExactGrep() と同じく落として数える
+ */
+function countMarkerMatches(paragraphTexts, searchText) {
     var markerText = trimTrailingSeparators(searchText);
 
     if (markerText === "") return 0;
@@ -883,21 +1024,6 @@ function countGrepMatches(paragraphTexts, searchPattern) {
 }
 
 /**
- * 検索オプションを既定値にそろえる
- * @param {object} findChangeOptions findChangeGrepOptions
- * @returns {void}
- */
-function applyFindChangeOptions(findChangeOptions) {
-    findChangeOptions.widthSensitive = FIND_WIDTH_SENSITIVE;
-    findChangeOptions.kanaSensitive = FIND_KANA_SENSITIVE;
-    findChangeOptions.includeFootnotes = FIND_INCLUDE_FOOTNOTES;
-    findChangeOptions.includeMasterPages = FIND_INCLUDE_MASTER_PAGES;
-    findChangeOptions.includeHiddenLayers = FIND_INCLUDE_HIDDEN_LAYERS;
-    findChangeOptions.includeLockedLayersForFind = FIND_INCLUDE_LOCKED_LAYERS;
-    findChangeOptions.includeLockedStoriesForFind = FIND_INCLUDE_LOCKED_STORIES;
-}
-
-/**
  * 検索条件と検索オプションを初期化する
  * @returns {void}
  * @description 前回の「検索/置換」の設定を引き継がないよう、実行の前後でそろえ直す
@@ -906,7 +1032,14 @@ function resetFindPreferences() {
     app.findGrepPreferences = NothingEnum.nothing;
     app.changeGrepPreferences = NothingEnum.nothing;
 
-    applyFindChangeOptions(app.findChangeGrepOptions);
+    var findChangeOptions = app.findChangeGrepOptions;
+    findChangeOptions.widthSensitive = FIND_WIDTH_SENSITIVE;
+    findChangeOptions.kanaSensitive = FIND_KANA_SENSITIVE;
+    findChangeOptions.includeFootnotes = FIND_INCLUDE_FOOTNOTES;
+    findChangeOptions.includeMasterPages = FIND_INCLUDE_MASTER_PAGES;
+    findChangeOptions.includeHiddenLayers = FIND_INCLUDE_HIDDEN_LAYERS;
+    findChangeOptions.includeLockedLayersForFind = FIND_INCLUDE_LOCKED_LAYERS;
+    findChangeOptions.includeLockedStoriesForFind = FIND_INCLUDE_LOCKED_STORIES;
 }
 
 /**
@@ -1048,7 +1181,7 @@ function addSearchPanel(dialog) {
     setupPanel(searchPanel);
 
     var textModeRow = searchPanel.add("group");
-    setupRow(textModeRow);
+    setupRow(textModeRow, "fill");
     var textModeRadio = textModeRow.add("radiobutton", undefined, getLabel("mode.text"));
     textModeRadio.preferredSize.width = LABEL_WIDTH;
     var searchTextField = textModeRow.add("edittext", undefined, DEFAULT_SEARCH_TEXT);
@@ -1058,7 +1191,7 @@ function addSearchPanel(dialog) {
     textModeRadio.helpTip = getLabel("tooltip.searchText");
 
     var grepModeRow = searchPanel.add("group");
-    setupRow(grepModeRow);
+    setupRow(grepModeRow, "fill");
     /* 検索文字列の入力欄に合わせて字下げする / Indent to line up with the search field */
     grepModeRow.add("statictext", undefined, "").preferredSize.width = LABEL_WIDTH;
     var useGrepCheckbox = grepModeRow.add("checkbox", undefined, getLabel("field.useGrep"));
@@ -1066,7 +1199,7 @@ function addSearchPanel(dialog) {
     useGrepCheckbox.helpTip = getLabel("tooltip.useGrep");
 
     var autoModeRow = searchPanel.add("group");
-    setupRow(autoModeRow);
+    setupRow(autoModeRow, "fill");
     var autoModeRadio = autoModeRow.add("radiobutton", undefined, getLabel("mode.auto"));
     autoModeRadio.preferredSize.width = LABEL_WIDTH;
     autoModeRadio.helpTip = getLabel("tooltip.auto");
@@ -1075,7 +1208,7 @@ function addSearchPanel(dialog) {
     detectedMarkerDropdown.helpTip = getLabel("tooltip.auto");
 
     var matchCountRow = searchPanel.add("group");
-    setupRow(matchCountRow);
+    setupRow(matchCountRow, "fill");
     addRowLabel(matchCountRow, "field.matchCount").helpTip = getLabel("tooltip.matchCount");
     var matchCountValue = matchCountRow.add("statictext", undefined, "0");
     matchCountValue.preferredSize.width = COUNT_WIDTH;
@@ -1103,7 +1236,7 @@ function addStylePanel(dialog, activeDoc) {
     setupPanel(stylePanel);
 
     var paragraphStyleRow = stylePanel.add("group");
-    setupRow(paragraphStyleRow);
+    setupRow(paragraphStyleRow, "fill");
     addRowLabel(paragraphStyleRow, "field.paragraphStyle").helpTip =
         getLabel("tooltip.paragraphStyle");
     var paragraphStyleDropdown = paragraphStyleRow.add(
@@ -1113,7 +1246,7 @@ function addStylePanel(dialog, activeDoc) {
     paragraphStyleDropdown.helpTip = getLabel("tooltip.paragraphStyle");
 
     var characterStyleRow = stylePanel.add("group");
-    setupRow(characterStyleRow);
+    setupRow(characterStyleRow, "fill");
     addRowLabel(characterStyleRow, "field.characterStyle").helpTip =
         getLabel("tooltip.characterStyle");
     var characterStyleDropdown = characterStyleRow.add(
@@ -1136,8 +1269,7 @@ function addStylePanel(dialog, activeDoc) {
  */
 function addScopePanel(dialog) {
     var scopePanel = dialog.add("panel", undefined, getLabel("panel.scope"));
-    setupPanel(scopePanel);
-    scopePanel.spacing = RADIO_SPACING;
+    setupPanel(scopePanel, RADIO_SPACING);
 
     var scopeLabelKeys = ["scope.allDocuments", "scope.document", "scope.story"];
     var searchScopeRadios = [];
@@ -1163,14 +1295,14 @@ function addMarkdownPanel(dialog) {
     setupPanel(markdownPanel);
 
     var matchLevelRow = markdownPanel.add("group");
-    setupRow(matchLevelRow);
+    setupRow(matchLevelRow, "fill");
     var matchLevelCheckbox =
         matchLevelRow.add("checkbox", undefined, getLabel("field.matchLevel"));
     matchLevelCheckbox.value = DEFAULT_MATCH_LEVEL;
     matchLevelCheckbox.helpTip = getLabel("tooltip.matchLevel");
 
     var applyAllLevelsRow = markdownPanel.add("group");
-    setupRow(applyAllLevelsRow);
+    setupRow(applyAllLevelsRow, "fill");
     var applyAllLevelsCheckbox =
         applyAllLevelsRow.add("checkbox", undefined, getLabel("field.applyAllLevels"));
     applyAllLevelsCheckbox.value = DEFAULT_APPLY_ALL_LEVELS;
@@ -1180,34 +1312,6 @@ function addMarkdownPanel(dialog) {
         matchLevelCheckbox: matchLevelCheckbox,
         applyAllLevelsCheckbox: applyAllLevelsCheckbox
     };
-}
-
-/**
- * ボタンエリアを作る
- * @param {Window} dialog 追加先のダイアログ
- * @returns {object} { btnOk: Button, btnCancel: Button }
- */
-function addButtonRow(dialog) {
-    var btnRowGroup = dialog.add("group");
-    btnRowGroup.orientation = "row";
-    btnRowGroup.alignment = ["fill", "bottom"];
-
-    var spacer = btnRowGroup.add("group");
-    spacer.alignment = ["fill", "fill"];
-    spacer.minimumSize.width = 0;
-
-    var btnRightGroup = btnRowGroup.add("group");
-    btnRightGroup.alignChildren = ["right", "center"];
-    var btnCancel = btnRightGroup.add(
-        "button", undefined, getLabel("button.cancel"), { name: "cancel" });
-    var btnOk = btnRightGroup.add(
-        "button", undefined, getLabel("button.ok"), { name: "ok" });
-    btnCancel.preferredSize.width = BUTTON_WIDTH;
-    btnOk.preferredSize.width = BUTTON_WIDTH;
-    btnCancel.helpTip = getLabel("tooltip.cancel");
-    btnOk.helpTip = getLabel("tooltip.ok");
-
-    return { btnOk: btnOk, btnCancel: btnCancel };
 }
 
 /**
@@ -1226,7 +1330,18 @@ function showDialog(activeDoc) {
     var styleControls = addStylePanel(dialog, activeDoc);
     var searchScopeRadios = addScopePanel(dialog);
     var markdownControls = addMarkdownPanel(dialog);
-    var dialogButtons = addButtonRow(dialog);
+
+    /* ボタン行（キャンセル → OK）/ Button row (Cancel, then OK) */
+    var buttonRow = addButtonRow(dialog);
+    var btnCancel = buttonRow.rightGroup.add(
+        "button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    var btnOK = buttonRow.rightGroup.add(
+        "button", undefined, getLabel("button.ok"), { name: "ok" });
+    btnCancel.preferredSize.width = BUTTON_WIDTH;
+    btnOK.preferredSize.width = BUTTON_WIDTH;
+    btnCancel.helpTip = getLabel("tooltip.cancel");
+    btnOK.helpTip = getLabel("tooltip.ok");
+    centerButtonRowIfRightOnly(buttonRow);
 
     var searchModeRadios = searchControls.modeRadios;
     var searchTextField = searchControls.searchTextField;
@@ -1237,7 +1352,6 @@ function showDialog(activeDoc) {
     var characterStyleDropdown = styleControls.characterStyleDropdown;
     var matchLevelCheckbox = markdownControls.matchLevelCheckbox;
     var applyAllLevelsCheckbox = markdownControls.applyAllLevelsCheckbox;
-    var btnOk = dialogButtons.btnOk;
 
     var detectedMarkers = [];
     var currentMatchCount = 0;
@@ -1380,7 +1494,7 @@ function showDialog(activeDoc) {
         refreshMarkerSelection();
 
         /* 件数を数え直したあとに判定する / Decide once the count has been refreshed */
-        btnOk.enabled = (searchMode === SEARCH_MODE_AUTO) ?
+        btnOK.enabled = (searchMode === SEARCH_MODE_AUTO) ?
             (detectedMarkers.length > 0) :
             canRunSearchText();
     }
@@ -1526,7 +1640,7 @@ function runSearchPlans(searchPlans, searchTargets, dialogSettings, runResult) {
  * @returns {string} 表示するメッセージ
  */
 function buildResultMessage(runResult) {
-    var resultMessage = formatLabel(getLabel("result.processed"), [runResult.processedCount]);
+    var resultMessage = getLabel("result.processed", [runResult.processedCount]);
 
     if (runResult.partialDocumentNotes.length > 0) {
         resultMessage += "\n\n" + getLabel("result.partial") +

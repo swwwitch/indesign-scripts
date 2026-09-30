@@ -27,10 +27,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFileNameManag
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdFileNameManager";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-12";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFileNameManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFileNameManager.md"; /* README (English) */
@@ -38,42 +38,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc88dd887eb1c"; /* 紹�
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
-// ==============================
-// UIレイアウトの共通設定 / Shared UI layout
-// ==============================
-
-/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
-var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
-var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
-var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
-var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-
-/**
- * ウィンドウの共通設定を適用する
- * @param {Window} win 対象のウィンドウ
- * @param {number} spacing 要素間隔（省略時は WINDOW_SPACING）
- * @returns {void}
- */
-function setupWindow(win, spacing) {
-    win.orientation = "column";
-    win.alignChildren = "fill";
-    win.margins = WINDOW_MARGINS;
-    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-}
-
-/**
- * パネルの共通設定を適用する
- * @param {Panel} panel 対象のパネル
- * @param {number} spacing 要素間隔（省略時は PANEL_SPACING）
- * @returns {void}
- */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
 
     (function () {
 
@@ -196,7 +160,6 @@ function setupPanel(panel, spacing) {
         }
 
         var NEW_NAME_FIELD_WIDTH = 250;
-        var PANEL_SPACING = 8;
 
         var DIALOG_OPACITY = 0.98;
 
@@ -204,7 +167,229 @@ function setupPanel(panel, spacing) {
         // ローカライズ / Localization
         // =========================================
 
-        var currentLanguage = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        // ローカライズ（再利用パーツ） / Localization (reusable)
+
+        /**
+         * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
+         * @returns {string} "ja" または "en"
+         */
+        function getCurrentLang() {
+            return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
+        }
+
+        var uiLang = getCurrentLang();
+
+        /**
+         * LABELS から今の UI 言語の文言を取り出す。
+         * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+         * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+         * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+         */
+        function getLabel(labelRef, placeholderValues) {
+            var labelEntry = labelRef;
+            if (typeof labelRef === "string") {
+                var labelPathKeys = labelRef.split(".");
+                labelEntry = LABELS;
+                for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                    labelEntry = labelEntry[labelPathKeys[i]];
+                }
+            }
+            var labelString;
+            if (typeof labelEntry === "string") labelString = labelEntry;
+            else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+            else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+            else return (typeof labelRef === "string") ? labelRef : "";
+            return fillLabelPlaceholders(String(labelString), placeholderValues);
+        }
+
+        /**
+         * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+         * @param {string|Object} labelRef - getLabel と同じ
+         * @param {Object|Array} [placeholderValues] - getLabel と同じ
+         * @returns {string} コロン付きの文言
+         */
+        function labelText(labelRef, placeholderValues) {
+            return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+        }
+
+        /**
+         * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+         * @param {string|Object} labelRef - getLabel と同じ
+         * @param {string|number} value - コロンのあとに続ける値
+         * @returns {string} 項目名と値をつないだ文字列
+         */
+        function labelValueText(labelRef, value) {
+            return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+        }
+
+        /**
+         * 文言の {name} や %1 に値を差し込む
+         * @param {string} labelString - 文言
+         * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+         * @returns {string} 差し込んだ文言
+         */
+        function fillLabelPlaceholders(labelString, placeholderValues) {
+            if (placeholderValues == null) return labelString;
+            if (placeholderValues instanceof Array) {
+                /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+                for (var i = placeholderValues.length; i >= 1; i--) {
+                    labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+                }
+                return labelString;
+            }
+            for (var placeholderKey in placeholderValues) {
+                if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+                labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+            }
+            return labelString;
+        }
+
+        // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+        // =========================================
+        // UIレイアウトの共通設定 / Shared UI layout
+        // =========================================
+
+        // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+        /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+        var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+        var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+        var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+        var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+        var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+        var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+        /**
+         * ウィンドウの共通設定
+         * @param {Window} targetWindow - 対象のウィンドウ
+         * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+         * @returns {void}
+         */
+        function setupWindow(targetWindow, spacing) {
+            targetWindow.orientation = "column";
+            targetWindow.alignChildren = "fill";
+            targetWindow.margins = WINDOW_MARGINS;
+            targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+        }
+
+        /**
+         * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+         * @param {Panel} targetPanel - 対象のパネル
+         * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+         * @returns {void}
+         */
+        function setupPanel(targetPanel, spacing) {
+            targetPanel.orientation = "column";
+            targetPanel.alignChildren = ["fill", "top"];
+            targetPanel.alignment = "fill";
+            targetPanel.margins = PANEL_MARGINS;
+            targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        }
+
+        /**
+         * タブの共通設定
+         * @param {Tab} targetTab - 対象のタブ
+         * @param {number} [spacing] - 要素間隔（省略時は変えない）
+         * @returns {void}
+         */
+        function setupTab(targetTab, spacing) {
+            targetTab.orientation = "column";
+            targetTab.alignChildren = "fill";
+            targetTab.margins = TAB_MARGINS;
+            if (typeof spacing === "number") targetTab.spacing = spacing;
+        }
+
+        /**
+         * 横並びの行グループの共通設定（ボタン列など）。
+         * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+         * @param {Group} rowGroup - 対象のグループ
+         * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+         * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+         * @returns {void}
+         */
+        function setupRow(rowGroup, rowAlignment, spacing) {
+            rowGroup.orientation = "row";
+            rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+            rowGroup.alignChildren = ["left", "center"];
+            rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        }
+
+        /**
+         * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+         * @param {Button} targetButton - 対象のボタン
+         * @param {number} trimPixels - 詰める量（px）
+         * @returns {void}
+         */
+        function trimButtonHeight(targetButton, trimPixels) {
+            /* レイアウト前は size が無い / size is not set until the layout runs */
+            if (!targetButton.size) return;
+            targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+        }
+
+        // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+        // ボタン行（再利用パーツ） / Button row (reusable)
+
+        var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+        var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+        /**
+         * ダイアログ下部のボタン行を作る。
+         * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+         * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+         * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+         * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+         */
+        function addButtonRow(parent, rowOptions) {
+            var isCentered = !!(rowOptions && rowOptions.centered);
+            var btnRowGroup = parent.add("group");
+            btnRowGroup.orientation = "row";
+            btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+            btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+            if (isCentered) {
+                btnRowGroup.alignment = ["center", "bottom"];
+                btnRowGroup.alignChildren = ["center", "center"];
+                return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+            }
+
+            btnRowGroup.alignment = ["fill", "bottom"];
+
+            var btnLeftGroup = btnRowGroup.add("group");
+            btnLeftGroup.alignChildren = ["left", "center"];
+            btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+            /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+            var spacer = btnRowGroup.add("group");
+            spacer.alignment = ["fill", "fill"];
+            spacer.minimumSize.width = 0;
+
+            var btnRightGroup = btnRowGroup.add("group");
+            btnRightGroup.alignChildren = ["right", "center"];
+            btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+            return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+        }
+
+        /**
+         * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+         * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+         * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+         * @returns {void}
+         */
+        function centerButtonRowIfRightOnly(buttonRow) {
+            if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+            var btnRowGroup = buttonRow.rowGroup;
+            /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+            btnRowGroup.remove(buttonRow.leftGroup);
+            btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            buttonRow.leftGroup = null;
+        }
+
+        // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
         /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -338,6 +523,7 @@ function setupPanel(panel, spacing) {
             },
             button: {
                 cancel: { ja: "キャンセル", en: "Cancel" },
+                ok: { ja: "OK", en: "OK" },
                 sort: { ja: "編集", en: "Edit" }
             },
             sort: {
@@ -359,30 +545,6 @@ function setupPanel(panel, spacing) {
                 saveFailed: { ja: "保存に失敗しました", en: "Failed to save" }
             }
         };
-
-        /**
-         * ドット区切りキーでラベルを取得する
-         * @param {string} path ドット記法のキー（例 'dialog.title'）
-         * @returns {string} 現在の言語のラベル（未定義ならキーをそのまま）
-         */
-        function getLabel(path) {
-            var parts = String(path).split('.');
-            var entry = LABELS;
-            for (var i = 0; i < parts.length; i++) {
-                entry = entry && entry[parts[i]];
-                if (!entry) return path;
-            }
-            return entry[currentLanguage] || entry.en || path;
-        }
-
-        /**
-         * コロン付きラベルを取得する（日本語は全角コロン、英語は半角コロン）
-         * @param {string} path ドット記法のキー
-         * @returns {string} コロンを付けたラベル
-         */
-        function getLabelWithColon(path) {
-            return getLabel(path) + (currentLanguage === 'ja' ? '：' : ':');
-        }
 
         // =========================================
         // ヘルパー / Helpers
@@ -1438,7 +1600,6 @@ function setupPanel(panel, spacing) {
         // ダイアログビルダー / Dialog builders
         // =========================================
 
-
         /**
          * セグメントの並び替えパネルを組み立てる
          * @param {Group} parent 追加先のコンテナ
@@ -1447,7 +1608,7 @@ function setupPanel(panel, spacing) {
          */
         function buildSortPanel(parent, currentOrderAvailable) {
             var panel = parent.add('panel', undefined, getLabel('panel.sort'));
-            setupPanel(panel);
+            setupPanel(panel, 6);
             var sortOffRadio = panel.add('radiobutton', undefined, getLabel('radio.sortOff'));
             sortOffRadio.helpTip = getLabel('tip.sort');
             var sortCurrentRadio = panel.add('radiobutton', undefined, getLabel('radio.sortCurrent'));
@@ -1455,10 +1616,7 @@ function setupPanel(panel, spacing) {
             if (!currentOrderAvailable) sortCurrentRadio.enabled = false;
             // 「カスタム順」ラジオと「編集」ボタンを同じ行に並べる
             var customRow = panel.add('group');
-            customRow.orientation = 'row';
-            customRow.alignment = ['fill', 'top'];
-            customRow.alignChildren = ['left', 'center'];
-            customRow.spacing = 8;
+            setupRow(customRow, ['fill', 'top'], 8);
             var sortOnRadio = customRow.add('radiobutton', undefined, getLabel('radio.sortOn'));
             sortOnRadio.helpTip = getLabel('tip.sort');
             var sortButton = customRow.add('button', undefined, getLabel('button.sort'));
@@ -1503,7 +1661,7 @@ function setupPanel(panel, spacing) {
          */
         function buildOpModePanel(parent) {
             var panel = parent.add('panel', undefined, getLabel('panel.opMode'));
-            setupPanel(panel);
+            setupPanel(panel, 6);
             var versionOnlyRadio = panel.add('radiobutton', undefined, getLabel('radio.opVersionOnly'));
             var fullRadio = panel.add('radiobutton', undefined, getLabel('radio.opFull'));
             versionOnlyRadio.value = false;
@@ -1525,7 +1683,7 @@ function setupPanel(panel, spacing) {
          */
         function buildModePanel(parent, isNative) {
             var panel = parent.add('panel', undefined, getLabel('panel.mode'));
-            setupPanel(panel);
+            setupPanel(panel, 6);
             var renameRadio = panel.add('radiobutton', undefined, getLabel('radio.rename'));
             // .indd 以外の書類は保存が形式変換になるため、元ファイルを消すリネームは選ばせない
             renameRadio.enabled = !!isNative;
@@ -1565,13 +1723,13 @@ function setupPanel(panel, spacing) {
             setupPanel(panel);
 
             var currentNameRow = panel.add('group');
-            currentNameRow.orientation = 'row';
-            var currentNameLabel = currentNameRow.add('statictext', undefined, getLabelWithColon('label.currentName'), { justify: 'right' });
+            setupRow(currentNameRow);
+            var currentNameLabel = currentNameRow.add('statictext', undefined, labelText('label.currentName'), { justify: 'right' });
             currentNameRow.add('statictext', undefined, currentName);
 
             var finalNameRow = panel.add('group');
-            finalNameRow.orientation = 'row';
-            var finalNameLabel = finalNameRow.add('statictext', undefined, getLabelWithColon('label.finalName'), { justify: 'right' });
+            setupRow(finalNameRow);
+            var finalNameLabel = finalNameRow.add('statictext', undefined, labelText('label.finalName'), { justify: 'right' });
             // 「変更後：」は statictext のためレイアウト後にサイズ固定。
             // 現在のファイル名と「入力フィールド + 余白」の大きい方を確保しておく
             var finalNameValue = finalNameRow.add('statictext', undefined, currentName);
@@ -1583,7 +1741,7 @@ function setupPanel(panel, spacing) {
                 panel: panel,
                 finalNameValue: finalNameValue,
                 labels: [currentNameLabel, finalNameLabel],
-                labelTexts: [getLabelWithColon('label.currentName'), getLabelWithColon('label.finalName')]
+                labelTexts: [labelText('label.currentName'), labelText('label.finalName')]
             };
         }
 
@@ -1603,8 +1761,8 @@ function setupPanel(panel, spacing) {
             // ベース: 検出値を初期表示する入力欄。空欄可、prefs には保存しない
             var detectedBase = getFirstSegmentValue(segments, 'base');
             var baseRow = panel.add('group');
-            baseRow.orientation = 'row';
-            var baseLabel = baseRow.add('statictext', undefined, getLabelWithColon('label.base'));
+            setupRow(baseRow);
+            var baseLabel = baseRow.add('statictext', undefined, labelText('label.base'));
             baseLabel.helpTip = getLabel('tip.base');
             var baseField = baseRow.add('edittext', undefined, detectedBase);
             baseField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
@@ -1634,8 +1792,7 @@ function setupPanel(panel, spacing) {
 
             // 「指定」用の入力欄は次の行（ラベル列幅だけ左に余白を入れて radios に揃える）
             var titleFieldRow = titleSection.add('group');
-            titleFieldRow.orientation = 'row';
-            titleFieldRow.alignment = ['left', 'top'];
+            setupRow(titleFieldRow, ['left', 'top']);
             var titleFieldSpacer = titleFieldRow.add('statictext', undefined, '');
             var titleField = titleFieldRow.add('edittext', undefined, detectedTitle);
             titleField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
@@ -1669,8 +1826,8 @@ function setupPanel(panel, spacing) {
             var statusLabel = null, statusDropdown = null;
             if (FEATURE_STATUS) {
                 var statusRow = panel.add('group');
-                statusRow.orientation = 'row';
-                statusLabel = statusRow.add('statictext', undefined, getLabelWithColon('label.status'));
+                setupRow(statusRow);
+                statusLabel = statusRow.add('statictext', undefined, labelText('label.status'));
                 statusLabel.helpTip = getLabel('tip.status');
                 statusDropdown = statusRow.add('dropdownlist', undefined, undefined);
                 statusDropdown.helpTip = getLabel('tip.status');
@@ -1679,7 +1836,7 @@ function setupPanel(panel, spacing) {
                 var initialStatusIdx = -1;
                 for (var siItem = 0; siItem < STATUS_ITEMS.length; siItem++) {
                     var sItem = STATUS_ITEMS[siItem];
-                    var ddItem = statusDropdown.add('item', (currentLanguage === 'ja' ? sItem.ja : sItem.en));
+                    var ddItem = statusDropdown.add('item', (uiLang === 'ja' ? sItem.ja : sItem.en));
                     if (isStatusDivider(sItem)) {
                         ddItem.enabled = false;
                         continue;
@@ -1730,8 +1887,8 @@ function setupPanel(panel, spacing) {
             var pagePadRadio3 = null;
             if (FEATURE_PAGE) {
                 pageRow = panel.add('group');
-                pageRow.orientation = 'row';
-                var pageLabelCtrl = pageRow.add('statictext', undefined, getLabelWithColon('label.page'));
+                setupRow(pageRow);
+                var pageLabelCtrl = pageRow.add('statictext', undefined, labelText('label.page'));
                 pageLabelCtrl.helpTip = getLabel('tip.page');
                 pageCheckbox = pageRow.add('checkbox', undefined, getLabel('radio.pageEnable'));
                 pageCheckbox.helpTip = getLabel('tip.page');
@@ -1747,7 +1904,7 @@ function setupPanel(panel, spacing) {
                 var initialPagePad = pickPref(prefs, 'pagePad', ['2', '3'], '2');
                 pagePadRadio2.value = (initialPagePad === '2');
                 pagePadRadio3.value = (initialPagePad === '3');
-                pageRow.label = pageLabelCtrl; // alignLabelWidths 用に統一形にしておく
+                pageRow.label = pageLabelCtrl; // setLabelWidthsFromMeasuredText 用に統一形にしておく
             }
 
             /**
@@ -1858,16 +2015,16 @@ function setupPanel(panel, spacing) {
             syncHalfwidthKanaEnabled();
 
             // ラベル幅を統一（FEATURE で UI 非表示の行は除外）
-            var labelTexts = [getLabelWithColon('label.base'), getLabelWithColon('label.title')];
+            var labelTexts = [labelText('label.base'), labelText('label.title')];
             var labelControls = [baseLabel, titleRow.label];
-            if (FEATURE_STATUS) { labelTexts.push(getLabelWithColon('label.status')); labelControls.push(statusLabel); }
-            labelTexts.push(getLabelWithColon('label.timestamp')); labelControls.push(timestampRow.label);
-            if (FEATURE_PAGE) { labelTexts.push(getLabelWithColon('label.page')); labelControls.push(pageRow.label); }
-            labelTexts.push(getLabelWithColon('label.version')); labelControls.push(versionRow.label);
-            if (FEATURE_SEPARATOR) { labelTexts.push(getLabelWithColon('label.separator')); labelControls.push(separatorRow.label); }
-            if (FEATURE_NFC) { labelTexts.push(getLabelWithColon('label.nfc')); labelControls.push(nfcRow.label); }
-            if (FEATURE_CLEAN) { labelTexts.push(getLabelWithColon('label.clean')); labelControls.push(cleanRow.label); }
-            if (FEATURE_TRANSLITERATE) { labelTexts.push(getLabelWithColon('label.translit')); labelControls.push(translitRow.label); }
+            if (FEATURE_STATUS) { labelTexts.push(labelText('label.status')); labelControls.push(statusLabel); }
+            labelTexts.push(labelText('label.timestamp')); labelControls.push(timestampRow.label);
+            if (FEATURE_PAGE) { labelTexts.push(labelText('label.page')); labelControls.push(pageRow.label); }
+            labelTexts.push(labelText('label.version')); labelControls.push(versionRow.label);
+            if (FEATURE_SEPARATOR) { labelTexts.push(labelText('label.separator')); labelControls.push(separatorRow.label); }
+            if (FEATURE_NFC) { labelTexts.push(labelText('label.nfc')); labelControls.push(nfcRow.label); }
+            if (FEATURE_CLEAN) { labelTexts.push(labelText('label.clean')); labelControls.push(cleanRow.label); }
+            if (FEATURE_TRANSLITERATE) { labelTexts.push(labelText('label.translit')); labelControls.push(translitRow.label); }
             // 個別整列はせず、呼び出し側に渡してファイル名パネルと統一整列する
             // titleFieldSpacer の幅は createDialog 側で整列後に設定する
 
@@ -1995,7 +2152,7 @@ function setupPanel(panel, spacing) {
             hint.alignment = 'left';
 
             var body = dlg.add('group');
-            body.orientation = 'row';
+            setupRow(body, ['fill', 'fill']);
             body.alignChildren = ['fill', 'fill'];
 
             var order = initialOrder.slice();
@@ -2042,10 +2199,10 @@ function setupPanel(panel, spacing) {
                 refreshList(idx + 1);
             };
 
-            var buttons = dlg.add('group');
-            buttons.alignment = ['center', 'top'];
-            buttons.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
-            buttons.add('button', undefined, 'OK', { name: 'ok' });
+            var buttonRow = addButtonRow(dlg);
+            var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+            var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+            centerButtonRowIfRightOnly(buttonRow);
 
             if (dlg.show() !== 1) return null;
             return order;
@@ -2096,13 +2253,13 @@ function setupPanel(panel, spacing) {
         }
 
         /**
-         * ラベル群の幅を最大値に揃える
+         * ラベル文字列を measureString で測り、最も長い幅（＋余白）をすべてのコントロールに当てる
          * @param {Panel} panel 幅の計測に使うパネル
          * @param {array} labelTexts ラベル文字列の配列
          * @param {array} controls 幅を揃えるコントロールの配列
          * @returns {void}
          */
-        function alignLabelWidths(panel, labelTexts, controls) {
+        function setLabelWidthsFromMeasuredText(panel, labelTexts, controls) {
             var graphics = panel.graphics;
             var maxWidth = 0;
             for (var i = 0; i < labelTexts.length; i++) {
@@ -2133,9 +2290,9 @@ function setupPanel(panel, spacing) {
          */
         function addRadioRow(panel, labelKey, tipKey, radioDefs) {
             var row = panel.add('group');
-            row.orientation = 'row';
+            setupRow(row);
             var tip = getLabel(tipKey);
-            var label = row.add('statictext', undefined, getLabelWithColon(labelKey));
+            var label = row.add('statictext', undefined, labelText(labelKey));
             label.helpTip = tip;
             var radios = {};
             for (var i = 0; i < radioDefs.length; i++) {
@@ -2182,7 +2339,7 @@ function setupPanel(panel, spacing) {
 
             // 上部: 動作パネル + モードパネル + ソートパネル（FEATURE_SORT=false ならソートパネル無し）
             var topRow = dialog.add('group');
-            topRow.orientation = 'row';
+            setupRow(topRow, ['fill', 'top'], COLUMN_SPACING);
             topRow.alignChildren = ['fill', 'top'];
             var mode = buildModePanel(topRow, isNative);
             var opMode = buildOpModePanel(topRow);
@@ -2201,7 +2358,7 @@ function setupPanel(panel, spacing) {
             // 2 つのパネルのラベル幅を統一整列（測定基準は options.panel）
             var combinedTexts = filename.labelTexts.concat(options.labelTexts);
             var combinedLabels = filename.labels.concat(options.labels);
-            alignLabelWidths(options.panel, combinedTexts, combinedLabels);
+            setLabelWidthsFromMeasuredText(options.panel, combinedTexts, combinedLabels);
             // サブテキスト 2 行目「指定」入力欄の左余白を統一後のラベル列幅に合わせる
             options.titleFieldSpacer.preferredSize = [options.titleRow.label.preferredSize.width, 1];
 
@@ -2353,11 +2510,11 @@ function setupPanel(panel, spacing) {
 
             refreshPreviews();
 
-            // ---- ボタン（右寄せ Cancel / OK） ----
-            var buttonGroup = dialog.add('group');
-            buttonGroup.alignment = ['right', 'top'];
-            buttonGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
-            buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
+            // ---- ボタン（キャンセル / OK） ----
+            var buttonRow = addButtonRow(dialog);
+            var btnCancel = buttonRow.rightGroup.add('button', undefined, getLabel('button.cancel'), { name: 'cancel' });
+            var btnOK = buttonRow.rightGroup.add('button', undefined, getLabel('button.ok'), { name: 'ok' });
+            centerButtonRowIfRightOnly(buttonRow);
 
             return {
                 dialog: dialog,

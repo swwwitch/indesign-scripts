@@ -27,10 +27,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdScriptLaunche
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdScriptLauncher";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-08-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdScriptLauncher.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdScriptLauncher.md"; /* README (English) */
@@ -445,12 +445,84 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     // レイアウト / Layout
     // =========================================
 
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
     /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
     var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
     var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
     var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
     var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     /* 密なパネル・行の間隔 / Spacing for dense panels and rows */
     var DENSE_SPACING      = 8;              /* パネル内を詰めるときの間隔 / dense panel spacing */
@@ -470,7 +542,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     var SETTINGS_LABEL_WIDTH = 100;          /* 項目名の幅 / field label width */
     var SETTINGS_INPUT_WIDTH = 60;           /* 数値入力欄の幅 / number field width */
     var FOLDER_PATH_WIDTH    = 360;          /* 対象フォルダーのパス表示の幅 / target folder path width */
-    var BUTTON_ROW_TOP_MARGIN   = 10;        /* ボタン列の上余白 / top margin above the button row */
     var CHECKBOX_TOP_MARGIN     = 10;        /* リスト下のチェックボックスの上余白 / top margin above a checkbox under a list */
     var REMEMBER_ROW_TOP_MARGIN = 5;         /* 「検索条件を記憶」の上余白 / top margin above the remember checkbox */
 
@@ -484,47 +555,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     var CLEAR_CIRCLE_INSET   = 2;            /* 円と外周の間隔 / inset of the circle */
     var CLEAR_GLYPH_INSET    = 6;            /* ×と外周の間隔 / inset of the × glyph */
     var CLEAR_STROKE_WIDTH   = 1.5;          /* 円と×の線幅 / stroke width */
-
-    /**
-     * ウィンドウの共通設定を適用する
-     * @param {Window} win - 対象ウィンドウ
-     * @param {number} [spacing] - 要素間隔。省略時は WINDOW_SPACING
-     * @returns {void}
-     */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
-    }
-
-    /**
-     * パネルの共通設定を適用する
-     * @param {Panel} panel - 対象パネル
-     * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
-     * @returns {void}
-     */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /**
-     * 行グループの共通設定を適用する（ボタン列など）
-     * @param {Group} group - 対象グループ
-     * @param {string} [alignment] - 配置。省略時は "left"
-     * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING
-     * @returns {void}
-     */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = [alignment || "left", "center"];
-        group.alignChildren = ["left", "center"];
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
 
     /**
      * 見出し付きのリスト用カラムを作る
@@ -573,19 +603,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     }
 
     /**
-     * InDesignのUIが明るい設定かどうかを返す
-     * @returns {boolean} 明るいUIなら true
-     */
-    function isLightUI() {
-        /* インターフェイス環境設定の明るさ（0〜1）で判定する。読めない環境は明るいUI扱い / Fall back to light */
-        try {
-            return app.generalPreferences.uiBrightnessPreference > 0.5;
-        } catch (e) {
-            return true;
-        }
-    }
-
-    /**
      * クリアボタンの丸と×を描く
      * @param {Button} button - 対象ボタン
      * @returns {void}
@@ -593,7 +610,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     function drawClearButton(button) {
         var graphics = button.graphics;
         var size = button.size[0];
-        var useLightUI = isLightUI();
+        var useLightUI = !isDarkUI();
 
         /* 主役ではないので、通常時も少し薄めに描く。押している間は濃くして手応えを出す / Slightly muted, darker while pressed */
         var glyphColor = useLightUI ? [0.45, 0.45, 0.45, 1] : [0.72, 0.72, 0.72, 1];
@@ -665,33 +682,26 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         return button;
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
     // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-    //
-    // 【移植手順 / How to port】
-    // 1. ▼〜▲ をまるごと、コピー先の IIFE 内（ローカライズより前）に貼る。
-    //    識別子はすべて STEPPER_* / *Stepper* / *Stepped* の名前なので、既存の名前とはぶつからない
-    // 2. コピー先の LABELS.tooltip に stepUp / stepDown / stepUpInteger / stepDownInteger を足す（このファイルの LABELS から写す）。
-    //    getLabel() と uiLang はコピー先のものをそのまま使う
-    // 3. 数値欄を addSteppedField() で作る。項目名・∧∨・入力欄がひと組で入り、↑↓キーも∧∨と同じ処理で増減する
-    //      var widthInput = addSteppedField(parentPanel, {
-    //          label: labelText(LABELS.fieldLabel.width), labelWidth: 60,
-    //          text: "210 mm", characters: 8, step: 1, min: 1, unit: " mm",
-    //          onStep: function (numberInput) { updatePreview(); }
-    //      });
-    //    値の種類は options で切り分ける:
-    //      小数あり（幅・位置など）   … 指定なし（option＋クリックで0.1ずつ）
-    //      整数・1以上（段数・個数など）… integer: true, min: 1（0・小数・負数は受け付けず、option＋クリックも1ずつ）
-    //      整数・0以上（間隔の数など）  … integer: true, min: 0
-    //      範囲つき（％など）           … min: 0, max: 100, unit: "%"
-    // 4. 有効／無効は setSteppedFieldEnabled(widthInput, isEnabled)（∧∨のディム表示も切り替わる）。
-    //    行・パネルなど親の enabled を切り替えたときは、そのあとで redrawSteppersIn(親) を呼んで∧∨を描き直す
-    //    （∧∨は親をたどって無効を判定し、無効の間はクリックも↑↓キーも効かない）
-    // 5. 値は parseFloat(widthInput.text) で読む（unit 付きの欄は「210 mm」の形で入っている）
-    // 6. この欄に別の↑↓キー処理を付けない（↑↓キーが二重に効く）
-    // 既存の edittext をそのまま使うときは、同じ行の group（spacing 0）に addStepper() → edittext の順で置き、
-    // bindSteppedArrowKeys(edittext, stepperGroup) を呼ぶ
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 
     // -----------------------------------------
     // ステップボタンの寸法・増減量 / Stepper metrics and steps
@@ -707,22 +717,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
     // -----------------------------------------
     // ステップボタンの配色 / Stepper colors
     // -----------------------------------------
-    /**
-     * UIがダークテーマかどうかを判定する（Illustrator・InDesign の両方に対応）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkStepperUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    var STEPPER_UI_DARK           = isDarkStepperUI();
+    var STEPPER_UI_DARK           = isDarkUI();
     /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
        ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
        UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
@@ -1090,23 +1085,152 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         targetGroup.show();
     }
 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // =========================================
     // ラベル定義 / Labels
     // =========================================
 
+    // ローカライズ（再利用パーツ） / Localization (reusable)
+
     /**
-     * UI言語を判定する
+     * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
      * @returns {string} "ja" または "en"
      */
-    function getCurrentUILang() {
-        return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    function getCurrentLang() {
+        return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
     }
 
-    var uiLang = getCurrentUILang();
+    var uiLang = getCurrentLang();
+
+    /**
+     * LABELS から今の UI 言語の文言を取り出す。
+     * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+     * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+     * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+     */
+    function getLabel(labelRef, placeholderValues) {
+        var labelEntry = labelRef;
+        if (typeof labelRef === "string") {
+            var labelPathKeys = labelRef.split(".");
+            labelEntry = LABELS;
+            for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+                labelEntry = labelEntry[labelPathKeys[i]];
+            }
+        }
+        var labelString;
+        if (typeof labelEntry === "string") labelString = labelEntry;
+        else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+        else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+        else return (typeof labelRef === "string") ? labelRef : "";
+        return fillLabelPlaceholders(String(labelString), placeholderValues);
+    }
+
+    /**
+     * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {Object|Array} [placeholderValues] - getLabel と同じ
+     * @returns {string} コロン付きの文言
+     */
+    function labelText(labelRef, placeholderValues) {
+        return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+     * @param {string|Object} labelRef - getLabel と同じ
+     * @param {string|number} value - コロンのあとに続ける値
+     * @returns {string} 項目名と値をつないだ文字列
+     */
+    function labelValueText(labelRef, value) {
+        return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+    }
+
+    /**
+     * 文言の {name} や %1 に値を差し込む
+     * @param {string} labelString - 文言
+     * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+     * @returns {string} 差し込んだ文言
+     */
+    function fillLabelPlaceholders(labelString, placeholderValues) {
+        if (placeholderValues == null) return labelString;
+        if (placeholderValues instanceof Array) {
+            /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+            for (var i = placeholderValues.length; i >= 1; i--) {
+                labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+            }
+            return labelString;
+        }
+        for (var placeholderKey in placeholderValues) {
+            if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+            labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+        }
+        return labelString;
+    }
+
+    // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
+
+    // ボタン行（再利用パーツ） / Button row (reusable)
+
+    var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+    var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
+
+    /**
+     * ダイアログ下部のボタン行を作る。
+     * 通常は「左のグループ・伸びるスペーサー・右のグループ」、centered なら行そのものを左右中央に置く
+     * @param {Window|Group|Panel} parent - 行を足す先（ふつうはダイアログ）
+     * @param {Object} [rowOptions] - { centered: true } で左右中央に並べる
+     * @returns {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} 行と左右のグループ（centered のときは左右が null）
+     */
+    function addButtonRow(parent, rowOptions) {
+        var isCentered = !!(rowOptions && rowOptions.centered);
+        var btnRowGroup = parent.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+        btnRowGroup.spacing = BUTTON_ROW_SPACING;
+
+        if (isCentered) {
+            btnRowGroup.alignment = ["center", "bottom"];
+            btnRowGroup.alignChildren = ["center", "center"];
+            return { rowGroup: btnRowGroup, leftGroup: null, rightGroup: null };
+        }
+
+        btnRowGroup.alignment = ["fill", "bottom"];
+
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        btnLeftGroup.spacing = BUTTON_ROW_SPACING;
+
+        /* 余りの幅を吸って、右のグループを右端に寄せる / Absorbs the extra width so the right group sits at the right edge */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.spacing = BUTTON_ROW_SPACING;
+
+        return { rowGroup: btnRowGroup, leftGroup: btnLeftGroup, rightGroup: btnRightGroup };
+    }
+
+    /**
+     * 左のグループにボタンが無い（右のボタンだけの）とき、行を左右中央に並べ直す。
+     * ボタンをすべて足したあと、show() の前に呼ぶ。centered で作った行や、左にボタンがある行はそのまま
+     * @param {{rowGroup: Group, leftGroup: Group|null, rightGroup: Group|null}} buttonRow - addButtonRow() の戻り値
+     * @returns {void}
+     */
+    function centerButtonRowIfRightOnly(buttonRow) {
+        if (!buttonRow.leftGroup || buttonRow.leftGroup.children.length > 0) return;
+        var btnRowGroup = buttonRow.rowGroup;
+        /* 左のグループとスペーサーを外し、右のグループだけを中央に置く / Drop the left group and the spacer so only the right group remains, centered */
+        btnRowGroup.remove(buttonRow.leftGroup);
+        btnRowGroup.remove(btnRowGroup.children[0]); /* 左のグループを外すと先頭はスペーサー / the spacer is first once the left group is gone */
+        btnRowGroup.alignment = ["center", "bottom"];
+        btnRowGroup.alignChildren = ["center", "center"];
+        buttonRow.leftGroup = null;
+    }
+
+    // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
     var LABELS = {
         dialog: {
@@ -1177,38 +1301,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             }
         }
     };
-
-    /**
-     * ラベル定義から現在のUI言語の文字列を取り出す
-     * @param {{ja: string, en: string}} labelSet - 言語別のラベル定義
-     * @returns {string} 現在のUI言語の文字列
-     */
-    function getLabel(labelSet) {
-        return labelSet[uiLang] || labelSet.en;
-    }
-
-    /**
-     * 項目名にコロンを付ける（日本語は全角、英語は半角）
-     * @param {{ja: string, en: string}} labelSet - 言語別のラベル定義
-     * @returns {string} コロン付きの項目名
-     */
-    function labelText(labelSet) {
-        return getLabel(labelSet) + (uiLang === "ja" ? "：" : ":");
-    }
-
-    /**
-     * ラベル内のプレースホルダー（%1, %2 …）を値で置き換える
-     * @param {string} template - プレースホルダーを含む文字列
-     * @param {Array<string>} values - 差し込む値
-     * @returns {string} 置き換え後の文字列
-     */
-    function formatLabel(template, values) {
-        var text = template;
-        for (var i = 0; i < values.length; i++) {
-            text = text.split("%" + (i + 1)).join(String(values[i]));
-        }
-        return text;
-    }
 
     // =========================================
     // スクリプトの収集と検索キー / Script collection and search keys
@@ -1633,26 +1725,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @returns {EditText} 追加した数値入力欄
      */
     function addNumberField(parent, labelSet, value, maxValue) {
-        var row = parent.add("group");
-        setupRow(row, "left", DENSE_SPACING);
-
-        var fieldLabel = row.add("statictext", undefined, labelText(labelSet));
-        fieldLabel.preferredSize.width = SETTINGS_LABEL_WIDTH;
-
-        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-        var stepperInputGroup = row.add("group");
-        stepperInputGroup.orientation = "row";
-        stepperInputGroup.alignChildren = ["left", "center"];
-        stepperInputGroup.spacing = 0;
-        stepperInputGroup.margins = 0;
-
-        var input;
-        var stepperGroup = addStepper(stepperInputGroup, function () { return input; }, {
+        var input = addSteppedField(parent, {
+            label: labelText(labelSet),
+            labelWidth: SETTINGS_LABEL_WIDTH,
+            text: String(value),
             step: 1, min: 1, max: maxValue, integer: true
         });
-        input = stepperInputGroup.add("edittext", undefined, String(value));
         input.preferredSize.width = SETTINGS_INPUT_WIDTH;
-        bindSteppedArrowKeys(input, stepperGroup);
         return input;
     }
 
@@ -1682,13 +1761,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
         var minCountInput = addNumberField(keywordButtonPanel, LABELS.fieldLabel.minCount, minCount);
         var maxButtonsInput = addNumberField(keywordButtonPanel, LABELS.fieldLabel.maxButtons, maxButtons, KEYWORD_PRESET_LIMIT);
 
-        var settingsButtonRow = settingsDialog.add("group");
-        setupRow(settingsButtonRow, "right", DENSE_SPACING);
-        settingsButtonRow.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        var settingsCancelButton = settingsButtonRow.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var settingsOkButton = settingsButtonRow.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
-        applyButtonSize(settingsCancelButton, DIALOG_BUTTON_WIDTH);
-        applyButtonSize(settingsOkButton, DIALOG_BUTTON_WIDTH);
+        var buttonRow = addButtonRow(settingsDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        applyButtonSize(btnCancel, DIALOG_BUTTON_WIDTH);
+        applyButtonSize(btnOK, DIALOG_BUTTON_WIDTH);
+        centerButtonRowIfRightOnly(buttonRow);
 
         settingsDialog.center();
         minCountInput.active = true;
@@ -1727,7 +1805,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @returns {{panel: Panel, input: EditText, clearButton: Button, presetContainer: Group, rememberCheckbox: Checkbox}} パネルの部品
      */
     function buildKeywordPanel(parent, initialKeyword, remembersSettings) {
-        var panel = parent.add("panel", undefined, formatLabel(getLabel(LABELS.panel.keyword), [0]));
+        var panel = parent.add("panel", undefined, getLabel(LABELS.panel.keyword, [0]));
         setupPanel(panel, DENSE_SPACING);
 
         var row = panel.add("group");
@@ -1845,28 +1923,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
      * @returns {{settings: Button, cancel: Button, run: Button}} 3つのボタン
      */
     function buildDialogButtons(parent) {
-        /* メイングループ（横並び） / Main group (horizontal layout) */
-        var btnRowGroup = parent.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
-        btnRowGroup.alignment = ["fill", "bottom"];
-
-        /* 左側グループ / Left-side button group */
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.alignChildren = ["left", "center"];
-        var btnPreferences = btnLeftGroup.add("button", undefined, getLabel(LABELS.button.preferences));
-
-        /* スペーサー（伸縮）/ Spacer (stretchable) */
-        var spacer = btnRowGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        /* 右側グループ / Right-side button group */
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-        var btnCancel = btnRightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
-        var btnRun = btnRightGroup.add("button", undefined, getLabel(LABELS.button.run), { name: "ok" });
+        /* 左に［環境設定］、右に［キャンセル］［実行］ / Preferences on the left, Cancel and Run on the right */
+        var buttonRow = addButtonRow(parent);
+        var btnPreferences = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.preferences));
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnRun = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.run), { name: "ok" });
         btnRun.enabled = false;
+        centerButtonRowIfRightOnly(buttonRow);
 
         applyButtonSize(btnPreferences, SETTINGS_BUTTON_WIDTH);
         applyButtonSize(btnCancel, DIALOG_BUTTON_WIDTH);
@@ -2092,7 +2155,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
             }
 
             /* 件数はパネルのタイトルに出す / Show the match count in the panel title */
-            keywordPanel.text = formatLabel(getLabel(LABELS.panel.keyword), [listedScripts.length]);
+            keywordPanel.text = getLabel(LABELS.panel.keyword, [listedScripts.length]);
 
             /* 最初の組み立てだけは前回のセッションで選んでいたファイルを狙う / Aim at the remembered file on the first pass */
             var selectionIndex = findScriptIndex(restoringFileName);
@@ -2410,8 +2473,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n86fe7e6251ec"; /* 紹�
                ここで落ちると本当の失敗理由が隠れるので、どんな形でも文字列にして出す
                / The thrown value is not always an Error; never let this handler fail */
             var detail = (e && e.message) ? e.message : String(e);
-            var message = formatLabel(getLabel(LABELS.alert.runFailed), [scriptFile.fsName, detail]);
-            if (e && e.line) message += formatLabel(getLabel(LABELS.alert.errorLine), [e.line]);
+            var message = getLabel(LABELS.alert.runFailed, [scriptFile.fsName, detail]);
+            if (e && e.line) message += getLabel(LABELS.alert.errorLine, [e.line]);
             alert(message, getLabel(LABELS.dialog.title));
         }
     }

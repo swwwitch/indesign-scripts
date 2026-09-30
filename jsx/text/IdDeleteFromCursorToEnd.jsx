@@ -25,10 +25,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteFromCur
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdDeleteFromCursorToEnd";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteFromCursorToEnd.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteFromCursorToEnd.md"; /* README (English) */
@@ -58,19 +58,94 @@ var TRAILING_MARKS = ["。", "！", "？", ",", ".", "、", "，", "．"];
 /* 親をたどってセルを探すときの最大階層 / Maximum depth when walking up to find a containing cell */
 var MAX_CELL_LOOKUP_DEPTH = 6;
 
+/* テキストとして扱う選択の型 / Selection types treated as text */
+var TEXT_SELECTION_TYPES = {
+    InsertionPoint: true, Character: true, Word: true, Line: true,
+    TextStyleRange: true, Paragraph: true, TextColumn: true, Text: true
+};
+
 // =========================================
 // ラベル定義 / Labels
 // =========================================
 
+// ローカライズ（再利用パーツ） / Localization (reusable)
+
 /**
- * UI 言語を判定する
+ * UI の言語を返す（"ja" で始まるロケールは日本語、それ以外は英語）
  * @returns {string} "ja" または "en"
  */
 function getCurrentLang() {
-    return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return (String($.locale || "").indexOf("ja") === 0) ? "ja" : "en";
 }
 
-var currentLanguage = getCurrentLang();
+var uiLang = getCurrentLang();
+
+/**
+ * LABELS から今の UI 言語の文言を取り出す。
+ * @param {string|Object} labelRef - "dialog.title" のようなパス、または { ja, en }
+ * @param {Object|Array} [placeholderValues] - { name: 値 } なら {name} を、[値, …] なら %1, %2 … を差し込む
+ * @returns {string} 文言。パスが見つからなければパスの文字列、{ ja, en } が無ければ空文字
+ */
+function getLabel(labelRef, placeholderValues) {
+    var labelEntry = labelRef;
+    if (typeof labelRef === "string") {
+        var labelPathKeys = labelRef.split(".");
+        labelEntry = LABELS;
+        for (var i = 0; i < labelPathKeys.length && labelEntry != null; i++) {
+            labelEntry = labelEntry[labelPathKeys[i]];
+        }
+    }
+    var labelString;
+    if (typeof labelEntry === "string") labelString = labelEntry;
+    else if (labelEntry != null && labelEntry[uiLang] != null) labelString = labelEntry[uiLang];
+    else if (labelEntry != null && labelEntry.en != null) labelString = labelEntry.en;
+    else return (typeof labelRef === "string") ? labelRef : "";
+    return fillLabelPlaceholders(String(labelString), placeholderValues);
+}
+
+/**
+ * 項目名の文言の末尾にコロンを付ける（日本語は全角「：」、英語は半角「:」）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {Object|Array} [placeholderValues] - getLabel と同じ
+ * @returns {string} コロン付きの文言
+ */
+function labelText(labelRef, placeholderValues) {
+    return getLabel(labelRef, placeholderValues) + (uiLang === "ja" ? "：" : ":");
+}
+
+/**
+ * 「項目名：値」の1行を返す（日本語は「件数：5」、英語は「Count: 5」とコロンのあとに空白を入れる）
+ * @param {string|Object} labelRef - getLabel と同じ
+ * @param {string|number} value - コロンのあとに続ける値
+ * @returns {string} 項目名と値をつないだ文字列
+ */
+function labelValueText(labelRef, value) {
+    return labelText(labelRef) + (uiLang === "ja" ? "" : " ") + value;
+}
+
+/**
+ * 文言の {name} や %1 に値を差し込む
+ * @param {string} labelString - 文言
+ * @param {Object|Array} [placeholderValues] - { name: 値 } または [値, …]
+ * @returns {string} 差し込んだ文言
+ */
+function fillLabelPlaceholders(labelString, placeholderValues) {
+    if (placeholderValues == null) return labelString;
+    if (placeholderValues instanceof Array) {
+        /* 大きい番号から置き換え、%1 が %10 の一部を置き換えないようにする / Replace from the highest index so %1 does not eat into %10 */
+        for (var i = placeholderValues.length; i >= 1; i--) {
+            labelString = labelString.split("%" + i).join(String(placeholderValues[i - 1]));
+        }
+        return labelString;
+    }
+    for (var placeholderKey in placeholderValues) {
+        if (!placeholderValues.hasOwnProperty(placeholderKey)) continue;
+        labelString = labelString.split("{" + placeholderKey + "}").join(String(placeholderValues[placeholderKey]));
+    }
+    return labelString;
+}
+
+// ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
 var LABELS = {
     alert: {
@@ -86,38 +161,18 @@ var LABELS = {
     }
 };
 
-/**
- * ドット区切りキーでラベルを取得する
- * @param {string} labelKey 例: "alert.noDocument"
- * @returns {string} 現在の言語のラベル文字列。見つからない場合はキーをそのまま返す
- */
-function getLabel(labelKey) {
-    var keyParts = labelKey.split(".");
-    var node = LABELS;
-    for (var i = 0; i < keyParts.length; i++) {
-        if (node == null) return labelKey;
-        node = node[keyParts[i]];
-    }
-    if (node == null) return labelKey;
-    if (node[currentLanguage] != null) return node[currentLanguage];
-    return (node.en != null) ? node.en : labelKey;
-}
-
 // =========================================
 // 判定用のユーティリティ / Predicates
 // =========================================
 
 /**
- * 選択がテキスト上の挿入点または範囲かどうかを判定する
+ * 選択がテキスト（キャレット・文字範囲）かどうかを判定する
  * @param {object} selectionItem 選択オブジェクト
  * @returns {boolean} テキスト上の選択なら true
  */
 function isTextSelection(selectionItem) {
     if (selectionItem == null) return false;
-    var typeName = selectionItem.constructor.name;
-    return typeName === "InsertionPoint" || typeName === "Text" || typeName === "Character" ||
-        typeName === "Word" || typeName === "Line" || typeName === "Paragraph" ||
-        typeName === "TextStyleRange";
+    return TEXT_SELECTION_TYPES[selectionItem.constructor.name] === true;
 }
 
 /**
