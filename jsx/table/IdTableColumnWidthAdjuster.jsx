@@ -22,10 +22,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnWi
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTableColumnWidthAdjuster";   /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableColumnWidthAdjuster.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnWidthAdjuster.md"; /* README (English) */
@@ -869,14 +869,10 @@ function alignRightOnlyButtonRow(buttonRow) {
 			title: { ja: "列幅の調整", en: "Adjust Column Widths" }
 		},
 		panel: {
-			basic:        { ja: "指定方法", en: "Sizing Method" },
+			sizingMethod: { ja: "指定方法", en: "Sizing Method" },
 			perColumn:    { ja: "個別に設定", en: "Per-Column Settings" },
 			columnWidths: { ja: "各列の設定", en: "Column Settings" },
 			batch:        { ja: "一括入力", en: "Batch Input" }
-		},
-		field: {
-			calculationBasis: { ja: "指定方法", en: "Sizing Method" },
-			inputMethod:      { ja: "入力方法", en: "Input Method" }
 		},
 		radio: {
 			inputMethodPerColumn: { ja: "個別に設定", en: "Per-Column Input" },
@@ -885,20 +881,14 @@ function alignRightOnlyButtonRow(buttonRow) {
 			modeCharacterBased:   { ja: "文字数で指定", en: "Set by Character Count" }
 		},
 		checkbox: {
-			unify:   { ja: "全列に適用", en: "Apply to All Columns" },
-			preview: { ja: "プレビュー", en: "Preview" }
+			applyToAll: { ja: "全列に適用", en: "Apply to All Columns" }
 		},
 		header: {
 			column:    { ja: "列", en: "Col" },
 			width:     { ja: "幅", en: "Width" },
-			charCount: { ja: "文字数", en: "Character Count" },
-			inset:     { ja: "左右の余白", en: "Left/Right Inset" },
+			charCount: { ja: "文字数", en: "Characters" },
+			inset:     { ja: "左右の余白", en: "L/R Inset" },
 			autoFit:   { ja: "自動調整", en: "Auto Fit" }
-		},
-		unit: {
-			mm:         { ja: "mm", en: "mm" },
-			characters: { ja: "文字", en: "chars" },
-			columnSuffix: { ja: "列目", en: "Col" }
 		},
 		button: {
 			ok:     { ja: "OK", en: "OK" },
@@ -908,20 +898,17 @@ function alignRightOnlyButtonRow(buttonRow) {
 			screenModeNormal:  { ja: "標準モード", en: "Normal Mode" }
 		},
 		hint: {
-			batch: {
-				ja: "入力形式：15 20 34 10 または 15, 20, 34, 10",
-				en: "Example: Enter column widths as 15 20 34 10 or 15, 20, 34, 10"
-			}
+			batch: { ja: "入力形式：15 20 34 10 または 15, 20, 34, 10", en: "Format: 15 20 34 10 or 15, 20, 34, 10" }
 		},
 		alert: {
-			selectCellOrTable:   { ja: "セルまたは表を選択してから実行してください", en: "Select a cell or table before running this script." },
-			batchInvalidValue:   { ja: "一括入力に無効な値が含まれています", en: "Batch input contains invalid values." },
-			batchTooManyValues:  { ja: "入力数が列数を超えています", en: "Too many values for the number of columns." },
-			invalidNumber:       { ja: "数値を入力してください", en: "Enter a valid number." },
-			negativeWidth:       { ja: "幅には 0 以上の数値を入力してください", en: "Width must be 0 or greater." },
-			negativeCharCount:   { ja: "文字数には 0 以上の数値を入力してください", en: "Character count must be 0 or greater." },
-			negativeInset:       { ja: "左右の余白には 0 以上の数値を入力してください", en: "Left/right inset must be 0 or greater." },
-			insetTooLarge:       { ja: "左右の余白が大きすぎます。内容幅が 0 以下になります", en: "Left/right inset is too large. Content width would become 0 or less." }
+			selectCellOrTable:  { ja: "セルまたは表を選択してから実行してください", en: "Select a cell or table before running this script." },
+			batchInvalidValue:  { ja: "一括入力に無効な値が含まれています", en: "Batch input contains invalid values." },
+			batchTooManyValues: { ja: "入力数が列数を超えています", en: "Too many values for the number of columns." },
+			invalidNumber:      { ja: "数値を入力してください", en: "Enter a valid number." },
+			negativeWidth:      { ja: "幅には 0 以上の数値を入力してください", en: "Width must be 0 or greater." },
+			negativeCharCount:  { ja: "文字数には 0 以上の数値を入力してください", en: "Character count must be 0 or greater." },
+			negativeInset:      { ja: "左右の余白には 0 以上の数値を入力してください", en: "Left/right inset must be 0 or greater." },
+			insetTooLarge:      { ja: "左右の余白が大きすぎます。内容幅が 0 以下になります", en: "Left/right inset is too large. Content width would become 0 or less." }
 		},
 		tooltip: {
 			stepUp: {
@@ -937,6 +924,26 @@ function alignRightOnlyButtonRow(buttonRow) {
 			screenMode: {
 				ja: "ドキュメントウィンドウの画面モードを、標準モードとプレビューで切り替えます。",
 				en: "Switches the document window between the Normal and Preview screen modes."
+			},
+			modeCharacterBased: {
+				ja: "表内でいちばん多く使われている文字サイズを1文字として、幅を文字数で指定します。",
+				en: "Specifies widths as a character count, based on the most common font size in the table."
+			},
+			applyToAll: {
+				ja: "1列目の値を、ほかの列（自動調整の列を除く）にも反映します。オンにすると自動調整は解除されます。",
+				en: "Copies the first column's values to the other columns (except auto-fit columns). Turning this on clears Auto Fit."
+			},
+			inset: {
+				ja: "列内のすべてのセルの左右の余白に、同じ値を設定します。",
+				en: "Sets the same left and right inset for every cell in the column."
+			},
+			autoFit: {
+				ja: "列の内容が改行されずに収まる幅に合わせます。",
+				en: "Fits the column to the width its contents need without wrapping."
+			},
+			batchInput: {
+				ja: "左の列から順に幅を入力します。入力した数の列にだけ反映します。",
+				en: "Enter widths from the leftmost column. Only as many columns as values are changed."
 			}
 		},
 		undo: {
@@ -944,10 +951,39 @@ function alignRightOnlyButtonRow(buttonRow) {
 		}
 	};
 
-	/* 実行とエラー対策 / Execution and error handling */
-	main();
+	// =========================================
+	// 文字色 / Text colors
+	// =========================================
+	/* 無効な部分をディム表示する色。通常色はダークUIで黒にならないよう明暗で切り替える
+	   Color for dimmed parts; the normal color follows the UI brightness so it is not black on a dark UI */
+	var TEXT_NORMAL_COLOR = isDarkUI() ? [0.86, 0.86, 0.86] : [0, 0, 0];
+	var TEXT_DIMMED_COLOR = [0.55, 0.55, 0.55];
+
+	// =========================================
+	// 各列の一覧のレイアウト / Column list layout
+	// =========================================
+	var COLUMN_ROW_SPACING         = 6;   /* 行内の要素間隔 / spacing within a row */
+	var COLUMN_NUMBER_WIDTH        = 20;  /* 列番号の幅 / column number width */
+	var COLUMN_FIELD_CHARACTERS    = 5;   /* 入力欄の文字数 / characters of each field */
+	var GAP_AFTER_WIDTH_FIELD      = 10;  /* 幅と文字数の間 / gap after the width field */
+	var GAP_AFTER_CHAR_COUNT_FIELD = 16;  /* 文字数と余白の間 / gap after the character-count field */
+	var GAP_BEFORE_AUTOFIT         = 10;  /* 余白と自動調整の間 / gap before the auto-fit checkbox */
+	var AUTOFIT_BOX_WIDTH          = 20;  /* 自動調整のチェックボックスの枠 / auto-fit checkbox box */
+	var HEADER_WIDTHS = { column: 14, width: 70, charCount: 73, inset: 70, autoFit: 60 }; /* 見出しの幅（入力欄の見出しは∧∨の幅を足す） / header widths */
+
+	// =========================================
+	// 自動調整 / Auto fit
+	// =========================================
+	var AUTOFIT_COARSE_STEP = 10;  /* 粗く広げる刻み（定規の単位） / coarse step in ruler units */
+	var AUTOFIT_FINE_STEP   = 1;   /* 細かく詰める刻み（定規の単位） / fine step in ruler units */
+	var AUTOFIT_MAX_STEPS   = 200; /* 1段階あたりの最大回数 / max steps per pass */
+
+	// =========================================
+	// メイン / Main
+	// =========================================
+
 	/**
-	 * 列幅調整の処理を開始する
+	 * 列幅調整の処理を、1回で取り消せるようにして開始する
 	 * @returns {void}
 	 */
 	function main() {
@@ -958,568 +994,489 @@ function alignRightOnlyButtonRow(buttonRow) {
 	}
 
 	/**
-	 * ダイアログを表示して列幅の調整を実行する
+	 * 選択から表を取り出し、ダイアログを表示して列幅を調整する
 	 * @returns {void}
 	 */
 	function adjustColumnWidths() {
-		var selection = app.activeDocument.selection;
-		var targetTable = getTableFromSelection(selection[0]);
+		if (app.documents.length === 0) {
+			alert(getLabel("alert.selectCellOrTable"));
+			return;
+		}
+		var savedSelection = app.activeDocument.selection;
+		var targetTable = getTableFromSelection(savedSelection[0]);
 		if (!targetTable) {
 			alert(getLabel("alert.selectCellOrTable"));
 			return;
 		}
 
-		// 選択を記憶し、ダイアログ中はハイライトを消す / Save selection and hide highlight while dialog is open
-		var savedSelection = [];
-		for (var selectionIndex = 0; selectionIndex < selection.length; selectionIndex++) {
-			savedSelection.push(selection[selectionIndex]);
-		}
-		try {
-			app.select(NothingEnum.NOTHING);
-		} catch (e) { }
+		/* ダイアログ中はセルのハイライトを消し、閉じたら選択を戻す / hide the highlight while the dialog is open */
+		app.select(NothingEnum.NOTHING);
+		runColumnWidthDialog(targetTable);
+		restoreSelection(savedSelection);
+	}
 
+	/**
+	 * 列幅のダイアログを表示する。編集のたびに表へ反映し、キャンセルなら元に戻す
+	 * @param {Table} targetTable 対象の表
+	 * @returns {void}
+	 */
+	function runColumnWidthDialog(targetTable) {
 		var columnCount = targetTable.columns.length;
 		var originalWidths = getColumnWidths(targetTable);
 		var originalInsets = getOriginalInsets(targetTable);
+		var rulerUnit = getRulerUnitInfo();
+		/* 文字数と幅の換算に使う値 / values for converting between widths and character counts */
+		var textMetrics = { fontSizePt: findDominantFontSize(targetTable), pointsPerUnit: rulerUnit.pointsPerUnit };
 
-		var dominantFontSizePt = findDominantFontSize(targetTable);
-		fontSizePtForValidationCache = dominantFontSizePt;
-
-		var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
-		setupWindow(dialog, 10);
-
-		var inputMethodOuterGroup = dialog.add("group");
-		inputMethodOuterGroup.orientation = "row";
-		inputMethodOuterGroup.alignment = "center";
-		inputMethodOuterGroup.alignChildren = ["center", "center"];
-		inputMethodOuterGroup.margins = [0, 3, 0, 10];
-
-		var inputMethodGroup = inputMethodOuterGroup.add("group");
-		setupRow(inputMethodGroup, "left", COLUMN_SPACING);
-		var perColumnRadio = inputMethodGroup.add("radiobutton", undefined, getLabel("radio.inputMethodPerColumn"));
-		var batchModeRadio = inputMethodGroup.add("radiobutton", undefined, getLabel("radio.inputMethodBatch"));
-		perColumnRadio.value = true;
-
-		var panelUnitLabel = getRulerUnitString();
-		var perColumnPanel = dialog.add("panel", undefined, getLabel("panel.perColumn"));
-		setupPanel(perColumnPanel, 10);
-
-		var basicSettingsPanel = perColumnPanel.add("panel", undefined, getLabel("panel.basic"));
-		setupPanel(basicSettingsPanel, 6);
-		basicSettingsPanel.alignChildren = "left";
-
-		var modeGroup = basicSettingsPanel.add("group");
-		modeGroup.orientation = "column";
-		modeGroup.alignChildren = "left";
-		modeGroup.spacing = 4;
-		var absoluteRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeAbsolute"));
-		var characterBasedRadio = modeGroup.add("radiobutton", undefined, getLabel("radio.modeCharacterBased"));
-		absoluteRadio.value = true;
-
-		var columnSettingsPanel = perColumnPanel.add(
-			"panel",
-			undefined,
-			getLabel("panel.columnWidths") + (uiLang === "ja" ? "（" + panelUnitLabel + "）" : " (" + panelUnitLabel + ")")
-		);
-		setupPanel(columnSettingsPanel, 6);
-		columnSettingsPanel.alignChildren = "left";
-		// 全列に適用 / Apply to all columns
-		var unifyCheckbox = columnSettingsPanel.add("checkbox", undefined, getLabel("checkbox.unify"));
-
-		var initialInsetValuesUi = insetsToInitialInsetValues(originalInsets);
-		var columnSettingsControls = buildColumnSettingsControls(columnSettingsPanel, columnCount, originalWidths, initialInsetValuesUi, dominantFontSizePt);
-		var widthInputs = columnSettingsControls.widthInputs;
-		var charCountInputs = columnSettingsControls.charCountInputs;
-		var sideInsetInputs = columnSettingsControls.sideInsetInputs;
-		var autoFitCheckboxes = columnSettingsControls.autoFitCheckboxes;
-
+		/* 表へ反映する値（定規の単位）。入力欄より先にこちらを更新し、反映はここからだけ行う
+		   Values applied to the table (ruler units); this is the single source for applying */
 		var columnStates = [];
-
 		for (var i = 0; i < columnCount; i++) {
-			columnStates.push({
-				mode: "manual", // "manual" or "autofit"
-				width: rulerValueToInputUnit(originalWidths[i]),
-				inset: initialInsetValuesUi[i],
-				lockedWidth: null
-			});
+			var firstCellInsets = originalInsets[i][0];
+			columnStates.push({ width: originalWidths[i], inset: firstCellInsets ? firstCellInsets.left : 0 });
 		}
 
-		var rowLabels = columnSettingsControls.rowLabels;
-		var headerLabels = columnSettingsControls.headerLabels;
-		// Fallback normalizations for missing/malformed rowLabels/headerLabels
-		if (!rowLabels || !(rowLabels instanceof Array)) rowLabels = [];
-		if (!headerLabels || !(headerLabels instanceof Array)) headerLabels = [];
+		var adjusterDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+		setupWindow(adjusterDialog, 10);
 
-		var batchInputPanel = dialog.add("panel", undefined, getLabel("panel.batch"));
-		setupPanel(batchInputPanel, 6);
+		var inputMethodControls = buildInputMethodRow(adjusterDialog);
+		var perColumnControls = buildPerColumnPanel(adjusterDialog, columnStates, textMetrics, rulerUnit.label);
+		var batchControls = buildBatchInputPanel(adjusterDialog);
+		var columnRows = perColumnControls.columnRows;
 
-		var batchRow = batchInputPanel.add("group");
-		batchRow.orientation = "row";
-		batchRow.alignment = "fill";
-		batchRow.alignChildren = ["fill", "center"];
-		batchRow.spacing = 8;
-
-		var batchLeftGroup = batchRow.add("group");
-		batchLeftGroup.orientation = "column";
-		batchLeftGroup.alignment = ["fill", "center"];
-		batchLeftGroup.alignChildren = ["fill", "center"];
-
-		var batchInput = batchLeftGroup.add("edittext", undefined, "");
-		batchInput.alignment = ["fill", "center"];
-
-		var batchRightGroup = batchRow.add("group");
-		batchRightGroup.orientation = "column";
-		batchRightGroup.alignment = ["right", "center"];
-		batchRightGroup.alignChildren = ["right", "center"];
-
-		var btnBatchApply = batchRightGroup.add("button", undefined, getLabel("button.apply"));
-
-		var batchHintText = batchInputPanel.add("statictext", undefined, getLabel("hint.batch"));
-
-		var buttonRow = addButtonRow(dialog);
+		var buttonRow = addButtonRow(adjusterDialog);
 		addScreenModeButton(buttonRow.leftGroup);
-		var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-		var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+		buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+		buttonRow.rightGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 		alignRightOnlyButtonRow(buttonRow);
 
-		var primaryInputMode = "absolute";
-		var currentInputMethod = "perColumn";
-		var isPreviewCurrentlyApplied = false;
+		var sizingMode = "absolute";    /* "absolute"（幅で指定）または "characterBased"（文字数で指定） */
+		var inputMethod = "perColumn";  /* "perColumn"（個別に設定）または "batch"（一括入力） */
+		var isPreviewApplied = false;
 
 		/**
-		 * 指定方法（幅／文字数）を切り替える
-		 * @param {string} mode "absolute" または "character"
-		 * @returns {void}
-		 */
-		function setInputMode(mode) {
-			primaryInputMode = mode;
-			refreshControlStates();
-		}
-
-		/**
-		 * 入力方法（個別／一括）を切り替える
-		 * @param {string} method "perColumn" または "batch"
-		 * @returns {void}
-		 */
-		function setInputMethod(method) {
-			currentInputMethod = method;
-			refreshControlStates();
-		}
-
-		/**
-		 * 現在のモードに応じてコントロールの有効／無効を更新する
+		 * 入力方法・指定方法・全列に適用・自動調整に合わせて、各コントロールの有効／無効とディム表示を更新する
 		 * @returns {void}
 		 */
 		function refreshControlStates() {
-			var isPerColumnMode = (currentInputMethod == "perColumn");
-			columnSettingsPanel.visible = true;
-			batchInputPanel.visible = true;
+			var isPerColumn = (inputMethod === "perColumn");
 
-			setControlEnabled(batchInput, !isPerColumnMode);
-			setControlEnabled(btnBatchApply, !isPerColumnMode);
-			setControlEnabled(batchHintText, !isPerColumnMode);
+			setControlEnabled(batchControls.batchInput, !isPerColumn);
+			setControlEnabled(batchControls.applyButton, !isPerColumn);
+			setControlEnabled(batchControls.hintText, !isPerColumn);
+			setControlEnabled(perColumnControls.absoluteRadio, isPerColumn);
+			setControlEnabled(perColumnControls.characterBasedRadio, isPerColumn);
+			setControlEnabled(perColumnControls.applyToAllCheckbox, isPerColumn);
 
-			setControlEnabled(absoluteRadio, isPerColumnMode);
-			setControlEnabled(characterBasedRadio, isPerColumnMode);
-			setControlEnabled(unifyCheckbox, isPerColumnMode);
-
-			for (var h = 0; h < headerLabels.length; h++) {
-				if (headerLabels[h]) setLabelDimmed(headerLabels[h], !isPerColumnMode);
+			for (var h = 0; h < perColumnControls.headerLabels.length; h++) {
+				setLabelDimmed(perColumnControls.headerLabels[h], !isPerColumn);
 			}
 
-			for (var i = 0; i < columnCount; i++) {
-				var isAuto = autoFitCheckboxes[i].value;
-				var isNonFirstUnified = unifyCheckbox.value && i > 0 && !isAuto;
-				var enableWidth = isPerColumnMode && !((primaryInputMode == "characterBased") || isNonFirstUnified);
-				var enableChar = isPerColumnMode && !((primaryInputMode == "absolute") || isNonFirstUnified);
-				var enableInset = isPerColumnMode && !isNonFirstUnified;
-
-				setControlEnabled(widthInputs[i], enableWidth);
-				setControlEnabled(charCountInputs[i], enableChar);
-				setControlEnabled(sideInsetInputs[i], enableInset);
-				setControlEnabled(autoFitCheckboxes[i], isPerColumnMode);
-
-				var currentRowLabels = (rowLabels[i] && rowLabels[i] instanceof Array) ? rowLabels[i] : [];
-				for (var j = 0; j < currentRowLabels.length; j++) {
-					if (currentRowLabels[j]) setLabelDimmed(currentRowLabels[j], !isPerColumnMode || isNonFirstUnified);
-				}
+			for (var i = 0; i < columnRows.length; i++) {
+				var row = columnRows[i];
+				/* 全列に適用の間は1列目だけを編集する（自動調整の列は対象外） / only the first column is edited while Apply to All is on */
+				var followsFirstColumn = perColumnControls.applyToAllCheckbox.value && i > 0 && !row.autoFitCheckbox.value;
+				var isEditable = isPerColumn && !followsFirstColumn;
+				setControlEnabled(row.widthInput, isEditable && sizingMode === "absolute");
+				setControlEnabled(row.charCountInput, isEditable && sizingMode === "characterBased");
+				setControlEnabled(row.insetInput, isEditable);
+				setControlEnabled(row.autoFitCheckbox, isPerColumn);
+				setLabelDimmed(row.numberLabel, !isEditable);
 			}
-			// 個別設定パネル全体の見た目を切り替え / Update the appearance of the entire per-column settings panel
-			try {
-				var panelDimRgb = isPerColumnMode ? [0, 0, 0] : [0.55, 0.55, 0.55];
-				perColumnPanel.graphics.foregroundColor = perColumnPanel.graphics.newPen(perColumnPanel.graphics.PenType.SOLID_COLOR, panelDimRgb, 1);
-				basicSettingsPanel.graphics.foregroundColor = basicSettingsPanel.graphics.newPen(basicSettingsPanel.graphics.PenType.SOLID_COLOR, panelDimRgb, 1);
-				columnSettingsPanel.graphics.foregroundColor = columnSettingsPanel.graphics.newPen(columnSettingsPanel.graphics.PenType.SOLID_COLOR, panelDimRgb, 1);
-			} catch (e) { }
 
-			// 一括入力パネル全体の見た目を切り替え / Update the appearance of the entire batch input panel
-			try {
-				var batchDimRgb = isPerColumnMode ? [0.55, 0.55, 0.55] : [0, 0, 0];
-				batchInputPanel.graphics.foregroundColor = batchInputPanel.graphics.newPen(batchInputPanel.graphics.PenType.SOLID_COLOR, batchDimRgb, 1);
-				batchRow.graphics.foregroundColor = batchRow.graphics.newPen(batchRow.graphics.PenType.SOLID_COLOR, batchDimRgb, 1);
-				batchLeftGroup.graphics.foregroundColor = batchLeftGroup.graphics.newPen(batchLeftGroup.graphics.PenType.SOLID_COLOR, batchDimRgb, 1);
-				batchRightGroup.graphics.foregroundColor = batchRightGroup.graphics.newPen(batchRightGroup.graphics.PenType.SOLID_COLOR, batchDimRgb, 1);
-				batchHintText.graphics.foregroundColor = batchHintText.graphics.newPen(batchHintText.graphics.PenType.SOLID_COLOR, batchDimRgb, 1);
-			} catch (e) { }
+			/* パネルの見出しもディム表示にそろえる / dim the panel titles as well */
+			setLabelDimmed(perColumnControls.panel, !isPerColumn);
+			setLabelDimmed(perColumnControls.sizingMethodPanel, !isPerColumn);
+			setLabelDimmed(perColumnControls.columnSettingsPanel, !isPerColumn);
+			setLabelDimmed(batchControls.panel, isPerColumn);
 		}
 
 		/**
-		 * 入力値を列幅と余白へ反映する
+		 * columnStates の値を表の列幅と左右の余白へ反映する
 		 * @returns {void}
 		 */
 		function applyColumnSettings() {
-			// columnStates を唯一の truth として適用する
-			// Apply everything from columnStates as the single source of truth
 			for (var i = 0; i < columnStates.length; i++) {
+				var columnWidth = columnStates[i].width;
+				if (columnWidth == null || isNaN(columnWidth)) continue;
+				/* 列幅の上下限を超える値は例外になるので、その列は変えない / out-of-range widths throw; leave that column as is */
 				try {
-					var state = columnStates[i];
-					var widthToApply = null;
-
-					if (state.mode === "autofit") {
-						widthToApply = state.lockedWidth;
-					} else {
-						widthToApply = state.width;
-					}
-
-					if (widthToApply != null && !isNaN(widthToApply)) {
-						targetTable.columns[i].width = inputUnitToRulerValue(widthToApply);
-					}
+					targetTable.columns[i].width = columnWidth;
 				} catch (e) { }
 			}
-
-			applyColumnInsetsFromStates(targetTable, columnStates);
-			isPreviewCurrentlyApplied = true;
+			applyInsetsFromStates(targetTable, columnStates);
+			isPreviewApplied = true;
 		}
 
 		/**
-		 * 列幅と余白を実行前の状態に戻す
+		 * 列に自動調整の幅を設定し、入力欄と columnStates を更新する
+		 * @param {number} columnIndex 列の位置
 		 * @returns {void}
 		 */
-		function restoreOriginalColumnSettings() {
-			restoreColumnWidths(targetTable, originalWidths);
-			restoreColumnInsets(targetTable, originalInsets);
-			isPreviewCurrentlyApplied = false;
-		}
+		function applyAutoFitToColumn(columnIndex) {
+			var row = columnRows[columnIndex];
+			var insetValue = parseFloat(row.insetInput.text);
+			if (isNaN(insetValue)) insetValue = 0;
+			var fittedWidth = measureColumnContentWidth(targetTable, columnIndex, textMetrics) + 2 * insetValue;
 
-		// 高速自動調整: 文字数推定による列内容幅計算
-		/**
-		 * 文字数を基準に列の内容幅を見積もる
-		 * @param {number} colIdx 列の位置
-		 * @param {number} fontSizePt 基準の文字サイズ（pt）
-		 * @returns {number} 見積もった内容幅
-		 */
-		function estimateColumnContentWidthByChars(colIdx, fontSizePt) {
-			var col = targetTable.columns[colIdx];
-			var cells = col.cells;
-			var maxChars = 0;
-
-			for (var i = 0; i < cells.length; i++) {
-				var cell = cells[i];
-				if (!cell.texts || cell.texts.length === 0) continue;
-				try {
-					var lines = cell.texts[0].lines;
-					for (var j = 0; j < lines.length; j++) {
-						var len = lines[j].characters.length;
-						if (len > maxChars) maxChars = len;
-					}
-				} catch (e) { }
-			}
-
-			return ptToInputUnit(maxChars * fontSizePt);
+			columnStates[columnIndex].width = fittedWidth;
+			columnStates[columnIndex].inset = insetValue;
+			/* 空にしてから入れ直し、ScriptUI に描き直させる / clear first so ScriptUI repaints the fields */
+			setFieldTextAndRepaint(row.widthInput, formatNumber(fittedWidth));
+			setFieldTextAndRepaint(row.charCountInput, formatNumber(calculateCharCount(fittedWidth, insetValue, textMetrics)));
+			adjusterDialog.layout.layout(true);
+			adjusterDialog.update();
 		}
 
 		/**
-		 * 列の内容が収まる幅を実測する
-		 * @param {number} colIdx 列の位置
-		 * @returns {number} 実測した内容幅
-		 */
-		function measureColumnContentWidth(colIdx) {
-			var table = targetTable;
-			var col = table.columns[colIdx];
-			var cells = col.cells;
-			var savedWidths = [];
-			for (var i = 0; i < table.columns.length; i++) {
-				try {
-					savedWidths.push(table.columns[i].width);
-				} catch (e) {
-					savedWidths.push(null);
-				}
-			}
-
-			/**
-			 * 列内のいずれかのセルに 2 行目があるかを判定する
-			 * @returns {boolean} 2 行目があれば true
-			 */
-			function hasSecondLineInAnyCell() {
-				for (var k = 0; k < cells.length; k++) {
-					var cell = cells[k];
-					if (!cell.texts || cell.texts.length === 0) continue;
-					try {
-						if (cell.texts[0].lines.length >= 2) return true;
-					} catch (e) { }
-				}
-				return false;
-			}
-
-			// 2行目がない場合は現在幅をそのまま使わず、内容推定に切り替える
-			if (!hasSecondLineInAnyCell()) {
-				return estimateColumnContentWidthByChars(colIdx, dominantFontSizePt);
-			}
-
-			var measuredWidth = col.width;
-			var coarseStep = inputUnitToRulerValue(10);
-			if (coarseStep <= 0 || isNaN(coarseStep)) coarseStep = 10;
-			var fineStep = inputUnitToRulerValue(1);
-			if (fineStep <= 0 || isNaN(fineStep)) fineStep = 1;
-			var maxIterations = 200;
-			var count = 0;
-
-			try {
-				// 1) 粗く広げて、2行目が消える幅まで到達する
-				while (hasSecondLineInAnyCell() && count < maxIterations) {
-					measuredWidth += coarseStep;
-					try { col.width = measuredWidth; } catch (e) { break; }
-					count++;
-				}
-
-				// 2) 少し戻して、細かい刻みで詰める
-				var refineStart = measuredWidth - coarseStep;
-				if (refineStart < 0) refineStart = 0;
-				try { col.width = refineStart; } catch (e) { }
-				measuredWidth = refineStart;
-
-				count = 0;
-				while (hasSecondLineInAnyCell() && count < maxIterations) {
-					measuredWidth += fineStep;
-					try { col.width = measuredWidth; } catch (e) { break; }
-					count++;
-				}
-			} finally {
-				for (var j = 0; j < savedWidths.length; j++) {
-					if (savedWidths[j] == null) continue;
-					try { table.columns[j].width = savedWidths[j]; } catch (e) { }
-				}
-			}
-
-			return rulerValueToInputUnit(measuredWidth);
-		}
-
-		/**
-		 * 指定した列に自動調整を適用する
-		 * @param {number} colIdx 列の位置
+		 * 余白の変更を幅・文字数へ反映する（自動調整の列は測り直す）
+		 * @param {number} columnIndex 列の位置
 		 * @returns {void}
 		 */
-		function applyAutoFitToColumn(colIdx) {
-			var contentW = measureColumnContentWidth(colIdx);
-			var inset = parseFloat(sideInsetInputs[colIdx].text);
-			if (isNaN(inset)) inset = 0;
-			var newWidth = contentW + 2 * inset;
-			var widthText = formatNumber(newWidth);
-			var cc = calculateCharCount(newWidth, inset, dominantFontSizePt);
-			var charText = formatNumber(cc);
-
-			columnStates[colIdx].mode = "autofit";
-			columnStates[colIdx].lockedWidth = newWidth;
-			columnStates[colIdx].width = newWidth;
-			columnStates[colIdx].inset = inset;
-			widthInputs[colIdx].text = widthText;
-			charCountInputs[colIdx].text = charText;
-
-			// ScriptUI の描画更新を強める / Force ScriptUI to repaint updated edittexts
-			try { widthInputs[colIdx].text = ""; widthInputs[colIdx].text = widthText; } catch (e) { }
-			try { charCountInputs[colIdx].text = ""; charCountInputs[colIdx].text = charText; } catch (e) { }
-			try { widthInputs[colIdx].parent.parent.layout.layout(true); } catch (e) { }
-			try { dialog.layout.layout(true); } catch (e) { }
-			try { dialog.update(); } catch (e) { }
-
-			widthInputs[colIdx].text = formatNumber(columnStates[colIdx].width);
-		}
-
-		absoluteRadio.onClick = function () {
-			if (absoluteRadio.value) setInputMode("absolute");
-		};
-		characterBasedRadio.onClick = function () {
-			if (characterBasedRadio.value) setInputMode("characterBased");
-		};
-
-		perColumnRadio.onClick = function () {
-			if (perColumnRadio.value) setInputMethod("perColumn");
-		};
-		batchModeRadio.onClick = function () {
-			if (batchModeRadio.value) setInputMethod("batch");
-		};
-
-		unifyCheckbox.onClick = function () {
-			// 全列に適用を ON にしたときは、自動調整を全列で解除する
-			// When Apply to All Columns is turned on, disable auto-fit for all columns
-			if (unifyCheckbox.value) {
-				for (var i = 0; i < autoFitCheckboxes.length; i++) {
-					autoFitCheckboxes[i].value = false;
-				}
-			}
-			// ここでは全列を即時上書きしない / Do not overwrite all columns immediately here
-			// 実際の同期は編集中に行う / Actual synchronization happens during editing
-			refreshControlStates();
-		};
-
-		for (var i = 0; i < columnCount; i++) {
-			(function (idx) {
-				widthInputs[idx].onChanging = function () {
-					updateCharCountFromWidth(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt);
-					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, "absolute", autoFitCheckboxes, columnStates);
-				};
-				widthInputs[idx].onChange = function () {
-					var validation = validatePerColumnRow(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], "absolute");
-					if (!validation.ok) {
-						alert(validation.message);
-						try { validation.focus.active = true; } catch (e) { }
-						updateCharCountFromWidth(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt);
-						return;
-					}
-					var manualWidth = parseFloat(widthInputs[idx].text);
-					var manualInset = parseFloat(sideInsetInputs[idx].text);
-					columnStates[idx].mode = "manual";
-					columnStates[idx].lockedWidth = null;
-					columnStates[idx].width = isNaN(manualWidth) ? columnStates[idx].width : manualWidth;
-					if (!isNaN(manualInset)) columnStates[idx].inset = manualInset;
-					if (autoFitCheckboxes[idx].value) {
-						autoFitCheckboxes[idx].value = false;
-						refreshControlStates();
-					}
-					applyColumnSettings();
-				};
-				charCountInputs[idx].onChanging = function () {
-					updateWidthFromCharCount(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt);
-					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, "characterBased", autoFitCheckboxes, columnStates);
-				};
-				charCountInputs[idx].onChange = function () {
-					var validation = validatePerColumnRow(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], "characterBased");
-					if (!validation.ok) {
-						alert(validation.message);
-						try { validation.focus.active = true; } catch (e) { }
-						updateWidthFromCharCount(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt);
-						return;
-					}
-					var manualWidth = parseFloat(widthInputs[idx].text);
-					var manualInset = parseFloat(sideInsetInputs[idx].text);
-					columnStates[idx].mode = "manual";
-					columnStates[idx].lockedWidth = null;
-					columnStates[idx].width = isNaN(manualWidth) ? columnStates[idx].width : manualWidth;
-					if (!isNaN(manualInset)) columnStates[idx].inset = manualInset;
-					if (autoFitCheckboxes[idx].value) {
-						autoFitCheckboxes[idx].value = false;
-						refreshControlStates();
-					}
-					applyColumnSettings();
-				};
-				sideInsetInputs[idx].onChanging = function () {
-					if (autoFitCheckboxes[idx].value) {
-						applyAutoFitToColumn(idx);
-					}
-					else {
-						syncWidthAndCharCountFromInset(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt, primaryInputMode);
-					}
-					if (unifyCheckbox.value) syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, idx, dominantFontSizePt, primaryInputMode, autoFitCheckboxes, columnStates);
-				};
-				sideInsetInputs[idx].onChange = function () {
-					var validation = validatePerColumnRow(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], primaryInputMode);
-					if (!validation.ok) {
-						alert(validation.message);
-						try { validation.focus.active = true; } catch (e) { }
-						if (autoFitCheckboxes[idx].value) {
-							applyAutoFitToColumn(idx);
-						}
-						else {
-							syncWidthAndCharCountFromInset(widthInputs[idx], charCountInputs[idx], sideInsetInputs[idx], dominantFontSizePt, primaryInputMode);
-						}
-						return;
-					}
-
-					var updatedInset = parseFloat(sideInsetInputs[idx].text);
-					if (!isNaN(updatedInset)) columnStates[idx].inset = updatedInset;
-
-					if (autoFitCheckboxes[idx].value) {
-						applyAutoFitToColumn(idx);
-					}
-					else {
-						var manualWidth = parseFloat(widthInputs[idx].text);
-						columnStates[idx].mode = "manual";
-						columnStates[idx].lockedWidth = null;
-						columnStates[idx].width = isNaN(manualWidth) ? columnStates[idx].width : manualWidth;
-					}
-
-					applyColumnSettings();
-				};
-				/**
-				 * 自動調整チェックボックスの切り替えを処理する
-				 * @returns {void}
-				 */
-				function handleAutoFitToggle() {
-					var isAutoFitOn = !!autoFitCheckboxes[idx].value;
-					if (isAutoFitOn) {
-						applyAutoFitToColumn(idx);
-					}
-					refreshControlStates();
-					applyColumnSettings();
-				}
-				autoFitCheckboxes[idx].onClick = handleAutoFitToggle;
-				autoFitCheckboxes[idx].onChange = handleAutoFitToggle;
-			})(i);
+		function refreshColumnFromInset(columnIndex) {
+			if (columnRows[columnIndex].autoFitCheckbox.value) applyAutoFitToColumn(columnIndex);
+			else syncWidthAndCharCountFromInset(columnRows[columnIndex], textMetrics, sizingMode);
 		}
 
 		/**
-		 * 一括入力の値を各列へ反映する
+		 * 全列に適用がオンなら、編集した列の値をほかの列へ写す
+		 * @param {number} sourceIndex 編集した列の位置
+		 * @param {string} sourceMode 写す基準の値（"absolute" は幅、"characterBased" は文字数）
+		 * @returns {void}
+		 */
+		function syncOtherColumnsIfApplyToAll(sourceIndex, sourceMode) {
+			if (!perColumnControls.applyToAllCheckbox.value) return;
+			copyColumnValuesToOthers(columnRows, columnStates, sourceIndex, sourceMode, textMetrics);
+		}
+
+		/**
+		 * 幅・文字数の入力を確定する。不正な値なら知らせて表示を戻し、正しければ手入力の幅として反映する
+		 * @param {number} columnIndex 列の位置
+		 * @param {string} editedMode 編集した欄（"absolute" は幅、"characterBased" は文字数）
+		 * @returns {void}
+		 */
+		function commitWidthOrCharCount(columnIndex, editedMode) {
+			var row = columnRows[columnIndex];
+			var validation = validateColumnRow(row, editedMode, textMetrics);
+			if (!validation.ok) {
+				alert(validation.message);
+				validation.focus.active = true;
+				if (editedMode === "absolute") updateCharCountFromWidth(row, textMetrics);
+				else updateWidthFromCharCount(row, textMetrics);
+				return;
+			}
+			storeTypedValues(columnIndex);
+			if (row.autoFitCheckbox.value) {
+				row.autoFitCheckbox.value = false;
+				refreshControlStates();
+			}
+			applyColumnSettings();
+		}
+
+		/**
+		 * 左右の余白の入力を確定する。自動調整の列は測り直す
+		 * @param {number} columnIndex 列の位置
+		 * @returns {void}
+		 */
+		function commitInset(columnIndex) {
+			var row = columnRows[columnIndex];
+			var validation = validateColumnRow(row, sizingMode, textMetrics);
+			if (!validation.ok) {
+				alert(validation.message);
+				validation.focus.active = true;
+				refreshColumnFromInset(columnIndex);
+				return;
+			}
+			if (row.autoFitCheckbox.value) applyAutoFitToColumn(columnIndex);
+			else storeTypedValues(columnIndex);
+			applyColumnSettings();
+		}
+
+		/**
+		 * 入力欄の幅・余白を columnStates に控える（数値でない欄は前の値のまま）
+		 * @param {number} columnIndex 列の位置
+		 * @returns {void}
+		 */
+		function storeTypedValues(columnIndex) {
+			var typedWidth = parseFloat(columnRows[columnIndex].widthInput.text);
+			var typedInset = parseFloat(columnRows[columnIndex].insetInput.text);
+			if (!isNaN(typedWidth)) columnStates[columnIndex].width = typedWidth;
+			if (!isNaN(typedInset)) columnStates[columnIndex].inset = typedInset;
+		}
+
+		/**
+		 * 1列分の入力欄・チェックボックスにイベントを付ける
+		 * @param {number} columnIndex 列の位置
+		 * @returns {void}
+		 */
+		function bindColumnRowEvents(columnIndex) {
+			var row = columnRows[columnIndex];
+			row.widthInput.onChanging = function () {
+				updateCharCountFromWidth(row, textMetrics);
+				syncOtherColumnsIfApplyToAll(columnIndex, "absolute");
+			};
+			row.widthInput.onChange = function () { commitWidthOrCharCount(columnIndex, "absolute"); };
+			row.charCountInput.onChanging = function () {
+				updateWidthFromCharCount(row, textMetrics);
+				syncOtherColumnsIfApplyToAll(columnIndex, "characterBased");
+			};
+			row.charCountInput.onChange = function () { commitWidthOrCharCount(columnIndex, "characterBased"); };
+			row.insetInput.onChanging = function () {
+				refreshColumnFromInset(columnIndex);
+				syncOtherColumnsIfApplyToAll(columnIndex, sizingMode);
+			};
+			row.insetInput.onChange = function () { commitInset(columnIndex); };
+			row.autoFitCheckbox.onClick = function () {
+				if (row.autoFitCheckbox.value) applyAutoFitToColumn(columnIndex);
+				refreshControlStates();
+				applyColumnSettings();
+			};
+		}
+
+		/**
+		 * 一括入力の値を左の列から順に反映する
 		 * @returns {void}
 		 */
 		function applyBatchInput() {
-			var values = parseBatchInput(batchInput.text);
-			if (values.length == 0) return;
-
-			// 入力検証：無効な値があれば中断 / Validation: reject if any invalid value exists
-			for (var i = 0; i < values.length; i++) {
-				if (values[i] == null) {
+			var batchValues = parseBatchInput(batchControls.batchInput.text);
+			if (batchValues.length === 0) return;
+			for (var i = 0; i < batchValues.length; i++) {
+				if (batchValues[i] == null) {
 					alert(getLabel("alert.batchInvalidValue"));
 					return;
 				}
 			}
-
-			// 入力検証：列数を超える場合は中断 / Validation: reject if too many values
-			if (values.length > columnCount) {
+			if (batchValues.length > columnCount) {
 				alert(getLabel("alert.batchTooManyValues"));
 				return;
 			}
-
-			// 入力された列数ぶんだけ反映 / Apply only to the provided columns
-			for (var i = 0; i < values.length; i++) {
-				widthInputs[i].text = formatNumber(values[i]);
-				updateCharCountFromWidth(widthInputs[i], charCountInputs[i], sideInsetInputs[i], dominantFontSizePt);
-				columnStates[i].mode = "manual";
-				columnStates[i].lockedWidth = null;
-				columnStates[i].width = values[i];
-				if (autoFitCheckboxes[i].value) autoFitCheckboxes[i].value = false;
+			for (var j = 0; j < batchValues.length; j++) {
+				columnRows[j].widthInput.text = formatNumber(batchValues[j]);
+				updateCharCountFromWidth(columnRows[j], textMetrics);
+				columnStates[j].width = batchValues[j];
+				columnRows[j].autoFitCheckbox.value = false;
 			}
-
 			applyColumnSettings();
 		}
 
-		// 自動適用は無効 / Auto-apply disabled
-		// batchInput.onChange = applyBatchInput;
-		btnBatchApply.onClick = applyBatchInput;
+		inputMethodControls.perColumnRadio.onClick = function () {
+			inputMethod = "perColumn";
+			refreshControlStates();
+		};
+		inputMethodControls.batchRadio.onClick = function () {
+			inputMethod = "batch";
+			refreshControlStates();
+		};
+		perColumnControls.absoluteRadio.onClick = function () {
+			sizingMode = "absolute";
+			refreshControlStates();
+		};
+		perColumnControls.characterBasedRadio.onClick = function () {
+			sizingMode = "characterBased";
+			refreshControlStates();
+		};
+		perColumnControls.applyToAllCheckbox.onClick = function () {
+			/* オンにしたときは自動調整を全列で解除する。値を写すのは次に編集したとき
+			   Turning this on clears Auto Fit on every column; values are copied on the next edit */
+			if (perColumnControls.applyToAllCheckbox.value) {
+				for (var i = 0; i < columnRows.length; i++) columnRows[i].autoFitCheckbox.value = false;
+			}
+			refreshControlStates();
+		};
+		for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+			bindColumnRowEvents(columnIndex);
+		}
+		batchControls.applyButton.onClick = applyBatchInput;
 
-		setInputMode("absolute");
-		setInputMethod("perColumn");
-		widthInputs[0].active = true;
+		refreshControlStates();
+		columnRows[0].widthInput.active = true;
 
-		var dialogResult = dialog.show();
-
-		if (dialogResult != 1) {
-			if (isPreviewCurrentlyApplied) restoreOriginalColumnSettings();
-			restoreSelection(savedSelection);
+		if (adjusterDialog.show() === 1) {
+			applyColumnSettings();
 			return;
 		}
+		if (isPreviewApplied) {
+			restoreColumnInsets(targetTable, originalInsets);
+			restoreColumnWidths(targetTable, originalWidths);
+		}
+	}
 
-		applyColumnSettings();
-		restoreSelection(savedSelection);
+	// =========================================
+	// ダイアログの組み立て / Dialog construction
+	// =========================================
+
+	/**
+	 * 入力方法（個別に設定／一括入力）のラジオボタンの行を作る
+	 * @param {Window} parentWindow 追加先のダイアログ
+	 * @returns {{perColumnRadio: RadioButton, batchRadio: RadioButton}} ラジオボタン
+	 */
+	function buildInputMethodRow(parentWindow) {
+		var inputMethodGroup = parentWindow.add("group");
+		setupRow(inputMethodGroup, "center", COLUMN_SPACING);
+		inputMethodGroup.margins = [0, 3, 0, 10];
+		var perColumnRadio = inputMethodGroup.add("radiobutton", undefined, getLabel("radio.inputMethodPerColumn"));
+		var batchRadio = inputMethodGroup.add("radiobutton", undefined, getLabel("radio.inputMethodBatch"));
+		perColumnRadio.value = true;
+		return { perColumnRadio: perColumnRadio, batchRadio: batchRadio };
+	}
+
+	/**
+	 * 「個別に設定」のパネル（指定方法・各列の設定）を作る
+	 * @param {Window} parentWindow 追加先のダイアログ
+	 * @param {Array<Object>} columnStates 列ごとの初期値 { width, inset }
+	 * @param {Object} textMetrics 文字数の換算に使う値 { fontSizePt, pointsPerUnit }
+	 * @param {string} unitLabel 定規の単位の表示名
+	 * @returns {Object} パネルとコントロール（columnRows は列ごとの入力欄）
+	 */
+	function buildPerColumnPanel(parentWindow, columnStates, textMetrics, unitLabel) {
+		var perColumnPanel = parentWindow.add("panel", undefined, getLabel("panel.perColumn"));
+		setupPanel(perColumnPanel, 10);
+
+		var sizingMethodPanel = perColumnPanel.add("panel", undefined, getLabel("panel.sizingMethod"));
+		setupPanel(sizingMethodPanel, 6);
+		var absoluteRadio = sizingMethodPanel.add("radiobutton", undefined, getLabel("radio.modeAbsolute"));
+		var characterBasedRadio = sizingMethodPanel.add("radiobutton", undefined, getLabel("radio.modeCharacterBased"));
+		characterBasedRadio.helpTip = getLabel("tooltip.modeCharacterBased");
+		absoluteRadio.value = true;
+
+		var unitSuffix = (uiLang === "ja") ? "（" + unitLabel + "）" : " (" + unitLabel + ")";
+		var columnSettingsPanel = perColumnPanel.add("panel", undefined, getLabel("panel.columnWidths") + unitSuffix);
+		setupPanel(columnSettingsPanel, 6);
+		columnSettingsPanel.alignChildren = "left";
+		var applyToAllCheckbox = columnSettingsPanel.add("checkbox", undefined, getLabel("checkbox.applyToAll"));
+		applyToAllCheckbox.helpTip = getLabel("tooltip.applyToAll");
+
+		var headerLabels = buildColumnHeaderRow(columnSettingsPanel);
+		var columnRows = [];
+		for (var i = 0; i < columnStates.length; i++) {
+			columnRows.push(buildColumnRow(columnSettingsPanel, i, columnStates[i], textMetrics));
+		}
+
+		return {
+			panel: perColumnPanel,
+			sizingMethodPanel: sizingMethodPanel,
+			absoluteRadio: absoluteRadio,
+			characterBasedRadio: characterBasedRadio,
+			columnSettingsPanel: columnSettingsPanel,
+			applyToAllCheckbox: applyToAllCheckbox,
+			headerLabels: headerLabels,
+			columnRows: columnRows
+		};
+	}
+
+	/**
+	 * 各列の一覧の見出し行を作る
+	 * @param {Panel} parent 追加先のパネル
+	 * @returns {Array<StaticText>} 見出しの statictext
+	 */
+	function buildColumnHeaderRow(parent) {
+		var headerRow = parent.add("group");
+		headerRow.orientation = "row";
+		headerRow.spacing = COLUMN_ROW_SPACING;
+		headerRow.margins = [0, 2, 0, 6];
+
+		/* 各入力欄の左に∧∨が付くぶん、見出しの幅を広げて中央をそろえる / widen headers by the stepper so they stay centered over the fields */
+		var stepperWidth = STEPPER_BUTTON_WIDTH + STEPPER_SIDE_MARGIN;
+		var headerSpecs = [
+			{ key: "column", width: HEADER_WIDTHS.column },
+			{ key: "width", width: HEADER_WIDTHS.width + stepperWidth },
+			{ key: "charCount", width: HEADER_WIDTHS.charCount + stepperWidth },
+			{ key: "inset", width: HEADER_WIDTHS.inset + stepperWidth, tooltip: "tooltip.inset" },
+			{ key: "autoFit", width: HEADER_WIDTHS.autoFit, tooltip: "tooltip.autoFit" }
+		];
+		var headerLabels = [];
+		for (var i = 0; i < headerSpecs.length; i++) {
+			var headerLabel = headerRow.add("statictext", undefined, getLabel("header." + headerSpecs[i].key));
+			headerLabel.justify = "center";
+			headerLabel.preferredSize.width = headerSpecs[i].width;
+			if (headerSpecs[i].tooltip) headerLabel.helpTip = getLabel(headerSpecs[i].tooltip);
+			headerLabels.push(headerLabel);
+		}
+		return headerLabels;
+	}
+
+	/**
+	 * 1列分の行（列番号・幅・文字数・左右の余白・自動調整）を作る
+	 * @param {Panel} parent 追加先のパネル
+	 * @param {number} columnIndex 列の位置
+	 * @param {Object} columnState 列の初期値 { width, inset }
+	 * @param {Object} textMetrics 文字数の換算に使う値 { fontSizePt, pointsPerUnit }
+	 * @returns {Object} 行のコントロール { numberLabel, widthInput, charCountInput, insetInput, autoFitCheckbox }
+	 */
+	function buildColumnRow(parent, columnIndex, columnState, textMetrics) {
+		/* 増減後は手入力と同じ onChanging・onChange を通す / after stepping, run the same handlers as typing */
+		var columnStepOptions = { min: 0, onStep: runInputHandlersAfterStep };
+
+		var columnRow = parent.add("group");
+		columnRow.orientation = "row";
+		columnRow.spacing = COLUMN_ROW_SPACING;
+
+		var numberLabel = columnRow.add("statictext", undefined, String(columnIndex + 1));
+		numberLabel.preferredSize.width = COLUMN_NUMBER_WIDTH;
+
+		var widthInput = addSteppedInput(columnRow, formatNumber(columnState.width), columnStepOptions);
+		widthInput.characters = COLUMN_FIELD_CHARACTERS;
+		addFixedGap(columnRow, GAP_AFTER_WIDTH_FIELD);
+
+		var charCount = calculateCharCount(columnState.width, columnState.inset, textMetrics);
+		var charCountInput = addSteppedInput(columnRow, formatNumber(charCount), columnStepOptions);
+		charCountInput.characters = COLUMN_FIELD_CHARACTERS;
+		addFixedGap(columnRow, GAP_AFTER_CHAR_COUNT_FIELD);
+
+		var insetInput = addSteppedInput(columnRow, formatNumber(columnState.inset), columnStepOptions);
+		insetInput.characters = COLUMN_FIELD_CHARACTERS;
+		insetInput.helpTip = getLabel("tooltip.inset");
+		addFixedGap(columnRow, GAP_BEFORE_AUTOFIT);
+
+		var autoFitGroup = columnRow.add("group");
+		autoFitGroup.preferredSize.width = AUTOFIT_BOX_WIDTH;
+		autoFitGroup.alignChildren = ["center", "center"];
+		var autoFitCheckbox = autoFitGroup.add("checkbox", undefined, "");
+		autoFitCheckbox.helpTip = getLabel("tooltip.autoFit");
+
+		return {
+			numberLabel: numberLabel,
+			widthInput: widthInput,
+			charCountInput: charCountInput,
+			insetInput: insetInput,
+			autoFitCheckbox: autoFitCheckbox
+		};
+	}
+
+	/**
+	 * 行に固定幅の空きを足す
+	 * @param {Group} parentRow 追加先の行
+	 * @param {number} gapWidth 空きの幅（px）
+	 * @returns {void}
+	 */
+	function addFixedGap(parentRow, gapWidth) {
+		parentRow.add("group").preferredSize.width = gapWidth;
+	}
+
+	/**
+	 * 「一括入力」のパネルを作る
+	 * @param {Window} parentWindow 追加先のダイアログ
+	 * @returns {{panel: Panel, batchInput: EditText, applyButton: Button, hintText: StaticText}} パネルとコントロール
+	 */
+	function buildBatchInputPanel(parentWindow) {
+		var batchInputPanel = parentWindow.add("panel", undefined, getLabel("panel.batch"));
+		setupPanel(batchInputPanel, 6);
+
+		var batchRow = batchInputPanel.add("group");
+		batchRow.orientation = "row";
+		batchRow.alignChildren = ["fill", "center"];
+		batchRow.spacing = 8;
+
+		var batchInput = batchRow.add("edittext", undefined, "");
+		batchInput.alignment = ["fill", "center"];
+		batchInput.helpTip = getLabel("tooltip.batchInput");
+
+		var applyButton = batchRow.add("button", undefined, getLabel("button.apply"));
+		applyButton.alignment = ["right", "center"];
+
+		var hintText = batchInputPanel.add("statictext", undefined, getLabel("hint.batch"));
+
+		return { panel: batchInputPanel, batchInput: batchInput, applyButton: applyButton, hintText: hintText };
 	}
 
 	// =========================================
@@ -1557,96 +1514,39 @@ function alignRightOnlyButtonRow(buttonRow) {
 	}
 
 	/**
-	 * 各列の現在の左右余白を控える
+	 * 各列の全セルの左右の余白を控える
 	 * @param {Table} table 対象の表
-	 * @returns {Array<object>} 列ごとの余白情報
+	 * @returns {Array<Array<Object>>} 列ごと・セルごとの { left, right }
 	 */
 	function getOriginalInsets(table) {
-		var perColumn = [];
+		var insetsByColumn = [];
 		for (var i = 0; i < table.columns.length; i++) {
-			var cells = table.columns[i].cells;
+			var columnCells = table.columns[i].cells;
 			var cellInsets = [];
-			for (var j = 0; j < cells.length; j++) {
-				cellInsets.push({ left: cells[j].leftInset, right: cells[j].rightInset });
+			for (var j = 0; j < columnCells.length; j++) {
+				cellInsets.push({ left: columnCells[j].leftInset, right: columnCells[j].rightInset });
 			}
-			perColumn.push(cellInsets);
+			insetsByColumn.push(cellInsets);
 		}
-		return perColumn;
+		return insetsByColumn;
 	}
 
 	/**
-	 * 控えた余白から入力欄の初期値を作る
-	 * @param {Array<object>} originalInsets 列ごとの余白情報
-	 * @returns {Array<number>} 入力欄の初期値
-	 */
-	function insetsToInitialInsetValues(originalInsets) {
-		var insetValues = [];
-		for (var i = 0; i < originalInsets.length; i++) {
-			var leftInset = originalInsets[i].length > 0 ? originalInsets[i][0].left : 0;
-			insetValues.push(rulerValueToInputUnit(leftInset));
-		}
-		return insetValues;
-	}
-
-	/**
-	 * 入力値に従って列幅を設定する
+	 * 列の状態から、列内の全セルの左右の余白を設定する
 	 * @param {Table} table 対象の表
-	 * @param {Array<EditText>} widthInputs 幅の入力欄
-	 * @param {Array<number>} originalWidths 元の列幅
+	 * @param {Array<Object>} columnStates 列ごとの状態 { width, inset }
 	 * @returns {void}
 	 */
-	function applyColumnWidths(table, widthInputs, originalWidths) {
-		for (var i = widthInputs.length - 1; i >= 0; i--) {
-			try {
-				var text = widthInputs[i].text;
-				if (text == "") {
-					table.columns[i].width = originalWidths[i];
-					continue;
-				}
-				table.columns[i].width = inputUnitToRulerValue(text * 1);
-			} catch (e) { }
-		}
-	}
-
-	/**
-	 * 入力値に従って列の左右余白を設定する
-	 * @param {Table} table 対象の表
-	 * @param {Array<EditText>} sideInsetInputs 余白の入力欄
-	 * @returns {void}
-	 */
-	function applyColumnInsets(table, sideInsetInputs) {
-		for (var i = 0; i < sideInsetInputs.length; i++) {
-			var text = sideInsetInputs[i].text;
-			if (text == "") continue;
-			var value = parseFloat(text);
-			if (isNaN(value)) continue;
-			var rulerValue = inputUnitToRulerValue(value);
-			var cells = table.columns[i].cells;
-			for (var j = 0; j < cells.length; j++) {
-				try {
-					cells[j].leftInset = rulerValue;
-					cells[j].rightInset = rulerValue;
-				} catch (e) { }
-			}
-		}
-	}
-
-	/**
-	 * 列の状態オブジェクトから左右余白を設定する
-	 * @param {Table} table 対象の表
-	 * @param {Array<object>} columnStates 列ごとの状態
-	 * @returns {void}
-	 */
-	function applyColumnInsetsFromStates(table, columnStates) {
+	function applyInsetsFromStates(table, columnStates) {
 		for (var i = 0; i < columnStates.length; i++) {
 			var insetValue = columnStates[i].inset;
 			if (insetValue == null || isNaN(insetValue)) continue;
-			var rulerValue = inputUnitToRulerValue(insetValue);
-			var cells = table.columns[i].cells;
-			for (var j = 0; j < cells.length; j++) {
+			var columnCells = table.columns[i].cells;
+			for (var j = 0; j < columnCells.length; j++) {
+				/* セル幅に収まらない余白は例外になるので、そのセルは変えない / insets wider than the cell throw; skip that cell */
 				try {
-					cells[j].leftInset = rulerValue;
-					cells[j].rightInset = rulerValue;
+					columnCells[j].leftInset = insetValue;
+					columnCells[j].rightInset = insetValue;
 				} catch (e) { }
 			}
 		}
@@ -1660,26 +1560,254 @@ function alignRightOnlyButtonRow(buttonRow) {
 	 */
 	function restoreColumnWidths(table, originalWidths) {
 		for (var i = 0; i < originalWidths.length; i++) {
-			try { table.columns[i].width = originalWidths[i]; } catch (e) { }
+			/* 戻す途中で幅と余白がぶつかると例外になるので、その列は飛ばす / skip a column when the width clashes with the current insets */
+			try {
+				table.columns[i].width = originalWidths[i];
+			} catch (e) { }
 		}
 	}
 
 	/**
-	 * 控えておいた左右余白を戻す
+	 * 控えておいた左右の余白を戻す
 	 * @param {Table} table 対象の表
-	 * @param {Array<object>} originalInsets 元の余白情報
+	 * @param {Array<Array<Object>>} originalInsets 元の余白
 	 * @returns {void}
 	 */
 	function restoreColumnInsets(table, originalInsets) {
 		for (var i = 0; i < originalInsets.length; i++) {
-			var cells = table.columns[i].cells;
-			for (var j = 0; j < cells.length && j < originalInsets[i].length; j++) {
+			var columnCells = table.columns[i].cells;
+			for (var j = 0; j < columnCells.length && j < originalInsets[i].length; j++) {
+				/* セル幅に収まらない余白は例外になるので、そのセルは飛ばす / skip a cell when the inset does not fit */
 				try {
-					cells[j].leftInset = originalInsets[i][j].left;
-					cells[j].rightInset = originalInsets[i][j].right;
+					columnCells[j].leftInset = originalInsets[i][j].left;
+					columnCells[j].rightInset = originalInsets[i][j].right;
 				} catch (e) { }
 			}
 		}
+	}
+
+	// =========================================
+	// 自動調整の測定 / Auto-fit measurement
+	// =========================================
+
+	/**
+	 * セルの行を返す（自動の折り返しも1行に数える）
+	 * @param {Cell} cell 対象のセル
+	 * @returns {Lines|null} 行のコレクション。読めないセルは null
+	 */
+	function getCellLines(cell) {
+		/* 結合で隠れたセルなど、文字を読めないセルは空として扱う / treat cells whose text cannot be read as empty */
+		try {
+			return cell.texts[0].lines;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	/**
+	 * 列内のいずれかのセルが2行以上になっているかを返す
+	 * @param {Cells} columnCells 列のセル
+	 * @returns {boolean} 2行目があれば true
+	 */
+	function hasWrappedCell(columnCells) {
+		for (var i = 0; i < columnCells.length; i++) {
+			var cellLines = getCellLines(columnCells[i]);
+			if (cellLines && cellLines.length >= 2) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * いちばん長い行の文字数から、列の内容幅を見積もる
+	 * @param {Cells} columnCells 列のセル
+	 * @param {Object} textMetrics 文字数の換算に使う値 { fontSizePt, pointsPerUnit }
+	 * @returns {number} 見積もった内容幅（定規の単位）
+	 */
+	function estimateContentWidthByChars(columnCells, textMetrics) {
+		var maxLineLength = 0;
+		for (var i = 0; i < columnCells.length; i++) {
+			var cellLines = getCellLines(columnCells[i]);
+			if (!cellLines) continue;
+			for (var j = 0; j < cellLines.length; j++) {
+				maxLineLength = Math.max(maxLineLength, cellLines[j].characters.length);
+			}
+		}
+		return maxLineLength * textMetrics.fontSizePt / textMetrics.pointsPerUnit;
+	}
+
+	/**
+	 * 列の内容が改行されずに収まる幅（左右の余白を除く）を求める。
+	 * 折り返しのある列は実際に幅を広げて測り（粗く広げてから細かく詰める）、測ったあと元の幅に戻す。
+	 * 折り返しの無い列は文字数から見積もる
+	 * @param {Table} table 対象の表
+	 * @param {number} columnIndex 列の位置
+	 * @param {Object} textMetrics 文字数の換算に使う値 { fontSizePt, pointsPerUnit }
+	 * @returns {number} 内容幅（定規の単位）
+	 */
+	function measureColumnContentWidth(table, columnIndex, textMetrics) {
+		var targetColumn = table.columns[columnIndex];
+		var columnCells = targetColumn.cells;
+		if (!hasWrappedCell(columnCells)) return estimateContentWidthByChars(columnCells, textMetrics);
+
+		var savedWidth = targetColumn.width;
+		var measuredWidth;
+		try {
+			/* 1) 粗く広げて、2行目が消える幅まで到達する / widen coarsely until no cell wraps */
+			var refineStartWidth = Math.max(0, widenColumnUntilUnwrapped(targetColumn, savedWidth, AUTOFIT_COARSE_STEP) - AUTOFIT_COARSE_STEP);
+			/* 2) 1段階戻して、細かい刻みで詰める。下限を割る幅は例外になるので、そのときは今の幅から詰める
+			   step back once and refine; a width below the minimum throws, so refine from the current width then */
+			try {
+				targetColumn.width = refineStartWidth;
+			} catch (e) { }
+			measuredWidth = widenColumnUntilUnwrapped(targetColumn, refineStartWidth, AUTOFIT_FINE_STEP);
+		} finally {
+			targetColumn.width = savedWidth;
+		}
+		/* 測った列幅には今の左右の余白が含まれるので除く / the measured width includes the current insets */
+		return measuredWidth - columnCells[0].leftInset - columnCells[0].rightInset;
+	}
+
+	/**
+	 * 折り返しが無くなるまで列幅を step ずつ広げる（AUTOFIT_MAX_STEPS 回まで。列幅の上限に当たったらそこで止める）
+	 * @param {Column} targetColumn 対象の列
+	 * @param {number} startWidth 広げ始める幅
+	 * @param {number} step 刻み（定規の単位）
+	 * @returns {number} 広げたあとの幅
+	 */
+	function widenColumnUntilUnwrapped(targetColumn, startWidth, step) {
+		var columnWidth = startWidth;
+		for (var i = 0; i < AUTOFIT_MAX_STEPS && hasWrappedCell(targetColumn.cells); i++) {
+			/* 上限を超える幅は例外になる / widths above the maximum throw */
+			try {
+				targetColumn.width = columnWidth + step;
+			} catch (e) {
+				break;
+			}
+			columnWidth += step;
+		}
+		return columnWidth;
+	}
+
+	// =========================================
+	// 入力欄の連動 / Field synchronization
+	// =========================================
+
+	/**
+	 * 幅の入力値から文字数の表示を更新する
+	 * @param {Object} columnRow buildColumnRow() の戻り値
+	 * @param {Object} textMetrics 文字数の換算に使う値
+	 * @returns {void}
+	 */
+	function updateCharCountFromWidth(columnRow, textMetrics) {
+		var charCount = calculateCharCount(parseFloat(columnRow.widthInput.text), parseFloat(columnRow.insetInput.text), textMetrics);
+		columnRow.charCountInput.text = formatNumber(charCount);
+	}
+
+	/**
+	 * 文字数の入力値から幅の表示を更新する
+	 * @param {Object} columnRow buildColumnRow() の戻り値
+	 * @param {Object} textMetrics 文字数の換算に使う値
+	 * @returns {void}
+	 */
+	function updateWidthFromCharCount(columnRow, textMetrics) {
+		var columnWidth = calculateWidthFromCharCount(parseFloat(columnRow.charCountInput.text), parseFloat(columnRow.insetInput.text), textMetrics);
+		columnRow.widthInput.text = formatNumber(columnWidth);
+	}
+
+	/**
+	 * 余白の変更に合わせて、指定方法で固定していないほうの値を計算し直す
+	 * @param {Object} columnRow buildColumnRow() の戻り値
+	 * @param {Object} textMetrics 文字数の換算に使う値
+	 * @param {string} sizingMode "absolute"（幅を固定）または "characterBased"（文字数を固定）
+	 * @returns {void}
+	 */
+	function syncWidthAndCharCountFromInset(columnRow, textMetrics, sizingMode) {
+		if (sizingMode === "absolute") updateCharCountFromWidth(columnRow, textMetrics);
+		else updateWidthFromCharCount(columnRow, textMetrics);
+	}
+
+	/**
+	 * 1列の値をほかの列（自動調整の列を除く）へ写し、columnStates も更新する
+	 * @param {Array<Object>} columnRows 列ごとの入力欄
+	 * @param {Array<Object>} columnStates 列ごとの状態（書き換える）
+	 * @param {number} sourceIndex 写し元の列の位置
+	 * @param {string} sourceMode 写す基準の値（"absolute" は幅、"characterBased" は文字数）
+	 * @param {Object} textMetrics 文字数の換算に使う値
+	 * @returns {void}
+	 */
+	function copyColumnValuesToOthers(columnRows, columnStates, sourceIndex, sourceMode, textMetrics) {
+		var sourceRow = columnRows[sourceIndex];
+		var sourceWidth = parseFloat(sourceRow.widthInput.text);
+		var sourceCharCount = parseFloat(sourceRow.charCountInput.text);
+		var sourceInset = parseFloat(sourceRow.insetInput.text);
+		var hasInset = !isNaN(sourceInset);
+		var insetForCalc = hasInset ? sourceInset : 0;
+
+		for (var i = 0; i < columnRows.length; i++) {
+			var row = columnRows[i];
+			if (i === sourceIndex || row.autoFitCheckbox.value) continue;
+
+			row.insetInput.text = hasInset ? formatNumber(sourceInset) : "";
+			columnStates[i].inset = hasInset ? sourceInset : null;
+
+			var sourceValue = (sourceMode === "characterBased") ? sourceCharCount : sourceWidth;
+			if (isNaN(sourceValue)) {
+				/* 写し元が空なら空にする（表の列幅はそのまま） / mirror an empty source; the table width stays */
+				row.widthInput.text = "";
+				row.charCountInput.text = "";
+				continue;
+			}
+			var columnWidth = sourceWidth;
+			var charCount = calculateCharCount(sourceWidth, insetForCalc, textMetrics);
+			if (sourceMode === "characterBased") {
+				columnWidth = calculateWidthFromCharCount(sourceCharCount, insetForCalc, textMetrics);
+				charCount = sourceCharCount;
+			}
+			row.widthInput.text = formatNumber(columnWidth);
+			row.charCountInput.text = formatNumber(charCount);
+			columnStates[i].width = columnWidth;
+		}
+	}
+
+	/**
+	 * 1列分の入力値を検証する
+	 * @param {Object} columnRow buildColumnRow() の戻り値
+	 * @param {string} sizingMode "absolute"（幅を検証）または "characterBased"（文字数を検証）
+	 * @param {Object} textMetrics 文字数の換算に使う値
+	 * @returns {{ok: boolean, message: string, focus: EditText}} 結果。不正なら message と戻すフォーカス先が入る
+	 */
+	function validateColumnRow(columnRow, sizingMode, textMetrics) {
+		var widthValue = parseFloat(columnRow.widthInput.text);
+		var charValue = parseFloat(columnRow.charCountInput.text);
+		var insetValue = parseFloat(columnRow.insetInput.text);
+
+		if (columnRow.insetInput.text !== "") {
+			if (isNaN(insetValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: columnRow.insetInput };
+			if (insetValue < 0) return { ok: false, message: getLabel("alert.negativeInset"), focus: columnRow.insetInput };
+		}
+
+		if (sizingMode === "absolute") {
+			if (columnRow.widthInput.text !== "") {
+				if (isNaN(widthValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: columnRow.widthInput };
+				if (widthValue < 0) return { ok: false, message: getLabel("alert.negativeWidth"), focus: columnRow.widthInput };
+			}
+			if (!isNaN(widthValue) && !isNaN(insetValue) && (widthValue - 2 * insetValue) <= 0) {
+				return { ok: false, message: getLabel("alert.insetTooLarge"), focus: columnRow.insetInput };
+			}
+			return { ok: true };
+		}
+
+		if (columnRow.charCountInput.text !== "") {
+			if (isNaN(charValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: columnRow.charCountInput };
+			if (charValue < 0) return { ok: false, message: getLabel("alert.negativeCharCount"), focus: columnRow.charCountInput };
+		}
+		if (!isNaN(charValue) && !isNaN(insetValue)) {
+			var calculatedWidth = calculateWidthFromCharCount(charValue, insetValue, textMetrics);
+			if (calculatedWidth == null || (calculatedWidth - 2 * insetValue) <= 0) {
+				return { ok: false, message: getLabel("alert.insetTooLarge"), focus: columnRow.insetInput };
+			}
+		}
+		return { ok: true };
 	}
 
 	// =========================================
@@ -1687,428 +1815,137 @@ function alignRightOnlyButtonRow(buttonRow) {
 	// =========================================
 
 	/**
-	 * 列ごとの設定コントロールを組み立てる
-	 * @param {object} parent 追加先のコンテナ
-	 * @param {number} columnCount 列数
-	 * @param {Array<number>} originalWidths 元の列幅
-	 * @param {Array<number>} initialInsetValues 余白の初期値
-	 * @param {number} fontSizePt 基準の文字サイズ（pt）
-	 * @returns {object} 生成したコントロール
-	 */
-	function buildColumnSettingsControls(parent, columnCount, originalWidths, initialInsetValues, fontSizePt) {
-		var widthInputFields = [];
-		var charCountInputFields = [];
-		var sideInsetInputFields = [];
-		var autoFitToggleCheckboxes = [];
-		var rowLabelControls = [];
-		var headerLabelControls = [];
-
-		/* 各入力欄の左に∧∨が付くぶん、見出しの幅を広げて中央をそろえる / widen headers by the stepper so they stay centered over the fields */
-		var stepperWidth = STEPPER_BUTTON_WIDTH + STEPPER_SIDE_MARGIN;
-		/* 増減後は手入力と同じ onChanging・onChange を通す。下限は既存の↑↓キーと同じ0 / after stepping, run the same handlers as typing */
-		var columnStepOptions = { min: 0, onStep: runInputHandlersAfterStep };
-
-		// ヘッダー行を追加 / Insert header row
-		var headerRow = parent.add("group");
-		headerRow.orientation = "row";
-		headerRow.spacing = 6;
-		headerRow.margins = [0, 2, 0, 6];
-
-		// 「列」
-		var headerColumn = headerRow.add("statictext", undefined, getLabel("header.column"));
-		headerColumn.justify = "center";
-		headerColumn.preferredSize.width = 14;
-		headerLabelControls.push(headerColumn);
-
-		//　「幅」
-		var headerWidth = headerRow.add("statictext", undefined, getLabel("header.width"));
-		headerWidth.justify = "center";
-		headerWidth.preferredSize.width = 70 + stepperWidth;
-		headerLabelControls.push(headerWidth);
-
-		// var headerMidSpacer = headerRow.add("group");
-		// headerMidSpacer.preferredSize.width = 10;
-
-		// 「文字数」
-		var headerCharCount = headerRow.add("statictext", undefined, getLabel("header.charCount"));
-		headerCharCount.justify = "center";
-		headerCharCount.preferredSize.width = 73 + stepperWidth;
-		headerLabelControls.push(headerCharCount);
-
-		// var headerSpacer = headerRow.add("group");
-		// headerSpacer.preferredSize.width = 16;
-
-		// 「左右の余白」
-		var headerInset = headerRow.add("statictext", undefined, getLabel("header.inset"));
-		headerInset.justify = "center";
-		headerInset.preferredSize.width = 70 + stepperWidth;
-		headerLabelControls.push(headerInset);
-
-		// var headerAutoFitSpacer = headerRow.add("group");
-		// headerAutoFitSpacer.preferredSize.width = 16;
-
-		// 「自動調整」
-		var headerAutoFit = headerRow.add("statictext", undefined, getLabel("header.autoFit"));
-		headerAutoFit.justify = "center";
-		headerAutoFit.preferredSize.width = 60;
-		headerLabelControls.push(headerAutoFit);
-
-		for (var i = 0; i < columnCount; i++) {
-			var inputRow = parent.add("group");
-			inputRow.orientation = "row";
-			inputRow.spacing = 6;
-
-			var rowLabelRow = [];
-			var columnLabel = inputRow.add("statictext", undefined, String(i + 1));
-			columnLabel.preferredSize.width = 20;
-			rowLabelRow.push(columnLabel);
-
-			var widthValue = rulerValueToInputUnit(originalWidths[i]);
-			var widthInput = addSteppedInput(inputRow, formatNumber(widthValue), columnStepOptions);
-			widthInput.characters = 5;
-			// 行ごとの幅単位ラベルは表示しない / Per-row width unit label is omitted
-			// rowLabelRow.push(inputRow.add("statictext", undefined, getLabel("unit.mm")));
-
-			var midSpacer = inputRow.add("group");
-			midSpacer.preferredSize.width = 10;
-
-			var charCount = calculateCharCount(widthValue, initialInsetValues[i], fontSizePt);
-			var charCountInput = addSteppedInput(inputRow, formatNumber(charCount), columnStepOptions);
-			charCountInput.characters = 5;
-			// 行ごとの文字数単位ラベルは表示しない / Per-row character-count unit label is omitted
-			// rowLabelRow.push(inputRow.add("statictext", undefined, getLabel("unit.characters")));
-
-			var rowSpacer = inputRow.add("group");
-			rowSpacer.preferredSize.width = 16;
-
-			var sideInsetInput = addSteppedInput(inputRow, formatNumber(initialInsetValues[i]), columnStepOptions);
-			sideInsetInput.characters = 5;
-
-			var autoFitSpacer = inputRow.add("group");
-			autoFitSpacer.preferredSize.width = 10;
-
-			var autoFitGroup = inputRow.add("group");
-			autoFitGroup.preferredSize.width = 20;
-			autoFitGroup.alignChildren = ["center", "center"];
-			var autoFitCheckbox = autoFitGroup.add("checkbox", undefined, "");
-
-			widthInputFields.push(widthInput);
-			charCountInputFields.push(charCountInput);
-			sideInsetInputFields.push(sideInsetInput);
-			autoFitToggleCheckboxes.push(autoFitCheckbox);
-			rowLabelControls.push(rowLabelRow);
-		}
-		return {
-			widthInputs: widthInputFields,
-			charCountInputs: charCountInputFields,
-			sideInsetInputs: sideInsetInputFields,
-			autoFitCheckboxes: autoFitToggleCheckboxes,
-			rowLabels: rowLabelControls,
-			headerLabels: headerLabelControls
-		};
-	}
-
-	/**
-	 * 幅の入力値から文字数の表示を更新する
-	 * @param {EditText} widthInput 幅の入力欄
-	 * @param {EditText} charCountInput 文字数の入力欄
-	 * @param {EditText} sideInsetInput 余白の入力欄
-	 * @param {number} fontSizePt 基準の文字サイズ（pt）
+	 * コントロールの有効／無効とディム表示を切り替える（∧∨付きの入力欄は∧∨もそろえる）
+	 * @param {Object} control 対象のコントロール
+	 * @param {boolean} isEnabled 有効にするなら true
 	 * @returns {void}
 	 */
-	function updateCharCountFromWidth(widthInput, charCountInput, sideInsetInput, fontSizePt) {
-		var widthValue = parseFloat(widthInput.text);
-		var insetValue = parseFloat(sideInsetInput.text);
-		var cc = calculateCharCount(widthValue, insetValue, fontSizePt);
-		charCountInput.text = formatNumber(cc);
-	}
-
-	/**
-	 * 文字数の入力値から幅の表示を更新する
-	 * @param {EditText} widthInput 幅の入力欄
-	 * @param {EditText} charCountInput 文字数の入力欄
-	 * @param {EditText} sideInsetInput 余白の入力欄
-	 * @param {number} fontSizePt 基準の文字サイズ（pt）
-	 * @returns {void}
-	 */
-	function updateWidthFromCharCount(widthInput, charCountInput, sideInsetInput, fontSizePt) {
-		var cc = parseFloat(charCountInput.text);
-		var insetValue = parseFloat(sideInsetInput.text);
-		var widthValue = calculateWidthFromCharCount(cc, insetValue, fontSizePt);
-		widthInput.text = formatNumber(widthValue);
-	}
-
-	/**
-	 * 余白の変更に合わせて幅と文字数を揃える
-	 * @param {EditText} widthInput 幅の入力欄
-	 * @param {EditText} charCountInput 文字数の入力欄
-	 * @param {EditText} sideInsetInput 余白の入力欄
-	 * @param {number} fontSizePt 基準の文字サイズ（pt）
-	 * @param {string} primaryInputMode 現在の指定方法
-	 * @returns {void}
-	 */
-	function syncWidthAndCharCountFromInset(widthInput, charCountInput, sideInsetInput, fontSizePt, primaryInputMode) {
-		if (primaryInputMode == "absolute") {
-			updateCharCountFromWidth(widthInput, charCountInput, sideInsetInput, fontSizePt);
-		}
-		else {
-			updateWidthFromCharCount(widthInput, charCountInput, sideInsetInput, fontSizePt);
-		}
-	}
-
-	/**
-	 * 「全列に適用」で 1 列の値を他の列へ反映する
-	 * @param {Array<EditText>} widthInputs 幅の入力欄
-	 * @param {Array<EditText>} charCountInputs 文字数の入力欄
-	 * @param {Array<EditText>} sideInsetInputs 余白の入力欄
-	 * @param {number} sourceIdx 基準にする列の位置
-	 * @param {number} fontSizePt 基準の文字サイズ（pt）
-	 * @param {string} primaryInputMode 現在の指定方法
-	 * @param {Array<Checkbox>} autoFitCheckboxes 自動調整のチェックボックス
-	 * @param {Array<Object>} columnStates 列ごとの状態（書き換える）
-	 * @returns {void}
-	 */
-	function syncUnifiedInputsFromSource(widthInputs, charCountInputs, sideInsetInputs, sourceIdx, fontSizePt, primaryInputMode, autoFitCheckboxes, columnStates) {
-		var sourceWidth = parseFloat(widthInputs[sourceIdx].text);
-		var sourceChar = parseFloat(charCountInputs[sourceIdx].text);
-		var sourceInset = parseFloat(sideInsetInputs[sourceIdx].text);
-
-		var hasWidth = !isNaN(sourceWidth);
-		var hasChar = !isNaN(sourceChar);
-		var hasInset = !isNaN(sourceInset);
-
-		for (var i = 0; i < widthInputs.length; i++) {
-			if (i == sourceIdx) continue;
-			if (autoFitCheckboxes && autoFitCheckboxes[i] && autoFitCheckboxes[i].value) continue;
-
-			if (hasInset) {
-				sideInsetInputs[i].text = formatNumber(sourceInset);
-				columnStates[i].inset = sourceInset;
-			}
-			else {
-				sideInsetInputs[i].text = "";
-				columnStates[i].inset = null;
-			}
-
-			if (primaryInputMode == "characterBased") {
-				if (hasChar) {
-					charCountInputs[i].text = formatNumber(sourceChar);
-					var recalculatedWidth = calculateWidthFromCharCount(sourceChar, hasInset ? sourceInset : 0, fontSizePt);
-					widthInputs[i].text = formatNumber(recalculatedWidth);
-					columnStates[i].mode = "manual";
-					columnStates[i].lockedWidth = null;
-					columnStates[i].width = recalculatedWidth;
-				}
-				else {
-					charCountInputs[i].text = "";
-					widthInputs[i].text = "";
-					columnStates[i].mode = "manual";
-					columnStates[i].lockedWidth = null;
-				}
-			}
-			else {
-				if (hasWidth) {
-					widthInputs[i].text = formatNumber(sourceWidth);
-					var recalculatedChar = calculateCharCount(sourceWidth, hasInset ? sourceInset : 0, fontSizePt);
-					charCountInputs[i].text = formatNumber(recalculatedChar);
-					columnStates[i].mode = "manual";
-					columnStates[i].lockedWidth = null;
-					columnStates[i].width = sourceWidth;
-				}
-				else {
-					widthInputs[i].text = "";
-					charCountInputs[i].text = "";
-					columnStates[i].mode = "manual";
-					columnStates[i].lockedWidth = null;
-				}
-			}
-		}
-	}
-
-	/**
-	 * コントロールの有効／無効を切り替える
-	 * @param {object} control 対象のコントロール
-	 * @param {boolean} enabled 有効にするなら true
-	 * @returns {void}
-	 */
-	function setControlEnabled(control, enabled) {
-		try {
-			control.enabled = enabled;
-		} catch (e) { }
-		setLabelDimmed(control, !enabled);
-		/* ∧∨付きの入力欄は∧∨もそろえ、自作描画なので描き直す（表示前は最初の描画で反映される）
-		   keep the stepper in step and redraw it; before the window is shown the first draw picks it up */
+	function setControlEnabled(control, isEnabled) {
+		control.enabled = isEnabled;
+		setLabelDimmed(control, !isEnabled);
+		/* ∧∨は自作描画なので描き直す（表示前は最初の描画で反映される）
+		   the stepper is custom-drawn, so redraw it; before the window is shown the first draw picks it up */
 		if (control.stepperGroup) {
-			control.stepperGroup.enabled = enabled;
+			control.stepperGroup.enabled = isEnabled;
 			if (control.window && control.window.visible) redrawSteppersIn(control.stepperGroup);
 		}
 	}
 
 	/**
-	 * ラベルのディム表示を切り替える
-	 * @param {object} control 対象のコントロール
-	 * @param {boolean} dim ディム表示にするなら true
+	 * 文字（パネルは見出し）の色をディム表示と通常色で切り替える
+	 * @param {Object} control 対象のコントロール
+	 * @param {boolean} isDimmed ディム表示にするなら true
 	 * @returns {void}
 	 */
-	function setLabelDimmed(control, dim) {
+	function setLabelDimmed(control, isDimmed) {
+		/* 文字色を持たないコントロールでは例外になるので、色は変えない / controls without a text color throw; leave them */
 		try {
-			var g = control.graphics;
-			var rgb = dim ? [0.55, 0.55, 0.55] : [0, 0, 0];
-			g.foregroundColor = g.newPen(g.PenType.SOLID_COLOR, rgb, 1);
+			var controlGraphics = control.graphics;
+			controlGraphics.foregroundColor = controlGraphics.newPen(controlGraphics.PenType.SOLID_COLOR,
+				isDimmed ? TEXT_DIMMED_COLOR : TEXT_NORMAL_COLOR, 1);
 		} catch (e) { }
 	}
 
-	// =========================================
-	// フォントサイズ / Font size
-	// =========================================
+	/**
+	 * 入力欄の文字を、いったん空にしてから入れ直す（ScriptUI に確実に描き直させる）
+	 * @param {EditText} targetField 対象の入力欄
+	 * @param {string} fieldText 入れる文字
+	 * @returns {void}
+	 */
+	function setFieldTextAndRepaint(targetField, fieldText) {
+		targetField.text = "";
+		targetField.text = fieldText;
+	}
 
-	var fontSizePtForValidationCache = null;
+	// =========================================
+	// 文字サイズ・単位・数値 / Font size, units and numbers
+	// =========================================
 
 	/**
-	 * 表内で最も支配的な文字サイズを求める
+	 * 表内でいちばん多くの文字に使われている文字サイズを求める
 	 * @param {Table} table 対象の表
-	 * @returns {number} 文字サイズ（pt）
+	 * @returns {number|null} 文字サイズ（pt）。文字が無ければ null
 	 */
 	function findDominantFontSize(table) {
-		var sizeCharCounts = {};
+		var charCountBySize = {};
 		var allCells = table.cells;
 		for (var i = 0; i < allCells.length; i++) {
+			/* 結合で隠れたセルなど、書式を読めないセルは飛ばす / skip cells whose formatting cannot be read */
 			try {
 				var styleRanges = allCells[i].textStyleRanges;
 				for (var j = 0; j < styleRanges.length; j++) {
-					var size = styleRanges[j].pointSize;
-					var charLength = styleRanges[j].characters.length;
-					if (charLength == 0) continue;
-					if (typeof size != "number") continue;
-					var key = String(size);
-					if (!sizeCharCounts[key]) sizeCharCounts[key] = 0;
-					sizeCharCounts[key] += charLength;
+					var pointSize = styleRanges[j].pointSize;
+					var rangeLength = styleRanges[j].characters.length;
+					if (rangeLength === 0 || typeof pointSize !== "number") continue;
+					var sizeKey = String(pointSize);
+					charCountBySize[sizeKey] = (charCountBySize[sizeKey] || 0) + rangeLength;
 				}
 			} catch (e) { }
 		}
 
 		var dominantSize = null;
-		var maxCount = 0;
-		for (var key in sizeCharCounts) {
-			if (sizeCharCounts[key] > maxCount) {
-				maxCount = sizeCharCounts[key];
-				dominantSize = Number(key);
+		var maxCharCount = 0;
+		for (var sizeKey2 in charCountBySize) {
+			if (charCountBySize[sizeKey2] > maxCharCount) {
+				maxCharCount = charCountBySize[sizeKey2];
+				dominantSize = Number(sizeKey2);
 			}
 		}
 		return dominantSize;
 	}
 
-	// =========================================
-	// 単位変換 / Unit conversion
-	// =========================================
-
 	/**
-	 * ポイントを Q に換算する
-	 * @param {number} pt ポイント値
-	 * @returns {number} Q 値
+	 * 横方向の定規の単位について、表示名と 1 単位あたりのポイント数を返す
+	 * @returns {{label: string, pointsPerUnit: number}} 単位の情報
 	 */
-	function ptToQ(pt) { return pt * 25.4 / 18; }
-	/**
-	 * ポイントをミリメートルに換算する
-	 * @param {number} pt ポイント値
-	 * @returns {number} ミリメートル値
-	 */
-	function ptToMm(pt) { return pt * 25.4 / 72; }
-	/**
-	 * ミリメートルをポイントに換算する
-	 * @param {number} mm ミリメートル値
-	 * @returns {number} ポイント値
-	 */
-	function mmToPt(mm) { return mm * 72 / 25.4; }
-
-	/**
-	 * 現在の定規単位の表示文字列を取得する
-	 * @returns {string} 単位の文字列
-	 */
-	function getRulerUnitString() {
-		var u = app.activeDocument.viewPreferences.horizontalMeasurementUnits;
-		if (u == MeasurementUnits.MILLIMETERS) return "mm";
-		if (u == MeasurementUnits.CENTIMETERS) return "cm";
-		if (u == MeasurementUnits.POINTS) return "pt";
-		if (u == MeasurementUnits.INCHES || u == MeasurementUnits.INCHES_DECIMAL) return "in";
-		if (u == MeasurementUnits.PICAS) return "pc";
-		return "pt";
+	function getRulerUnitInfo() {
+		switch (app.activeDocument.viewPreferences.horizontalMeasurementUnits) {
+			case MeasurementUnits.MILLIMETERS: return { label: "mm", pointsPerUnit: 72 / 25.4 };
+			case MeasurementUnits.CENTIMETERS: return { label: "cm", pointsPerUnit: 72 / 2.54 };
+			case MeasurementUnits.INCHES:
+			case MeasurementUnits.INCHES_DECIMAL: return { label: "in", pointsPerUnit: 72 };
+			case MeasurementUnits.PICAS: return { label: "pc", pointsPerUnit: 12 };
+			case MeasurementUnits.AGATES: return { label: "ag", pointsPerUnit: 5.5 };
+			case MeasurementUnits.Q: return { label: "Q", pointsPerUnit: 72 / 25.4 * 0.25 };
+			case MeasurementUnits.HA: return { label: "H", pointsPerUnit: 72 / 25.4 * 0.25 };
+			case MeasurementUnits.CICEROS: return { label: "c", pointsPerUnit: 12.7883 };
+			case MeasurementUnits.PIXELS: return { label: "px", pointsPerUnit: 1 };
+			default: return { label: "pt", pointsPerUnit: 1 };
+		}
 	}
 
 	/**
-	 * 定規単位の値を入力欄の単位へ変換する
-	 * @param {number} value 定規単位での値
-	 * @returns {number} 入力欄での値
+	 * 列幅と余白から、内容幅に収まる文字数を求める
+	 * @param {number} widthValue 列幅（定規の単位）
+	 * @param {number} insetValue 左右の余白（定規の単位、未入力なら 0 扱い）
+	 * @param {Object} textMetrics 文字数の換算に使う値 { fontSizePt, pointsPerUnit }
+	 * @returns {number|null} 文字数。求められなければ null
 	 */
-	function rulerValueToInputUnit(value) {
-		var unit = getRulerUnitString();
-		try { return new UnitValue(value, unit).as(unit); } catch (e) { return value; }
-	}
-
-	/**
-	 * 入力欄の値を定規単位へ変換する
-	 * @param {number} value 入力欄での値
-	 * @returns {number} 定規単位での値
-	 */
-	function inputUnitToRulerValue(value) {
-		return value;
-	}
-
-	/**
-	 * 入力欄の値をポイントへ変換する
-	 * @param {number} value 入力欄での値
-	 * @returns {number} ポイント値
-	 */
-	function inputUnitToPt(value) {
-		var unit = getRulerUnitString();
-		if (unit == "pt") return value;
-		try { return new UnitValue(value, unit).as("pt"); } catch (e) { return value; }
-	}
-
-	/**
-	 * ポイント値を入力欄の単位へ変換する
-	 * @param {number} value ポイント値
-	 * @returns {number} 入力欄での値
-	 */
-	function ptToInputUnit(value) {
-		var unit = getRulerUnitString();
-		if (unit == "pt") return value;
-		try { return new UnitValue(value, "pt").as(unit); } catch (e) { return value; }
-	}
-
-	/**
-	 * 幅と余白から収まる文字数を求める
-	 * @param {number} widthValue 列幅
-	 * @param {number} insetValue 左右の余白
-	 * @param {number} fontSizePt 基準の文字サイズ（pt）
-	 * @returns {number} 文字数
-	 */
-	function calculateCharCount(widthValue, insetValue, fontSizePt) {
-		if (!fontSizePt || widthValue == null || isNaN(widthValue)) return null;
+	function calculateCharCount(widthValue, insetValue, textMetrics) {
+		if (!textMetrics.fontSizePt || widthValue == null || isNaN(widthValue)) return null;
 		var inset = (insetValue == null || isNaN(insetValue)) ? 0 : insetValue;
-		var contentValue = widthValue - 2 * inset;
-		if (contentValue <= 0) return null;
-		return inputUnitToPt(contentValue) / fontSizePt;
+		var contentWidth = widthValue - 2 * inset;
+		if (contentWidth <= 0) return null;
+		return contentWidth * textMetrics.pointsPerUnit / textMetrics.fontSizePt;
 	}
 
 	/**
-	 * 文字数と余白から必要な列幅を求める
+	 * 文字数と余白から、必要な列幅を求める
 	 * @param {number} charCount 文字数
-	 * @param {number} insetValue 左右の余白
-	 * @param {number} fontSizePt 基準の文字サイズ（pt）
-	 * @returns {number} 列幅
+	 * @param {number} insetValue 左右の余白（定規の単位、未入力なら 0 扱い）
+	 * @param {Object} textMetrics 文字数の換算に使う値 { fontSizePt, pointsPerUnit }
+	 * @returns {number|null} 列幅（定規の単位）。求められなければ null
 	 */
-	function calculateWidthFromCharCount(charCount, insetValue, fontSizePt) {
-		if (!fontSizePt || charCount == null || isNaN(charCount)) return null;
-		if (charCount < 0) return null;
+	function calculateWidthFromCharCount(charCount, insetValue, textMetrics) {
+		if (!textMetrics.fontSizePt || charCount == null || isNaN(charCount) || charCount < 0) return null;
 		var inset = (insetValue == null || isNaN(insetValue)) ? 0 : insetValue;
-		return ptToInputUnit(charCount * fontSizePt) + 2 * inset;
+		return charCount * textMetrics.fontSizePt / textMetrics.pointsPerUnit + 2 * inset;
 	}
 
 	/**
-	 * 入力欄に表示する数値を整形する
-	 * @param {number} value 表示する数値
-	 * @returns {string} 整形した文字列
+	 * 入力欄に表示する数値を小数第2位で丸める
+	 * @param {number|null} value 表示する数値
+	 * @returns {string} 整形した文字列。数値でなければ空文字
 	 */
 	function formatNumber(value) {
 		if (value == null || isNaN(value)) return "";
@@ -2116,68 +1953,22 @@ function alignRightOnlyButtonRow(buttonRow) {
 	}
 
 	/**
-	 * 列ごとの入力値を検証する
-	 * @param {EditText} widthInput 幅の入力欄
-	 * @param {EditText} charCountInput 文字数の入力欄
-	 * @param {EditText} sideInsetInput 余白の入力欄
-	 * @param {string} primaryInputMode 現在の指定方法
-	 * @returns {boolean} すべて有効なら true
+	 * 一括入力の文字列を数値の配列に変換する（空白またはカンマ区切り）
+	 * @param {string} batchText 入力された文字列
+	 * @returns {Array<number|null>} 数値の配列。数値にできない要素は null
 	 */
-	function validatePerColumnRow(widthInput, charCountInput, sideInsetInput, primaryInputMode) {
-		var widthValue = parseFloat(widthInput.text);
-		var charValue = parseFloat(charCountInput.text);
-		var insetValue = parseFloat(sideInsetInput.text);
-
-		if (sideInsetInput.text !== "") {
-			if (isNaN(insetValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: sideInsetInput };
-			if (insetValue < 0) return { ok: false, message: getLabel("alert.negativeInset"), focus: sideInsetInput };
-		}
-
-		if (primaryInputMode == "absolute") {
-			if (widthInput.text !== "") {
-				if (isNaN(widthValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: widthInput };
-				if (widthValue < 0) return { ok: false, message: getLabel("alert.negativeWidth"), focus: widthInput };
-			}
-			if (!isNaN(widthValue) && !isNaN(insetValue) && (widthValue - 2 * insetValue) <= 0) {
-				return { ok: false, message: getLabel("alert.insetTooLarge"), focus: sideInsetInput };
-			}
-		}
-		else {
-			if (charCountInput.text !== "") {
-				if (isNaN(charValue)) return { ok: false, message: getLabel("alert.invalidNumber"), focus: charCountInput };
-				if (charValue < 0) return { ok: false, message: getLabel("alert.negativeCharCount"), focus: charCountInput };
-			}
-			if (!isNaN(charValue) && !isNaN(insetValue)) {
-				var calculatedWidth = calculateWidthFromCharCount(charValue, insetValue, fontSizePtForValidationCache);
-				if (calculatedWidth == null || (calculatedWidth - 2 * insetValue) <= 0) {
-					return { ok: false, message: getLabel("alert.insetTooLarge"), focus: sideInsetInput };
-				}
-			}
-		}
-
-		return { ok: true };
-	}
-
-	/**
-	 * 一括入力の文字列を数値の配列に変換する
-	 * @param {string} text 入力された文字列
-	 * @returns {Array<number>|null} 数値の配列。無効な場合は null
-	 */
-	function parseBatchInput(text) {
-		if (text == null) return [];
-		var trimmed = text.replace(/^\s+|\s+$/g, "");
-		if (trimmed == "") return [];
-		// 空白またはカンマで分割 / Split by whitespace or commas
-		var parts = trimmed.split(/[\s,]+/);
-		var values = [];
+	function parseBatchInput(batchText) {
+		var trimmedText = String(batchText || "").replace(/^\s+|\s+$/g, "");
+		if (trimmedText === "") return [];
+		var parts = trimmedText.split(/[\s,]+/);
+		var batchValues = [];
 		for (var i = 0; i < parts.length; i++) {
-			// 空要素は無効値として扱う / Treat empty parts as invalid values
-			if (parts[i] == "") { values.push(null); continue; }
-			var n = parseFloat(parts[i]);
-			// 数値化できない要素は無効値として扱う / Treat non-numeric parts as invalid values
-			values.push(isNaN(n) ? null : n);
+			var parsedValue = parseFloat(parts[i]);
+			batchValues.push(isNaN(parsedValue) ? null : parsedValue);
 		}
-		return values;
+		return batchValues;
 	}
+
+	main();
 
 })();

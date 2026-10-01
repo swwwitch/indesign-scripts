@@ -36,12 +36,21 @@ Adjusts table column widths, either per column or through a single batch entry.
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdTableColumnWidthAdjuster.jsx` |
-| Version | v1.3.0 |
+| Version | v1.3.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-19 |
-| Last updated | 2026-09-30 |
+| Last updated | 2026-10-01 |
 
 ### Update History
+
+#### v1.3.1 (2026-10-01)
+
+- Fixed Auto Fit on wrapping columns adding the left/right inset twice, which made the column too wide
+- Fixed character-count conversion and the unit label when the ruler unit is Q, Ha, agates, ciceros or pixels
+- Fixed headers and column numbers showing in black on a dark UI
+- Added tooltips to Set by Character Count, Apply to All Columns, L/R Inset, Auto Fit and the batch input field
+- Shortened the English headers and the batch input hint
+- Cleaned up the code (split long functions, merged duplicates, removed unused code)
 
 #### v1.3.0 (2026-09-30)
 

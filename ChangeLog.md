@@ -4,6 +4,7 @@
 
 ### 調整
 
+- [表の列幅をまとめて調整](readme-ja/IdTableColumnWidthAdjuster.md)（v1.3.1）：折り返しのある列の［自動調整］で左右の余白が二重に足されていた問題、定規の単位が Q・H などのときに文字数の換算がずれていた問題、ダークUIで見出しが黒く表示されていた問題を修正。ツールチップを追加し、コードを整理
 - [スクリプトをキーワードで絞り込んで実行](readme-ja/IdScriptLauncher.md)（v1.3.0）：補助アプリ OpenInFileViewer.app があれば、フォルダーを開く・ファイルを表示する処理を Path Finder の起動中は Path Finder で行うようにした。共通部品 OpenInFileViewer を追加
 - [段落スタイル・文字スタイルを一括登録](readme-ja/IdStyleSetup.md)（v1.5.0）：継承関係を再編し、`base-font`（すべて）・`base-heading`（見出し系）・`base-text`（本文系）でフォントを一括変更できるように。正規表現スタイルを用途別に設定。表セルを base-table・td-left・th-left を基準に再編。各正規表現の先頭に `(?#欧文)` などの説明を付けるように変更。`page-number` の行揃えを小口揃えに
 - [版面・グリッド・区切り線をプレビュー付きで作成](readme-ja/IdLayoutGridBuilder.md)（v1.2.0）：マージンと［列と行の間隔］の［連動］をチェックボックスからリンクアイコンに変更
