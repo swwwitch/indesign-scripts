@@ -40,6 +40,7 @@ Adjusts table column widths, either per column or through a single batch entry.
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-19 |
 | Last updated | 2026-10-01 |
+| Article | https://note.com/dtp_tranist/n/n20d58c1bc003 |
 
 ### Update History
 
@@ -49,6 +50,7 @@ Adjusts table column widths, either per column or through a single batch entry.
 - Fixed character-count conversion and the unit label when the ruler unit is Q, Ha, agates, ciceros or pixels
 - Fixed headers and column numbers showing in black on a dark UI
 - Added tooltips to Set by Character Count, Apply to All Columns, L/R Inset, Auto Fit and the batch input field
+- The Sizing Method radio buttons are now laid out side by side
 - Shortened the English headers and the batch input hint
 - Cleaned up the code (split long functions, merged duplicates, removed unused code)
 

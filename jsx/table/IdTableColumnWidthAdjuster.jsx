@@ -9,6 +9,9 @@
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableColumnWidthAdjuster.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n20d58c1bc003
+
 ### Overview
 
 Adjusts the column widths of the selected cells or table, either per column or with a single value applied to all.
@@ -27,8 +30,9 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-19";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-01";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableColumnWidthAdjuster.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnWidthAdjuster.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableColumnWidthAdjuster.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnWidthAdjuster.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n20d58c1bc003"; /* 紹介記事 / article URL */
 
 // Original idea
 // AdjColWidth_221003a.jsx by 照山裕爾（mottainaiDTP）
@@ -1333,9 +1337,11 @@ function alignRightOnlyButtonRow(buttonRow) {
 		setupPanel(perColumnPanel, 10);
 
 		var sizingMethodPanel = perColumnPanel.add("panel", undefined, getLabel("panel.sizingMethod"));
-		setupPanel(sizingMethodPanel, 6);
-		var absoluteRadio = sizingMethodPanel.add("radiobutton", undefined, getLabel("radio.modeAbsolute"));
-		var characterBasedRadio = sizingMethodPanel.add("radiobutton", undefined, getLabel("radio.modeCharacterBased"));
+		setupPanel(sizingMethodPanel);
+		var sizingMethodRow = sizingMethodPanel.add("group");
+		setupRow(sizingMethodRow, "left", COLUMN_SPACING);
+		var absoluteRadio = sizingMethodRow.add("radiobutton", undefined, getLabel("radio.modeAbsolute"));
+		var characterBasedRadio = sizingMethodRow.add("radiobutton", undefined, getLabel("radio.modeCharacterBased"));
 		characterBasedRadio.helpTip = getLabel("tooltip.modeCharacterBased");
 		absoluteRadio.value = true;
 
