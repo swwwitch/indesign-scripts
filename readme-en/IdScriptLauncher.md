@@ -54,6 +54,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 - If the launcher itself sits in the target folder, it is left out of the list.
 - Alias folders are not followed, to avoid loops.
 - "Reveal in Finder" uses `/Applications/RevealInFinder.app`. Without it, the enclosing folder is opened instead (as on platforms other than macOS).
+- With the helper app `/Applications/OpenInFileViewer.app` installed, files and folders are shown in Path Finder when it is running, and in Finder otherwise (it takes priority over RevealInFinder.app). Build it from [OpenInFileViewer.applescript](https://github.com/swwwitch/illustrator-scripts/blob/master/helpers/OpenInFileViewer.applescript) with `osacompile -o /Applications/OpenInFileViewer.app OpenInFileViewer.applescript`.
 - Settings are stored in `IdScriptLauncher-prefs.txt` in the user data folder.
 - While "Remember the search" is on, the keyword, the "Include subdirectories" and "Full path" states and the list selections are stored in `IdScriptLauncher.session.txt` in the temp folder, tagged with the name of a working file InDesign only keeps while it runs, so a restart changes that name and brings back the defaults (macOS only). Changing the target folder drops the list selections only.
 
@@ -69,6 +70,10 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
 ### Update History
+
+#### v1.3.0 (2026-10-01)
+
+- Folders and files are now shown in Path Finder while it is running, when the helper app OpenInFileViewer.app is installed (takes priority over RevealInFinder.app)
 
 #### v1.2.3 (2026-10-01)
 

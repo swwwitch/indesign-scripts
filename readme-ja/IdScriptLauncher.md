@@ -54,6 +54,7 @@
 - 対象フォルダーにこのランチャー自身がある場合、一覧には表示されません。
 - エイリアスのフォルダーは循環を避けるためたどりません。
 - 「Finder で表示」には `/Applications/RevealInFinder.app` を使います。無い場合は囲みフォルダーを開きます（macOS 以外も同様）。
+- 補助アプリ `/Applications/OpenInFileViewer.app` があると、Path Finder が起動しているときは Path Finder で、起動していなければ Finder で表示します（RevealInFinder.app より優先）。補助アプリは [OpenInFileViewer.applescript](https://github.com/swwwitch/illustrator-scripts/blob/master/helpers/OpenInFileViewer.applescript) から `osacompile -o /Applications/OpenInFileViewer.app OpenInFileViewer.applescript` で作ります。
 - 設定は `IdScriptLauncher-prefs.txt`（ユーザーデータフォルダー）に保存されます。
 - 「検索条件を記憶」がONのとき、キーワード、「サブディレクトリを含む」「フルパス」、リストの選択を、一時フォルダーの `IdScriptLauncher.session.txt` に記録します。InDesignが起動中だけ作る作業用ファイルの名前を添えてあり、起動し直すと名前が変わるため初期状態に戻ります（macOSのみ）。対象フォルダーを変更したときは、リストの選択だけ引き継ぎません。
 
@@ -69,6 +70,10 @@
 | 紹介記事 | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
 ### 更新履歴
+
+#### v1.3.0（2026-10-01）
+
+- フォルダーを開く・ファイルを表示するとき、補助アプリ OpenInFileViewer.app があれば Path Finder の起動中は Path Finder で表示するようにした（RevealInFinder.app より優先）
 
 #### v1.2.3（2026-10-01）
 

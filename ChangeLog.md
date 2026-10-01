@@ -4,6 +4,7 @@
 
 ### 調整
 
+- [スクリプトをキーワードで絞り込んで実行](readme-ja/IdScriptLauncher.md)（v1.3.0）：補助アプリ OpenInFileViewer.app があれば、フォルダーを開く・ファイルを表示する処理を Path Finder の起動中は Path Finder で行うようにした。共通部品 OpenInFileViewer を追加
 - [段落スタイル・文字スタイルを一括登録](readme-ja/IdStyleSetup.md)（v1.5.0）：継承関係を再編し、`base-font`（すべて）・`base-heading`（見出し系）・`base-text`（本文系）でフォントを一括変更できるように。正規表現スタイルを用途別に設定。表セルを base-table・td-left・th-left を基準に再編。各正規表現の先頭に `(?#欧文)` などの説明を付けるように変更。`page-number` の行揃えを小口揃えに
 - [版面・グリッド・区切り線をプレビュー付きで作成](readme-ja/IdLayoutGridBuilder.md)（v1.2.0）：マージンと［列と行の間隔］の［連動］をチェックボックスからリンクアイコンに変更
 - 右側のボタンだけの行は、ダイアログの内側の幅（左右の余白を除く）が 200px 以内なら中央、それより広ければ右揃えに変更（26本）
