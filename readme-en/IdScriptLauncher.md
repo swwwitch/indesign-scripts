@@ -70,6 +70,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
 ### Update History
+- v1.3.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.3.0 (2026-10-01)
 

@@ -37,6 +37,7 @@ Transposes the rows and columns of the selected table. Identical to IdTransposeT
 | Last updated | 2026-10-01 |
 
 ### Update History
+- v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.1.1 (2026-10-01)
 

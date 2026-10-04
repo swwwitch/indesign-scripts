@@ -63,6 +63,7 @@ Does the same as Object > Anchored Object > Release in one pass, without selecti
 | Article | https://note.com/dtp_tranist/n/ne3ee16f466bf |
 
 ### Update History
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.0.2 (2026-10-01)
 

@@ -41,6 +41,7 @@ Collects text-anchored graphic frames and adjusts their width, frame size and im
 | Last updated | 2026-10-01 |
 
 ### Update History
+- v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.0.2 (2026-10-01)
 

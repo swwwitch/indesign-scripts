@@ -45,6 +45,7 @@ Applies a paragraph style to paragraphs that contain the given search text (a ma
 | Last updated | 2026-10-01 |
 
 ### Update History
+- v1.2.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.2.0 (2026-10-01)
 

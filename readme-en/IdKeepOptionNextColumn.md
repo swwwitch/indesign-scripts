@@ -35,6 +35,7 @@ Sets the Start Paragraph option of the selected paragraph to Next Column (Frame)
 | Last updated | 2026-09-30 |
 
 ### Update History
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.0.1 (2026-09-30)
 

@@ -72,6 +72,7 @@ The folder listing is read once while the dialog is open and reused for the prev
 | Article | https://note.com/dtp_tranist/n/nc88dd887eb1c |
 
 ### Update History
+- v1.3.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.3.4 (2026-10-01)
 

@@ -35,6 +35,7 @@ A minimal launcher that simply runs one ExtendScript file chosen from a file dia
 | Last updated | 2026-09-30 |
 
 ### Update History
+- v1.0.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.0.1 (2026-09-30)
 

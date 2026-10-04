@@ -45,6 +45,7 @@ Sets table row heights with a live preview, choosing the scope (selection / stor
 | Article | https://note.com/dtp_tranist/n/n9f95f8e98db6 |
 
 ### Update History
+- v1.4.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.4.1 (2026-09-30)
 

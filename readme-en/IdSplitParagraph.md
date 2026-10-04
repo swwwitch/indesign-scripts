@@ -45,6 +45,7 @@ Splits each paragraph in the selected text frame into its own text frame, keepin
 | Article | https://note.com/dtp_tranist/n/n8793ea71526b |
 
 ### Update History
+- v1.1.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.1.3 (2026-10-01)
 

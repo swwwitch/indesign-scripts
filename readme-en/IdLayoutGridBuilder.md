@@ -72,6 +72,7 @@ Everything the script creates can be undone in a single step.
 | Last updated | 2026-10-01 |
 
 ### Update History
+- v1.2.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.2.0 (2026-10-01)
 

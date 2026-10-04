@@ -41,6 +41,7 @@ Reviews and bulk-applies Japanese typesetting settings (kinsoku set, kinsoku adj
 | Last updated | 2026-10-01 |
 
 ### Update History
+- v1.3.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.3.1 (2026-10-01)
 

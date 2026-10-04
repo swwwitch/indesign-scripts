@@ -52,6 +52,7 @@ Original: Table Transpose v1.0 by Iain Anderson
 | 紹介記事 | https://note.com/dtp_tranist/n/nc6dbdb3af6a1 |
 
 ### 更新履歴
+- v1.0.4（2026-10-04）項目名のコロンを「 :」（半角スペース＋半角コロン）に変更（共通部品の更新）
 
 #### v1.0.3（2026-10-01）
 

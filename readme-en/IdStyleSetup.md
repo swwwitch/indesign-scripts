@@ -103,6 +103,7 @@ Choosing Word means a Word file placed with "Preserve Styles and Formatting from
 | Article | https://note.com/dtp_tranist/n/nfe87ec253780 |
 
 ### Update History
+- v1.5.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.5.1 (2026-10-01)
 

@@ -40,6 +40,7 @@ Runs a batch of Markdown find/change operations and applies the matching paragra
 | Article | https://note.com/dtp_tranist/n/n8c0211d92c96 |
 
 ### Update History
+- v1.0.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.0.3 (2026-10-01)
 

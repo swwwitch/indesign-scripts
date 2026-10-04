@@ -47,6 +47,7 @@ Unmerges merged table cells, with dialog options for what happens to the origina
 | Article | https://note.com/dtp_tranist/n/n175525637a3d |
 
 ### Update History
+- v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.1.1 (2026-10-01)
 

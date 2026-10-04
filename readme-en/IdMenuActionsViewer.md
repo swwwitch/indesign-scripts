@@ -82,6 +82,7 @@ Main changes from the original:
 | Article | https://note.com/dtp_tranist/n/n5038c9d2cc85 |
 
 ### Update History
+- v1.0.27 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.0.26 (2026-10-01)
 

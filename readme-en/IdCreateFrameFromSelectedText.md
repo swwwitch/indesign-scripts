@@ -41,6 +41,7 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 | Article | https://note.com/dtp_tranist/n/ndd1b7c5246a3 |
 
 ### Update History
+- v2.7.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v2.7.2 (2026-10-01)
 

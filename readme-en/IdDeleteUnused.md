@@ -80,6 +80,7 @@ Deletes unused styles (paragraph, character, object, table, cell), parent pages,
 | Article | https://note.com/dtp_tranist/n/n879f09b72808 |
 
 ### Update History
+- v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.1.1 (2026-10-01)
 

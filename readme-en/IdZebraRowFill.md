@@ -60,6 +60,7 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 | Article | https://note.com/dtp_tranist/n/n20ff60f6b508 |
 
 ### Update History
+- v1.4.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.4.1 (2026-10-01)
 

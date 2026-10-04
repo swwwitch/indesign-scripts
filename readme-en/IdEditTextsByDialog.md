@@ -39,6 +39,7 @@ Edits text in a multi-line dialog, then replaces the selection, inserts at the c
 | Last updated | 2026-09-30 |
 
 ### Update History
+- v0.1.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v0.1.5 (2026-09-30)
 

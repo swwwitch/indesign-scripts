@@ -87,6 +87,7 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 | Last updated | 2026-10-01 |
 
 ### Update History
+- v1.3.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.3.5 (2026-10-01)
 

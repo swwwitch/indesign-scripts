@@ -39,6 +39,7 @@ Groups unstyled paragraphs (Basic Paragraph and friends) by font, size and leadi
 | Last updated | 2026-09-30 |
 
 ### Update History
+- v3.4.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v3.4.1 (2026-09-30)
 

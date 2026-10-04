@@ -52,6 +52,7 @@ Original: Table Transpose v1.0 by Iain Anderson
 | Article | https://note.com/dtp_tranist/n/nc6dbdb3af6a1 |
 
 ### Update History
+- v1.0.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.0.3 (2026-10-01)
 

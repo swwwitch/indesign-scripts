@@ -40,6 +40,7 @@ Deletes from the cursor to the end of the current paragraph, or deletes just a t
 | Article | https://note.com/dtp_tranist/n/nf0b1e27e1f81 |
 
 ### Update History
+- v1.2.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.2.2 (2026-09-30)
 
