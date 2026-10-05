@@ -39,6 +39,7 @@ Sets a paragraph style's "Spacing (Same Style)" at the style-definition level.
 
 ### Update History
 - v1.1.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
+- v1.2.0 (2026-10-06) Length fields now hold their unit ("10 mm"); values typed in another unit (such as "1in") and arithmetic are converted to the field's unit
 
 #### v1.1.2 (2026-10-01)
 
