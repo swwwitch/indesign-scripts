@@ -157,6 +157,16 @@ var STEPPER_SIDE_MARGIN    = 3;   /* ∧∨の左に足す余白（右は入力�
 var STEPPER_SHIFT_MULTIPLE = 10;  /* shift＋クリックでそろえる倍数 / Shift-click snaps to multiples of this */
 var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-click step */
 
+/* 単位の換算は UnitValue に任せる（in / ft / yd / mm / cm / m / pt / pc / px ほか、単数形・複数形も可）。
+   UnitValue に無い単位だけ、ここで UnitValue の単位に読み替える（値は「1単位＝何 unit か」）。
+   「p」は「1p6」（1パイカ6ポイント）の形にも使う
+   Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
+var STEPPER_UNIT_ALIASES = {
+    "q": { unit: "mm", amount: 0.25 }, /* 級 / Q */
+    "h": { unit: "mm", amount: 0.25 }, /* 歯 / H */
+    "p": { unit: "pc", amount: 1 }     /* パイカ / pica */
+};
+
 // -----------------------------------------
 // ステップボタンの配色 / Stepper colors
 // -----------------------------------------
@@ -179,7 +189,8 @@ var STEPPER_DIM_CHEVRON_COLOR = STEPPER_UI_DARK ? [1, 1, 1, 0.20]  : [0, 0, 0, 0
 /**
  * 「項目名・∧∨・入力欄」をひと組にした数値欄を追加する。
  * ↑↓キーでも∧∨と同じように増減する。直接入力した値も、フォーカスが外れたときに
- * 整数化・下限・上限・単位（「20 mm」の形）へそろえ、数値でなければ直前の値に戻す
+ * 整数化・下限・上限・単位（「20 mm」の形）へそろえ、数値でなければ直前の値に戻す。
+ * 四則演算（+ - * / と括弧）を入れると、確定時に計算した値にする。欄と異なる単位で入れた値は欄の単位へ換算する（mm の欄に「1 in」→「25.4 mm」）
  * @param {Group|Panel} parent - 追加先
  * @param {Object} fieldOptions - label（コロン込みの項目名）/ labelWidth / text / characters /
  *     step / min / max / integer（true で整数のみ）/ unit / onStep
@@ -214,10 +225,10 @@ function addSteppedField(parent, fieldOptions) {
     /* ↑↓キーも∧∨と同じ処理で増減する（増減量・下限・上限・単位・修飾キーをそろえる） / arrow keys share the stepper's logic */
     bindSteppedArrowKeys(numberInput, stepperGroup);
 
-    /* 直接入力をそろえる。数値でなければ直前の値に戻す / normalize typed values; revert non-numbers */
+    /* 直接入力をそろえる。計算式は計算し、数値でなければ直前の値に戻す / normalize typed values; evaluate arithmetic, revert non-numbers */
     numberInput.lastValidText = numberInput.text;
     numberInput.onChange = function () {
-        var value = parseFloat(numberInput.text);
+        var value = evaluateArithmetic(numberInput.text, fieldOptions.unit);
         if (isNaN(value)) {
             numberInput.text = numberInput.lastValidText;
             return;
@@ -265,7 +276,8 @@ function addStepper(parent, getNumberInput, stepOptions) {
     function stepBy(direction) {
         var numberInput = getNumberInput();
         if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
-        var value = parseFloat(numberInput.text);
+        var value = evaluateArithmetic(numberInput.text, stepOptions.unit); /* 確定前の計算式も計算してから増減 / evaluate an uncommitted expression first */
+        if (isNaN(value)) value = parseFloat(numberInput.text); /* 計算できなければ従来どおり先頭の数値 / fall back to the leading number */
         if (isNaN(value)) value = 0;
         writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
         if (stepOptions.onStep) stepOptions.onStep(numberInput);
@@ -277,11 +289,13 @@ function addStepper(parent, getNumberInput, stepOptions) {
     makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
     makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
     stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
+    stepperGroup.stepOptions = stepOptions; /* 確定時の計算で欄の単位を引けるよう公開 / lets the commit-time evaluation find the unit */
     return stepperGroup;
 }
 
 /**
- * 入力欄の↑↓キーを、∧∨と同じ処理で増減させる。ほかのキーは素通し
+ * 入力欄の↑↓キーを、∧∨と同じ処理で増減させる。ほかのキーは素通し。
+ * あわせて、確定時に計算式・単位付きの値を計算して書き戻す（各スクリプトの onChange より先に呼ばれるので、onChange は計算後の値を読む）
  * @param {EditText} numberInput - 対象の入力欄
  * @param {Group} stepperGroup - addStepper() で作った∧∨
  * @returns {void}
@@ -291,6 +305,15 @@ function bindSteppedArrowKeys(numberInput, stepperGroup) {
         if (event.keyName !== "Up" && event.keyName !== "Down") return;
         stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
         event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
+    });
+    numberInput.addEventListener("change", function () {
+        var fieldUnit = stepperGroup.stepOptions ? stepperGroup.stepOptions.unit : undefined;
+        var value = evaluateArithmetic(numberInput.text, fieldUnit);
+        if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
+        /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
+        var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
+        if (!hasOperator && value === parseFloat(numberInput.text)) return;
+        numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
     });
 }
 
@@ -338,6 +361,124 @@ function clampSteppedValue(value, rangeOptions) {
     if (rangeOptions.min !== undefined && value < rangeOptions.min) return rangeOptions.min;
     if (rangeOptions.max !== undefined && value > rangeOptions.max) return rangeOptions.max;
     return value;
+}
+
+/**
+ * 入力欄の文字列を四則演算（+ - * / と括弧）として計算する。eval は使わない。
+ * 数値の後ろの単位は UnitValue で欄の単位へ換算する（mm の欄に「1in」→ 25.4、「1p6」は1パイカ6ポイント）。単位のない数値は欄の単位とみなす。
+ * 全角の数字・記号と × ÷ は半角に直す
+ * @param {string} text - 入力欄の文字列
+ * @param {string} [fieldUnit] - 欄の単位（例 " mm"。前後の空白は無視）
+ * @returns {number} 欄の単位での計算結果（式として読めない・換算できない単位・0で割ったときは NaN）
+ */
+function evaluateArithmetic(text, fieldUnit) {
+    var source = String(text)
+        .replace(/[！-～]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); })
+        .replace(/×/g, "*")
+        .replace(/÷/g, "/")
+        .replace(/[−–—]/g, "-")
+        .replace(/\s/g, "");
+    if (source === "") return NaN;
+    var fieldUnitKey = String(fieldUnit || "").replace(/^\s+|\s+$/g, "").toLowerCase();
+    var fieldUnitValue = createStepperUnitValue(1, fieldUnitKey); /* 欄の単位の1単位（換算できない欄は null） / one field unit */
+    var position = 0;
+
+    /**
+     * 加減算の並び（項 ± 項 …）を読む
+     * @returns {number} 値（読めなければ NaN）
+     */
+    function readSum() {
+        var total = readProduct();
+        while (position < source.length && (source.charAt(position) === "+" || source.charAt(position) === "-")) {
+            var operator = source.charAt(position++);
+            var operand = readProduct();
+            total = (operator === "+") ? total + operand : total - operand;
+        }
+        return total;
+    }
+
+    /**
+     * 乗除算の並び（因子 × 因子 …）を読む
+     * @returns {number} 値（読めなければ NaN）
+     */
+    function readProduct() {
+        var total = readFactor();
+        while (position < source.length && (source.charAt(position) === "*" || source.charAt(position) === "/")) {
+            var operator = source.charAt(position++);
+            var operand = readFactor();
+            if (operator === "/" && operand === 0) return NaN;
+            total = (operator === "*") ? total * operand : total / operand;
+        }
+        return total;
+    }
+
+    /**
+     * 符号付きの数値（単位付きなら欄の単位へ換算）か、括弧で囲んだ式を読む
+     * @returns {number} 値（読めなければ NaN）
+     */
+    function readFactor() {
+        var ch = source.charAt(position);
+        if (ch === "+" || ch === "-") {
+            position++;
+            var signedValue = readFactor();
+            return (ch === "-") ? -signedValue : signedValue;
+        }
+        if (ch === "(") {
+            position++;
+            var innerValue = readSum();
+            if (source.charAt(position) !== ")") return NaN;
+            position++;
+            return innerValue;
+        }
+        var numberMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
+        if (!numberMatch) return NaN;
+        position += numberMatch[0].length;
+        return readUnitSuffix(parseFloat(numberMatch[0]));
+    }
+
+    /**
+     * 数値の直後の単位を読み、欄の単位へ換算する
+     * @param {number} value - 単位の前の数値
+     * @returns {number} 欄の単位での値（換算できない単位なら NaN）
+     */
+    function readUnitSuffix(value) {
+        var unitMatch = /^([A-Za-z]+|%|°)/.exec(source.substring(position));
+        if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
+        position += unitMatch[0].length;
+        var unitKey = unitMatch[0].toLowerCase();
+        if (unitKey === fieldUnitKey) return value;
+        var typedValue = createStepperUnitValue(value, unitKey);
+        if (!typedValue || !fieldUnitValue) return NaN; /* 知らない単位・単位のない欄 / unknown unit or unitless field */
+        var points = typedValue.as("pt");
+        /* 「1p6」＝1パイカ6ポイント / pica-point notation */
+        if (unitKey === "p") {
+            var pointMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
+            if (pointMatch) {
+                position += pointMatch[0].length;
+                points += parseFloat(pointMatch[0]);
+            }
+        }
+        return points / fieldUnitValue.as("pt");
+    }
+
+    var result = readSum();
+    if (position !== source.length || !isFinite(result)) return NaN; /* 読み残しがあれば式として不正 / leftovers mean a malformed expression */
+    return result;
+}
+
+/**
+ * 数値と単位から UnitValue を作る。Q・H・p は STEPPER_UNIT_ALIASES で UnitValue の単位に読み替える。
+ * %（percent）は基準の長さが無いと換算できないので扱わない
+ * @param {number} value - 数値
+ * @param {string} unitKey - 単位（小文字。例 "mm"、"inches"、"q"）
+ * @returns {UnitValue|null} UnitValue（UnitValue が知らない単位・空・% なら null）
+ */
+function createStepperUnitValue(value, unitKey) {
+    if (unitKey === "" || unitKey === "%") return null;
+    var alias = STEPPER_UNIT_ALIASES[unitKey];
+    var unitValue = alias ? new UnitValue(value * alias.amount, alias.unit) : new UnitValue(value, unitKey);
+    if (unitValue.type === "?" || unitValue.type === "%") return null; /* 知らない単位は例外にならず "?" になる。"percent" も除く / unknown units become "?" */
+    return unitValue;
 }
 
 /**
