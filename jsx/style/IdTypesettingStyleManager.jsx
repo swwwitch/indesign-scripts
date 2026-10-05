@@ -25,10 +25,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypesettingSt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTypesettingStyleManager";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTypesettingStyleManager.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypesettingStyleManager.md"; /* README (English) */
@@ -2142,7 +2142,7 @@ function exportPresetCode(presetFields, dialogUi) {
     try {
         var file = File(Folder.desktop + "/" + encodeURI(safeFileName) + ".jsx");
         if (file.exists) {
-            if (!confirm(getLabel("export.overwritePrefix") + safeFileName + getLabel("export.overwriteSuffix"))) return;
+            if (!confirm(getLabel("export.overwritePrefix") + safeFileName + getLabel("export.overwriteSuffix"), true)) return;
         }
         file.encoding = "UTF-8";
         if (file.open("w")) {

@@ -43,6 +43,7 @@ Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and mo
 | Article | https://note.com/dtp_tranist/n/n7f67e8da571f |
 
 ### Update History
+- v1.3.3 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.3.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.3.1 (2026-10-01)
