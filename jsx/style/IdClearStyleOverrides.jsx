@@ -1,6 +1,25 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdClearStyleOverrides
+Name=IdClearStyleOverrides
+Author=Gregor Fellenz (grefel)
+Target-App=InDesign
+Version=1.3.6
+Release-Date=2020-06-09
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+テキスト・表・オブジェクトに適用されているスタイルのオーバーライドをまとめて消去します。
+処理する範囲はドキュメント全体・ストーリー・選択範囲から選べ、特定のスタイルが適用された箇所だけに絞り込むこともできます。
+
+Clears style overrides from text, tables and objects in one pass.
+The scope can be the whole document, a story or the current selection, and processing can be narrowed to where a particular style is applied.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

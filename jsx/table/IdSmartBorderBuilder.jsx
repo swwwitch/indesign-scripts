@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdSmartBorderBuilder
+Name=IdSmartBorderBuilder
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.7.2
+Release-Date=2026-04-11
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択した表セルに対して、モード・線幅・カラー・濃淡を指定しながら罫線をプレビュー付きで描画・消去します。
+
+Draws and clears strokes on the selected table cells with a live preview, choosing the mode, stroke weight, color and tint.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

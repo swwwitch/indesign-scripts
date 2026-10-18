@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdSetLastColumnToFrameWidth
+Name=IdSetLastColumnToFrameWidth
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-04-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+カーソルのある表の最終列幅を調整し、表全体の幅を親テキストフレームの幅に合わせます。
+
+Adjusts the last column of the table at the cursor so that the whole table matches the width of its parent text frame.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

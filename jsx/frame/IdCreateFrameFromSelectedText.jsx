@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdCreateFrameFromSelectedText
+Name=IdCreateFrameFromSelectedText
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=2.7.3
+Release-Date=2026-03-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択したテキストのサイズを基準に、インライン（アンカー付き）またはページ上へグラフィックフレームを作成します。
+
+Creates a graphic frame sized from the selected text, either inline (anchored) or placed on the page.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

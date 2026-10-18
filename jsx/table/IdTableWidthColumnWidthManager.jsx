@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdTableWidthColumnWidthManager
+Name=IdTableWidthColumnWidthManager
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.3.1
+Release-Date=2026-04-18
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択位置から対象の表を特定し、表全体の幅と列の幅をプレビュー付きでまとめて調整します。
+
+Finds the target table from the current selection and adjusts the overall table width and the column widths together, with a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdTypeScaleStyleApplier
+Name=IdTypeScaleStyleApplier
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.7.2
+Release-Date=2026-05-05
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+基準サイズとスケール倍率からタイプスケールを組み立て、本文・見出し・リスト・表の段落スタイルへ一括適用します。
+
+Builds a type scale from a base size and a scale ratio, then applies it to the body, heading, list and table paragraph styles at once.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

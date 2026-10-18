@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdTableColumnEqualizer
+Name=IdTableColumnEqualizer
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-04-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+カーソルのある表の幅を、親テキストフレームの幅にそろえます。
+
+Fits the width of the table at the cursor to the width of its parent text frame.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

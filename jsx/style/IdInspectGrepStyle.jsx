@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdInspectGrepStyle
+Name=IdInspectGrepStyle
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-05-04
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+ドキュメント内の段落スタイルに設定された正規表現スタイル（GREPスタイル）を一覧表示し、テキストファイルへ書き出します。
+
+Lists the GREP styles defined in the paragraph styles of a document and exports them to a text file.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

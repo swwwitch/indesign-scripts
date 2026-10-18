@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdSmartGroup
+Name=IdSmartGroup
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.1.3
+Release-Date=2026-04-11
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択したオブジェクトを水平方向（行）または垂直方向（列）の近さでまとめてグループ化します。
+
+Groups the selected objects by proximity, either horizontally (rows) or vertically (columns).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

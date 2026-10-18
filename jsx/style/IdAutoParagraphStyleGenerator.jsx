@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdAutoParagraphStyleGenerator
+Name=IdAutoParagraphStyleGenerator
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=3.4.2
+Release-Date=2026-02-13
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+［基本段落］などスタイル未設定の段落をフォント・サイズ・行送りごとにまとめ、段落スタイルを自動生成して適用します。
+
+Groups unstyled paragraphs such as [Basic Paragraph] by font, size and leading, then generates and applies paragraph styles for them.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdDeleteFromCursorToEnd
+Name=IdDeleteFromCursorToEnd
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.2.3
+Release-Date=2026-06-27
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+カーソル位置からその段落の末尾までをまとめて削除します。段落末尾の記号の直前では、その記号 1 文字だけを削除します。
+
+Deletes everything from the cursor to the end of its paragraph. Right before a trailing symbol, only that single character is removed.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

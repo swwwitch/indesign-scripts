@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdCellUnmerge
+Name=IdCellUnmerge
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.1.2
+Release-Date=2026-04-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+表の結合セルを解除します。解除後のセルへ元のテキストを複製するかどうかと、対象範囲（表全体・選択セルのみ）をダイアログで選べます。
+
+Unmerges merged cells in a table. The dialog picks whether to copy the original text into the resulting cells and the scope (the whole table or only the selected cells).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

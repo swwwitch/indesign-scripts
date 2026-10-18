@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdEditTextsByDialog
+Name=IdEditTextsByDialog
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=0.1.6
+Release-Date=2025-05-28
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+複数行入力ダイアログでテキストを編集し、選択範囲の置換・カーソル位置への挿入・新規テキストフレーム作成を行います。
+
+Edits text in a multi-line dialog, then replaces the selection, inserts at the cursor, or creates a new text frame.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

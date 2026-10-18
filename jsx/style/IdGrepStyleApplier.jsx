@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdGrepStyleApplier
+Name=IdGrepStyleApplier
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.3
+Release-Date=2026-05-03
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+段落スタイルに正規表現スタイル（GREP スタイル）を適用・管理します。ルールと文字スタイルを選び、複数の段落スタイルへまとめて反映できます。
+
+Applies and manages GREP styles on paragraph styles. Pick a rule and a character style and push it to several paragraph styles at once.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

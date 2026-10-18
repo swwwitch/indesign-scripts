@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdResetHorizontalVerticalScale
+Name=IdResetHorizontalVerticalScale
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-07-19
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+ドキュメント内すべてのストーリー（表セル・入れ子の表を含む）を走査し、文字の水平・垂直比率を 100% に戻します。
+
+Walks every story in the document, including table cells and nested tables, and resets the horizontal and vertical character scale to 100%.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

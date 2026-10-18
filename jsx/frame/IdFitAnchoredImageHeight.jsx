@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdFitAnchoredImageHeight
+Name=IdFitAnchoredImageHeight
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-06-01
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+インラインアンカーされた画像フレームの高さを、同じ段落の文字サイズに合わせて縦横比を保ったまま調整します。
+
+Resizes an inline anchored image frame to the font size of its paragraph while keeping the aspect ratio.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

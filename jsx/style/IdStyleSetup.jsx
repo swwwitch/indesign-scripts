@@ -1,6 +1,25 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdStyleSetup
+Name=IdStyleSetup
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.5.2
+Release-Date=2026-05-03
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイル（説明付き）までを一括で登録します。フォントは base-font（全体）・base-heading（見出し系）・base-text（本文系）で一括変更できます。
+スタイル名は HTML（h1 / p）と Word 対応（Heading 1 / Normal）から選べ、既定では既存の同名スタイルには手を触れません。
+
+Registers paragraph and character styles together with their groups, inheritance and GREP styles (with comments) in one pass. Fonts can be changed in one place through base-font (everything), base-heading (headings) or base-text (body text).
+Style names can follow either HTML (h1 / p) or Word (Heading 1 / Normal), and existing same-named styles are left untouched by default.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdAutoLeadingCalc
+Name=IdAutoLeadingCalc
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-07-09
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択テキストの現在の行送り（絶対値）と文字サイズから行送り％を段落ごとに逆算し、自動行送りに切り替えます。
+
+Derives the leading percentage of each paragraph from its current absolute leading and font size, then switches it to auto leading.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

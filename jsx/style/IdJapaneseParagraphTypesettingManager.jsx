@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdJapaneseParagraphTypesettingManager
+Name=IdJapaneseParagraphTypesettingManager
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.3.2
+Release-Date=2026-05-05
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+段落スタイルの日本語組版設定（禁則処理セット・禁則調整方式・文字組みアキ量・コンポーザー）をマトリックス UI で確認・一括適用します。
+
+Reviews and batch-applies the Japanese composition settings of paragraph styles (kinsoku set, kinsoku adjustment, mojikumi and composer) through a matrix UI.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

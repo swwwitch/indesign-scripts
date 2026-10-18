@@ -1,6 +1,27 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdReplaceDocumentFonts
+Name=IdReplaceDocumentFonts
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.3
+Release-Date=2026-09-20
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+ドキュメントで使用中のフォントをファミリー／スタイル単位で一覧し、
+選んだフォントを別のフォントへまとめて置き換えます。
+段落スタイル・文字スタイルのフォントも同時に更新できます。
+
+Lists the fonts used in the document by family and style, and replaces
+the selected ones with another font in a single pass. Paragraph and
+character styles can be updated at the same time.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

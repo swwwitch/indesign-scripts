@@ -1,6 +1,25 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdSplitParagraph
+Name=IdSplitParagraph
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.1.4
+Release-Date=2026-03-16
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択したテキストフレーム内の各段落を、元の位置と幅（縦組みは高さ）を保ったまま独立したテキストフレームへ分割します。
+縦組みにも対応しています。
+
+Splits each paragraph in the selected text frame into its own text frame, keeping the original position and width (height for vertical text).
+Vertical text frames are supported as well.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

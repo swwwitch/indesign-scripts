@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdSwapImageFrames
+Name=IdSwapImageFrames
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.4
+Release-Date=2026-03-28
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択した画像入りフレームを、リンク画像だけ／フレームの位置ごと、いずれかの方法で順送りに入れ替えます。
+
+Rotates the selected image frames, moving either the linked images alone or the frames together with their positions.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

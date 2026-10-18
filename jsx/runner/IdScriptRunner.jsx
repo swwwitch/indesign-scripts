@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdScriptRunner
+Name=IdScriptRunner
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-04-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+任意の ExtendScript ファイル（.jsx / .jsxbin / .js）をダイアログで選んで実行するランチャーです。
+
+A launcher that runs any ExtendScript file (.jsx / .jsxbin / .js) chosen from a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -1,6 +1,25 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdConvertWordStyleNamesToHtml
+Name=IdConvertWordStyleNamesToHtml
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.3
+Release-Date=2026-09-20
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+MS Word から取り込んだ段落スタイル名（Heading 1 / Normal / Quote など）を、対応する HTML 要素名（h1 / p / blockquote）へ一括でリネームします。
+スタイルグループの中も再帰的にたどり、リネーム先の名前の段落スタイルがすでにある場合は、そのスタイルに置き換えて統合します。
+
+Renames paragraph styles imported from MS Word (Heading 1 / Normal / Quote and the like) to the matching HTML element names (h1 / p / blockquote) in one pass.
+Style groups are traversed recursively, and a style whose target name already exists in the document is merged into that existing style.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

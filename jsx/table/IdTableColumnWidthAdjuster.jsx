@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdTableColumnWidthAdjuster
+Name=IdTableColumnWidthAdjuster
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.3.2
+Release-Date=2026-04-19
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択したセルや表の列幅を、列ごとの個別指定または一括入力でまとめて調整します。
+
+Adjusts the column widths of the selected cells or table, either per column or with a single value applied to all.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

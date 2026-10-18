@@ -1,6 +1,25 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdDeleteUnused
+Name=IdDeleteUnused
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.1.2
+Release-Date=2026-09-24
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+現在のドキュメントで使われていないスタイル（段落・文字・オブジェクト・表・セル）、親ページ、空ページ、スウォッチ、合成フォントを削除します。
+削除する前に一覧で確認でき、残したい項目はチェックを外せます。
+
+Deletes unused styles (paragraph, character, object, table, cell), parent pages, empty pages, swatches, and composite fonts in the active document.
+The candidates are listed before deletion so you can uncheck anything you want to keep.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

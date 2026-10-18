@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdTypesettingStyleManager
+Name=IdTypesettingStyleManager
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.3.3
+Release-Date=2026-05-06
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+段落スタイルの文字組版設定（禁則・文字組み・グリッド揃え・ハイフネーションなど）をダイアログでまとめて設定します。
+
+Configures the composition settings of paragraph styles (kinsoku, mojikumi, grid alignment, hyphenation and more) from a single dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

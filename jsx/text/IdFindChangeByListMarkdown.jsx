@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdFindChangeByListMarkdown
+Name=IdFindChangeByListMarkdown
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.4
+Release-Date=2026-03-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+Markdown 記法をまとめて検索・置換し、対応する段落スタイルと文字スタイルを適用します。
+
+Runs a batch find/change over Markdown notation and applies the matching paragraph and character styles.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

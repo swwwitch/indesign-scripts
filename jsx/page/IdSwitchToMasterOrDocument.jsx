@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdSwitchToMasterOrDocument
+Name=IdSwitchToMasterOrDocument
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2025-07-02
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+アクティブページが親（マスター）ページかドキュメントページかを判定し、対応するもう一方へ切り替えます。
+
+Detects whether the active page is a parent (master) page or a document page and switches to its counterpart.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

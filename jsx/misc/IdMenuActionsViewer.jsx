@@ -1,6 +1,27 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdMenuActionsViewer
+Name=IdMenuActionsViewer
+Author=Peter Kahrel
+Target-App=InDesign
+Version=1.0.27
+Release-Date=2026-09-25
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+InDesign のメニューアクションを一覧し、カテゴリ・エリア・名前・ID で絞り込んで調べます。
+選択したアクションのキーストリング（$ID/…）と実行コード（app.menuActions.itemByID(…).invoke();）をコピーできます。
+Peter Kahrel 氏の menu_actions.jsx をもとに改変しています。
+
+Lists InDesign menu actions and lets you filter them by category, area, name, and ID.
+You can copy the key strings ($ID/…) and the invoke code (app.menuActions.itemByID(…).invoke();) of the selected action.
+Based on menu_actions.jsx by Peter Kahrel.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

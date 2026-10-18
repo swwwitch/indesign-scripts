@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdTableRowHeightManager
+Name=IdTableRowHeightManager
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.4.2
+Release-Date=2026-04-20
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択した表の行の高さを、範囲（選択範囲／ストーリー／ドキュメント）と対象行を指定しながらプレビュー付きで設定します。
+
+Sets the row heights of the selected table with a live preview, choosing the scope (selection, story or document) and which rows to target.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

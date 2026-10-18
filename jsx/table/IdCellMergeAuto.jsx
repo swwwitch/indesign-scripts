@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdCellMergeAuto
+Name=IdCellMergeAuto
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.1.2
+Release-Date=2026-04-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択した表について、内容が同じ隣接セルを自動で結合します。結合する方向（水平・垂直・両方向）と、対象（表全体・選択セルのみ）をダイアログで選べます。
+
+Merges adjacent cells with identical contents in the selected table. The dialog picks the merge direction (horizontal, vertical, or both) and the scope (the whole table or only the selected cells).
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

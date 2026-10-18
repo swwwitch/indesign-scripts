@@ -2,6 +2,25 @@
 #targetengine "IdMoveParagraph"
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdMoveParagraphDown
+Name=IdMoveParagraphDown
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.1
+Release-Date=2026-09-30
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+カーソルのある段落を、ひとつ下の段落と入れ替えます。
+sky-chaser-high 氏の moveLineDown.jsx（Illustrator）と、それを段落単位にした Illustrator 版 MoveParagraphDown.jsx から着想を得て、InDesign 向けに書き起こしたものです。
+
+Swaps the paragraph containing the cursor with the paragraph below it.
+Written for InDesign, inspired by moveLineDown.jsx by sky-chaser-high and its paragraph-based Illustrator variant MoveParagraphDown.jsx.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

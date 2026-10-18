@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdLayoutGridBuilder
+Name=IdLayoutGridBuilder
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.2.1
+Release-Date=2026-03-13
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+アクティブページに版面・タイトルエリア・額縁・列行グリッド・区切り線などを、プレビューを見ながら一括作成します。
+
+Builds the type area, title area, page frame, column and row grids and dividers on the active page in one pass, with a live preview.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

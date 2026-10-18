@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdTextFrameLinker
+Name=IdTextFrameLinker
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.4
+Release-Date=2023-12-26
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択した複数のテキストフレームを、選択順に連結して1つのストーリーにします。連結後の処理はダイアログで選べます。
+
+Links the selected text frames, in selection order, so that they share a single story. What happens after linking is chosen in a dialog.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

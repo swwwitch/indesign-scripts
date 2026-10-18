@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdParagraphShadingMatchRule
+Name=IdParagraphShadingMatchRule
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-04-12
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択テキストの各段落に、段落背景色の高さに合わせた不可視の段落境界線（前境界線）をスペーサーとして設定します。
+
+Sets an invisible paragraph rule above on each selected paragraph, sized to the paragraph shading height so it acts as a spacer.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

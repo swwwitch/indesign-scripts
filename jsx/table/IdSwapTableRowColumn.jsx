@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdSwapTableRowColumn
+Name=IdSwapTableRowColumn
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.1.2
+Release-Date=2025-11-25
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択した表の行と列を入れ替えます。ヘッダー行の扱いとセル結合の処理方法をダイアログで選べます。
+
+Transposes the rows and columns of the selected table. The dialog picks how header rows and merged cells are handled.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

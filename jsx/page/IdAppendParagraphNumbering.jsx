@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdAppendParagraphNumbering
+Name=IdAppendParagraphNumbering
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.2.3
+Release-Date=2025-06-30
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+同じ段落スタイルで同じテキストが繰り返す段落の末尾に、連番を付けたり外したりします。重複は直近の親見出しごとに判定し、範囲は選択範囲・ストーリー・ドキュメントから選べます。
+
+Adds or removes sequential numbers at the end of paragraphs that repeat the same text with the same paragraph style. Duplicates are grouped by the nearest parent heading, and the scope can be the selection, a story, or the whole document.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

@@ -2,6 +2,23 @@
 #targetengine "IdSetImageScale"
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdSetImageScale
+Name=IdSetImageScale
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.4.3
+Release-Date=2026-09-26
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択したフレーム内の画像の縮尺率を、パレットで数値・幅・高さ・PPI・プリセット・マージン幅・親フレームの段幅から指定して変更し、フレームを画像に合わせます。
+
+Changes the scale of the image in each selected frame, set from a palette by value, width, height, PPI, preset, margin width or parent column width, and fits the frame to the image.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

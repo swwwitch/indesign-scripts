@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdAddPagesUsingCurrentMaster
+Name=IdAddPagesUsingCurrentMaster
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.3.3
+Release-Date=2025-06-26
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+現在のページに適用されている親（マスター）ページを引き継いだまま、指定した枚数のページを直後に挿入します。
+
+Inserts the requested number of pages right after the current page, keeping the parent (master) page that the current page uses.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

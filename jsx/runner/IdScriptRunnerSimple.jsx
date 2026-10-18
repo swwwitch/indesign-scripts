@@ -1,6 +1,23 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdScriptRunnerSimple
+Name=IdScriptRunnerSimple
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.0.2
+Release-Date=2026-04-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+ExtendScript ファイルを 1 つ選んで実行するだけの最小構成のランチャーです。
+
+A minimal launcher that just picks a single ExtendScript file and runs it.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

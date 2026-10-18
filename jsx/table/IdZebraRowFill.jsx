@@ -1,6 +1,25 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdZebraRowFill
+Name=IdZebraRowFill
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.4.2
+Release-Date=2026-04-17
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+選択した表セルに、選択範囲内の行の並びを基準に交互の塗り（縞模様）をプレビュー付きで適用します。
+上から／左から指定した数の行・列は、塗りの対象外にできます。
+
+Applies alternating fills (zebra striping) to the selected table cells, based on the row order within the selection, with a live preview.
+A given number of rows from the top, and columns from the left, can be left out of the fill.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 

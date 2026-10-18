@@ -1,6 +1,25 @@
 #target indesign
 
 /*
+SCRIPTMETA-BEGIN
+Script-ID=com.swwwitch.indesign.IdFileNameManager
+Name=IdFileNameManager
+Author=Masahiro Takano (@swwwitch)
+Target-App=InDesign
+Version=1.3.6
+Release-Date=2026-05-27
+Meta-URL=https://github.com/swwwitch/indesign-scripts
+Description-BEGIN
+アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・日付・連番・バージョンのセグメント単位で編集し、リネーム／別名保存／コピー保存を行います。
+保存形式は常に InDesign 形式（.indd）なので、.indd 以外の書類では「別名で保存」だけが使えます。
+
+Edits the active document's file name segment by segment - base, subtext, status, date, sequence number and version - then renames it, saves it under a new name, or saves a copy.
+The output is always InDesign format (.indd), so only "Save As" is available for a non-.indd document.
+Description-END
+SCRIPTMETA-END
+*/
+
+/*
 
 ### 概要
 
