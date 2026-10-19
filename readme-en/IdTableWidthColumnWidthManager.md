@@ -40,6 +40,7 @@ Resolves the table from the current selection and adjusts the table width and co
 | Last updated | 2026-09-30 |
 
 ### Update History
+- v1.3.2 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.3.0 (2026-09-30)

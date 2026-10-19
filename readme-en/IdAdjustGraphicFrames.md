@@ -41,6 +41,7 @@ Collects text-anchored graphic frames and adjusts their width, frame size and im
 | Last updated | 2026-10-01 |
 
 ### Update History
+- v1.0.4 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.0.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.0.2 (2026-10-01)

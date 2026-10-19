@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdSetSameParaStyleSpacing
 Name=IdSetSameParaStyleSpacing
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.2.0
+Version=1.2.1
 Release-Date=2026-06-30
 Description-BEGIN
 段落スタイルの「同一スタイル間の段落間隔」を、スタイル定義そのものに対して設定します。
@@ -38,10 +38,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetSameParaSt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdSetSameParaStyleSpacing";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-06";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSetSameParaStyleSpacing.md"; /* README（日本語） */
 var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetSameParaStyleSpacing.md"; /* README (English) */
@@ -805,8 +805,9 @@ function fillLabelPlaceholders(labelString, placeholderValues) {
 // ボタン行（再利用パーツ） / Button row (reusable)
 
 var BUTTON_ROW_TOP_MARGIN = 5; /* ボタン行の上の余白 / top margin of the button row */
+var BUTTON_ROW_BOTTOM_MARGIN = 14; /* ボタン行の下の余白。ダイアログの下余白と合わせて約30px（Illustrator 標準のダイアログに合わせる） / bottom margin; with the dialog margin about 30px, like Illustrator's own dialogs */
 var BUTTON_ROW_SPACING = 10;   /* ボタンどうしの間隔 / spacing between buttons */
-var BUTTON_ROW_CENTER_MAX_WIDTH = 200; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
+var BUTTON_ROW_CENTER_MAX_WIDTH = 240; /* 右のボタンだけの行を中央に置く、ダイアログの内側の最大幅（px、左右の余白を除く）。広いダイアログは右揃え / max inner dialog width (px, margins excluded) that centers a right-only row; wider dialogs keep it right-aligned */
 
 /**
  * ダイアログ下部のボタン行を作る。
@@ -819,7 +820,7 @@ function addButtonRow(parent, rowOptions) {
     var isCentered = !!(rowOptions && rowOptions.centered);
     var btnRowGroup = parent.add("group");
     btnRowGroup.orientation = "row";
-    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, 0];
+    btnRowGroup.margins = [0, BUTTON_ROW_TOP_MARGIN, 0, BUTTON_ROW_BOTTOM_MARGIN];
     btnRowGroup.spacing = BUTTON_ROW_SPACING;
 
     if (isCentered) {

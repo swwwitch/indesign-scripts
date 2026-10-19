@@ -39,6 +39,7 @@ Edits text in a multi-line dialog, then replaces the selection, inserts at the c
 | Last updated | 2026-09-30 |
 
 ### Update History
+- v0.1.7 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v0.1.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v0.1.5 (2026-09-30)

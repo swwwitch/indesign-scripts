@@ -43,6 +43,7 @@ Adjusts table column widths, either per column or through a single batch entry.
 | Article | https://note.com/dtp_tranist/n/n20d58c1bc003 |
 
 ### Update History
+- v1.3.3 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.3.1 (2026-10-01)

@@ -72,6 +72,7 @@ The folder listing is read once while the dialog is open and reused for the prev
 | Article | https://note.com/dtp_tranist/n/nc88dd887eb1c |
 
 ### Update History
+- v1.3.7 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.6 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
 - v1.3.5 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 

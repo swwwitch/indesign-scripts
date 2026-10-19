@@ -39,6 +39,7 @@ Groups the selected objects by horizontal (row) or vertical (column) proximity, 
 | Last updated | 2026-10-01 |
 
 ### Update History
+- v1.1.4 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.1.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
 #### v1.1.2 (2026-10-01)
