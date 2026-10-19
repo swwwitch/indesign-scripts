@@ -10,10 +10,10 @@ Target-App=InDesign
 Version=1.3.0
 Release-Date=2026-10-19
 Description-BEGIN
-InDesign の［段落境界線］ダイアログボックスを常駐パレットで再現し、選択したテキストの段落に前境界線・後境界線をプレビューしながら設定します。
+InDesign の［段落境界線］ダイアログボックスを常駐パレットで再現し、選択したテキスト・テキストフレーム・表のセルの段落に前境界線・後境界線をプレビューしながら設定します。
 変更した項目だけを書き込むので、ほかの設定や複数段落の個別の値はそのまま残ります。
 
-Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule above and rule below on the selected paragraphs with a live preview.
+Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule above and rule below on the paragraphs of the selected text, text frames or table cells with a live preview.
 Only the items you change are written, so other settings and per-paragraph values stay as they are.
 Description-END
 SCRIPTMETA-END
@@ -23,7 +23,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-InDesign の［段落境界線］ダイアログボックスを常駐パレットで再現し、選択したテキストの段落に前境界線・後境界線をプレビューしながら設定します。
+InDesign の［段落境界線］ダイアログボックスを常駐パレットで再現し、選択したテキスト・テキストフレーム・表のセルの段落に前境界線・後境界線をプレビューしながら設定します。
 変更した項目だけを書き込むので、ほかの設定や複数段落の個別の値はそのまま残ります。
 
 詳細は README を参照してください。
@@ -31,7 +31,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphRule
 
 ### Overview
 
-Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule above and rule below on the selected paragraphs with a live preview.
+Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule above and rule below on the paragraphs of the selected text, text frames or table cells with a live preview.
 Only the items you change are written, so other settings and per-paragraph values stay as they are.
 
 See the README for details.
