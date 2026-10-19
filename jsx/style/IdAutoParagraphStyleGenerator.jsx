@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=3.4.2
 Release-Date=2026-02-13
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 ［基本段落］などスタイル未設定の段落をフォント・サイズ・行送りごとにまとめ、段落スタイルを自動生成して適用します。
 

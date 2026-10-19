@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.5.2
 Release-Date=2026-05-03
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 段落スタイル・文字スタイルとそのグループ、継承関係、正規表現スタイル（説明付き）までを一括で登録します。フォントは base-font（全体）・base-heading（見出し系）・base-text（本文系）で一括変更できます。
 スタイル名は HTML（h1 / p）と Word 対応（Heading 1 / Normal）から選べ、既定では既存の同名スタイルには手を触れません。

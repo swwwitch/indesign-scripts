@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.2
 Release-Date=2026-04-17
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 任意の ExtendScript ファイル（.jsx / .jsxbin / .js）をダイアログで選んで実行するランチャーです。
 

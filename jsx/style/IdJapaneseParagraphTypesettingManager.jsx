@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.3.2
 Release-Date=2026-05-05
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 段落スタイルの日本語組版設定（禁則処理セット・禁則調整方式・文字組みアキ量・コンポーザー）をマトリックス UI で確認・一括適用します。
 

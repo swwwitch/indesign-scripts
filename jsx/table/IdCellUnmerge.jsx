@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.1.2
 Release-Date=2026-04-17
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 表の結合セルを解除します。解除後のセルへ元のテキストを複製するかどうかと、対象範囲（表全体・選択セルのみ）をダイアログで選べます。
 

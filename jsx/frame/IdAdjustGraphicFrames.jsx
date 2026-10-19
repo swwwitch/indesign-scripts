@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.3
 Release-Date=2026-06-02
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 テキストにアンカーされたグラフィックフレームを集め、フレーム幅・フレームサイズ・画像の縮尺率をまとめて調整します。
 

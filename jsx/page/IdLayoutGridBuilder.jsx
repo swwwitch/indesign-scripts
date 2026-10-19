@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.2.1
 Release-Date=2026-03-13
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 アクティブページに版面・タイトルエリア・額縁・列行グリッド・区切り線などを、プレビューを見ながら一括作成します。
 

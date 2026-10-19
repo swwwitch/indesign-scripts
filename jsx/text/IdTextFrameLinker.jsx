@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.4
 Release-Date=2023-12-26
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択した複数のテキストフレームを、選択順に連結して1つのストーリーにします。連結後の処理はダイアログで選べます。
 

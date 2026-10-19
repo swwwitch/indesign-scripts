@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.3
 Release-Date=2026-09-20
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 ドキュメントで使用中のフォントをファミリー／スタイル単位で一覧し、
 選んだフォントを別のフォントへまとめて置き換えます。

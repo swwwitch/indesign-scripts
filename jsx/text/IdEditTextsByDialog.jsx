@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=0.1.6
 Release-Date=2025-05-28
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 複数行入力ダイアログでテキストを編集し、選択範囲の置換・カーソル位置への挿入・新規テキストフレーム作成を行います。
 

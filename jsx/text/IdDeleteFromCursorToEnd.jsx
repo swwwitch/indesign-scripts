@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.2.3
 Release-Date=2026-06-27
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 カーソル位置からその段落の末尾までをまとめて削除します。段落末尾の記号の直前では、その記号 1 文字だけを削除します。
 

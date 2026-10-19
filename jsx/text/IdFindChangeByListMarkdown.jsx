@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.4
 Release-Date=2026-03-17
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 Markdown 記法をまとめて検索・置換し、対応する段落スタイルと文字スタイルを適用します。
 

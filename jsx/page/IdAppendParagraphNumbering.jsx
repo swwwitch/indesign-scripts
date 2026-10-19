@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.2.3
 Release-Date=2025-06-30
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 同じ段落スタイルで同じテキストが繰り返す段落の末尾に、連番を付けたり外したりします。重複は直近の親見出しごとに判定し、範囲は選択範囲・ストーリー・ドキュメントから選べます。
 

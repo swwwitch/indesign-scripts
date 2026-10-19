@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.1
 Release-Date=2026-09-30
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 カーソルのある段落を、ひとつ上の段落と入れ替えます。
 sky-chaser-high 氏の moveLineUp.jsx（Illustrator）と、それを段落単位にした Illustrator 版 MoveParagraphUp.jsx から着想を得て、InDesign 向けに書き起こしたものです。

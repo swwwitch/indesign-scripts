@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.2
 Release-Date=2026-06-01
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 インラインアンカーされた画像フレームの高さを、同じ段落の文字サイズに合わせて縦横比を保ったまま調整します。
 

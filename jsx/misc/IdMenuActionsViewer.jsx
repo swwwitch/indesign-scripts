@@ -8,7 +8,6 @@ Author=Peter Kahrel
 Target-App=InDesign
 Version=1.0.27
 Release-Date=2026-09-25
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 InDesign のメニューアクションを一覧し、カテゴリ・エリア・名前・ID で絞り込んで調べます。
 選択したアクションのキーストリング（$ID/…）と実行コード（app.menuActions.itemByID(…).invoke();）をコピーできます。

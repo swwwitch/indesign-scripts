@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.2
 Release-Date=2026-06-27
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択した段落の「段落の開始位置」を「次の段（フレーム）」に設定します。
 

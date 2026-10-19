@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.1.4
 Release-Date=2026-06-17
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて切り替え、選択範囲やドキュメント全体へ適用します。
 

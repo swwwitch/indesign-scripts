@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.7.2
 Release-Date=2026-05-05
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 基準サイズとスケール倍率からタイプスケールを組み立て、本文・見出し・リスト・表の段落スタイルへ一括適用します。
 

@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.3.3
 Release-Date=2026-05-06
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 段落スタイルの文字組版設定（禁則・文字組み・グリッド揃え・ハイフネーションなど）をダイアログでまとめて設定します。
 

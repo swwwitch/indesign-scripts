@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.1.4
 Release-Date=2026-03-16
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択したテキストフレーム内の各段落を、元の位置と幅（縦組みは高さ）を保ったまま独立したテキストフレームへ分割します。
 縦組みにも対応しています。

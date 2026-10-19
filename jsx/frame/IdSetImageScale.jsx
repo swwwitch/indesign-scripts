@@ -9,7 +9,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.4.3
 Release-Date=2026-09-26
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択したフレーム内の画像の縮尺率を、パレットで数値・幅・高さ・PPI・プリセット・マージン幅・親フレームの段幅から指定して変更し、フレームを画像に合わせます。
 

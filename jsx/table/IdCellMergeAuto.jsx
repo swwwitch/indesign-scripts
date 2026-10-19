@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.1.2
 Release-Date=2026-04-17
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択した表について、内容が同じ隣接セルを自動で結合します。結合する方向（水平・垂直・両方向）と、対象（表全体・選択セルのみ）をダイアログで選べます。
 

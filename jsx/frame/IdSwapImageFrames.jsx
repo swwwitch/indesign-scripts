@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.4
 Release-Date=2026-03-28
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択した画像入りフレームを、リンク画像だけ／フレームの位置ごと、いずれかの方法で順送りに入れ替えます。
 

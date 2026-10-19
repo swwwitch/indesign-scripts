@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.3
 Release-Date=2026-09-20
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 MS Word から取り込んだ段落スタイル名（Heading 1 / Normal / Quote など）を、対応する HTML 要素名（h1 / p / blockquote）へ一括でリネームします。
 スタイルグループの中も再帰的にたどり、リネーム先の名前の段落スタイルがすでにある場合は、そのスタイルに置き換えて統合します。

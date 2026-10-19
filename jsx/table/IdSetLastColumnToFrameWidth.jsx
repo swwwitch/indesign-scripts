@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.2
 Release-Date=2026-04-17
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 カーソルのある表の最終列幅を調整し、表全体の幅を親テキストフレームの幅に合わせます。
 

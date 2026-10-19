@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=2.7.3
 Release-Date=2026-03-17
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択したテキストのサイズを基準に、インライン（アンカー付き）またはページ上へグラフィックフレームを作成します。
 

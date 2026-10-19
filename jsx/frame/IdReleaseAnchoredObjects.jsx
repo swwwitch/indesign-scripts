@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.3
 Release-Date=2026-09-25
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択したフレーム、指定したページ、またはドキュメント内のアンカー付きオブジェクトを、アンカーやフレームの種類で絞り込んで解除します。
 

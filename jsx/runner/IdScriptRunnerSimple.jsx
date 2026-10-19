@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.2
 Release-Date=2026-04-17
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 ExtendScript ファイルを 1 つ選んで実行するだけの最小構成のランチャーです。
 

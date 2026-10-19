@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.3.1
 Release-Date=2026-04-18
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 選択位置から対象の表を特定し、表全体の幅と列の幅をプレビュー付きでまとめて調整します。
 

@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.2.0
 Release-Date=2026-06-30
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 段落スタイルの「同一スタイル間の段落間隔」を、スタイル定義そのものに対して設定します。
 

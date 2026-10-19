@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.2.1
 Release-Date=2026-09-09
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 指定した検索文字列を手がかりに段落スタイルを適用し、その文字列を削除します。検索対象はストーリー・ドキュメント・すべてのドキュメントから選べます。
 

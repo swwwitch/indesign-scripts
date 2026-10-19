@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.2
 Release-Date=2026-05-04
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 ドキュメント内の段落スタイルに設定された正規表現スタイル（GREPスタイル）を一覧表示し、テキストファイルへ書き出します。
 

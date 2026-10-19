@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.1.2
 Release-Date=2026-09-24
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 現在のドキュメントで使われていないスタイル（段落・文字・オブジェクト・表・セル）、親ページ、空ページ、スウォッチ、合成フォントを削除します。
 削除する前に一覧で確認でき、残したい項目はチェックを外せます。

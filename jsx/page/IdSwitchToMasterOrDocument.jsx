@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.2
 Release-Date=2025-07-02
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 アクティブページが親（マスター）ページかドキュメントページかを判定し、対応するもう一方へ切り替えます。
 

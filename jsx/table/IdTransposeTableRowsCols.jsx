@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.4
 Release-Date=2025-11-25
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 表の中を選択して実行すると、その表全体の行と列を入れ替えます。ヘッダー行の指定を引き継ぐかと、セル結合の扱いをダイアログで選べます。
 

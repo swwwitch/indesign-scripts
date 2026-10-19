@@ -8,7 +8,6 @@ Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.3.3
 Release-Date=2025-06-26
-Meta-URL=https://github.com/swwwitch/indesign-scripts
 Description-BEGIN
 現在のページに適用されている親（マスター）ページを引き継いだまま、指定した枚数のページを直後に挿入します。
 
