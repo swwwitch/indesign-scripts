@@ -46,6 +46,7 @@ InDesign の［段落境界線］ダイアログボックスを常駐パレッ�
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-10-19 |
 | 最終更新 | 2026-10-19 |
+| 紹介記事 | https://note.com/dtp_tranist/n/n4f45fb194ac1 |
 
 ### 更新履歴
 

@@ -29,6 +29,9 @@ InDesign の［段落境界線］ダイアログボックスを常駐パレッ�
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphRulesPalette.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n4f45fb194ac1
+
 ### Overview
 
 Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule above and rule below on the paragraphs of the selected text, text frames or table cells with a live preview.
@@ -48,8 +51,9 @@ var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-19";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphRulesPalette.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphRulesPalette.md"; /* README (English) */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphRulesPalette.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphRulesPalette.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

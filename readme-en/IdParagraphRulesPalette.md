@@ -46,6 +46,7 @@ Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule a
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-10-19 |
 | Last updated | 2026-10-19 |
+| Article | https://note.com/dtp_tranist/n/n4f45fb194ac1 |
 
 ### Update History
 
