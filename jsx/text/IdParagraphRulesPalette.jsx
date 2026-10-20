@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdParagraphRulesPalette
 Name=IdParagraphRulesPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.4.0
+Version=1.4.1
 Release-Date=2026-10-19
 Description-BEGIN
 InDesign の［段落境界線］ダイアログボックスを常駐パレットで再現し、選択したテキスト・テキストフレーム・表のセルの段落に前境界線・後境界線をプレビューしながら設定します。
@@ -46,10 +46,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphRule
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdParagraphRulesPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphRulesPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphRulesPalette.md"; /* README (English) */
@@ -1296,7 +1296,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
         panel: {
             ruleAbove: { ja: "前境界線", en: "Rule Above" },
             ruleBelow: { ja: "後境界線", en: "Rule Below" },
-            indent:    { ja: "インデント", en: "Indents" }
+            indent:    { ja: "テキストのインデント", en: "Text Indents" }
         },
         fieldLabel: {
             preset:      { ja: "プリセット", en: "Preset" },

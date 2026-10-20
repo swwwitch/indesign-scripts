@@ -45,13 +45,17 @@ Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule a
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdParagraphRulesPalette.jsx` |
-| Version | v1.4.0 |
+| Version | v1.4.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-10-19 |
-| Last updated | 2026-10-20 |
+| Last updated | 2026-10-21 |
 | Article | https://note.com/dtp_tranist/n/n4f45fb194ac1 |
 
 ### Update History
+
+#### v1.4.1 (2026-10-21)
+
+- Renamed the Indents panel to Text Indents
 
 #### v1.4.0 (2026-10-20)
 
