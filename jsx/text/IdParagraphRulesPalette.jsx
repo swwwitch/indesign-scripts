@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdParagraphRulesPalette
 Name=IdParagraphRulesPalette
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.3.0
+Version=1.4.0
 Release-Date=2026-10-19
 Description-BEGIN
 InDesign の［段落境界線］ダイアログボックスを常駐パレットで再現し、選択したテキスト・テキストフレーム・表のセルの段落に前境界線・後境界線をプレビューしながら設定します。
@@ -46,10 +46,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphRule
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdParagraphRulesPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-19";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-20";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphRulesPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphRulesPalette.md"; /* README (English) */
@@ -71,6 +71,57 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
 
     /* 濃淡が「自動」（-1）のときに表示する値 / Tint shown when the rule's tint is automatic (-1) */
     var TINT_AUTO_DISPLAY = 100;
+
+    /* プリセット。Above（前境界線）・Below（後境界線）に書いた境界線はオン、書かなかった境界線はオフにする。
+       書いた境界線の省いた項目は PRESET_RULE_DEFAULTS の値になる。
+       長さ（weight / offset / leftIndent / rightIndent）は数値なら pt、"0.2em" の形なら先頭の段落の文字サイズに対する倍率。
+       color・gapColor は "textColor"（テキストカラー）・"none"・"paper"・"black"・"registration" かスウォッチ名、
+       type は "solid"（実線）か線種の名前、width は "column"（段）か "text"（テキスト）。見つからないカラー・線種は今の値のまま
+       / Presets. A rule listed under Above or Below is turned on, an unlisted one off; omitted items take PRESET_RULE_DEFAULTS.
+       Lengths are pt as numbers, or relative to the first paragraph's point size as "0.2em" */
+    var RULE_PRESETS = [
+        {
+            name: { ja: "下線（テキスト幅）", en: "Underline (Text)" },
+            Below: { weight: 0.5, width: "text", offset: "0.15em" }
+        },
+        {
+            name: { ja: "見出しの罫（段幅）", en: "Heading Rule (Column)" },
+            Below: { weight: 1, offset: "0.4em" }
+        },
+        {
+            name: { ja: "上下の罫（段幅）", en: "Above & Below (Column)" },
+            Above: { weight: 0.5, offset: "1.1em" },
+            Below: { weight: 0.5, offset: "0.4em" }
+        },
+        {
+            name: { ja: "帯（背景）", en: "Background Band" },
+            Above: { weight: "1.5em", color: "black", tint: 15, width: "text", offset: "-0.35em", leftIndent: "-0.25em", rightIndent: "-0.25em" }
+        },
+        {
+            name: { ja: "マーカー", en: "Highlighter" },
+            Above: { weight: "0.45em", color: "black", tint: 20, width: "text", offset: "-0.1em" }
+        },
+        {
+            name: { ja: "境界線なし", en: "No Rules" }
+        }
+    ];
+
+    /* プリセットで省いた項目の値 / Values for the items a preset leaves out */
+    var PRESET_RULE_DEFAULTS = {
+        weight: 1,
+        type: "solid",
+        color: "textColor",
+        tint: 100,
+        overprint: false,
+        gapColor: "none",
+        gapTint: 100,
+        gapOverprint: false,
+        width: "column",
+        offset: 0,
+        leftIndent: 0,
+        rightIndent: 0,
+        keepInFrame: false
+    };
 
     // =========================================
     // レイアウト / Layout
@@ -182,6 +233,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
     /* オーバープリントなど、入力の列にそろえて置くチェックボックスの字下げ
        / Indent of the checkboxes that line up with the control column */
     var CHECKBOX_INDENT = LEFT_LABEL_WIDTH + FIELD_SPACING;
+
+    /* ［プリセットを保存］の名前の欄を、ラジオボタンの文字にそろえる字下げ / Indent of the name field in the Save Preset dialog box, lined up with the radio button text */
+    var PRESET_NAME_INDENT = 20;
 
     // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -761,6 +815,397 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
 
     // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
 
+    // リンクアイコン（再利用パーツ） / Link toggle (reusable)
+
+    // -----------------------------------------
+    // リンクアイコンの寸法 / Link toggle metrics
+    // -----------------------------------------
+    var LINK_ICON_SIZE          = [22, 22]; /* アイコンの大きさ / icon size */
+    var LINK_ICON_STROKE        = 1.5;      /* 線幅 / stroke width */
+    var LINK_CUT_DIRECTION      = [1, 0];   /* 連動中の左辺の切れ目の向き（水平）/ direction of the left-leg cut when linked (horizontal) */
+    var LINK_HOOK_CUT_DIRECTION = [0, 1];   /* 連動中の巻き込みの切れ目の向き（垂直）/ direction of the hook cut when linked (vertical) */
+    var LINK_STRAND_COUNT       = 4;        /* 切れ目の向きをそろえるための細い線の本数 / strands used to shape the cuts */
+    var LINK_SLASH_CLEARANCE    = 2.2;      /* 連動OFFの斜線とフックの間（22px 基準）/ gap between the slash and the hooks when unlinked */
+
+    // -----------------------------------------
+    // リンクアイコンの配色 / Link toggle colors
+    // -----------------------------------------
+    var LINK_UI_DARK = isDarkUI();
+    /* ダイアログの地に重ねる半透明の黒・白（UIの明るさの段階に追従する）。値はステップボタンの配色と同じ
+       Translucent overlays that follow the dialog background; same values as the stepper buttons */
+    var LINK_PRESSED_COLOR  = LINK_UI_DARK ? [1, 1, 1, 0.12] : [0, 0, 0, 0.13]; /* 連動中の地 / background while linked */
+    var LINK_FRAME_COLOR    = LINK_UI_DARK ? [1, 1, 1, 0.07] : [0, 0, 0, 0.10]; /* 連動中の枠 / frame while linked */
+    var LINK_ICON_COLOR     = LINK_UI_DARK ? [1, 1, 1, 1]    : [0, 0, 0, 0.70]; /* アイコンの線 / icon strokes */
+    var LINK_DIM_ICON_COLOR = LINK_UI_DARK ? [1, 1, 1, 0.20] : [0, 0, 0, 0.25]; /* 無効時の線 / strokes when disabled */
+
+    // -----------------------------------------
+    // アイコンを作る・切り替える（外から呼ぶ関数） / Public API
+    // -----------------------------------------
+    /**
+     * 連動の ON／OFF を切り替えるリンクアイコンを追加する（onDraw で自作描画）。
+     * クリックで切り替わる。連動中は押し込んだボタンのように地と枠を描く。
+     * @param {Group} parent - 追加先
+     * @param {boolean} initialValue - 連動の初期値
+     * @param {Function} onToggle - 切り替えたあとに呼ぶ関数
+     * @returns {Group} アイコン（.value で連動中かを読む）
+     */
+    function addLinkToggle(parent, initialValue, onToggle) {
+        var linkToggle = parent.add("group");
+        linkToggle.preferredSize = LINK_ICON_SIZE;
+        linkToggle.minimumSize = LINK_ICON_SIZE;
+        linkToggle.maximumSize = LINK_ICON_SIZE;
+        linkToggle.value = initialValue;
+
+        linkToggle.onDraw = function () {
+            var iconGraphics = linkToggle.graphics;
+            var iconWidth = LINK_ICON_SIZE[0];
+            var iconHeight = LINK_ICON_SIZE[1];
+            /* 自作描画は自動でディムにならないため、親もたどって判定する / Custom drawing is not dimmed automatically */
+            var isDimmed = !isLinkToggleEnabledInTree(linkToggle);
+            /* 連動中は押し込んだボタンのように地と枠を描く / While linked, draw it like a pressed button */
+            if (linkToggle.value && !isDimmed) {
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0, 0, iconWidth, iconHeight);
+                iconGraphics.fillPath(iconGraphics.newBrush(iconGraphics.BrushType.SOLID_COLOR, LINK_PRESSED_COLOR));
+                iconGraphics.newPath();
+                iconGraphics.rectPath(0.5, 0.5, iconWidth - 1, iconHeight - 1);
+                iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, LINK_FRAME_COLOR, 1));
+            }
+            drawLinkIcon(iconGraphics, iconWidth, iconHeight, linkToggle.value, isDimmed ? LINK_DIM_ICON_COLOR : LINK_ICON_COLOR);
+        };
+
+        linkToggle.addEventListener("mousedown", function () {
+            if (!isLinkToggleEnabledInTree(linkToggle)) return;
+            linkToggle.value = !linkToggle.value;
+            redrawLinkToggle(linkToggle);
+            if (onToggle) onToggle();
+        });
+        return linkToggle;
+    }
+
+    /**
+     * 連動の状態をコードから変えて描き直す（onToggle は呼ばない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isLinked - 連動にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleValue(linkToggle, isLinked) {
+        if (linkToggle.value === isLinked) return;
+        linkToggle.value = isLinked;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * アイコンの有効／無効を切り替えて描き直す（変わらないときは描き直さない）
+     * @param {Group} linkToggle - addLinkToggle() で作ったアイコン
+     * @param {boolean} isEnabled - 有効にするなら true
+     * @returns {void}
+     */
+    function setLinkToggleEnabled(linkToggle, isEnabled) {
+        if (linkToggle.enabled === isEnabled) return;
+        linkToggle.enabled = isEnabled;
+        redrawLinkToggle(linkToggle);
+    }
+
+    /**
+     * コントロールと親がすべて有効かを判定する（親の無効化は子の enabled に出ないため、親もたどる）
+     * @param {Object} control - 判定するコントロール
+     * @returns {boolean} すべて有効なら true
+     */
+    function isLinkToggleEnabledInTree(control) {
+        for (var node = control; node; node = node.parent) {
+            if (!node.enabled) return false;
+        }
+        return true;
+    }
+
+    /**
+     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
+     * @param {Group} linkToggle - 描き直すアイコン
+     * @returns {void}
+     */
+    function redrawLinkToggle(linkToggle) {
+        linkToggle.hide();
+        linkToggle.show();
+    }
+
+    // -----------------------------------------
+    // アイコンの形 / Icon geometry
+    // -----------------------------------------
+    /**
+     * 連動アイコンを描く。Illustrator の［縦横比を固定］に合わせ、連動中は縦につながったチェーン、
+     * 連動していないときは上下に分かれたチェーンに斜線を重ねる。座標は 22px 四方を基準に拡大縮小する。
+     * @param {ScriptUIGraphics} iconGraphics - 描画先
+     * @param {number} iconWidth - 描画範囲の幅
+     * @param {number} iconHeight - 描画範囲の高さ
+     * @param {boolean} isLinked - 連動中なら true
+     * @param {number[]} iconColor - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawLinkIcon(iconGraphics, iconWidth, iconHeight, isLinked, iconColor) {
+        var iconScale = Math.min(iconWidth, iconHeight) / 22;
+        var offsetX = (iconWidth - 22 * iconScale) / 2;
+        var offsetY = (iconHeight - 22 * iconScale) / 2;
+        var strokes = isLinked ? buildLinkedChainStrokes() : buildUnlinkedChainStrokes();
+        for (var i = 0; i < strokes.length; i++) {
+            var strokePoints = strokes[i].points;
+            /* newPath() を呼ばないとパスが前の描画に積み重なる / Without newPath() the paths accumulate */
+            iconGraphics.newPath();
+            for (var j = 0; j < strokePoints.length; j++) {
+                var pointX = offsetX + strokePoints[j][0] * iconScale;
+                var pointY = offsetY + strokePoints[j][1] * iconScale;
+                if (j === 0) iconGraphics.moveTo(pointX, pointY);
+                else iconGraphics.lineTo(pointX, pointY);
+            }
+            iconGraphics.strokePath(iconGraphics.newPen(iconGraphics.PenType.SOLID_COLOR, iconColor, strokes[i].width * iconScale));
+        }
+    }
+
+    /**
+     * 連動中のチェーン（縦に組み合った2つの輪）の線を返す。
+     * 上の輪は左辺の途中から上端を回って右辺を下り、下端で内側へ巻き込む。下の輪はそれを180度回したもの。
+     * 切れ目の向きをそろえるため、輪を細い線の束にし、両端を延ばしてから直線で切る（左辺は水平、巻き込みは垂直）
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildLinkedChainStrokes() {
+        /* 左辺は上端の丸みだけ残して短く切り、下の輪の巻き込みとの間を空ける
+           Keep only a stub on the left so it stays clear of the lower ring's hook */
+        var upperRing = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360)
+            .concat([[14.5, 11.2]])
+            .concat(buildArcPoints(11, 11.2, 3.5, 2.3, 0, 115)));
+        var ringStart = upperRing[0];
+        var ringEnd = upperRing[upperRing.length - 1];
+        var extendedRing = extendPolylineEnds(upperRing, LINK_ICON_STROKE);
+        /* 延ばした先がどちら側かで、切り捨てる側を決める / The extended tips tell which side to cut away */
+        var startOutsideSign = sideOfLine(extendedRing[0], ringStart, LINK_CUT_DIRECTION);
+        var endOutsideSign = sideOfLine(extendedRing[extendedRing.length - 1], ringEnd, LINK_HOOK_CUT_DIRECTION);
+
+        var upperStrands = buildStrandStrokes(extendedRing, function (strandPoints) {
+            var trimmed = trimPolylineTail(strandPoints, ringEnd, LINK_HOOK_CUT_DIRECTION, endOutsideSign);
+            trimmed = trimPolylineTail(trimmed.reverse(), ringStart, LINK_CUT_DIRECTION, startOutsideSign).reverse();
+            return [trimmed];
+        });
+        var strokes = [];
+        for (var i = 0; i < upperStrands.length; i++) {
+            strokes.push(upperStrands[i]);
+            strokes.push({ points: rotatePointsHalfTurn(upperStrands[i].points), width: upperStrands[i].width });
+        }
+        return strokes;
+    }
+
+    /**
+     * 中心線を線幅の中で等分した細い線に分け、clipStrand で切った結果を線として返す。
+     * @param {Array<number[]>} centerline - 中心線の点列
+     * @param {Function} clipStrand - 細い線の点列を受け取り、残す点列の配列を返す関数
+     * @returns {Array<{points: Array<number[]>, width: number}>} 細い線ごとの点列と線幅
+     */
+    function buildStrandStrokes(centerline, clipStrand) {
+        var strandWidth = LINK_ICON_STROKE / LINK_STRAND_COUNT;
+        var strokes = [];
+        for (var k = 0; k < LINK_STRAND_COUNT; k++) {
+            /* 線幅の中を等分した位置に細い線を並べる / Lay the strands evenly across the stroke width */
+            var strandOffset = -LINK_ICON_STROKE / 2 + strandWidth * (k + 0.5);
+            var strandPieces = clipStrand(offsetPolyline(centerline, strandOffset));
+            for (var j = 0; j < strandPieces.length; j++) {
+                /* 隣の線と少し重ねて隙間を埋める / Overlap neighbours slightly so no seams show */
+                if (strandPieces[j].length > 1) strokes.push({ points: strandPieces[j], width: strandWidth * 1.4 });
+            }
+        }
+        return strokes;
+    }
+
+    /**
+     * 点列の両端を、端の向きのまま length だけ延ばす。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} length - 延ばす長さ
+     * @returns {Array<number[]>} 延ばした点列
+     */
+    function extendPolylineEnds(points, length) {
+        /* from から to の向きへ、to から length 先の点 / point length beyond to, heading from from to to */
+        function extendBeyond(from, to) {
+            var dx = to[0] - from[0];
+            var dy = to[1] - from[1];
+            var segmentLength = Math.sqrt(dx * dx + dy * dy) || 1;
+            return [to[0] + dx / segmentLength * length, to[1] + dy / segmentLength * length];
+        }
+        var lastIndex = points.length - 1;
+        return [extendBeyond(points[1], points[0])].concat(points, [extendBeyond(points[lastIndex - 1], points[lastIndex])]);
+    }
+
+    /**
+     * 点が直線のどちら側にあるかを符号で返す。
+     * @param {number[]} point - 点
+     * @param {number[]} linePoint - 直線上の1点
+     * @param {number[]} direction - 直線の向き
+     * @returns {number} 正・負で側を表す値
+     */
+    function sideOfLine(point, linePoint, direction) {
+        return direction[0] * (point[1] - linePoint[1]) - direction[1] * (point[0] - linePoint[0]);
+    }
+
+    /**
+     * 点列の終わり側で、直線より outsideSign の側にはみ出した部分を切り、直線との交点で止める。
+     * 輪の別の場所が同じ直線をまたいでも切らないよう、終わりから数点の範囲だけを見る。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} cutPoint - 切る直線上の1点
+     * @param {number[]} direction - 切る直線の向き
+     * @param {number} outsideSign - 切り捨てる側の符号
+     * @returns {Array<number[]>} 切った点列
+     */
+    function trimPolylineTail(points, cutPoint, direction, outsideSign) {
+        var lastIndex = points.length - 1;
+        var searchLimit = Math.max(0, lastIndex - 12);
+        var index = lastIndex;
+        while (index > searchLimit && sideOfLine(points[index], cutPoint, direction) * outsideSign > 0) index--;
+        if (index === lastIndex) return points.slice(0);
+        var inside = points[index];
+        var outside = points[index + 1];
+        var insideSide = sideOfLine(inside, cutPoint, direction);
+        var ratio = insideSide / (insideSide - sideOfLine(outside, cutPoint, direction));
+        return points.slice(0, index + 1).concat([[inside[0] + (outside[0] - inside[0]) * ratio, inside[1] + (outside[1] - inside[1]) * ratio]]);
+    }
+
+    /**
+     * 連動していないときのチェーン（上下に分かれた輪と斜線）の線を返す。
+     * フックは斜線の近くで切る。線の端は進む向きに直角にしか切れないため、フックを細い線の束にして
+     * 1本ずつ斜線と平行な境界で切り、切り口が斜線に沿って見えるようにする。
+     * @returns {Array<{points: Array<number[]>, width: number}>} 線ごとの点列と線幅（22px 四方の座標）
+     */
+    function buildUnlinkedChainStrokes() {
+        var slashStart = [3.5, 3.5];
+        var slashEnd = [18.5, 18.5];
+        var upperHook = densifyPoints(buildArcPoints(11, 7, 3.5, 3.5, 180, 360).concat([[14.5, 11.5]]));
+        var hooks = [upperHook, rotatePointsHalfTurn(upperHook)];
+
+        /* 斜線の近くの帯を切り取る / Cut away the band around the slash */
+        function clipAroundSlash(strandPoints) {
+            return clipOutsideBand(strandPoints, slashStart, slashEnd, LINK_SLASH_CLEARANCE);
+        }
+        var strokes = buildStrandStrokes(hooks[0], clipAroundSlash).concat(buildStrandStrokes(hooks[1], clipAroundSlash));
+        strokes.push({ points: [slashStart, slashEnd], width: LINK_ICON_STROKE });
+        return strokes;
+    }
+
+    /**
+     * 点の間隔が 0.5 以下になるよう、線分の間に点を足す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 細かくした点列
+     */
+    function densifyPoints(points) {
+        var densePoints = [points[0]];
+        for (var i = 1; i < points.length; i++) {
+            var from = points[i - 1];
+            var to = points[i];
+            var steps = Math.max(1, Math.ceil(Math.sqrt(Math.pow(to[0] - from[0], 2) + Math.pow(to[1] - from[1], 2)) / 0.5));
+            for (var j = 1; j <= steps; j++) {
+                densePoints.push([from[0] + (to[0] - from[0]) * j / steps, from[1] + (to[1] - from[1]) * j / steps]);
+            }
+        }
+        return densePoints;
+    }
+
+    /**
+     * 点列を、進む向きの左側へ offset だけずらした点列を返す（負の値なら右側）。
+     * @param {Array<number[]>} points - 点列
+     * @param {number} offset - ずらす距離
+     * @returns {Array<number[]>} ずらした点列
+     */
+    function offsetPolyline(points, offset) {
+        var shifted = [];
+        for (var i = 0; i < points.length; i++) {
+            var before = points[Math.max(0, i - 1)];
+            var after = points[Math.min(points.length - 1, i + 1)];
+            var tangentX = after[0] - before[0];
+            var tangentY = after[1] - before[1];
+            var tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY) || 1;
+            shifted.push([points[i][0] - tangentY / tangentLength * offset, points[i][1] + tangentX / tangentLength * offset]);
+        }
+        return shifted;
+    }
+
+    /**
+     * 直線（線分を延長したもの）から clearance 未満の帯に入る部分を切り取り、残りを点列に分けて返す。
+     * 帯の境界で線分を補間して切るので、切り口は直線と平行にそろう。
+     * @param {Array<number[]>} points - 点列
+     * @param {number[]} lineStart - 直線上の1点
+     * @param {number[]} lineEnd - 直線上のもう1点
+     * @param {number} clearance - 空ける距離
+     * @returns {Array<Array<number[]>>} 帯の外側に残った点列（2点未満のものは除く）
+     */
+    function clipOutsideBand(points, lineStart, lineEnd, clearance) {
+        var directionX = lineEnd[0] - lineStart[0];
+        var directionY = lineEnd[1] - lineStart[1];
+        var directionLength = Math.sqrt(directionX * directionX + directionY * directionY);
+
+        /* 直線からの符号付き距離 / signed distance from the line */
+        function signedDistance(point) {
+            return (directionX * (point[1] - lineStart[1]) - directionY * (point[0] - lineStart[0])) / directionLength;
+        }
+        /* 2点の間で、距離が boundary になる点 / point between two points where the distance equals boundary */
+        function interpolateAt(from, to, fromDistance, toDistance, boundary) {
+            var ratio = (boundary - fromDistance) / (toDistance - fromDistance);
+            return [from[0] + (to[0] - from[0]) * ratio, from[1] + (to[1] - from[1]) * ratio];
+        }
+
+        var pieces = [];
+        var currentPiece = [];
+        for (var i = 0; i < points.length; i++) {
+            var distance = signedDistance(points[i]);
+            var isOutside = Math.abs(distance) >= clearance;
+            if (i > 0) {
+                var previousDistance = signedDistance(points[i - 1]);
+                var wasOutside = Math.abs(previousDistance) >= clearance;
+                if (wasOutside && !isOutside) {
+                    /* 帯に入る: 境界で止める / entering the band: stop at the boundary */
+                    currentPiece.push(interpolateAt(points[i - 1], points[i], previousDistance, distance, previousDistance > 0 ? clearance : -clearance));
+                    if (currentPiece.length > 1) pieces.push(currentPiece);
+                    currentPiece = [];
+                } else if (!wasOutside && isOutside) {
+                    /* 帯から出る: 境界から始める / leaving the band: start at the boundary */
+                    currentPiece = [interpolateAt(points[i - 1], points[i], previousDistance, distance, distance > 0 ? clearance : -clearance)];
+                }
+            }
+            if (isOutside) currentPiece.push(points[i]);
+        }
+        if (currentPiece.length > 1) pieces.push(currentPiece);
+        return pieces;
+    }
+
+    /**
+     * 楕円弧の点列を返す（角度は右が0度、下が90度の画面座標）。
+     * @param {number} centerX - 中心X
+     * @param {number} centerY - 中心Y
+     * @param {number} radiusX - 横の半径
+     * @param {number} radiusY - 縦の半径
+     * @param {number} startDegrees - 開始角度
+     * @param {number} endDegrees - 終了角度
+     * @returns {Array<number[]>} 点列
+     */
+    function buildArcPoints(centerX, centerY, radiusX, radiusY, startDegrees, endDegrees) {
+        var arcSteps = 12;
+        var arcPoints = [];
+        for (var i = 0; i <= arcSteps; i++) {
+            var angle = (startDegrees + (endDegrees - startDegrees) * i / arcSteps) * Math.PI / 180;
+            arcPoints.push([centerX + radiusX * Math.cos(angle), centerY + radiusY * Math.sin(angle)]);
+        }
+        return arcPoints;
+    }
+
+    /**
+     * 点列を 22px 四方の中心で180度回す。
+     * @param {Array<number[]>} points - 点列
+     * @returns {Array<number[]>} 回した点列
+     */
+    function rotatePointsHalfTurn(points) {
+        var rotated = [];
+        for (var i = 0; i < points.length; i++) {
+            rotated.push([22 - points[i][0], 22 - points[i][1]]);
+        }
+        return rotated;
+    }
+
+    // リンクアイコン（再利用パーツ）ここまで / End of the reusable link toggle
+
     // =========================================
     // ラベル定義 / Labels
     // =========================================
@@ -850,9 +1295,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
         },
         panel: {
             ruleAbove: { ja: "前境界線", en: "Rule Above" },
-            ruleBelow: { ja: "後境界線", en: "Rule Below" }
+            ruleBelow: { ja: "後境界線", en: "Rule Below" },
+            indent:    { ja: "インデント", en: "Indents" }
         },
         fieldLabel: {
+            preset:      { ja: "プリセット", en: "Preset" },
+            presetName:  { ja: "名前", en: "Name" },
             weight:      { ja: "線幅", en: "Weight" },
             type:        { ja: "種類", en: "Type" },
             color:       { ja: "カラー", en: "Color" },
@@ -885,10 +1333,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
             registration: { ja: "[レジストレーション]", en: "[Registration]" }
         },
         button: {
-            ok:     { ja: "OK", en: "OK" },
-            cancel: { ja: "キャンセル", en: "Cancel" }
+            ok:           { ja: "OK", en: "OK" },
+            cancel:       { ja: "キャンセル", en: "Cancel" },
+            save:         { ja: "保存", en: "Save" },
+            savePreset:   { ja: "保存...", en: "Save..." },
+            deletePreset: { ja: "削除", en: "Delete" }
+        },
+        presetDialog: {
+            title:          { ja: "プリセットを保存", en: "Save Preset" },
+            overwrite:      { ja: "上書き保存", en: "Overwrite" },
+            overwriteNamed: { ja: "上書き保存（%1）", en: "Overwrite (%1)" },
+            saveAs:         { ja: "名前を付けて保存", en: "Save As" }
+        },
+        confirm: {
+            replacePreset: { ja: "プリセット「%1」はすでにあります。置き換えますか？", en: "A preset named \"%1\" already exists. Replace it?" },
+            deletePreset:  { ja: "プリセット「%1」を削除しますか？", en: "Delete the preset \"%1\"?" }
         },
         tooltip: {
+            preset: {
+                ja: "選んだ設定を前境界線・後境界線の欄に入れます。",
+                en: "Fills in the rule above and rule below with the chosen settings."
+            },
+            savePreset: {
+                ja: "今の設定をプリセットとして保存します（上書き保存・名前を付けて保存）。",
+                en: "Saves the current settings as a preset (overwrite or save as)."
+            },
+            deletePreset: {
+                ja: "選んでいる保存済みのプリセットを削除します。",
+                en: "Deletes the selected saved preset."
+            },
             offset: {
                 ja: "前境界線はベースラインから上へ、後境界線は下へずらす距離です。",
                 en: "Distance from the baseline: upward for the rule above, downward for the rule below."
@@ -896,6 +1369,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
             indent: {
                 ja: "境界線の端を内側へ詰める量です。",
                 en: "How far to pull in the end of the rule."
+            },
+            linkIndents: {
+                ja: "段落の2つのインデントを同じ値で連動させます。",
+                en: "Keeps the paragraph's two indents at the same value."
             },
             keepInFrame: {
                 ja: "前境界線をフレームの上端からはみ出さないようにします。",
@@ -923,6 +1400,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
             previewFailed: {
                 ja: "プレビューできませんでした。\n%1",
                 en: "Could not show the preview.\n%1"
+            },
+            emptyPresetName: { ja: "名前を入力してください。", en: "Please enter a name." },
+            savePresetFailed: {
+                ja: "プリセットを保存できませんでした。\n%1",
+                en: "Could not save the presets.\n%1"
             },
             applyFailed: {
                 ja: "段落境界線を設定できませんでした。\n%1",
@@ -1375,6 +1857,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
      */
 
     /**
+     * @typedef {object} IndentModel 段落のインデント
+     * @property {string} leftIndentText 左 / 上インデント（単位付き）
+     * @property {string} rightIndentText 右 / 下インデント（単位付き）
+     */
+
+    /**
      * 段落の濃淡を、入力欄に入れる文字列にする（自動の -1 は 100%）
      * @param {number} tint 段落の濃淡
      * @returns {string} 例 "100%"
@@ -1422,20 +1910,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
         };
     }
 
+    /* 文字サイズを数値で読めなかったときに 1em とみなす大きさ（pt）/ Point size assumed for 1em when it cannot be read as a number */
+    var FALLBACK_POINT_SIZE = 12;
+
     /**
-     * 先頭の段落から前境界線・後境界線の設定を読み取る。
+     * 段落の文字サイズを pt の数値で読む（数値で読めなければ FALLBACK_POINT_SIZE）
+     * @param {Paragraph} paragraph 読み取る段落
+     * @returns {number} 文字サイズ（pt）
+     */
+    function readPointSize(paragraph) {
+        var pointSize = parseFloat(paragraph.pointSize);
+        return (isFinite(pointSize) && pointSize > 0) ? pointSize : FALLBACK_POINT_SIZE;
+    }
+
+    /**
+     * 先頭の段落から前境界線・後境界線の設定、段落のインデント、文字サイズを読み取る。
      * 測定値は単位の設定によって返る単位が変わるので、読み取る間だけスクリプトの単位を pt にする
      * @param {Paragraph} paragraph 読み取る段落
      * @param {{stroke: UnitInfo, horizontal: UnitInfo, vertical: UnitInfo}} fieldUnits 入力欄の単位
-     * @returns {{Above: RuleModel, Below: RuleModel}} 読み取った設定
+     * @returns {{models: {Above: RuleModel, Below: RuleModel}, indentModel: IndentModel, pointSize: number}} 読み取った設定・段落のインデント・文字サイズ（pt）
      */
-    function readRuleModels(paragraph, fieldUnits) {
+    function readParagraphSettings(paragraph, fieldUnits) {
         var originalUnit = app.scriptPreferences.measurementUnit;
         app.scriptPreferences.measurementUnit = MeasurementUnits.POINTS;
         try {
             return {
-                Above: readRuleModel(paragraph, "Above", fieldUnits),
-                Below: readRuleModel(paragraph, "Below", fieldUnits)
+                models: {
+                    Above: readRuleModel(paragraph, "Above", fieldUnits),
+                    Below: readRuleModel(paragraph, "Below", fieldUnits)
+                },
+                indentModel: {
+                    leftIndentText: formatLength(paragraph.leftIndent, fieldUnits.horizontal),
+                    rightIndentText: formatLength(paragraph.rightIndent, fieldUnits.horizontal)
+                },
+                pointSize: readPointSize(paragraph)
             };
         } finally {
             app.scriptPreferences.measurementUnit = originalUnit;
@@ -1511,6 +2019,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
         { field: "rightIndentText", suffix: "RightIndent",  toValue: makeLengthConverter("horizontal") }
     ];
 
+    /* 段落のインデントの項目と、書き込む段落のプロパティの対応 / Paragraph indent items and the properties they write */
+    var INDENT_FIELDS = [
+        { field: "leftIndentText",  property: "leftIndent" },
+        { field: "rightIndentText", property: "rightIndent" }
+    ];
+
     /**
      * カラーのキーを、段落に代入する値にする
      * @param {string} colorKey カラーのキー
@@ -1523,7 +2037,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
 
     /**
      * 読み取ったときから変わった項目だけを、段落に代入するプロパティにまとめる
-     * @param {object} paletteState 状態オブジェクト（models / initialModels / fieldUnits）
+     * @param {object} paletteState 状態オブジェクト（models / initialModels / indentModel / initialIndentModel / fieldUnits）
      * @returns {object} プロパティ名と値。変更が無ければ空のオブジェクト
      */
     function buildChangedProperties(paletteState) {
@@ -1540,6 +2054,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
         }
         if (paletteState.models.Above.keepInFrame !== paletteState.initialModels.Above.keepInFrame) {
             changedProperties.keepRuleAboveInFrame = paletteState.models.Above.keepInFrame;
+        }
+        for (var k = 0; k < INDENT_FIELDS.length; k++) {
+            var indentField = INDENT_FIELDS[k];
+            if (paletteState.indentModel[indentField.field] === paletteState.initialIndentModel[indentField.field]) continue;
+            changedProperties[indentField.property] = toPointString(paletteState.indentModel[indentField.field], paletteState.fieldUnits.horizontal);
         }
         return changedProperties;
     }
@@ -1569,6 +2088,483 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
                 textTargets[i].properties = changedProperties;
             }
         }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.FAST_ENTIRE_SCRIPT, undoName);
+    }
+
+    // =========================================
+    // プリセット / Presets
+    // =========================================
+
+    /* プリセットの width と、幅の候補のキーの対応 / Preset width values mapped to rule width keys */
+    var PRESET_WIDTH_KEYS = { column: "COLUMN_WIDTH", text: "TEXT_WIDTH" };
+
+    /**
+     * プリセットの長さを、入力欄に入れる単位付きの文字列にする
+     * @param {number|string} presetLength 数値なら pt、"0.2em" の形なら文字サイズに対する倍率
+     * @param {UnitInfo} unitInfo 入力欄の単位
+     * @param {number} emPoints 1em の大きさ（pt）
+     * @returns {string} 例 "0.18 mm"
+     */
+    function formatPresetLength(presetLength, unitInfo, emPoints) {
+        var lengthText = String(presetLength);
+        var isEmLength = /em$/i.test(lengthText);
+        /* ExtendScript の parseFloat は「1.1em」の e を指数と読んで NaN を返すので、em を外してから読む
+           / ExtendScript's parseFloat reads the "e" of "1.1em" as an exponent and returns NaN, so strip "em" first */
+        var amount = parseFloat(lengthText.replace(/em$/i, ""));
+        return formatLength(isEmLength ? amount * emPoints : amount, unitInfo);
+    }
+
+    /**
+     * プリセットのカラーを、カラーの候補のキーにする
+     * @param {Array<ColorChoice>} colorChoices カラーの候補
+     * @param {string} presetColor "textColor" / "none" / "paper" / "black" / "registration" またはスウォッチ名
+     * @returns {string|null} 候補のキー。候補に無ければ null
+     */
+    function resolvePresetColorKey(colorChoices, presetColor) {
+        for (var i = 0; i < colorChoices.length; i++) {
+            if (colorChoices[i].swatchKind === presetColor) return colorChoices[i].key;
+        }
+        return (findChoiceIndex(colorChoices, presetColor) >= 0) ? presetColor : null;
+    }
+
+    /**
+     * プリセットの線の種類を、線の種類の候補のキーにする
+     * @param {Array<{key: string}>} strokeTypeChoices 線の種類の候補
+     * @param {string} presetType "solid" または線種の名前
+     * @returns {string|null} 候補のキー。候補に無ければ null
+     */
+    function resolvePresetTypeKey(strokeTypeChoices, presetType) {
+        for (var i = 0; i < strokeTypeChoices.length; i++) {
+            var strokeName = strokeTypeChoices[i].key;
+            if (presetType === "solid" ? isSolidStroke(strokeName) : strokeName === presetType) return strokeName;
+        }
+        return null;
+    }
+
+    /**
+     * プリセットの1本分を、既定値で補って設定に書き込む（見つからないカラー・線種は今の値のまま）
+     * @param {object} paletteState 状態オブジェクト
+     * @param {RuleModel} ruleModel 書き込む先の設定
+     * @param {object} presetRule プリセットの Above または Below
+     * @returns {void}
+     */
+    function applyPresetRule(paletteState, ruleModel, presetRule) {
+        var spec = {};
+        var key;
+        for (key in PRESET_RULE_DEFAULTS) {
+            if (PRESET_RULE_DEFAULTS.hasOwnProperty(key)) spec[key] = PRESET_RULE_DEFAULTS[key];
+        }
+        for (key in presetRule) {
+            if (presetRule.hasOwnProperty(key)) spec[key] = presetRule[key];
+        }
+
+        var fieldUnits = paletteState.fieldUnits;
+        var emPoints = paletteState.emPoints;
+        var typeKey = resolvePresetTypeKey(paletteState.strokeTypeChoices, spec.type);
+        var colorKey = resolvePresetColorKey(paletteState.colorChoices, spec.color);
+        var gapColorKey = resolvePresetColorKey(paletteState.gapColorChoices, spec.gapColor);
+
+        ruleModel.ruleOn = true;
+        ruleModel.weightText = formatPresetLength(spec.weight, fieldUnits.stroke, emPoints);
+        if (typeKey !== null) ruleModel.typeKey = typeKey;
+        if (colorKey !== null) ruleModel.colorKey = colorKey;
+        ruleModel.tintText = formatTint(spec.tint);
+        ruleModel.overprint = spec.overprint;
+        if (gapColorKey !== null) ruleModel.gapColorKey = gapColorKey;
+        ruleModel.gapTintText = formatTint(spec.gapTint);
+        ruleModel.gapOverprint = spec.gapOverprint;
+        ruleModel.widthKey = PRESET_WIDTH_KEYS[spec.width] || PRESET_WIDTH_KEYS.column;
+        ruleModel.offsetText = formatPresetLength(spec.offset, fieldUnits.vertical, emPoints);
+        ruleModel.leftIndentText = formatPresetLength(spec.leftIndent, fieldUnits.horizontal, emPoints);
+        ruleModel.rightIndentText = formatPresetLength(spec.rightIndent, fieldUnits.horizontal, emPoints);
+        ruleModel.keepInFrame = spec.keepInFrame;
+    }
+
+    /**
+     * プリセットを前境界線・後境界線の設定に入れ、パネルとプレビューを更新する
+     * （プリセットに無い境界線は［境界線を挿入］だけオフにし、ほかの項目は今の値のまま）
+     * @param {object} paletteState 状態オブジェクト
+     * @param {object} preset RULE_PRESETS の1項目
+     * @returns {void}
+     */
+    function applyPreset(paletteState, preset) {
+        for (var i = 0; i < RULE_SIDES.length; i++) {
+            var ruleSide = RULE_SIDES[i];
+            var ruleModel = paletteState.models[ruleSide];
+            if (preset[ruleSide]) applyPresetRule(paletteState, ruleModel, preset[ruleSide]);
+            else ruleModel.ruleOn = false;
+            loadRuleModel(paletteState, ruleSide);
+        }
+        refreshPreview(paletteState);
+    }
+
+    /**
+     * プリセットの表示名を返す（組み込みは { ja, en }、保存したものは文字列）
+     * @param {object} preset プリセット
+     * @returns {string} 表示名
+     */
+    function getPresetDisplayName(preset) {
+        return (typeof preset.name === "string") ? preset.name : getLabel(preset.name);
+    }
+
+    /**
+     * プリセットのドロップダウンを、組み込み・区切り線・保存したプリセットの順で作り直す
+     * @param {object} paletteState 状態オブジェクト
+     * @param {object|null} selectedPreset 選んだ状態にするプリセット（null なら未選択）
+     * @returns {void}
+     */
+    function fillPresetDropdown(paletteState, selectedPreset) {
+        var presetDropdown = paletteState.ui.presetDropdown;
+        var userPresets = paletteState.userPresets;
+        var selectedIndex = -1;
+        var i;
+
+        /**
+         * プリセットを1つ足す
+         * @param {object} preset プリセット
+         * @param {boolean} isUser 保存したプリセットなら true
+         * @returns {void}
+         */
+        function addPresetItem(preset, isUser) {
+            if (preset === selectedPreset) selectedIndex = presetDropdown.items.length;
+            presetDropdown.add("item", getPresetDisplayName(preset));
+            presetDropdown.entries.push({ preset: preset, isUser: isUser });
+        }
+
+        /* 作り直しや選択の代入で onChange が呼ばれるので、その間はプリセットを適用しない / hold back onChange while rebuilding */
+        paletteState.isLoading = true;
+        try {
+            presetDropdown.removeAll();
+            presetDropdown.entries = [];
+            for (i = 0; i < RULE_PRESETS.length; i++) addPresetItem(RULE_PRESETS[i], false);
+            if (userPresets.length > 0) {
+                presetDropdown.add("separator");
+                presetDropdown.entries.push(null);
+            }
+            for (i = 0; i < userPresets.length; i++) addPresetItem(userPresets[i], true);
+            presetDropdown.selection = (selectedIndex >= 0) ? selectedIndex : null;
+        } finally {
+            paletteState.isLoading = false;
+        }
+        refreshPresetButtons(paletteState);
+    }
+
+    /**
+     * ドロップダウンで選んでいるプリセットを返す
+     * @param {DropDownList} presetDropdown プリセットのドロップダウン
+     * @returns {{preset: object, isUser: boolean}|null} 選んでいるプリセット。未選択なら null
+     */
+    function getSelectedPresetEntry(presetDropdown) {
+        return presetDropdown.selection ? presetDropdown.entries[presetDropdown.selection.index] : null;
+    }
+
+    /**
+     * ［削除］を、保存したプリセットを選んでいるときだけ有効にする
+     * @param {object} paletteState 状態オブジェクト
+     * @returns {void}
+     */
+    function refreshPresetButtons(paletteState) {
+        var selectedEntry = getSelectedPresetEntry(paletteState.ui.presetDropdown);
+        paletteState.ui.btnDeletePreset.enabled = !!(selectedEntry && selectedEntry.isUser);
+    }
+
+    /**
+     * パレットの最上部にプリセットの行（ドロップダウン・［保存...］・［削除］）を左右中央に追加する
+     * @param {Window} rulePalette 追加先のパレット
+     * @param {object} paletteState 状態オブジェクト
+     * @returns {void}
+     */
+    function addPresetRow(rulePalette, paletteState) {
+        var ui = paletteState.ui;
+        var presetRow = rulePalette.add("group");
+        setupRow(presetRow, "center", FIELD_SPACING);
+
+        presetRow.add("statictext", undefined, labelText("fieldLabel.preset"));
+        ui.presetDropdown = presetRow.add("dropdownlist");
+        ui.presetDropdown.preferredSize.width = DROPDOWN_WIDTH;
+        ui.presetDropdown.helpTip = getLabel("tooltip.preset");
+        ui.btnSavePreset = presetRow.add("button", undefined, getLabel("button.savePreset"));
+        ui.btnSavePreset.helpTip = getLabel("tooltip.savePreset");
+        ui.btnDeletePreset = presetRow.add("button", undefined, getLabel("button.deletePreset"));
+        ui.btnDeletePreset.helpTip = getLabel("tooltip.deletePreset");
+
+        ui.presetDropdown.onChange = function () {
+            if (paletteState.isLoading) return;
+            refreshPresetButtons(paletteState);
+            var selectedEntry = getSelectedPresetEntry(ui.presetDropdown);
+            if (!selectedEntry) return;
+            /* 上書き保存の対象は、最後に選んだ保存済みのプリセット / the last chosen saved preset is the one to overwrite */
+            paletteState.activeUserPreset = selectedEntry.isUser ? selectedEntry.preset : null;
+            applyPreset(paletteState, selectedEntry.preset);
+        };
+        ui.btnSavePreset.onClick = function () { saveCurrentAsPreset(paletteState); };
+        ui.btnDeletePreset.onClick = function () { deleteSelectedPreset(paletteState); };
+
+        fillPresetDropdown(paletteState, null);
+    }
+
+    /**
+     * プリセットの選択を外す（各項目を手で変えたあと、プリセットどおりではなくなったことを示す）。
+     * 上書き保存の対象（activeUserPreset）はそのまま残す
+     * @param {object} paletteState 状態オブジェクト
+     * @returns {void}
+     */
+    function clearPresetSelection(paletteState) {
+        var presetDropdown = paletteState.ui.presetDropdown;
+        if (!presetDropdown.selection) return;
+        paletteState.isLoading = true;
+        try {
+            presetDropdown.selection = null;
+        } finally {
+            paletteState.isLoading = false;
+        }
+        refreshPresetButtons(paletteState);
+    }
+
+    // -----------------------------------------
+    // プリセットの保存 / Saving presets
+    // -----------------------------------------
+
+    /* 保存したプリセットのファイル（toSource() の形で書き出す）/ File holding the saved presets, written with toSource() */
+    var PRESETS_FILE_NAME = "IdParagraphRulesPalette-presets.txt";
+
+    /**
+     * 保存したプリセットのファイルを返す
+     * @returns {File} プリセットのファイル
+     */
+    function getPresetsFile() {
+        return File(Folder.userData.fsName + "/" + PRESETS_FILE_NAME);
+    }
+
+    /**
+     * 保存したプリセットを読み込む
+     * @returns {Array<object>} 保存したプリセット。無い・読めなければ空の配列
+     */
+    function loadUserPresets() {
+        var presetsFile = getPresetsFile();
+        if (!presetsFile.exists) return [];
+        presetsFile.encoding = "UTF-8";
+        if (!presetsFile.open("r")) return [];
+        try {
+            var loadedPresets = eval(presetsFile.read());
+            return (loadedPresets instanceof Array) ? loadedPresets : [];
+        } catch (e) {
+            return [];
+        } finally {
+            presetsFile.close();
+        }
+    }
+
+    /**
+     * 保存したプリセットをファイルに書き出す
+     * @param {Array<object>} userPresets 保存したプリセット
+     * @returns {boolean} 書き出せたら true
+     */
+    function saveUserPresets(userPresets) {
+        var presetsFile = getPresetsFile();
+        presetsFile.encoding = "UTF-8";
+        presetsFile.lineFeed = "Unix";
+        if (!presetsFile.open("w")) return false;
+        try {
+            return presetsFile.write(userPresets.toSource());
+        } finally {
+            presetsFile.close();
+        }
+    }
+
+    /**
+     * 長さの欄の文字列を、プリセットに残す pt の数値にする
+     * @param {string} fieldText 入力欄の文字列（例 "0.25 mm"）
+     * @param {UnitInfo} unitInfo 入力欄の単位
+     * @returns {number} pt の値
+     */
+    function toPresetPoints(fieldText, unitInfo) {
+        return Math.round(parseFloat(fieldText) * unitInfo.pointsPerUnit * 10000) / 10000;
+    }
+
+    /**
+     * カラーのキーを、プリセットに残す値にする（特別なスウォッチは種別で残し、表示言語が変わっても引けるようにする）
+     * @param {Array<ColorChoice>} colorChoices カラーの候補
+     * @param {string} colorKey カラーのキー
+     * @returns {string} "textColor" などの種別、またはスウォッチ名
+     */
+    function toPresetColor(colorChoices, colorKey) {
+        var choiceIndex = findChoiceIndex(colorChoices, colorKey);
+        if (choiceIndex >= 0 && colorChoices[choiceIndex].swatchKind) return colorChoices[choiceIndex].swatchKind;
+        return colorKey;
+    }
+
+    /**
+     * 境界線1本分の設定を、プリセットの形にする（長さは pt）
+     * @param {object} paletteState 状態オブジェクト
+     * @param {RuleModel} ruleModel 境界線の設定
+     * @param {string} ruleSide "Above" または "Below"
+     * @returns {object} プリセットの Above または Below
+     */
+    function toPresetRule(paletteState, ruleModel, ruleSide) {
+        var fieldUnits = paletteState.fieldUnits;
+        var presetRule = {
+            weight: toPresetPoints(ruleModel.weightText, fieldUnits.stroke),
+            type: isSolidStroke(ruleModel.typeKey) ? "solid" : ruleModel.typeKey,
+            color: toPresetColor(paletteState.colorChoices, ruleModel.colorKey),
+            tint: parseFloat(ruleModel.tintText),
+            overprint: ruleModel.overprint,
+            gapColor: toPresetColor(paletteState.gapColorChoices, ruleModel.gapColorKey),
+            gapTint: parseFloat(ruleModel.gapTintText),
+            gapOverprint: ruleModel.gapOverprint,
+            width: (ruleModel.widthKey === PRESET_WIDTH_KEYS.text) ? "text" : "column",
+            offset: toPresetPoints(ruleModel.offsetText, fieldUnits.vertical),
+            leftIndent: toPresetPoints(ruleModel.leftIndentText, fieldUnits.horizontal),
+            rightIndent: toPresetPoints(ruleModel.rightIndentText, fieldUnits.horizontal)
+        };
+        if (ruleSide === "Above") presetRule.keepInFrame = ruleModel.keepInFrame;
+        return presetRule;
+    }
+
+    /**
+     * 今の設定をプリセットに書き込む（［境界線を挿入］がオフの境界線は書かない）
+     * @param {object} paletteState 状態オブジェクト
+     * @param {object} preset 書き込む先のプリセット
+     * @returns {void}
+     */
+    function writeModelsToPreset(paletteState, preset) {
+        for (var i = 0; i < RULE_SIDES.length; i++) {
+            var ruleSide = RULE_SIDES[i];
+            var ruleModel = paletteState.models[ruleSide];
+            if (ruleModel.ruleOn) preset[ruleSide] = toPresetRule(paletteState, ruleModel, ruleSide);
+            else delete preset[ruleSide];
+        }
+    }
+
+    /**
+     * 保存したプリセットを名前で探す
+     * @param {Array<object>} userPresets 保存したプリセット
+     * @param {string} presetName 名前
+     * @returns {object|null} 見つかったプリセット。無ければ null
+     */
+    function findUserPreset(userPresets, presetName) {
+        for (var i = 0; i < userPresets.length; i++) {
+            if (userPresets[i].name === presetName) return userPresets[i];
+        }
+        return null;
+    }
+
+    /**
+     * 保存の方法と名前を聞くダイアログボックスを表示する
+     * @param {string} overwriteName 上書きできるプリセットの名前（無ければ空文字。そのときは［上書き保存］を選べない）
+     * @returns {{overwrite: boolean, name: string}|null} 選んだ方法と名前。キャンセルなら null
+     */
+    function showSavePresetDialog(overwriteName) {
+        var saveDialog = new Window("dialog", getLabel("presetDialog.title"));
+        setupWindow(saveDialog);
+
+        /* ラジオボタンは同じ親の中だけで排他になるので、2つを1つの group に入れる / radio buttons are exclusive only within one parent */
+        var modeGroup = saveDialog.add("group");
+        modeGroup.orientation = "column";
+        modeGroup.alignChildren = ["left", "center"];
+        modeGroup.spacing = ROW_SPACING;
+        var overwriteRadio = modeGroup.add("radiobutton", undefined,
+            overwriteName ? getLabel("presetDialog.overwriteNamed", [overwriteName]) : getLabel("presetDialog.overwrite"));
+        var saveAsRadio = modeGroup.add("radiobutton", undefined, getLabel("presetDialog.saveAs"));
+
+        var nameRow = saveDialog.add("group");
+        setupRow(nameRow, "left", FIELD_SPACING);
+        nameRow.margins = [PRESET_NAME_INDENT, 0, 0, 0];
+        var nameLabel = nameRow.add("statictext", undefined, labelText("fieldLabel.presetName"));
+        var nameInput = nameRow.add("edittext", undefined, overwriteName);
+        nameInput.preferredSize.width = DROPDOWN_WIDTH;
+
+        /* 表示前に代入した value は読み戻せないので、選んだ方法は変数で持つ / a value assigned before show() cannot be read back */
+        var isOverwrite = !!overwriteName;
+
+        /**
+         * 選んだ方法に合わせて、ラジオボタンと名前の欄を切り替える
+         * @returns {void}
+         */
+        function refreshMode() {
+            overwriteRadio.value = isOverwrite;
+            saveAsRadio.value = !isOverwrite;
+            nameLabel.enabled = !isOverwrite;
+            nameInput.enabled = !isOverwrite;
+        }
+        overwriteRadio.enabled = !!overwriteName;
+        overwriteRadio.onClick = function () { isOverwrite = true; refreshMode(); };
+        saveAsRadio.onClick = function () {
+            isOverwrite = false;
+            refreshMode();
+            nameInput.active = true;
+        };
+        refreshMode();
+
+        var buttonRow = addButtonRow(saveDialog);
+        buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnSave = buttonRow.rightGroup.add("button", undefined, getLabel("button.save"), { name: "ok" });
+        alignRightOnlyButtonRow(buttonRow);
+
+        btnSave.onClick = function () {
+            if (!isOverwrite && trimText(nameInput.text) === "") {
+                alert(getLabel("alert.emptyPresetName"));
+                nameInput.active = true;
+                return;
+            }
+            saveDialog.close(1);
+        };
+        if (!isOverwrite) saveDialog.onShow = function () { nameInput.active = true; };
+
+        if (saveDialog.show() !== 1) return null;
+        return { overwrite: isOverwrite, name: isOverwrite ? overwriteName : trimText(nameInput.text) };
+    }
+
+    /**
+     * 文字列の前後の空白を取る
+     * @param {string} text 文字列
+     * @returns {string} 前後の空白を取った文字列
+     */
+    function trimText(text) {
+        return String(text).replace(/^\s+|\s+$/g, "");
+    }
+
+    /**
+     * 今の設定をプリセットとして保存する（上書き保存、または名前を付けて保存）
+     * @param {object} paletteState 状態オブジェクト
+     * @returns {void}
+     */
+    function saveCurrentAsPreset(paletteState) {
+        var userPresets = paletteState.userPresets;
+        var activePreset = paletteState.activeUserPreset;
+        var saveAnswer = showSavePresetDialog(activePreset ? activePreset.name : "");
+        if (!saveAnswer) return;
+
+        var targetPreset = saveAnswer.overwrite ? activePreset : findUserPreset(userPresets, saveAnswer.name);
+        if (!saveAnswer.overwrite && targetPreset && !confirm(getLabel("confirm.replacePreset", [saveAnswer.name]), true)) return;
+        if (!targetPreset) {
+            targetPreset = { name: saveAnswer.name };
+            userPresets.push(targetPreset);
+        }
+        writeModelsToPreset(paletteState, targetPreset);
+        if (!saveUserPresets(userPresets)) alert(getLabel("alert.savePresetFailed", [getPresetsFile().fsName]));
+
+        paletteState.activeUserPreset = targetPreset;
+        fillPresetDropdown(paletteState, targetPreset);
+    }
+
+    /**
+     * 選んでいる保存済みのプリセットを削除する
+     * @param {object} paletteState 状態オブジェクト
+     * @returns {void}
+     */
+    function deleteSelectedPreset(paletteState) {
+        var selectedEntry = getSelectedPresetEntry(paletteState.ui.presetDropdown);
+        if (!selectedEntry || !selectedEntry.isUser) return;
+        var targetPreset = selectedEntry.preset;
+        if (!confirm(getLabel("confirm.deletePreset", [targetPreset.name]), true)) return;
+
+        var userPresets = paletteState.userPresets;
+        for (var i = userPresets.length - 1; i >= 0; i--) {
+            if (userPresets[i] === targetPreset) userPresets.splice(i, 1);
+        }
+        if (paletteState.activeUserPreset === targetPreset) paletteState.activeUserPreset = null;
+        if (!saveUserPresets(userPresets)) alert(getLabel("alert.savePresetFailed", [getPresetsFile().fsName]));
+        fillPresetDropdown(paletteState, null);
     }
 
     // =========================================
@@ -1862,12 +2858,67 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
         }
     }
 
+    /**
+     * 段落のインデントのパネル（左・右の欄と、左右を連動させるリンクアイコン）を作る
+     * @param {Window} rulePalette 追加先のパレット
+     * @param {object} paletteState 状態オブジェクト
+     * @returns {void}
+     */
+    function buildIndentSection(rulePalette, paletteState) {
+        var ui = paletteState.ui;
+        var horizontalUnit = paletteState.fieldUnits.horizontal;
+        var indentModel = paletteState.indentModel;
+
+        var indentPanel = rulePalette.add("panel", undefined, getLabel("panel.indent"));
+        setupPanel(indentPanel, ROW_SPACING);
+
+        var onIndentChange = function (numberInput) { handleIndentChange(paletteState, numberInput); };
+        var indentRow = addTwoColumnRow(indentPanel);
+        /* 縦組みでは左右のインデントが上下になる / in vertical text the left and right indents become top and bottom */
+        var startIndentKey = paletteState.isVerticalStory ? "fieldLabel.topIndent" : "fieldLabel.leftIndent";
+        var endIndentKey = paletteState.isVerticalStory ? "fieldLabel.bottomIndent" : "fieldLabel.rightIndent";
+        ui.paragraphLeftIndentInput = addNumberField(indentRow.left, startIndentKey, LEFT_LABEL_WIDTH,
+            { step: horizontalUnit.step, min: 0, unit: horizontalUnit.unit, text: indentModel.leftIndentText }, onIndentChange);
+        ui.paragraphRightIndentInput = addNumberField(indentRow.right, endIndentKey, RIGHT_LABEL_WIDTH,
+            { step: horizontalUnit.step, min: 0, unit: horizontalUnit.unit, text: indentModel.rightIndentText }, onIndentChange);
+        ui.paragraphLeftIndentInput.modelField = "leftIndentText";
+        ui.paragraphRightIndentInput.modelField = "rightIndentText";
+        ui.paragraphLeftIndentInput.pairedInput = ui.paragraphRightIndentInput;
+        ui.paragraphRightIndentInput.pairedInput = ui.paragraphLeftIndentInput;
+
+        /* 開いたときに左右が同じなら連動から始める。連動にしたら右を左にそろえる
+           / start linked when both indents match; linking copies the left value to the right */
+        ui.indentLinkToggle = addLinkToggle(indentRow.right,
+            indentModel.leftIndentText === indentModel.rightIndentText,
+            function () {
+                if (ui.indentLinkToggle.value) handleIndentChange(paletteState, ui.paragraphLeftIndentInput);
+            });
+        ui.indentLinkToggle.helpTip = getLabel("tooltip.linkIndents");
+    }
+
+    /**
+     * 段落のインデントの欄の値を設定へ書き戻し、連動中ならもう一方の欄もそろえてプレビューを更新する
+     * @param {object} paletteState 状態オブジェクト
+     * @param {EditText} numberInput 値が変わった欄（.modelField と .pairedInput を持つ）
+     * @returns {void}
+     */
+    function handleIndentChange(paletteState, numberInput) {
+        var indentModel = paletteState.indentModel;
+        indentModel[numberInput.modelField] = numberInput.text;
+        if (paletteState.ui.indentLinkToggle && paletteState.ui.indentLinkToggle.value) {
+            var pairedInput = numberInput.pairedInput;
+            writeFieldText(pairedInput, numberInput.text);
+            indentModel[pairedInput.modelField] = numberInput.text;
+        }
+        refreshPreview(paletteState);
+    }
+
     /* パレットの参照を残す $.global のキー（再実行で前回のパレットを閉じるため）
        / $.global key holding the palette, so a rerun can close the previous one */
     var PALETTE_GLOBAL_KEY = "__IdParagraphRulesPalette";
 
     /**
-     * パレットを組み立てる（前境界線の下に後境界線、いちばん下にプレビューとボタン）
+     * パレットを組み立てる（上からプリセット・前境界線・後境界線・インデント、いちばん下にプレビューとボタン）
      * @param {object} paletteState 状態オブジェクト
      * @returns {object} パレットとコントロールをまとめた UI オブジェクト
      */
@@ -1877,9 +2928,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
 
         var ui = { palette: rulePalette, sections: {} };
         paletteState.ui = ui;
+        addPresetRow(rulePalette, paletteState);
         for (var i = 0; i < RULE_SIDES.length; i++) {
             ui.sections[RULE_SIDES[i]] = buildRuleSection(rulePalette, paletteState, RULE_SIDES[i]);
         }
+        buildIndentSection(rulePalette, paletteState);
 
         /* ボタン行：左にプレビュー、右にキャンセル・OK / Button row: Preview on the left, Cancel and OK on the right */
         var buttonRow = addButtonRow(rulePalette);
@@ -1966,6 +3019,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
             ruleModel[changedControl.modelField] = changedControl.text;
         }
 
+        clearPresetSelection(paletteState);
         refreshControlStates(paletteState, changedControl.ruleSide);
         refreshPreview(paletteState);
     }
@@ -2163,13 +3217,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4f45fb194ac1"; /* 紹�
         /* 表示する値は先頭の段落から読む。空のフレームやセルでも段落を取れるよう挿入点から引く
            / Values shown come from the first paragraph, reached through an insertion point so empty frames and cells work too */
         var firstParagraph = textTargets[0].insertionPoints[0].paragraphs[0];
-        var models = readRuleModels(firstParagraph, fieldUnits);
+        var paragraphSettings = readParagraphSettings(firstParagraph, fieldUnits);
+        var models = paragraphSettings.models;
+        var indentModel = paragraphSettings.indentModel;
 
         var paletteState = {
+            emPoints: paragraphSettings.pointSize,
+            userPresets: loadUserPresets(),
+            activeUserPreset: null,
             textTargets: textTargets,
             fieldUnits: fieldUnits,
             models: models,
             initialModels: { Above: cloneRuleModel(models.Above), Below: cloneRuleModel(models.Below) },
+            indentModel: indentModel,
+            initialIndentModel: cloneRuleModel(indentModel),
             colorChoices: buildColorChoices(targetDoc, true),
             gapColorChoices: buildColorChoices(targetDoc, false),
             strokeTypeChoices: buildStrokeTypeChoices(targetDoc),

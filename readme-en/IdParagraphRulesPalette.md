@@ -12,6 +12,8 @@ Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule a
 
 ### Features
 
+- Pick a preset at the top of the palette (underline, heading rule, rules above and below, background band, highlighter, no rules) to fill in both rules at once; lengths follow the paragraph's point size, and presets can be edited in RULE_PRESETS at the top of the script
+- Save the current settings as a preset (Save... to overwrite or save as) and delete saved presets; they are kept in `~/Library/Application Support/IdParagraphRulesPalette-presets.txt`
 - Rule Above and Rule Below are shown side by side on one screen (no switching as in the built-in dialog box)
 - Weight, Type, Color, Tint, Overprint Stroke, Gap Color, Gap Tint, Overprint Gap, Width (Column / Text), Offset, indents and Keep In Frame (rule above only)
 - Only the items you change after opening are written, so other settings and values that differ between paragraphs stay as they are
@@ -23,6 +25,7 @@ Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule a
 - Numeric fields step with the ∧∨ buttons and the ↑↓ keys (Shift snaps to 10s, Option steps by 0.1), and accept arithmetic and other units (typing "1in" in a mm field gives "25.4 mm")
 - Lengths follow the document's units (stroke, horizontal and vertical)
 - Japanese / English UI
+- Set the paragraph's left and right indents in the Indents panel; the link icon keeps them equal (starts linked when they match). Presets do not include them
 
 ### Usage
 
@@ -42,13 +45,18 @@ Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule a
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdParagraphRulesPalette.jsx` |
-| Version | v1.3.0 |
+| Version | v1.4.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-10-19 |
-| Last updated | 2026-10-19 |
+| Last updated | 2026-10-20 |
 | Article | https://note.com/dtp_tranist/n/n4f45fb194ac1 |
 
 ### Update History
+
+#### v1.4.0 (2026-10-20)
+
+- Added presets at the top of the palette, with save, overwrite, save as and delete
+- Added an Indents panel for the paragraph's left and right indents, linked with a link icon
 
 #### v1.3.0 (2026-10-19)
 
