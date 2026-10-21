@@ -2,6 +2,10 @@
 
 ## 20261021
 
+### 新しいスクリプトを追加
+
+- [派生スタイルのオーバーライドをカラー以外削除](readme-ja/IdResetStyleToBaseKeepColor.md)
+
 ### 調整
 
 - [段落境界線をパレットでプレビューしながら設定](readme-ja/IdParagraphRulesPalette.md)（v1.4.1）：［インデント］パネルの名前を［テキストのインデント］に変更
