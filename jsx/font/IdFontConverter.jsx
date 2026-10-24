@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdFontConverter
 Name=IdFontConverter
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.1.5
+Version=1.1.6
 Release-Date=2026-06-17
 Description-BEGIN
 フォントの種別（文字セット・P・UD・N・NT・ウエイト）をまとめて切り替え、選択範囲やドキュメント全体へ適用します。
@@ -41,10 +41,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFontConverter
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdFontConverter";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-24";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFontConverter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFontConverter.md"; /* README (English) */
@@ -520,8 +520,8 @@ var LABELS = {
             en: "Choose the scope for changing font variants: the selection, the whole story containing the selection, the entire document, or the active spread."
         },
         charset: {
-            ja: "文字セットを Std / Pro / Pr5 / Pr6 から選びます。N の有無は別の「N設定」で切り替えます。",
-            en: "Choose the character set: Std, Pro, Pr5, or Pr6. Toggle the N variant separately under N Variant."
+            ja: "文字セットを Std / Pro / Pr5 / Pr6 から選びます。N の有無は「N（JIS2004対応）」で切り替えます。",
+            en: "Choose the character set: Std, Pro, Pr5, or Pr6. Toggle the N variant separately under N (JIS2004)."
         },
         nSetting: {
             ja: "N あり/なしを切り替えます。例：Pr6 → Pr6N。現状維持では現在の N 状態を保ちます。",
@@ -617,8 +617,8 @@ function setupColumn(columnGroup, spacing) {
     var installedFontByPs = {};
     var allFontByPs = {};
     /**
-     * インストール済みフォントを PostScript 名で索引化する
-     * @returns {object} フォントの索引
+     * フォント一覧を PostScript 名で索引化する（installedFontByPs と allFontByPs に入れる）
+     * @returns {void}
      */
     function indexFonts() {
         var fonts = app.fonts;
@@ -739,9 +739,9 @@ function setupColumn(columnGroup, spacing) {
     };
 
     /**
-     * 収録の最も多い文字セットへ寄せる設定を組み立てる
-     * @param {boolean} includeN N 付きの書体も対象にするか
-     * @returns {object} 変換設定
+     * ランキングの先頭から選べる文字セットを探し、文字セットと N のラジオをオンにする
+     * @param {string[]} rankList 文字セットのランキング（CHARSET_RANK_NO_N / CHARSET_RANK_WITH_N）
+     * @returns {void}
      */
     function applyRichestCharset(rankList) {
         for (var i = 0; i < rankList.length; i++) {
@@ -905,8 +905,13 @@ function setupColumn(columnGroup, spacing) {
         scanCompositeFontsForChanges();
     }
 
-    if (directChanges.length === 0 && weightSubChanges.length === 0 && missingChanges.length === 0) {
-        alert(getLabel("alert.noChange"));
+    /* インストールされていないフォントしか無いときも変更なしとして知らせる / Report "no change" even when only uninstalled targets were found */
+    if (directChanges.length === 0 && weightSubChanges.length === 0) {
+        var noChangeMessage = getLabel("alert.noChange");
+        if (missingChanges.length > 0) {
+            noChangeMessage += "\n\n" + getLabel("confirm.notInstalled") + "\n" + uniqueArray(extractNewFontNames(missingChanges)).join("\n");
+        }
+        alert(noChangeMessage);
         return;
     }
 
@@ -930,6 +935,13 @@ function setupColumn(columnGroup, spacing) {
     var fontNameMap = {}; // oldName -> newName
     addSelectedChanges(directChanges, fontNameMap, selectedOldNames);
     addSelectedChanges(weightSubChanges, fontNameMap, selectedOldNames);
+
+    /* 確認ダイアログですべてのチェックを外したときは何もしない / Nothing to do when every item was unchecked */
+    var hasAnyChange = false;
+    for (var mapKey in fontNameMap) {
+        if (fontNameMap.hasOwnProperty(mapKey)) { hasAnyChange = true; break; }
+    }
+    if (!hasAnyChange) return;
 
     // -----------------------------------------
     // 適用（全体を 1 アンドゥにまとめる）/ Apply (wrapped as a single undo step)
@@ -970,15 +982,15 @@ function setupColumn(columnGroup, spacing) {
     // =========================================
 
     /**
-     * 指定した対象範囲から処理するテキストを集める
-     * @param {string} scope 対象範囲を表す識別子
-     * @returns {Array<object>} 対象テキストの配列
+     * 対象範囲から処理するテキストを targets に集める
+     * @param {string} mode 対象範囲（"selection" / "story" / "document" / "spread"）
+     * @returns {void}
      */
     function collectTargets(mode) {
         if (mode === "document") {
             var stories = activeDocument.stories;
             for (var i = 0; i < stories.length; i++) {
-                if (storyInScope(stories[i])) addStoryTarget(stories[i]);
+                addStoryInScope(stories[i]);
             }
             return;
         }
@@ -988,13 +1000,11 @@ function setupColumn(columnGroup, spacing) {
             return;
         }
         if (mode === "spread") {
-            // アクティブスプレッド上のテキストフレームを対象にする / Text frames on the active spread
+            // アクティブスプレッド上のフレームのテキストだけを対象にする（連結先の別スプレッドは含めない）
+            // Only the text inside frames on the active spread; threaded frames on other spreads are left alone
             var spreadFrames = collectActiveSpreadTextFrames();
             for (var s = 0; s < spreadFrames.length; s++) {
-                var frame = spreadFrames[s];
-                if (!includeLocked && isFrameLocked(frame)) continue;
-                if (!includeHidden && isFrameHidden(frame)) continue;
-                addStoryTarget(frame.parentStory);
+                if (frameInScope(spreadFrames[s])) addFrameTarget(spreadFrames[s]);
             }
             return;
         }
@@ -1019,8 +1029,8 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 選択から対象テキストを集める
-     * @param {Array<object>} targets 収集先の配列
+     * 選択から対象テキストを targets に集める（グループは中へたどる）
+     * @param {Array|PageItems} items 選択、またはグループ内のページアイテム
      * @returns {void}
      */
     function collectFromSelection(items) {
@@ -1030,15 +1040,13 @@ function setupColumn(columnGroup, spacing) {
             try { typeName = item.constructor.name; } catch (e) { continue; }
 
             if (typeName === "TextFrame") {
-                if (!includeLocked && isFrameLocked(item)) continue;
-                if (!includeHidden && isFrameHidden(item)) continue;
-                addStoryTarget(item.parentStory);
+                if (frameInScope(item)) addStoryTarget(item.parentStory);
             } else if (typeName === "Cell") {
                 // 表セルは cell.texts[0] 経由で扱う / Table cells are handled via cell.texts[0]
                 var cellText = cellTextOf(item);
                 if (cellText) addTextTarget(cellText);
             } else if (TEXT_TYPES[typeName]) {
-                addTextTarget(item); // 部分選択を尊重 / honor partial text selection
+                addTextTarget(item); // 選択した文字だけを変える / only the selected characters
             } else if (typeName === "Group") {
                 collectFromSelection(item.pageItems);
             }
@@ -1046,8 +1054,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 選択からストーリーを集める
-     * @returns {Array<Story>} ストーリーの配列
+     * 選択が属するストーリーを targets に集める（グループは中へたどる）
+     * @param {Array|PageItems} items 選択、またはグループ内のページアイテム
+     * @returns {void}
      */
     function collectStoriesFromSelection(items) {
         for (var i = 0; i < items.length; i++) {
@@ -1056,9 +1065,7 @@ function setupColumn(columnGroup, spacing) {
             try { typeName = item.constructor.name; } catch (e) { continue; }
 
             if (typeName === "TextFrame") {
-                if (!includeLocked && isFrameLocked(item)) continue;
-                if (!includeHidden && isFrameHidden(item)) continue;
-                addStoryTarget(item.parentStory);
+                if (frameInScope(item)) addStoryTarget(item.parentStory);
             } else if (typeName === "Cell") {
                 var cellText = cellTextOf(item);
                 if (cellText) {
@@ -1086,8 +1093,7 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * ストーリーを対象として追加する
-     * @param {Array<object>} targets 収集先の配列
+     * ストーリーを対象として targets に追加する（同じストーリーは1回だけ）
      * @param {Story} story 追加するストーリー
      * @returns {void}
      */
@@ -1098,62 +1104,141 @@ function setupColumn(columnGroup, spacing) {
         if (seenStoryIds[storyId]) return;
         seenStoryIds[storyId] = true;
 
-        var frames = framesArray(story.textContainers);
-        targets.push({
-            story: story,
-            ranges: story.textStyleRanges,
-            frames: frames,
-            sortKey: sortKeyOfFrames(frames)
-        });
+        var frames = collectionToArray(story.textContainers);
+        pushTarget(story, story.textStyleRanges, frames, null);
+        addNestedTextTargets(story, story, frames);
     }
 
     /**
-     * テキスト範囲を対象として追加する
-     * @param {Array<object>} targets 収集先の配列
+     * 対象範囲（ロック・非表示の扱い）に入るフレームのテキストを targets に追加する。
+     * すべてのフレームが入ればストーリーごと（オーバーセットも含む）、一部だけならフレーム単位で足す
+     * @param {Story} story 対象のストーリー
+     * @returns {void}
+     */
+    function addStoryInScope(story) {
+        var frames = collectionToArray(story.textContainers);
+        var framesInScope = [];
+        for (var i = 0; i < frames.length; i++) {
+            if (frameInScope(frames[i])) framesInScope.push(frames[i]);
+        }
+        if (framesInScope.length === 0) return;
+        if (framesInScope.length === frames.length) {
+            addStoryTarget(story);
+            return;
+        }
+        for (var j = 0; j < framesInScope.length; j++) {
+            addFrameTarget(framesInScope[j]);
+        }
+    }
+
+    /**
+     * 1 つのフレームに収まっているテキストを対象として targets に追加する
+     * @param {TextFrame|TextPath} frame 対象のフレーム
+     * @returns {void}
+     */
+    function addFrameTarget(frame) {
+        var frameText, story;
+        try {
+            frameText = frame.texts[0];
+            if (!frameText.isValid) return;
+            story = frame.parentStory;
+        } catch (e) { return; }
+        pushTarget(story, frameText.textStyleRanges, [frame], null);
+        addNestedTextTargets(frameText, story, [frame]);
+    }
+
+    /**
+     * 選択したテキストを対象として targets に追加する。書式の区切りが選択の外へはみ出す分は適用時に切り詰める
      * @param {Text} textObject 追加するテキスト
      * @returns {void}
      */
     function addTextTarget(textObject) {
-        var story;
-        try { story = textObject.parentStory; } catch (e) { return; }
-        if (!story || !story.isValid) return;
+        var story, clip;
+        try {
+            story = textObject.parentStory;
+            if (!story || !story.isValid) return;
+            /* 挿入点だけの選択は文字が無いので対象にしない / An insertion point alone has no characters to change */
+            var chars = textObject.characters;
+            if (chars.length === 0) return;
+            clip = {
+                first: chars.firstItem().getElements()[0],
+                last: chars.lastItem().getElements()[0]
+            };
+        } catch (e) { return; }
 
         var frames;
-        try { frames = framesArray(textObject.parentTextFrames); } catch (e2) { frames = []; }
+        try { frames = collectionToArray(textObject.parentTextFrames); } catch (e2) { frames = []; }
+        pushTarget(story, textObject.textStyleRanges, frames, clip);
+        addNestedTextTargets(textObject, story, frames);
+    }
+
+    /**
+     * 表のセルと脚注のテキストを targets に追加する（本文の textStyleRanges に含まれないため）。入れ子の表もたどる
+     * @param {Story|Text} container 表・脚注を持つストーリーまたはテキスト
+     * @param {Story} story 所属するストーリー（件数の数え分けに使う）
+     * @param {Array<TextFrame>} frames ロック解除と並べ替えに使うフレーム
+     * @returns {void}
+     */
+    function addNestedTextTargets(container, story, frames) {
+        var tables = [], footnotes = [];
+        try { tables = collectionToArray(container.tables); } catch (e) { }
+        try { footnotes = collectionToArray(container.footnotes); } catch (e2) { }
+
+        for (var t = 0; t < tables.length; t++) {
+            var cells = [];
+            try { cells = collectionToArray(tables[t].cells); } catch (e3) { }
+            for (var c = 0; c < cells.length; c++) {
+                var cellText = cellTextOf(cells[c]);
+                if (!cellText) continue;
+                pushTarget(story, cellText.textStyleRanges, frames, null);
+                addNestedTextTargets(cellText, story, frames);
+            }
+        }
+        for (var f = 0; f < footnotes.length; f++) {
+            var footnoteText;
+            try { footnoteText = footnotes[f].texts[0]; } catch (e4) { continue; }
+            pushTarget(story, footnoteText.textStyleRanges, frames, null);
+        }
+    }
+
+    /**
+     * targets に 1 件追加する
+     * @param {Story} story 所属するストーリー
+     * @param {TextStyleRanges} ranges 対象の書式の区切り
+     * @param {Array<TextFrame>} frames ロック解除と並べ替えに使うフレーム
+     * @param {{first: Character, last: Character}|null} clip 選択の最初と最後の文字。範囲を切り詰めないなら null
+     * @returns {void}
+     */
+    function pushTarget(story, ranges, frames, clip) {
         targets.push({
             story: story,
-            ranges: textObject.textStyleRanges,
+            ranges: ranges,
             frames: frames,
-            sortKey: sortKeyOfFrames(frames)
+            sortKey: sortKeyOfFrames(frames),
+            clip: clip
         });
     }
 
     /**
-     * そのストーリーが対象範囲に含まれるかを判定する
-     * @param {Story} story 対象のストーリー
-     * @returns {boolean} 含まれていれば true
+     * フレームが対象範囲（ロック・非表示のオプション）に入るかを判定する
+     * @param {PageItem} frame 対象のフレーム
+     * @returns {boolean} 入れば true
      */
-    function storyInScope(story) {
-        var frames = story.textContainers;
-        if (frames.length === 0) return false;
-        for (var i = 0; i < frames.length; i++) {
-            var frame = frames[i];
-            if (!includeLocked && isFrameLocked(frame)) continue;
-            if (!includeHidden && isFrameHidden(frame)) continue;
-            return true;
-        }
-        return false;
+    function frameInScope(frame) {
+        if (!includeLocked && isFrameLocked(frame)) return false;
+        if (!includeHidden && isFrameHidden(frame)) return false;
+        return true;
     }
 
     /**
-     * テキストが属するフレームの配列を取得する
-     * @param {Text} textObject 対象のテキスト
-     * @returns {Array<TextFrame>} フレームの配列
+     * DOM のコレクションを配列にする
+     * @param {Object|Array} collection コレクション
+     * @returns {Array} 要素の配列
      */
-    function framesArray(frames) {
+    function collectionToArray(collection) {
         var arr = [];
         try {
-            for (var i = 0; i < frames.length; i++) arr.push(frames[i]);
+            for (var i = 0; i < collection.length; i++) arr.push(collection[i]);
         } catch (e) { }
         return arr;
     }
@@ -1174,8 +1259,8 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 対象をページ上の位置（上から下）で並べ替える
-     * @param {Array<object>} targets 対象の配列
+     * 対象をページ上の位置（上から下、同じ高さは左から右）で並べ替える
+     * @param {Array<object>} list 対象の配列
      * @returns {void}
      */
     function sortTargetsByPosition(list) {
@@ -1234,23 +1319,45 @@ function setupColumn(columnGroup, spacing) {
     // =========================================
 
     /**
-     * 対象テキストから変換が必要なフォントを洗い出す
-     * @param {Array<object>} targets 対象の配列
-     * @param {object} desired 変換設定
-     * @returns {Array<object>} 変更候補
+     * 対象テキストのフォントを変更候補に振り分ける
+     * @param {object} target 対象テキスト（collectTargets で集めたもの）
+     * @returns {void}
      */
     function scanTargetFonts(target) {
-        var ranges = target.ranges;
-        for (var i = 0; i < ranges.length; i++) {
-            var psName = fontPsNameOf(ranges[i].appliedFont);
+        var fonts = appliedFontsOf(target.ranges);
+        for (var i = 0; i < fonts.length; i++) {
+            var psName = fontPsNameOf(fonts[i]);
             if (psName) classifyFontChange(psName);
         }
     }
 
     /**
-     * 段落・文字スタイルから変換が必要なフォントを洗い出す
-     * @param {object} desired 変換設定
-     * @returns {Array<object>} 変更候補
+     * 書式の区切りごとのフォントをまとめて取得する（1 件ずつ読むより DOM の往復が少ない）
+     * @param {TextStyleRanges} ranges 対象の書式の区切り
+     * @returns {Array<Font|string|null>} ranges と同じ並びのフォント
+     */
+    function appliedFontsOf(ranges) {
+        var count = 0;
+        try { count = ranges.length; } catch (e) { return []; }
+        if (count === 0) return [];
+        try {
+            var bulkFonts = ranges.everyItem().appliedFont;
+            if (!(bulkFonts instanceof Array)) bulkFonts = [bulkFonts];
+            if (bulkFonts.length === count) return bulkFonts;
+        } catch (eBulk) { }
+
+        // フォールバック：1 件ずつ / Fallback: one by one
+        var fonts = [];
+        for (var i = 0; i < count; i++) {
+            try { fonts.push(ranges[i].appliedFont); } catch (e2) { fonts.push(null); }
+        }
+        return fonts;
+    }
+
+    /**
+     * 段落・文字スタイルのフォントを変更候補に振り分ける
+     * @param {Array<ParagraphStyle|CharacterStyle>} styles 対象のスタイル
+     * @returns {void}
      */
     function scanStylesForChanges(styles) {
         for (var k = 0; k < styles.length; k++) {
@@ -1260,9 +1367,8 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 合成フォントから変換が必要なフォントを洗い出す
-     * @param {object} desired 変換設定
-     * @returns {Array<object>} 変更候補
+     * 合成フォントの各エントリのフォントを変更候補に振り分ける
+     * @returns {void}
      */
     function scanCompositeFontsForChanges() {
         var compositeFonts = activeDocument.compositeFonts;
@@ -1276,9 +1382,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * スタイルに設定されたフォントの PostScript 名を取得する
-     * @param {object} style 対象のスタイル
-     * @returns {string} PostScript 名
+     * スタイル（または合成フォントのエントリ）に設定されたフォントの PostScript 名を取得する
+     * @param {object} style appliedFont を持つオブジェクト
+     * @returns {string|null} PostScript 名。取れなければ null
      */
     function styleFontPsName(style) {
         try {
@@ -1290,8 +1396,8 @@ function setupColumn(columnGroup, spacing) {
 
     /**
      * フォントの PostScript 名を取得する
-     * @param {*} fontValue フォントまたはフォント名
-     * @returns {string} PostScript 名
+     * @param {Font|string} font フォントまたはフォント名
+     * @returns {string|null} PostScript 名。取れなければ null
      */
     function fontPsNameOf(font) {
         if (!font) return null;
@@ -1309,10 +1415,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 現在のフォント名から変換後の名前を決める
-     * @param {string} fontName 現在のフォント名
-     * @param {object} desired 変換設定
-     * @returns {object|null} 変換内容。対象外なら null
+     * 変換後の名前を決め、directChanges / weightSubChanges / missingChanges に振り分ける（同じ名前は1回だけ）
+     * @param {string} oldName 現在の PostScript 名
+     * @returns {void}
      */
     function classifyFontChange(oldName) {
         if (processedFontNames[oldName]) return;
@@ -1344,10 +1449,11 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 変換設定に従って新しいフォント名を組み立てる
-     * @param {object} parsed 解析済みのフォント名
-     * @param {object} desired 変換設定
-     * @returns {object|null} 変換内容。対象外なら null
+     * 変換後のフォントの有無を確かめて振り分ける。同じウエイトが無ければ近いウエイトを探す
+     * @param {string} oldName 現在の PostScript 名
+     * @param {string|null} nameHead 変換後の名前のウエイトより前（末尾は「-」）。null なら変換しない
+     * @param {string} weight ウエイト
+     * @returns {void}
      */
     function classifyByDesired(oldName, nameHead, weight) {
         if (nameHead === null) return; // 変換対象外（CID 非変換など）/ not convertible
@@ -1379,10 +1485,9 @@ function setupColumn(columnGroup, spacing) {
     // =========================================
 
     /**
-     * A1明朝など特殊シリーズの対応表を引く
-     * @param {object} parsed 解析済みのフォント名
-     * @param {object} desired 変換設定
-     * @returns {object|null} 対応する変換内容。なければ null
+     * A1明朝など特殊シリーズの対応表から変換後の名前を引く
+     * @param {string} oldName 現在の PostScript 名
+     * @returns {string|null|undefined} 変換後の名前。特殊シリーズだが変換先が無い・変わらないときは null、特殊シリーズでなければ undefined
      */
     function resolveSpecialSeries(oldName) {
         for (var seriesIndex = 0; seriesIndex < SPECIAL_SERIES.length; seriesIndex++) {
@@ -1409,10 +1514,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * シリーズ変換の対応表を引くためのキーを作る
-     * @param {object} parsed 解析済みのフォント名
-     * @param {object} desired 変換設定
-     * @returns {string} 対応表のキー
+     * 特殊シリーズの変換先のキー（文字セット＋N）を設定から求める
+     * @param {string} sourceKey 元のキー（"Std" / "StdN" など）
+     * @returns {string} 変換先のキー
      */
     function computeSeriesTargetKey(sourceKey) {
         var sourceHasN = sourceKey.charAt(sourceKey.length - 1) === "N";
@@ -1429,8 +1533,8 @@ function setupColumn(columnGroup, spacing) {
 
     /**
      * AXIS フォントの名前を要素へ分解する
-     * @param {string} fontName フォント名
-     * @returns {object|null} 分解結果。対象外なら null
+     * @param {string} name PostScript 名
+     * @returns {object|null} { width, charset, hasN, weight }。AXIS でなければ null
      */
     function parseAxisName(name) {
         var matched = name.match(AXIS_FAMILY.regex);
@@ -1444,10 +1548,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * AXIS フォントの新しい名前を組み立てる
-     * @param {object} parsed 分解結果
-     * @param {object} desired 変換設定
-     * @returns {string} 新しいフォント名
+     * 設定に従って AXIS の変換後の名前（ウエイトより前）を組み立てる
+     * @param {object} axis parseAxisName の結果
+     * @returns {string} 末尾が「-」の名前
      */
     function buildAxisNameHead(axis) {
         // Max/MaxN プリセット時は、設定に関わらず ProN（AXIS の収録最多）へ寄せる。AXIS は Std と ProN しか無いため。
@@ -1475,9 +1578,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * フォント名を文字セットや属性へ分解する
-     * @param {string} fontName フォント名
-     * @returns {object|null} 分解結果。対象外なら null
+     * フォント名を文字セットや属性へ分解する（学参書体の統合がオンなら、プレフィックスを外してもう一度試す）
+     * @param {string} name PostScript 名
+     * @returns {object|null} parseKnownFamily の結果。対象外なら null
      */
     function parseFontName(name) {
         var parsed = parseKnownFamily(name);
@@ -1497,8 +1600,8 @@ function setupColumn(columnGroup, spacing) {
 
     /**
      * 既知のファミリー一覧に照らしてフォント名を分解する
-     * @param {string} fontName フォント名
-     * @returns {object|null} 分解結果。対象外なら null
+     * @param {string} name PostScript 名
+     * @returns {object|null} { family, isProportional, isUD, isNT, charset, hasN, weight }。対象外なら null
      */
     function parseKnownFamily(name) {
         for (var i = 0; i < FONT_FAMILIES.length; i++) {
@@ -1535,10 +1638,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 変換設定に従って新しいフォント名を組み立てる
-     * @param {object} parsed 分解結果
-     * @param {object} desired 変換設定
-     * @returns {string} 新しいフォント名
+     * 設定に従って変換後の名前（ウエイトより前）を組み立てる
+     * @param {object} parsed parseKnownFamily の結果
+     * @returns {string|null} 末尾が「-」の名前。CID を変換しないときは null
      */
     function buildConvertedNameHead(parsed) {
         var family = parsed.family;
@@ -1601,10 +1703,10 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 同名のウエイトがない場合に近いウエイトを探す
-     * @param {string} familyName フォントファミリー名
-     * @param {string} weightName 求めるウエイト名
-     * @returns {string|null} 近いウエイト名。なければ null
+     * 同じウエイトが無いとき、WEIGHT_ORDER で近いウエイトを探す（同じ距離なら重い方）
+     * @param {string} nameHead 名前のウエイトより前
+     * @param {string} weight 求めるウエイト
+     * @returns {string|null} 近いウエイト。無ければ null
      */
     function findNearestWeight(nameHead, weight) {
         var weightIndex = indexOfArray(WEIGHT_ORDER, weight);
@@ -1629,17 +1731,17 @@ function setupColumn(columnGroup, spacing) {
 
     /**
      * そのフォントがインストールされているかを判定する
-     * @param {string} fontName フォント名
-     * @returns {boolean} 存在すれば true
+     * @param {string} name PostScript 名
+     * @returns {boolean} インストールされていれば true
      */
     function fontExists(name) {
         return installedFontByPs.hasOwnProperty(name);
     }
 
     /**
-     * フォント名からフォントオブジェクトを取得する
-     * @param {string} fontName フォント名
-     * @returns {Font|null} フォント。見つからない場合は null
+     * PostScript 名からインストール済みのフォントを取得する
+     * @param {string} name PostScript 名
+     * @returns {Font|undefined} フォント。見つからなければ undefined
      */
     function getFontObject(name) {
         return installedFontByPs[name];
@@ -1651,7 +1753,7 @@ function setupColumn(columnGroup, spacing) {
 
     /**
      * 変更内容のプレビューを表示し、項目ごとに ON/OFF させる
-     * @returns {object|null} 確定した変更内容。キャンセル時は null
+     * @returns {{ok: boolean, selected: Object|null}} 実行したか、チェックが入った変更前の名前の表（キャンセル時は null）
      */
     function showConfirmDialog() {
         var confirmDialog = new Window("dialog", getLabel("confirm.title"));
@@ -1772,9 +1874,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 確認ダイアログ用に和文フォント名へ整形する
-     * @param {string} fontName フォント名
-     * @returns {string} 表示用の名前
+     * 確認ダイアログ用にフォントの表示名を返す（日本語 UI では和文名）
+     * @param {string} psName PostScript 名
+     * @returns {string} 表示用の名前。見つからなければ PostScript 名
      */
     function toDisplayFontName(psName) {
         var font = allFontByPs.hasOwnProperty(psName) ? allFontByPs[psName] : null;
@@ -1791,7 +1893,7 @@ function setupColumn(columnGroup, spacing) {
     /**
      * 「変更前」列の幅をそろえるための最大幅を求める
      * @param {Window} dialog 対象のダイアログ
-     * @param {Array<Array<object>>} changeGroups 変更内容のグループ
+     * @param {Array<Array<object>>} changeLists 変更内容の配列の配列
      * @returns {number} 列の幅（px）
      */
     function computeBeforeColumnWidth(dialog, changeLists) {
@@ -1809,9 +1911,10 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * チェックされた変更内容だけを集める
-     * @param {Array<object>} itemCheckboxes チェックボックスの配列
-     * @param {object} selected 収集先のマップ
+     * 変更内容のうち選ばれたものを変換表に加える
+     * @param {Array<object>} changes 変更内容
+     * @param {Object} nameMap 変換表（変更前 → 変更後）
+     * @param {Object|null} selectedOldNames 選ばれた変更前の名前の表。null ならすべて
      * @returns {void}
      */
     function addSelectedChanges(changes, nameMap, selectedOldNames) {
@@ -1824,7 +1927,7 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 変更後のフォント名を重複なく集める
+     * 変更後のフォント名を集める（重複はそのまま）
      * @param {Array<object>} changes 変更内容
      * @returns {Array<string>} フォント名の配列
      */
@@ -1843,35 +1946,47 @@ function setupColumn(columnGroup, spacing) {
     /**
      * 1 つの対象テキストへフォント変更を適用する
      * @param {object} target 対象テキスト
-     * @param {object} selected 適用する変更内容
-     * @returns {number} 変更した箇所の数
+     * @param {Object} nameMap 変換表（変更前 → 変更後）
+     * @returns {number} 変更があれば 1、なければ 0
      */
     function applyChangesToTarget(target, nameMap) {
         var ranges = target.ranges;
-
-        // 先に「文字インデックス範囲 → 新フォント」を収集（適用で textStyleRange が再構成されても安全）
-        // Collect (char-index range -> new font) up front; char count is unchanged, so indices stay valid.
-        var jobs = [];
-        for (var i = 0; i < ranges.length; i++) {
-            var range = ranges[i];
-            var chars;
+        var fonts = appliedFontsOf(ranges);
+        var clip = target.clip;
+        var clipStart, clipEnd;
+        if (clip) {
             try {
-                chars = range.characters;
-                if (chars.length === 0) continue;
-            } catch (e) { continue; }
+                clipStart = clip.first.index;
+                clipEnd = clip.last.index;
+            } catch (eClip) { return 0; }
+        }
 
-            var psName = fontPsNameOf(range.appliedFont);
+        // 先に各区切りの最初と最後の文字を控える（適用で textStyleRange が組み直されても安全）。
+        // 文字は getElements() で解決した参照にし、ストーリー・セル・脚注それぞれの中の位置で持つ
+        // Record each range's first and last characters up front, resolved with getElements() so they stay
+        // valid while ranges are rebuilt, and positioned within their own story, cell or footnote.
+        var jobs = [];
+        for (var i = 0; i < fonts.length; i++) {
+            var psName = fontPsNameOf(fonts[i]);
             if (!psName) continue;
             var newName = nameMap[psName];
             if (!newName) continue;
 
-            var startIndex, endIndex;
+            var firstChar, lastChar;
             try {
-                startIndex = chars[0].index;
-                endIndex = chars[chars.length - 1].index;
-            } catch (e2) { continue; }
+                var chars = ranges[i].characters;
+                if (chars.length === 0) continue;
+                firstChar = chars.firstItem().getElements()[0];
+                lastChar = chars.lastItem().getElements()[0];
+                if (clip) {
+                    // 選択の外へはみ出した分を切り詰める / Trim the part outside the selection
+                    if (firstChar.index < clipStart) firstChar = clip.first;
+                    if (lastChar.index > clipEnd) lastChar = clip.last;
+                    if (firstChar.index > lastChar.index) continue;
+                }
+            } catch (e) { continue; }
 
-            jobs.push({ start: startIndex, end: endIndex, font: getFontObject(newName) });
+            jobs.push({ first: firstChar, last: lastChar, font: getFontObject(newName) });
         }
         if (jobs.length === 0) return 0;
 
@@ -1881,10 +1996,10 @@ function setupColumn(columnGroup, spacing) {
         var changed = false;
         // 途中でエラーが出てもロックを確実に戻すため try/finally で囲む / Wrap in try/finally so locks are always restored
         try {
-            var storyChars = target.story.characters;
             for (var j = 0; j < jobs.length; j++) {
                 try {
-                    storyChars.itemByRange(jobs[j].start, jobs[j].end).appliedFont = jobs[j].font;
+                    // 文字の親（ストーリー・セル・脚注）の characters で範囲を作る / Build the range on the characters of the owning story, cell or footnote
+                    jobs[j].first.parent.characters.itemByRange(jobs[j].first, jobs[j].last).appliedFont = jobs[j].font;
                     changed = true;
                 } catch (e3) { }
             }
@@ -1898,10 +2013,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 処理のためにフレームのロックを一時解除する
+     * 対象のフレーム・レイヤー・親グループのロックを一時解除する（includeLocked がオンのときだけ）
      * @param {object} target 対象テキスト
-     * @param {Array<object>} unlocked 復元用の記録
-     * @returns {void}
+     * @returns {Array<object>} 解除したもの（restoreLocks に渡す）
      */
     function unlockFramesFor(target) {
         var saved = [];
@@ -1924,9 +2038,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * ロック解除したフレームを復元用に記録する
-     * @param {Array<object>} unlocked 復元用の記録
-     * @param {PageItem} frame 対象のフレーム
+     * ロックされていれば解除して記録する
+     * @param {object} container フレーム・レイヤー・グループ
+     * @param {Array<object>} saved 記録先
      * @returns {void}
      */
     function pushUnlock(container, saved) {
@@ -1940,7 +2054,7 @@ function setupColumn(columnGroup, spacing) {
 
     /**
      * 一時解除したロックを元に戻す
-     * @param {Array<object>} unlocked 復元用の記録
+     * @param {Array<object>} saved unlockFramesFor の戻り値
      * @returns {void}
      */
     function restoreLocks(saved) {
@@ -1951,8 +2065,9 @@ function setupColumn(columnGroup, spacing) {
 
     /**
      * 段落・文字スタイルへフォント変更を適用する
-     * @param {object} selected 適用する変更内容
-     * @returns {number} 変更した件数
+     * @param {Array<ParagraphStyle|CharacterStyle>} styles 対象のスタイル
+     * @param {Object} nameMap 変換表（変更前 → 変更後）
+     * @returns {void}
      */
     function applyChangesToStyles(styles, nameMap) {
         for (var k = 0; k < styles.length; k++) {
@@ -1967,9 +2082,9 @@ function setupColumn(columnGroup, spacing) {
     }
 
     /**
-     * 合成フォントへフォント変更を適用する
-     * @param {object} selected 適用する変更内容
-     * @returns {number} 変更した件数
+     * 合成フォントの各エントリへフォント変更を適用する
+     * @param {Object} nameMap 変換表（変更前 → 変更後）
+     * @returns {void}
      */
     function applyChangesToCompositeFonts(nameMap) {
         var compositeFonts = activeDocument.compositeFonts;
