@@ -58,6 +58,7 @@ var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last update
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdMenuActionsViewer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdMenuActionsViewer.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n5038c9d2cc85"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/misc/IdMenuActionsViewer.jsx"; /* 最新版のソース / latest source */
 
 /**
  * @author Peter Kahrel（原作 menu_actions.jsx / original author）

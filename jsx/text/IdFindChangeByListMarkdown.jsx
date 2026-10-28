@@ -49,6 +49,7 @@ var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last update
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFindChangeByListMarkdown.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFindChangeByListMarkdown.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8c0211d92c96"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdFindChangeByListMarkdown.jsx"; /* 最新版のソース / latest source */
 
 // Original idea
 // Adobe InDesign 付属の FindChangeByList.jsx / Based on the bundled FindChangeByList.jsx

@@ -53,6 +53,7 @@ var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last update
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteUnused.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdDeleteUnused.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n879f09b72808"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/misc/IdDeleteUnused.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

@@ -48,8 +48,9 @@ var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2020-06-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdClearStyleOverrides.md"; /* README（日本語） */
-var SCRIPT_README_EN = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdClearStyleOverrides.md"; /* README (English) */
+var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdClearStyleOverrides.md"; /* README（日本語） */
+var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdClearStyleOverrides.md"; /* README (English) */
+var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdClearStyleOverrides.jsx"; /* 最新版のソース / latest source */
 
 // Copyright (C) 2020 Gregor Fellenz <http://www.publishingx.de>
 // Copyright (C) 2026 Masahiro Takano (@swwwitch)

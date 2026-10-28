@@ -49,6 +49,7 @@ var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last update
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTableColumnWidthAdjuster.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTableColumnWidthAdjuster.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n20d58c1bc003"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/table/IdTableColumnWidthAdjuster.jsx"; /* 最新版のソース / latest source */
 
 // Original idea
 // AdjColWidth_221003a.jsx by 照山裕爾（mottainaiDTP）

@@ -49,6 +49,7 @@ var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last update
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCreateFrameFromSelectedText.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCreateFrameFromSelectedText.md"; /* README (English) */
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ndd1b7c5246a3"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdCreateFrameFromSelectedText.jsx"; /* 最新版のソース / latest source */
 
 // Original idea
 // DTP Script note
