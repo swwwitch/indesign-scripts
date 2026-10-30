@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdCharacterWidthConverter
 Name=IdCharacterWidthConverter
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
@@ -29,6 +29,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCharacterWidthConverter.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/nf9d7245b0653
+
 ### Overview
 
 Converts katakana, letters, digits, spaces, punctuation, brackets and symbols between half-width and full-width, choosing "Keep", "Half" or "Full" for each kind of character.
@@ -43,14 +46,15 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCharacterWidt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCharacterWidthConverter";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-30";                   /* 更新日 / last updated */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCharacterWidthConverter.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCharacterWidthConverter.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdCharacterWidthConverter.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCharacterWidthConverter.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCharacterWidthConverter.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf9d7245b0653"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdCharacterWidthConverter.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -76,6 +80,10 @@ var DEFAULT_ROW_OPTIONS = {
     kanaLeftBracket: OPTION_FULL,
     kanaRightBracket: OPTION_FULL
 };
+
+/* ［変換した文字に色を付ける］の色 / Color for "Color converted characters" */
+var HIGHLIGHT_CMYK = [0, 100, 100, 0];             /* CMYK の値 / CMYK values */
+var HIGHLIGHT_COLOR_NAME = "IdCharacterWidthConverter"; /* スウォッチ名（無ければ作る）/ swatch name, added when missing */
 
 /* ドキュメントを対象にしたとき、親ページのテキストも変換する / Also convert text on parent pages when the scope is the document */
 var INCLUDE_MASTER_PAGES = true;
@@ -604,7 +612,7 @@ var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / win
 var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
-var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var COLUMN_SPACING = 12;                 /* カラムの間隔 / gap between columns */
 var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
 
 /**
@@ -679,10 +687,10 @@ function trimButtonHeight(targetButton, trimPixels) {
 var TABLE_ROW_SPACING     = 2;   /* 表の行どうしの間隔 / spacing between table rows */
 var TABLE_CELL_SPACING    = 4;   /* 項目名と選択肢の列の間隔 / spacing between the row label and the option columns */
 var OPTION_COLUMN_WIDTH   = 52;  /* 選択肢の列の幅 / width of each option column */
-var SYMBOL_COLUMN_SPACING = PANEL_MARGINS[0] + PANEL_MARGINS[2] + COLUMN_SPACING; /* 記号パネルの2列の間隔。上の左右のパネルの表と位置を揃える / gap between the two symbol tables, lined up with the tables in the panels above */
 var PRESET_DROPDOWN_WIDTH = 220; /* プリセットのドロップダウンの幅 / width of the preset dropdown */
 var STYLE_LIST_WIDTH      = 220; /* 除外するスタイルのリストの幅 / width of the excluded-style lists */
 var STYLE_LIST_HEIGHT     = 280; /* 除外するスタイルのリストの高さ / height of the excluded-style lists */
+var EXCLUDED_STYLES_BUTTON_PADDING = 32; /* ［除外するスタイル...］の文字の左右に足す幅 / width added around the Excluded Styles button label */
 
 // =========================================
 // ラベル定義 / Labels
@@ -778,6 +786,8 @@ var LABELS = {
         symbol: { ja: "記号", en: "Symbols" },
         bracket: { ja: "括弧", en: "Brackets" },
         punctuation: { ja: "句読点", en: "Punctuation" },
+        vertical: { ja: "縦組み用", en: "Vertical Text" },
+        highlight: { ja: "確認用の色分け", en: "Check Coloring" },
         paragraphStyles: { ja: "段落スタイル", en: "Paragraph Styles" },
         characterStyles: { ja: "文字スタイル", en: "Character Styles" }
     },
@@ -848,7 +858,10 @@ var LABELS = {
         digitsByLength: { ja: "数字は1桁を全角、2桁以上を半角にする", en: "Digits: one digit full-width, two or more half-width" },
         spaceBetweenJapaneseOnly: { ja: "スペースは前後が和文の文字のときだけ変換", en: "Convert spaces only between Japanese characters" },
         bracketInnerSpace: { ja: "括弧の内側のスペースを削除", en: "Remove spaces inside brackets" },
-        bracketOuterSpace: { ja: "括弧の外側のスペースを削除", en: "Remove spaces outside brackets" }
+        bracketOuterSpace: { ja: "括弧の外側のスペースを削除", en: "Remove spaces outside brackets" },
+        numberCommaToTouten: { ja: "数字の中の「,」を「、」にする", en: "\",\" in numbers to \"、\"" },
+        decimalToNakaguro: { ja: "数字の中の「.」を「・」にする", en: "\".\" in numbers to \"・\"" },
+        highlightChanges: { ja: "変換した文字に色を付ける", en: "Color converted characters" }
     },
     preset: {
         standard: { ja: "標準", en: "Standard" },
@@ -865,6 +878,7 @@ var LABELS = {
         punctuationStyleWestern: { ja: "，．にそろえる", en: "Unify to ，．" },
         quoteFormPlain: { ja: "＂＇（全角）", en: "＂＇ (full-width)" },
         quoteFormCurly: { ja: "“ ” ‘ ’（向きあり）", en: "“ ” ‘ ’ (curly)" },
+        quoteFormMinute: { ja: "〝 〟（ミニュート）", en: "〝 〟 (minutes)" },
         hyphenFormPlain: { ja: "－（全角ハイフンマイナス）", en: "－ (full-width hyphen-minus)" },
         hyphenFormHyphen: { ja: "‐（ハイフン）", en: "‐ (hyphen)" },
         hyphenFormMinus: { ja: "−（マイナス）", en: "− (minus sign)" },
@@ -909,11 +923,23 @@ var LABELS = {
             en: "Removes spaces right before and after full-width brackets. Spaces outside half-width brackets are kept."
         },
         quoteForm: {
-            ja: "二重引用符・引用符を全角にしたときの字形です。“ ” ‘ ’ は段落の中の順番で開き・閉じを決め、英数字にはさまれた ' はアポストロフィ（’）にします。",
-            en: "The form used when quotes become full-width. Curly quotes open and close by their order in the paragraph; a ' between letters becomes an apostrophe (’)."
+            ja: "二重引用符・引用符を全角にしたときの字形です。“ ” ‘ ’ と 〝 〟 は段落の中の順番で開き・閉じを決め、英数字にはさまれた ' はアポストロフィ（’）にします。〝 〟（縦組み用）のときの引用符は ＇ にします。半角にするときは、選んだ字形だけを半角に戻します。",
+            en: "The form used when quotes become full-width. Curly quotes and minutes (〝 〟) open and close by their order in the paragraph; a ' between letters becomes an apostrophe (’). With minutes (for vertical text), single quotes become ＇. Converting to half-width only reverts the chosen form."
         },
-        hyphenForm: { ja: "ハイフンを全角にしたときの字形です。", en: "The form used when hyphens become full-width." },
-        tildeForm: { ja: "チルダを全角にしたときの字形です。", en: "The form used when tildes become full-width." },
+        numberCommaToTouten: {
+            ja: "数字にはさまれ、後ろがちょうど3桁の「,」「，」を「、」にします（1,000 → 1、000）。",
+            en: "Turns \",\" and \"，\" between digits, followed by exactly three digits, into \"、\" (1,000 → 1、000)."
+        },
+        decimalToNakaguro: {
+            ja: "数字にはさまれた「.」「．」を「・」にします（12.5 → 12・5）。",
+            en: "Turns \".\" and \"．\" between digits into \"・\" (12.5 → 12・5)."
+        },
+        highlightChanges: {
+            ja: "変換した文字の塗りを赤にします（仕上がりの確認用。元の色には戻りません）。削除したスペースには付きません。",
+            en: "Fills converted characters with red (for checking; the original colors are not restored). Removed spaces are not marked."
+        },
+        hyphenForm: { ja: "ハイフンを全角にしたときの字形です。半角にするときは、この字形だけを半角に戻します。", en: "The form used when hyphens become full-width. Converting to half-width only reverts this form." },
+        tildeForm: { ja: "チルダを全角にしたときの字形です。半角にするときは、この字形だけを半角に戻します。", en: "The form used when tildes become full-width. Converting to half-width only reverts this form." },
         asteriskForm: { ja: "アスタリスクを全角にしたときの字形です。※（米印）を選ぶと、* と ※ を変換します。", en: "The form used when asterisks become full-width. Choose ※ (reference mark) to convert between * and ※." },
         excludedStyles: { ja: "選んだ段落スタイル・文字スタイルの文字は変換しません。", en: "Text in the chosen paragraph and character styles is not converted." },
         optionClick: { ja: "Option キーを押しながらクリックすると、このパネルの行をすべて同じ選択肢にします。", en: "Option-click to set every row in this panel to the same option." },
@@ -942,7 +968,9 @@ var LABELS = {
     resultLabel: {
         punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
         bracketInnerSpace: { ja: "括弧の内側のスペース", en: "Spaces inside brackets" },
-        bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" }
+        bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" },
+        numberCommaToTouten: { ja: "数字の中の「,」", en: "\",\" in numbers" },
+        decimalToNakaguro: { ja: "数字の中の「.」", en: "\".\" in numbers" }
     },
     undo: {
         convert: { ja: "全角・半角の変換", en: "Convert Character Width" }
@@ -966,13 +994,11 @@ var FULL_VOICED_KANA       = "ヴガギグゲゴザジズゼゾダヂヅデド�
 var HALF_SEMI_VOICED_BASES = "ﾊﾋﾌﾍﾎ";
 var FULL_SEMI_VOICED_KANA  = "パピプペポ";
 
-/* 記号の行（キー・半角の文字[・全角の文字]）。前半と後半を記号パネルの2列に分ける / Symbol rows (key, half-width character[, full-width character]), split into the two columns of the symbol panel */
+/* 記号の行（キー・半角の文字[・全角の文字]）/ Symbol rows (key, half-width character[, full-width character]) */
 var SYMBOL_ROW_DEFS = [
     ["hyphen", "-"], ["underscore", "_"], ["ampersand", "&"], ["numberSign", "#"],
     ["dollar", "$"], ["yen", "¥", "￥"], ["percent", "%"], ["atSign", "@"],
-    ["asterisk", "*"],
-    /* イコール・プラスは並べて、2列目の先頭に置く / Keep = + together at the top of the second column */
-    ["equals", "="], ["plus", "+"], ["slash", "/"], ["backslash", "\\"],
+    ["asterisk", "*"], ["equals", "="], ["plus", "+"], ["slash", "/"], ["backslash", "\\"],
     ["verticalBar", "|"], ["caret", "^"], ["backtick", "`"], ["tilde", "~"]
 ];
 
@@ -1077,7 +1103,11 @@ function buildSymbolRows(symbolRowDefs) {
     return symbolRows;
 }
 
-var SYMBOL_ROWS = buildSymbolRows(SYMBOL_ROW_DEFS);
+/* 中黒は記号パネルに置くが、プリセットでは和文の約物として扱う / The middle dot sits in the symbol panel but presets treat it as Japanese punctuation */
+var ASCII_SYMBOL_ROWS = buildSymbolRows(SYMBOL_ROW_DEFS);
+var SYMBOL_ROWS = ASCII_SYMBOL_ROWS.concat([
+    rowDef("middleDot", "･", [["･", "・"]])
+]);
 
 var ASCII_BRACKET_ROWS = buildSymbolRows(ASCII_BRACKET_ROW_DEFS);
 var BRACKET_ROWS = ASCII_BRACKET_ROWS.concat([
@@ -1091,8 +1121,7 @@ var ASCII_PUNCTUATION_ROWS = buildSymbolRows(ASCII_PUNCTUATION_ROW_DEFS).concat(
     rowDef("exclamationRun", "!!", [], { runChar: ["!", "！"] })
 ]);
 var PUNCTUATION_ROWS = [
-    rowDef("kanaPunctuation", "｡､", [["｡", "。"], ["､", "、"]]),
-    rowDef("middleDot", "･", [["･", "・"]])
+    rowDef("kanaPunctuation", "｡､", [["｡", "。"], ["､", "、"]])
 ].concat(ASCII_PUNCTUATION_ROWS);
 
 var ALL_ROWS = CHARACTER_TYPE_ROWS.concat(PUNCTUATION_ROWS).concat(SYMBOL_ROWS).concat(BRACKET_ROWS);
@@ -1102,8 +1131,8 @@ var FULL_FORM_CHOICES = {
     hyphen: { settingKey: "hyphenForm", forms: [["\uFF0D"], ["\u2010"], ["\u2212"]] },
     tilde: { settingKey: "tildeForm", forms: [["\uFF5E"], ["\u301C"]] },
     asterisk: { settingKey: "asteriskForm", forms: [["\uFF0A"], ["\u203B"]] },
-    doubleQuote: { settingKey: "quoteForm", forms: [["\uFF02"], ["\u201C", "\u201D"]] },
-    apostrophe: { settingKey: "quoteForm", forms: [["\uFF07"], ["\u2018", "\u2019"]] }
+    doubleQuote: { settingKey: "quoteForm", forms: [["\uFF02"], ["\u201C", "\u201D"], ["\u301D", "\u301F"]] },
+    apostrophe: { settingKey: "quoteForm", forms: [["\uFF07"], ["\u2018", "\u2019"], ["\uFF07"]] }  /* ミニュートに一重は無いので ＇ / minutes have no single form, so ＇ */
 };
 
 /* 行のほかの設定（キーと選べる値の数。値は 0 から数え、0 が既定）。プリセットにも入る / Settings besides the rows (key and number of values, counted from 0, with 0 as the default); saved in presets too */
@@ -1113,10 +1142,12 @@ var EXTRA_SETTING_DEFS = [
     { key: "punctuationStyle", valueCount: 3 },
     { key: "bracketInnerSpace", valueCount: 2 },
     { key: "bracketOuterSpace", valueCount: 2 },
-    { key: "quoteForm", valueCount: 2 },
+    { key: "quoteForm", valueCount: 3 },
     { key: "hyphenForm", valueCount: 3 },
     { key: "tildeForm", valueCount: 2 },
-    { key: "asteriskForm", valueCount: 2 }
+    { key: "asteriskForm", valueCount: 2 },
+    { key: "numberCommaToTouten", valueCount: 2 },
+    { key: "decimalToNakaguro", valueCount: 2 }
 ];
 
 /* 行と行のほかの設定をまとめた一覧と、キーごとの値の数 / Every setting (rows and extras) and the number of values per key */
@@ -1136,11 +1167,11 @@ var PUNCTUATION_STYLE_MAPS = [
 ];
 
 /* 括弧の内側のスペースを削除する括弧（向きの無い " ' と不等号、アポストロフィと紛れる ‘ ’ は含めない）/ Brackets for removing inner spaces (straight quotes, < >, and ‘ ’ which look like apostrophes are excluded) */
-var OPENING_BRACKETS = "([{\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A\u201C";
-var CLOSING_BRACKETS = ")]}\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B\u201D";
+var OPENING_BRACKETS = "([{\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A\u201C\u301D";
+var CLOSING_BRACKETS = ")]}\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B\u201D\u301F";
 /* 括弧の外側のスペースを削除する括弧（全角だけ。欧文の「word (note)」の空きは残す）/ Brackets for removing outer spaces (full-width only, so "word (note)" keeps its space) */
-var FULL_WIDTH_OPENING_BRACKETS = "\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A";
-var FULL_WIDTH_CLOSING_BRACKETS = "\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B";
+var FULL_WIDTH_OPENING_BRACKETS = "\uFF08\uFF3B\uFF5B\uFF62\u300C\u300E\u3010\u3014\u3008\u300A\u301D";
+var FULL_WIDTH_CLOSING_BRACKETS = "\uFF09\uFF3D\uFF5D\uFF63\u300D\u300F\u3011\u3015\u3009\u300B\u301F";
 
 /* 和文の文字（スペースの前後の判定に使う。全角スペースは含めない）/ Japanese characters, for the space check (the ideographic space itself is excluded) */
 var JAPANESE_CHAR_PATTERN = /[\u3001-\u303F\u3040-\u30FF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF01-\uFF60\uFF61-\uFF9F\uFFE0-\uFFEF]/;
@@ -1152,6 +1183,9 @@ var LATIN_ALNUM_PATTERN = /[A-Za-z0-9\u00C0-\u024F]/;
 /* 数字のつながり（3.5 や 1,000 のように区切りをはさむものも1つ）/ A run of digits, including separators as in 3.5 or 1,000 */
 var DIGIT_CLASS = "[\\x{0030}-\\x{0039}\\x{FF10}-\\x{FF19}]";
 var DIGIT_RUN_PATTERN = DIGIT_CLASS + "+(?:[\\x{002C}\\x{002E}\\x{FF0C}\\x{FF0E}]" + DIGIT_CLASS + "+)*";
+/* 数字にはさまれ、後ろがちょうど3桁の「,」「，」と、数字にはさまれた「.」「．」/ "," between digits followed by exactly three digits, and "." between digits */
+var NUMBER_COMMA_PATTERN = "(?<=" + DIGIT_CLASS + ")[\\x{002C}\\x{FF0C}](?=" + DIGIT_CLASS + "{3}(?!" + DIGIT_CLASS + "))";
+var DECIMAL_POINT_PATTERN = "(?<=" + DIGIT_CLASS + ")[\\x{002E}\\x{FF0E}](?=" + DIGIT_CLASS + ")";
 
 // =========================================
 // 前提チェック / Preconditions
@@ -1244,22 +1278,23 @@ function toStringArray(sourceValue) {
  * @returns {{rowOptions: Object, scope: string|null, excludedStyles: {paragraph: string[], character: string[]}}} 設定・対象・除外するスタイル
  */
 function loadSettings() {
-    var saved = sessionStore.load({ rowOptions: {}, scope: "", excludedStyles: {} });
+    var saved = sessionStore.load({ rowOptions: {}, scope: "", excludedStyles: {}, highlightChanges: false });
     var savedExcluded = saved.excludedStyles || {};
     return {
         rowOptions: copyRowOptions(saved.rowOptions, getDefaultRowOptions()),
         scope: saved.scope || null,
-        excludedStyles: { paragraph: toStringArray(savedExcluded.paragraph), character: toStringArray(savedExcluded.character) }
+        excludedStyles: { paragraph: toStringArray(savedExcluded.paragraph), character: toStringArray(savedExcluded.character) },
+        highlightChanges: saved.highlightChanges
     };
 }
 
 /**
  * 設定を覚える（InDesign を終了するまで）
- * @param {{rowOptions: Object, scope: string, excludedStyles: Object}} settings - 設定・対象・除外するスタイル
+ * @param {{rowOptions: Object, scope: string, excludedStyles: Object, highlightChanges: boolean}} settings - 設定・対象・除外するスタイル・色を付けるか
  * @returns {void}
  */
 function saveSettings(settings) {
-    sessionStore.save({ rowOptions: settings.rowOptions, scope: settings.scope, excludedStyles: settings.excludedStyles });
+    sessionStore.save({ rowOptions: settings.rowOptions, scope: settings.scope, excludedStyles: settings.excludedStyles, highlightChanges: settings.highlightChanges });
 }
 
 // =========================================
@@ -1283,9 +1318,9 @@ var BUILTIN_PRESETS = [
     },
     {
         /* 縦組み：数字は1桁を全角・2桁以上を半角（縦中横向け）、!? !! は半角、和文の間のスペースは全角、チルダは波ダッシュ。
-           英字・コンマ・ピリオド・引用符はそのまま（欧文の単語や 1,000 を崩さない）/
+           英字・コンマ・ピリオド・引用符の行はそのまま（欧文の単語を崩さない）、数字の中の「,」「.」は「、」「・」/
            Vertical: one digit full-width, two or more half-width (for tate-chu-yoko); !? and !! half-width; spaces between Japanese full-width;
-           tildes become wave dashes. Letters, commas, periods and quotes are kept so English words and numbers like 1,000 stay intact */
+           tildes become wave dashes. Letter, comma, period and quote rows are kept so English words stay intact; "," and "." in numbers become 、 and ・ */
         name: getLabel(LABELS.preset.vertical), builtIn: true,
         rowOptions: rowOptionsWith(OPTION_FULL, {
             alphabet: OPTION_KEEP,
@@ -1298,7 +1333,9 @@ var BUILTIN_PRESETS = [
             exclamationRun: OPTION_HALF,
             digitsByLength: 1,
             spaceBetweenJapaneseOnly: 1,
-            tildeForm: 1
+            tildeForm: 1,
+            numberCommaToTouten: 1,
+            decimalToNakaguro: 1
         })
     },
     {
@@ -1330,7 +1367,7 @@ function presetOverrides(asciiOption, symbolOption) {
         kanaLeftBracket: OPTION_FULL,
         kanaRightBracket: OPTION_FULL
     };
-    var symbolRows = SYMBOL_ROWS.concat(ASCII_PUNCTUATION_ROWS).concat(ASCII_BRACKET_ROWS);
+    var symbolRows = ASCII_SYMBOL_ROWS.concat(ASCII_PUNCTUATION_ROWS).concat(ASCII_BRACKET_ROWS);
     for (var i = 0; i < symbolRows.length; i++) overrides[symbolRows[i].key] = symbolOption;
     return overrides;
 }
@@ -1471,7 +1508,8 @@ function getRowPairs(row, rowOptions) {
  * 設定から、変換元の文字 → 変換後の文字の表と、ほかの処理の有無をまとめる
  * @param {Object} rowOptions - 設定のキー → 値
  * @returns {{map: Object, rowKeyBySource: Object, runUnits: Array, size: number, digitsByLength: boolean,
- *     spaceBetweenJapaneseOnly: boolean, punctuationStyle: number, bracketInnerSpace: boolean, bracketOuterSpace: boolean}}
+ *     spaceBetweenJapaneseOnly: boolean, punctuationStyle: number, bracketInnerSpace: boolean, bracketOuterSpace: boolean,
+ *     numberCommaToTouten: boolean, decimalToNakaguro: boolean}}
  *     変換表（値は文字列、向きで決まる引用符は [開き, 閉じ]）・変換元の行のキー・連続する文字の組・実際に変換する項目の数（守るだけの組は数えない）とほかの処理
  */
 function buildConversionMap(rowOptions) {
@@ -1524,7 +1562,9 @@ function buildConversionMap(rowOptions) {
         spaceBetweenJapaneseOnly: (rowOptions.spaceBetweenJapaneseOnly === 1),
         punctuationStyle: rowOptions.punctuationStyle || 0,
         bracketInnerSpace: (rowOptions.bracketInnerSpace === 1),
-        bracketOuterSpace: (rowOptions.bracketOuterSpace === 1)
+        bracketOuterSpace: (rowOptions.bracketOuterSpace === 1),
+        numberCommaToTouten: (rowOptions.numberCommaToTouten === 1),
+        decimalToNakaguro: (rowOptions.decimalToNakaguro === 1)
     };
 }
 
@@ -1535,7 +1575,7 @@ function buildConversionMap(rowOptions) {
  */
 function hasConversionWork(conversion) {
     return conversion.size > 0 || conversion.digitsByLength || conversion.punctuationStyle > 0 ||
-        conversion.bracketInnerSpace || conversion.bracketOuterSpace;
+        conversion.bracketInnerSpace || conversion.bracketOuterSpace || conversion.numberCommaToTouten || conversion.decimalToNakaguro;
 }
 
 /**
@@ -1858,20 +1898,35 @@ function isInExcludedStyle(foundText, styleLookup) {
  * @param {Text} foundText - 見つかった文字
  * @param {string} sourceText - 見つかった文字列
  * @param {string} replacementText - 置き換え後の文字列
+ * @param {Color|null} highlightColor - 変換した文字に付ける色（付けないなら null）。書き換える前の文字に付け、書き換えで引き継がせる
  * @returns {void}
  */
-function applyReplacement(foundText, sourceText, replacementText) {
+function applyReplacement(foundText, sourceText, replacementText, highlightColor) {
     if (replacementText === "") {
         foundText.remove();
         return;
     }
     if (sourceText.length > 1 && replacementText.length === sourceText.length) {
         for (var i = sourceText.length - 1; i >= 0; i--) {
-            if (sourceText.charAt(i) !== replacementText.charAt(i)) foundText.characters[i].contents = replacementText.charAt(i);
+            if (sourceText.charAt(i) === replacementText.charAt(i)) continue;
+            var changedChar = foundText.characters[i];
+            if (highlightColor) changedChar.fillColor = highlightColor;
+            changedChar.contents = replacementText.charAt(i);
         }
         return;
     }
+    if (highlightColor) foundText.fillColor = highlightColor;
     foundText.contents = replacementText;
+}
+
+/**
+ * ［変換した文字に色を付ける］のスウォッチを返す（無ければ HIGHLIGHT_CMYK で作る）
+ * @returns {Color} スウォッチ
+ */
+function getHighlightSwatch() {
+    var highlightSwatch = activeDocument.colors.itemByName(HIGHLIGHT_COLOR_NAME);
+    if (highlightSwatch.isValid) return highlightSwatch;
+    return activeDocument.colors.add({ name: HIGHLIGHT_COLOR_NAME, model: ColorModel.PROCESS, space: ColorSpace.CMYK, colorValue: HIGHLIGHT_CMYK });
 }
 
 /**
@@ -1881,9 +1936,10 @@ function applyReplacement(foundText, sourceText, replacementText) {
  * @param {Function} decideReplacement - (foundText, sourceText) → {key, text}|null
  * @param {Object|null} styleLookup - 除外するスタイル名の表
  * @param {{converted: number, failed: number, countsByKey: Object}} result - 数を足していく結果
+ * @param {Color|null} highlightColor - 変換した文字に付ける色（付けないなら null）
  * @returns {void}
  */
-function runReplacePass(targets, grepPattern, decideReplacement, styleLookup, result) {
+function runReplacePass(targets, grepPattern, decideReplacement, styleLookup, result, highlightColor) {
     app.findGrepPreferences.findWhat = grepPattern;
     for (var i = 0; i < targets.length; i++) {
         var foundTexts = targets[i].findGrep();
@@ -1896,7 +1952,7 @@ function runReplacePass(targets, grepPattern, decideReplacement, styleLookup, re
             var replacement = decideReplacement(foundText, sourceText);
             if (!replacement) continue;
             try {
-                applyReplacement(foundText, sourceText, replacement.text);
+                applyReplacement(foundText, sourceText, replacement.text, highlightColor);
                 result.converted++;
                 result.countsByKey[replacement.key] = (result.countsByKey[replacement.key] || 0) + 1;
             } catch (e) {
@@ -1908,30 +1964,38 @@ function runReplacePass(targets, grepPattern, decideReplacement, styleLookup, re
 
 /**
  * 対象の文字を設定に従って変換する。
- * 変換表 → 句読点の種類 → 数字の桁数 → 括弧のまわりのスペースの順に処理する。contents の差し替えなので、文字の書式はそのまま残る
+ * 変換表 → 句読点の種類 → 数字の桁数 → 数字の中の「,」「.」 → 括弧のまわりのスペースの順に処理する。contents の差し替えなので、文字の書式はそのまま残る
  * @param {Array} targets - 対象（Document・Story・Text など）
- * @param {Object} conversion - buildConversionMap() の戻り値に excludedStyles（除外するスタイル名の表）を足したもの
+ * @param {Object} conversion - buildConversionMap() の戻り値に excludedStyles（除外するスタイル名の表）と highlightColor（変換した文字に付ける色、付けないなら null）を足したもの
  * @returns {{converted: number, failed: number, countsByKey: Object}} 変換できた数・できなかった数・キーごとの数
  */
 function convertTargets(targets, conversion) {
     return runWithGrepOptions(function () {
         var result = { converted: 0, failed: 0, countsByKey: {} };
         var styleLookup = conversion.excludedStyles;
+        var highlightColor = conversion.highlightColor || null;
         if (conversion.size > 0) {
-            runReplacePass(targets, buildGrepPattern(conversion.map, conversion.runUnits), makeTableReplacer(conversion), styleLookup, result);
+            runReplacePass(targets, buildGrepPattern(conversion.map, conversion.runUnits), makeTableReplacer(conversion), styleLookup, result, highlightColor);
         }
         if (conversion.punctuationStyle > 0) {
             var styleMap = PUNCTUATION_STYLE_MAPS[conversion.punctuationStyle];
             runReplacePass(targets, buildGrepPattern(styleMap), function (foundText, sourceText) {
                 return styleMap.hasOwnProperty(sourceText) ? { key: "punctuationStyle", text: styleMap[sourceText] } : null;
-            }, styleLookup, result);
+            }, styleLookup, result, highlightColor);
         }
-        if (conversion.digitsByLength) runReplacePass(targets, DIGIT_RUN_PATTERN, replaceDigitRun, styleLookup, result);
+        if (conversion.digitsByLength) runReplacePass(targets, DIGIT_RUN_PATTERN, replaceDigitRun, styleLookup, result, highlightColor);
+        /* 数字の桁数を決めたあとに区切りを置き換える（「、」「・」で数字のつながりが切れないように）/ After the digit lengths, so 、 and ・ do not split the runs */
+        if (conversion.numberCommaToTouten) {
+            runReplacePass(targets, NUMBER_COMMA_PATTERN, function () { return { key: "numberCommaToTouten", text: "\u3001" }; }, styleLookup, result, highlightColor);
+        }
+        if (conversion.decimalToNakaguro) {
+            runReplacePass(targets, DECIMAL_POINT_PATTERN, function () { return { key: "decimalToNakaguro", text: "\u30FB" }; }, styleLookup, result, highlightColor);
+        }
         if (conversion.bracketInnerSpace) {
-            runReplacePass(targets, buildBracketSpacePattern(true), function () { return { key: "bracketInnerSpace", text: "" }; }, styleLookup, result);
+            runReplacePass(targets, buildBracketSpacePattern(true), function () { return { key: "bracketInnerSpace", text: "" }; }, styleLookup, result, highlightColor);
         }
         if (conversion.bracketOuterSpace) {
-            runReplacePass(targets, buildBracketSpacePattern(false), function () { return { key: "bracketOuterSpace", text: "" }; }, styleLookup, result);
+            runReplacePass(targets, buildBracketSpacePattern(false), function () { return { key: "bracketOuterSpace", text: "" }; }, styleLookup, result, highlightColor);
         }
         return result;
     });
@@ -2083,7 +2147,7 @@ function addExtraCheckbox(parent, settingKey, labelEntry, tooltipEntry, tableCon
 function addExtraDropdown(parent, settingKey, fieldLabelEntry, itemEntries, tooltipEntry, tableContext) {
     var dropdownRowGroup = parent.add("group");
     setupRow(dropdownRowGroup, "left", 6);
-    dropdownRowGroup.add("statictext", undefined, labelText(fieldLabelEntry));
+    var fieldLabel = dropdownRowGroup.add("statictext", undefined, labelText(fieldLabelEntry));
     var itemLabels = [];
     for (var i = 0; i < itemEntries.length; i++) itemLabels.push(getLabel(itemEntries[i]));
     var extraDropdown = dropdownRowGroup.add("dropdownlist", undefined, itemLabels);
@@ -2096,6 +2160,10 @@ function addExtraDropdown(parent, settingKey, fieldLabelEntry, itemEntries, tool
             extraControl.isSetting = true;
             extraDropdown.selection = value;
             extraControl.isSetting = false;
+        },
+        setEnabled: function (isEnabled) {
+            fieldLabel.enabled = isEnabled;
+            extraDropdown.enabled = isEnabled;
         }
     };
     extraDropdown.onChange = function () {
@@ -2268,10 +2336,9 @@ function makeRadioClickHandler(rowControl, option, panelRows, tableContext) {
  * @param {Array} rows - 行の定義の配列
  * @param {{rowControls: Object, rowLabels: StaticText[], headerSpacers: StaticText[], onRowChange: Function}} tableContext -
  *     行のコントロール（キー → コントロール）、幅を揃える項目名・見出しの空きラベル（作ったものを足す）、選択肢を変えたときの処理
- * @param {Array} [panelRows] - Option＋クリックでまとめて変える、同じパネルの行（省略時は rows）
  * @returns {void}
  */
-function addOptionTable(parent, rows, tableContext, panelRows) {
+function addOptionTable(parent, rows, tableContext) {
     var tableGroup = parent.add("group");
     tableGroup.orientation = "column";
     tableGroup.alignChildren = ["left", "top"];
@@ -2289,11 +2356,12 @@ function addOptionTable(parent, rows, tableContext, panelRows) {
         for (var option = 0; option < OPTION_COLUMNS.length; option++) {
             /* ラジオを列の中央に置くため、セルごとにグループで包む / Wrap each radio in a cell group to center it under the heading */
             var cellGroup = rowGroup.add("group");
-            cellGroup.preferredSize.width = OPTION_COLUMN_WIDTH;
+            /* preferredSize はレイアウトの計算し直しで子の幅に戻るので、最小幅で取る / preferredSize is reset when the layout is recalculated, so reserve a minimum width */
+            cellGroup.minimumSize.width = OPTION_COLUMN_WIDTH;
             cellGroup.alignChildren = ["center", "center"];
             var optionRadio = cellGroup.add("radiobutton", undefined, "");
             optionRadio.helpTip = getLabel(OPTION_COLUMNS[option].tooltip) + "\n" + getLabel(LABELS.tooltip.optionClick);
-            optionRadio.onClick = makeRadioClickHandler(rowControl, option, panelRows || rows, tableContext);
+            optionRadio.onClick = makeRadioClickHandler(rowControl, option, rows, tableContext);
             rowControl.radios.push(optionRadio);
         }
         tableContext.rowControls[rows[i].key] = rowControl;
@@ -2322,7 +2390,7 @@ function showConvertDialog(settings, scopeAvailability) {
     var btnDeletePreset = presetRowGroup.add("button", undefined, getLabel(LABELS.button.deletePreset));
     btnDeletePreset.helpTip = getLabel(LABELS.tooltip.deletePreset);
 
-    /* 対象（2カラムを貫通。ラジオは横並び）/ Scope (spans both columns, radios in a row) */
+    /* 対象（カラムを貫通。ラジオは横並び）/ Scope (spans the columns, radios in a row) */
     var targetPanel = mainDialog.add("panel", undefined, getLabel(LABELS.panel.target));
     setupPanel(targetPanel);
     targetPanel.orientation = "row";
@@ -2347,8 +2415,17 @@ function showConvertDialog(settings, scopeAvailability) {
 
     /* 除外するスタイル（対象パネルの右端）/ Excluded styles (right end of the scope panel) */
     var targetSpacer = targetPanel.add("group");
-    targetSpacer.alignment = ["fill", "center"];
-    var btnExcludedStyles = targetPanel.add("button", undefined, "");
+    targetSpacer.alignment = ["fill", "fill"];
+    targetSpacer.minimumSize.width = 0;
+    /* ボタンはグループで包み、余りの幅で広がらないようにする / Wrap the button so the extra width does not stretch it */
+    var excludedStylesGroup = targetPanel.add("group");
+    excludedStylesGroup.alignChildren = ["right", "center"];
+    var btnExcludedStyles = excludedStylesGroup.add("button", undefined, "");
+    /* 表示後に「（数）」が付いても切れないよう、2桁の数の文言の幅を取っておく / Reserve the width of a two-digit count so the label is not cut off after the dialog is shown */
+    try {
+        btnExcludedStyles.minimumSize.width = Math.ceil(btnExcludedStyles.graphics.measureString(
+            getLabel(LABELS.button.excludedStylesCount, { count: 99 }))[0]) + EXCLUDED_STYLES_BUTTON_PADDING;
+    } catch (e) {}
     var excludedStyles = settings.excludedStyles;
 
     /**
@@ -2378,11 +2455,12 @@ function showConvertDialog(settings, scopeAvailability) {
         headerSpacers: [],
         onRowChange: function () {
             updateDigitRadios();
+            updateFormDropdowns();
             syncPresetSelection();
         }
     };
 
-    /* 左：文字種・句読点、右：括弧 / Left: character types and punctuation; right: brackets */
+    /* 3カラム（左：文字種・句読点、中：括弧、右：記号）。縦に積むと画面に収まらない / Three columns (left: character types and punctuation; middle: brackets; right: symbols); stacked, the dialog does not fit the screen */
     var columnsGroup = mainDialog.add("group");
     columnsGroup.orientation = "row";
     columnsGroup.alignChildren = ["left", "fill"];
@@ -2411,12 +2489,12 @@ function showConvertDialog(settings, scopeAvailability) {
         [LABELS.dropdown.punctuationStyleKeep, LABELS.dropdown.punctuationStyleJapanese, LABELS.dropdown.punctuationStyleWestern],
         LABELS.tooltip.punctuationStyle, tableContext);
 
-    var rightColumnGroup = columnsGroup.add("group");
-    rightColumnGroup.orientation = "column";
-    rightColumnGroup.alignChildren = ["fill", "top"];
-    rightColumnGroup.spacing = PANEL_SPACING;
+    var middleColumnGroup = columnsGroup.add("group");
+    middleColumnGroup.orientation = "column";
+    middleColumnGroup.alignChildren = ["fill", "top"];
+    middleColumnGroup.spacing = PANEL_SPACING;
 
-    var bracketPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.bracket));
+    var bracketPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.bracket));
     setupPanel(bracketPanel);
     addOptionTable(bracketPanel, BRACKET_ROWS, tableContext);
     var bracketExtrasGroup = bracketPanel.add("group");
@@ -2426,36 +2504,36 @@ function showConvertDialog(settings, scopeAvailability) {
     addExtraCheckbox(bracketExtrasGroup, "bracketInnerSpace", LABELS.checkbox.bracketInnerSpace, LABELS.tooltip.bracketInnerSpace, tableContext);
     addExtraCheckbox(bracketExtrasGroup, "bracketOuterSpace", LABELS.checkbox.bracketOuterSpace, LABELS.tooltip.bracketOuterSpace, tableContext);
     addExtraDropdown(bracketPanel, "quoteForm", LABELS.fieldLabel.quoteForm,
-        [LABELS.dropdown.quoteFormPlain, LABELS.dropdown.quoteFormCurly], LABELS.tooltip.quoteForm, tableContext);
+        [LABELS.dropdown.quoteFormPlain, LABELS.dropdown.quoteFormCurly, LABELS.dropdown.quoteFormMinute], LABELS.tooltip.quoteForm, tableContext);
 
-    /* 記号（2カラムを貫通し、表は上の左右の列に揃えて2列に分ける）/ Symbols (spans both columns; split into two tables lined up with the columns above) */
-    var symbolPanel = mainDialog.add("panel", undefined, getLabel(LABELS.panel.symbol));
+    /* 縦組み用 / Vertical text */
+    var verticalPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.vertical));
+    setupPanel(verticalPanel, 6);
+    addExtraCheckbox(verticalPanel, "numberCommaToTouten", LABELS.checkbox.numberCommaToTouten, LABELS.tooltip.numberCommaToTouten, tableContext);
+    addExtraCheckbox(verticalPanel, "decimalToNakaguro", LABELS.checkbox.decimalToNakaguro, LABELS.tooltip.decimalToNakaguro, tableContext);
+
+    /* 確認用の色分け（表示前の value は読み戻せないので値は自前で持つ）/ Check coloring (the value is kept here, since value cannot be read back before show) */
+    var highlightPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.highlight));
+    setupPanel(highlightPanel, 6);
+    var highlightCheckbox = highlightPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.highlightChanges));
+    highlightCheckbox.helpTip = getLabel(LABELS.tooltip.highlightChanges);
+    var highlightChanges = (settings.highlightChanges === true);
+    highlightCheckbox.value = highlightChanges;
+    highlightCheckbox.onClick = function () { highlightChanges = highlightCheckbox.value; };
+
+    var rightColumnGroup = columnsGroup.add("group");
+    rightColumnGroup.orientation = "column";
+    rightColumnGroup.alignChildren = ["fill", "top"];
+    rightColumnGroup.spacing = PANEL_SPACING;
+
+    var symbolPanel = rightColumnGroup.add("panel", undefined, getLabel(LABELS.panel.symbol));
     setupPanel(symbolPanel);
-    var symbolTablesGroup = symbolPanel.add("group");
-    symbolTablesGroup.orientation = "row";
-    symbolTablesGroup.alignChildren = ["left", "top"];
-    symbolTablesGroup.spacing = SYMBOL_COLUMN_SPACING;
-    var symbolSplitIndex = Math.ceil(SYMBOL_ROWS.length / 2);
-    /* Option＋クリックは記号パネルの2つの表にまたがって効かせる / Option-click covers both symbol tables */
-    addOptionTable(symbolTablesGroup, SYMBOL_ROWS.slice(0, symbolSplitIndex), tableContext, SYMBOL_ROWS);
-    addOptionTable(symbolTablesGroup, SYMBOL_ROWS.slice(symbolSplitIndex), tableContext, SYMBOL_ROWS);
-    /* 字形の選択（左の列にハイフン・アスタリスク、右の列にチルダ）/ Form choices (hyphen and asterisk on the left, tilde on the right) */
-    var symbolFormsGroup = symbolPanel.add("group");
-    setupRow(symbolFormsGroup, ["left", "top"], SYMBOL_COLUMN_SPACING);
-    symbolFormsGroup.alignChildren = ["left", "top"];
-    var leftFormsGroup = symbolFormsGroup.add("group");
-    leftFormsGroup.orientation = "column";
-    leftFormsGroup.alignChildren = ["left", "top"];
-    leftFormsGroup.spacing = 6;
-    var rightFormsGroup = symbolFormsGroup.add("group");
-    rightFormsGroup.orientation = "column";
-    rightFormsGroup.alignChildren = ["left", "top"];
-    rightFormsGroup.spacing = 6;
-    addExtraDropdown(leftFormsGroup, "hyphenForm", LABELS.fieldLabel.hyphenForm,
+    addOptionTable(symbolPanel, SYMBOL_ROWS, tableContext);
+    addExtraDropdown(symbolPanel, "hyphenForm", LABELS.fieldLabel.hyphenForm,
         [LABELS.dropdown.hyphenFormPlain, LABELS.dropdown.hyphenFormHyphen, LABELS.dropdown.hyphenFormMinus], LABELS.tooltip.hyphenForm, tableContext);
-    addExtraDropdown(leftFormsGroup, "asteriskForm", LABELS.fieldLabel.asteriskForm,
+    addExtraDropdown(symbolPanel, "asteriskForm", LABELS.fieldLabel.asteriskForm,
         [LABELS.dropdown.asteriskFormPlain, LABELS.dropdown.asteriskFormReference], LABELS.tooltip.asteriskForm, tableContext);
-    addExtraDropdown(rightFormsGroup, "tildeForm", LABELS.fieldLabel.tildeForm,
+    addExtraDropdown(symbolPanel, "tildeForm", LABELS.fieldLabel.tildeForm,
         [LABELS.dropdown.tildeFormPlain, LABELS.dropdown.tildeFormWave], LABELS.tooltip.tildeForm, tableContext);
 
     /* 項目名の幅をすべての表で同じにし、見出しの空きも同じ幅にする / Give every table the same label width, and the header gap too */
@@ -2476,6 +2554,7 @@ function showConvertDialog(settings, scopeAvailability) {
             else if (tableContext.extraControls[settingKey]) tableContext.extraControls[settingKey].setValue(rowOptions[settingKey]);
         }
         updateDigitRadios();
+        updateFormDropdowns();
     }
 
     /**
@@ -2501,6 +2580,22 @@ function showConvertDialog(settings, scopeAvailability) {
         var digitsControl = rowControls.digits;
         var isByLength = (tableContext.extraControls.digitsByLength.value === 1);
         for (var i = 0; i < digitsControl.radios.length; i++) digitsControl.radios[i].enabled = !isByLength;
+    }
+
+    /**
+     * 全角の字形のドロップダウンは、その行が「そのまま」のときは使えなくする（半角にするときも、選んだ字形だけを戻すので使う。引用符は二重引用符・引用符の両方が「そのまま」なら）
+     * @returns {void}
+     */
+    function updateFormDropdowns() {
+        var isUsedBySetting = {};
+        for (var rowKey in FULL_FORM_CHOICES) {
+            if (!FULL_FORM_CHOICES.hasOwnProperty(rowKey)) continue;
+            var formSettingKey = FULL_FORM_CHOICES[rowKey].settingKey;
+            isUsedBySetting[formSettingKey] = isUsedBySetting[formSettingKey] || (getRowOption(rowControls[rowKey]) !== OPTION_KEEP);
+        }
+        for (var settingKey in isUsedBySetting) {
+            if (isUsedBySetting.hasOwnProperty(settingKey)) tableContext.extraControls[settingKey].setEnabled(isUsedBySetting[settingKey]);
+        }
     }
 
     /* ドロップダウンの項目番号 → プリセット（「カスタム」と区切り線は null）/ Dropdown item index → preset ("Custom" and separators are null) */
@@ -2637,7 +2732,7 @@ function showConvertDialog(settings, scopeAvailability) {
     for (var scopeKey in scopeRadios) {
         if (scopeRadios.hasOwnProperty(scopeKey) && scopeRadios[scopeKey].value) chosenScope = scopeKey;
     }
-    return { rowOptions: chosenRowOptions, scope: chosenScope, excludedStyles: excludedStyles };
+    return { rowOptions: chosenRowOptions, scope: chosenScope, excludedStyles: excludedStyles, highlightChanges: highlightChanges };
 }
 
 // =========================================
@@ -2673,6 +2768,8 @@ function main() {
     var result = null;
     /* 一括で取り消せるように doScript でまとめて実行 / Run through doScript so the whole run is a single undo step */
     app.doScript(function () {
+        /* スウォッチを足すのも同じ取り消しにまとめる / Adding the swatch is part of the same undo step */
+        conversion.highlightColor = settings.highlightChanges ? getHighlightSwatch() : null;
         result = convertTargets(targets, conversion);
     }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undo.convert));
 
@@ -2688,7 +2785,7 @@ function main() {
 }
 
 /* 内訳に出す、行以外のキー（行のあとに並べる）/ Keys besides the rows shown in the breakdown, listed after the rows */
-var RESULT_EXTRA_KEYS = ["punctuationStyle", "bracketInnerSpace", "bracketOuterSpace"];
+var RESULT_EXTRA_KEYS = ["punctuationStyle", "numberCommaToTouten", "decimalToNakaguro", "bracketInnerSpace", "bracketOuterSpace"];
 
 /**
  * 変換した数の内訳を、行の並び順で「項目名 : 数」の行にする
