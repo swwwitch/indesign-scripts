@@ -1,5 +1,11 @@
 # Change Log
 
+## 20261030
+
+### 新しいスクリプトを追加
+
+- [文字の種類ごとに全角・半角を変換](readme-ja/IdCharacterWidthConverter.md)
+
 ## 20261029
 
 ### 新しいスクリプトを追加
