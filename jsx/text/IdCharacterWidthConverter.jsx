@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdCharacterWidthConverter
 Name=IdCharacterWidthConverter
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCharacterWidt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCharacterWidthConverter";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-30";                   /* 更新日 / last updated */
@@ -72,6 +72,7 @@ var DEFAULT_ROW_OPTIONS = {
     alphabet: OPTION_HALF,
     digits: OPTION_HALF,
     kanaPunctuation: OPTION_FULL,
+    middleDot: OPTION_FULL,
     kanaLeftBracket: OPTION_FULL,
     kanaRightBracket: OPTION_FULL
 };
@@ -831,6 +832,7 @@ var LABELS = {
         tilde: { ja: "チルダ", en: "Tilde" },
         yen: { ja: "円マーク", en: "Yen sign" },
         kanaPunctuation: { ja: "句読点", en: "Japanese punctuation" },
+        middleDot: { ja: "中黒", en: "Middle dot" },
         kanaLeftBracket: { ja: "左かぎかっこ", en: "Left corner bracket" },
         kanaRightBracket: { ja: "右かぎかっこ", en: "Right corner bracket" }
     },
@@ -839,7 +841,8 @@ var LABELS = {
         punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
         quoteForm: { ja: "全角の引用符", en: "Full-width quotes" },
         hyphenForm: { ja: "全角のハイフン", en: "Full-width hyphen" },
-        tildeForm: { ja: "全角のチルダ", en: "Full-width tilde" }
+        tildeForm: { ja: "全角のチルダ", en: "Full-width tilde" },
+        asteriskForm: { ja: "全角のアスタリスク", en: "Full-width asterisk" }
     },
     checkbox: {
         digitsByLength: { ja: "数字は1桁を全角、2桁以上を半角にする", en: "Digits: one digit full-width, two or more half-width" },
@@ -866,7 +869,9 @@ var LABELS = {
         hyphenFormHyphen: { ja: "‐（ハイフン）", en: "‐ (hyphen)" },
         hyphenFormMinus: { ja: "−（マイナス）", en: "− (minus sign)" },
         tildeFormPlain: { ja: "～（全角チルダ）", en: "～ (full-width tilde)" },
-        tildeFormWave: { ja: "〜（波ダッシュ）", en: "〜 (wave dash)" }
+        tildeFormWave: { ja: "〜（波ダッシュ）", en: "〜 (wave dash)" },
+        asteriskFormPlain: { ja: "＊（全角アスタリスク）", en: "＊ (full-width asterisk)" },
+        asteriskFormReference: { ja: "※（米印）", en: "※ (reference mark)" }
     },
     button: {
         restoreDefaults: { ja: "デフォルトに戻す", en: "Restore Defaults" },
@@ -909,6 +914,7 @@ var LABELS = {
         },
         hyphenForm: { ja: "ハイフンを全角にしたときの字形です。", en: "The form used when hyphens become full-width." },
         tildeForm: { ja: "チルダを全角にしたときの字形です。", en: "The form used when tildes become full-width." },
+        asteriskForm: { ja: "アスタリスクを全角にしたときの字形です。※（米印）を選ぶと、* と ※ を変換します。", en: "The form used when asterisks become full-width. Choose ※ (reference mark) to convert between * and ※." },
         excludedStyles: { ja: "選んだ段落スタイル・文字スタイルの文字は変換しません。", en: "Text in the chosen paragraph and character styles is not converted." },
         optionClick: { ja: "Option キーを押しながらクリックすると、このパネルの行をすべて同じ選択肢にします。", en: "Option-click to set every row in this panel to the same option." },
         restoreDefaults: { ja: "選択肢を最初の状態に戻します。", en: "Resets the options to their defaults." },
@@ -951,8 +957,8 @@ var LABELS = {
 var FULL_WIDTH_OFFSET = 0xFEE0;
 
 /* 半角カタカナと全角の対応（同じ位置どうし）/ Half-width katakana and their full-width forms, matched by position */
-var HALF_KANA = "ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ･";
-var FULL_KANA = "ヲァィゥェォャュョッーアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン゛゜・";
+var HALF_KANA = "ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ";
+var FULL_KANA = "ヲァィゥェォャュョッーアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン゛゜";
 
 /* 濁音・半濁音は半角では2文字になる / Voiced and semi-voiced kana take two characters in half-width */
 var HALF_VOICED_BASES      = "ｳｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾊﾋﾌﾍﾎﾜｦ";
@@ -1085,7 +1091,8 @@ var ASCII_PUNCTUATION_ROWS = buildSymbolRows(ASCII_PUNCTUATION_ROW_DEFS).concat(
     rowDef("exclamationRun", "!!", [], { runChar: ["!", "！"] })
 ]);
 var PUNCTUATION_ROWS = [
-    rowDef("kanaPunctuation", "｡､", [["｡", "。"], ["､", "、"]])
+    rowDef("kanaPunctuation", "｡､", [["｡", "。"], ["､", "、"]]),
+    rowDef("middleDot", "･", [["･", "・"]])
 ].concat(ASCII_PUNCTUATION_ROWS);
 
 var ALL_ROWS = CHARACTER_TYPE_ROWS.concat(PUNCTUATION_ROWS).concat(SYMBOL_ROWS).concat(BRACKET_ROWS);
@@ -1094,6 +1101,7 @@ var ALL_ROWS = CHARACTER_TYPE_ROWS.concat(PUNCTUATION_ROWS).concat(SYMBOL_ROWS).
 var FULL_FORM_CHOICES = {
     hyphen: { settingKey: "hyphenForm", forms: [["\uFF0D"], ["\u2010"], ["\u2212"]] },
     tilde: { settingKey: "tildeForm", forms: [["\uFF5E"], ["\u301C"]] },
+    asterisk: { settingKey: "asteriskForm", forms: [["\uFF0A"], ["\u203B"]] },
     doubleQuote: { settingKey: "quoteForm", forms: [["\uFF02"], ["\u201C", "\u201D"]] },
     apostrophe: { settingKey: "quoteForm", forms: [["\uFF07"], ["\u2018", "\u2019"]] }
 };
@@ -1107,7 +1115,8 @@ var EXTRA_SETTING_DEFS = [
     { key: "bracketOuterSpace", valueCount: 2 },
     { key: "quoteForm", valueCount: 2 },
     { key: "hyphenForm", valueCount: 3 },
-    { key: "tildeForm", valueCount: 2 }
+    { key: "tildeForm", valueCount: 2 },
+    { key: "asteriskForm", valueCount: 2 }
 ];
 
 /* 行と行のほかの設定をまとめた一覧と、キーごとの値の数 / Every setting (rows and extras) and the number of values per key */
@@ -1298,6 +1307,7 @@ var BUILTIN_PRESETS = [
         rowOptions: rowOptionsWith(OPTION_HALF, {
             katakana: OPTION_KEEP,
             kanaPunctuation: OPTION_KEEP,
+            middleDot: OPTION_KEEP,
             kanaLeftBracket: OPTION_KEEP,
             kanaRightBracket: OPTION_KEEP
         })
@@ -1316,6 +1326,7 @@ function presetOverrides(asciiOption, symbolOption) {
         alphabet: asciiOption,
         digits: asciiOption,
         kanaPunctuation: OPTION_FULL,
+        middleDot: OPTION_FULL,
         kanaLeftBracket: OPTION_FULL,
         kanaRightBracket: OPTION_FULL
     };
@@ -2428,11 +2439,23 @@ function showConvertDialog(settings, scopeAvailability) {
     /* Option＋クリックは記号パネルの2つの表にまたがって効かせる / Option-click covers both symbol tables */
     addOptionTable(symbolTablesGroup, SYMBOL_ROWS.slice(0, symbolSplitIndex), tableContext, SYMBOL_ROWS);
     addOptionTable(symbolTablesGroup, SYMBOL_ROWS.slice(symbolSplitIndex), tableContext, SYMBOL_ROWS);
+    /* 字形の選択（左の列にハイフン・アスタリスク、右の列にチルダ）/ Form choices (hyphen and asterisk on the left, tilde on the right) */
     var symbolFormsGroup = symbolPanel.add("group");
-    setupRow(symbolFormsGroup, "left", SYMBOL_COLUMN_SPACING);
-    addExtraDropdown(symbolFormsGroup, "hyphenForm", LABELS.fieldLabel.hyphenForm,
+    setupRow(symbolFormsGroup, ["left", "top"], SYMBOL_COLUMN_SPACING);
+    symbolFormsGroup.alignChildren = ["left", "top"];
+    var leftFormsGroup = symbolFormsGroup.add("group");
+    leftFormsGroup.orientation = "column";
+    leftFormsGroup.alignChildren = ["left", "top"];
+    leftFormsGroup.spacing = 6;
+    var rightFormsGroup = symbolFormsGroup.add("group");
+    rightFormsGroup.orientation = "column";
+    rightFormsGroup.alignChildren = ["left", "top"];
+    rightFormsGroup.spacing = 6;
+    addExtraDropdown(leftFormsGroup, "hyphenForm", LABELS.fieldLabel.hyphenForm,
         [LABELS.dropdown.hyphenFormPlain, LABELS.dropdown.hyphenFormHyphen, LABELS.dropdown.hyphenFormMinus], LABELS.tooltip.hyphenForm, tableContext);
-    addExtraDropdown(symbolFormsGroup, "tildeForm", LABELS.fieldLabel.tildeForm,
+    addExtraDropdown(leftFormsGroup, "asteriskForm", LABELS.fieldLabel.asteriskForm,
+        [LABELS.dropdown.asteriskFormPlain, LABELS.dropdown.asteriskFormReference], LABELS.tooltip.asteriskForm, tableContext);
+    addExtraDropdown(rightFormsGroup, "tildeForm", LABELS.fieldLabel.tildeForm,
         [LABELS.dropdown.tildeFormPlain, LABELS.dropdown.tildeFormWave], LABELS.tooltip.tildeForm, tableContext);
 
     /* 項目名の幅をすべての表で同じにし、見出しの空きも同じ幅にする / Give every table the same label width, and the header gap too */
