@@ -4,7 +4,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdMoveParagraphDown
-Name=IdMoveParagraphDown
+Name=段落をひとつ下の段落と入れ替える
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.1
@@ -47,6 +47,8 @@ var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-09-30";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "段落をひとつ下の段落と入れ替える"; /* 内容（README なし） / what it does (no README) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdMoveParagraphDown.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdMoveParagraphDown.md"; /* README (English) */
