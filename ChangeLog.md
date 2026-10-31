@@ -1,5 +1,11 @@
 # Change Log
 
+## 20261101
+
+### 新しいスクリプトを追加
+
+- [縦組みの欧文回転・縦中横・数字の書き換えをまとめて適用](readme-ja/IdVerticalTextFormatter.md)：Illustrator 版 VerticalTextFormatter の InDesign 版。選択したテキストを縦組みにし、欧文回転・縦中横・数字の書き換え・禁則・文字組みをまとめて適用する
+
 ## 20261031
 
 ### 調整
