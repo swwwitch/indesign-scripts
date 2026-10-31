@@ -20,8 +20,8 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 - Half-width voiced kana (ｶﾞ, ﾊﾟ, …) become a single full-width character (ガ, パ); the reverse splits them into two characters
 - "!?" and runs of "!" are handled as units; when kept, they stay as they are whatever the exclamation and question rows say
 - Extra options
-  - Character Types: one digit full-width and two or more half-width; convert spaces only between Japanese characters
-  - Punctuation: punctuation style (unify to ，． or 、。)
+  - Character Types: one digit full-width and two or more half-width; convert spaces only between Japanese characters; remove spaces between Japanese and Western text; add a space after , . : in Western text (apples,oranges → apples, oranges)
+  - Punctuation: punctuation style (unify to ，． or 、。); convert to ... (・・・, ... and 。。。 become an ellipsis …)
   - Brackets: remove spaces inside brackets; remove spaces outside brackets; form of full-width quotes (＂＇, “ ” ‘ ’ or 〝 〟)
   - Symbols: form of the full-width hyphen (－, ‐, −) tilde (～, 〜) and asterisk (＊, ※)
 - Scope: Selection, Story or Document. Text in table cells and footnotes is converted too
@@ -44,7 +44,7 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 ### Notes and limitations
 
 - The whole run is a single undo step.
-- The steps run in this order: row conversion, punctuation style, digits by length, spaces around brackets. For example, with "," set to full-width and the punctuation style set to 、。, "," becomes "、".
+- The steps run in this order: ellipses (・・・, ..., 。。。 → …), spaces between Japanese and Western text, row conversion, punctuation style, digits by length, spaces after , . : in Western text, spaces around brackets. For example, with "," set to full-width and the punctuation style set to 、。, "," becomes "、".
 - Selecting a text frame converts the whole story that contains it.
 - The available scopes depend on the selection; with nothing selected only "Document" is available.
 - "Document" also converts text on parent pages. Locked stories and text on locked or hidden layers are skipped.
@@ -58,8 +58,8 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 - Converting hyphens, tildes, asterisks or quotes to half-width only affects the chosen form (with "〜" chosen, "～" is not converted).
 - The Japanese punctuation row converts "。"/"｡" and "、"/"､"; the corner bracket rows convert "「"/"｢" and "」"/"｣".
 - The built-in presets other than "For vertical typesetting" and "For Western typesetting" convert katakana, Japanese punctuation and corner brackets to full-width and keep spaces. The two "Letters, digits & symbols" presets convert ASCII punctuation, quotes, brackets and the yen sign the same way.
-- "For vertical typesetting" makes one-digit numbers full-width and longer ones half-width (for tate-chu-yoko), makes "!?" and runs of "!" half-width, makes spaces between Japanese characters full-width, turns tildes into wave dashes (〜), and converts katakana, punctuation, brackets and symbols to full-width. The letter, comma, period and quote rows are kept so English words stay intact, while "," and "." in numbers become "、" and "・" (1,000 → 1、000, 12.5 → 12・5). Tate-chu-yoko itself is not applied.
-- "For Western typesetting" converts full-width letters, digits, symbols, ASCII punctuation, brackets, ideographic spaces (U+3000) and the yen sign to half-width, and keeps katakana, Japanese punctuation and corner brackets.
+- "For vertical typesetting" makes one-digit numbers full-width and longer ones half-width (for tate-chu-yoko), makes "!?" and runs of "!" half-width, makes spaces between Japanese characters full-width, turns tildes into wave dashes (〜), and converts katakana, punctuation, brackets and symbols to full-width. The letter, comma, period and quote rows are kept so English words stay intact, while "," and "." in numbers become "、" and "・" (1,000 → 1、000, 12.5 → 12・5). Spaces between Japanese and Western text are removed, and ・・・, ... and 。。。 become …. Tate-chu-yoko itself is not applied.
+- "For Western typesetting" converts full-width letters, digits, symbols, ASCII punctuation, brackets, ideographic spaces (U+3000) and the yen sign to half-width, and keeps katakana, Japanese punctuation and corner brackets. It turns ... into … and adds a space after , . : in Western text.
 - Excluded styles are remembered by name, so styles with the same name in another document are excluded too.
 - Presets are saved to `~/Library/Application Support/indesign-scripts/IdCharacterWidthConverter.json` (under Folder.userData).
 
@@ -68,14 +68,15 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdCharacterWidthConverter.jsx` |
-| Version | v1.2.0 |
+| Version | v1.3.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-10-30 |
-| Last updated | 2026-10-30 |
+| Last updated | 2026-10-31 |
 | Article | https://note.com/dtp_tranist/n/nf9d7245b0653 |
 
 ### Update History
 
+- v1.3.0 (2026-10-31) Added "Remove spaces between Japanese and Western text" (第 3 章 → 第3章) and "Add a space after , . : in Western text" (1,000, example.com and 10:30 are left alone) to Character Types. Added "Convert to ..." (・・・, ..., 。。。) to Punctuation: three middle dots, periods or Japanese full stops in a row, half- or full-width, become an ellipsis (…). The "For vertical typesetting" preset now removes spaces between Japanese and Western text and converts to ellipses; "For Western typesetting" turns ... into … and adds spaces after , . :. Renamed the dialog to "Convert Width & Clean Up Text"
 - v1.2.0 (2026-10-30) Moved the middle dot row from Punctuation to Symbols. The dialog now has three columns so it fits the screen height. The full-width form menus (hyphen, tilde, asterisk, quotes) are dimmed while their row is set to Keep. Added minutes (〝 〟) as a full-width form of double quotes. Added Vertical Text options that turn "," in numbers into "、" and "." into "・" (on in the "For vertical typesetting" preset). Added Check Coloring to color converted characters
 - v1.1.0 (2026-10-30) Added a middle dot row (split from the katakana row) and ※ (reference mark) as a full-width form of the asterisk
 - v1.0.0 (2026-10-30) First release

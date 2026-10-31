@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdCharacterWidthConverter
 Name=IdCharacterWidthConverter
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.2.0
+Version=1.3.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
@@ -46,10 +46,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCharacterWidt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCharacterWidthConverter";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-30";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-10-31";                   /* 更新日 / last updated */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCharacterWidthConverter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCharacterWidthConverter.md"; /* README (English) */
@@ -777,7 +777,7 @@ function fillLabelPlaceholders(labelString, placeholderValues) {
 
 var LABELS = {
     dialog: {
-        title: { ja: "全角・半角の変換", en: "Convert Character Width" },
+        title: { ja: "全角・半角の変換と整形", en: "Convert Width & Clean Up Text" },
         excludedStyles: { ja: "除外するスタイル", en: "Excluded Styles" }
     },
     panel: {
@@ -828,7 +828,7 @@ var LABELS = {
         greaterThan: { ja: "大なり", en: "Greater-than sign" },
         question: { ja: "疑問符", en: "Question mark" },
         exclamationQuestion: { ja: "感嘆符疑問符", en: "Exclamation-question" },
-        exclamationRun: { ja: "感嘆符（2個以上）", en: "Two or more exclamation marks" },
+        exclamationRun: { ja: "2個以上の感嘆符", en: "Two or more exclamation marks" },
         atSign: { ja: "アットマーク", en: "At sign" },
         leftBracket: { ja: "左大かっこ", en: "Left bracket" },
         backslash: { ja: "バックスラッシュ", en: "Backslash" },
@@ -848,6 +848,8 @@ var LABELS = {
     },
     fieldLabel: {
         preset: { ja: "プリセット", en: "Preset" },
+        /* 「…」は ScriptUI で天地中央に出るので「...」で書く / Written as "..." since "…" sits vertically centered in ScriptUI */
+        toEllipsis: { ja: "...に変換", en: "Convert to ..." },
         punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
         quoteForm: { ja: "全角の引用符", en: "Full-width quotes" },
         hyphenForm: { ja: "全角のハイフン", en: "Full-width hyphen" },
@@ -856,7 +858,12 @@ var LABELS = {
     },
     checkbox: {
         digitsByLength: { ja: "数字は1桁を全角、2桁以上を半角にする", en: "Digits: one digit full-width, two or more half-width" },
-        spaceBetweenJapaneseOnly: { ja: "スペースは前後が和文の文字のときだけ変換", en: "Convert spaces only between Japanese characters" },
+        spaceBetweenJapaneseOnly: { ja: "和文にはさまれたスペースだけを変換", en: "Convert spaces only between Japanese characters" },
+        japaneseLatinSpace: { ja: "和欧間のスペースを削除", en: "Remove spaces between Japanese and Western text" },
+        nakaguroToEllipsis: { ja: "・・・", en: "・・・" },
+        periodsToEllipsis: { ja: "...", en: "..." },
+        kutenToEllipsis: { ja: "。。。", en: "。。。" },
+        westernPunctuationSpace: { ja: "欧文の,.:のあとにスペースを入れる", en: "Add a space after , . : in Western text" },
         bracketInnerSpace: { ja: "括弧の内側のスペースを削除", en: "Remove spaces inside brackets" },
         bracketOuterSpace: { ja: "括弧の外側のスペースを削除", en: "Remove spaces outside brackets" },
         numberCommaToTouten: { ja: "数字の中の「,」を「、」にする", en: "\",\" in numbers to \"、\"" },
@@ -914,6 +921,26 @@ var LABELS = {
             en: "The space row converts only spaces with Japanese characters (kana, kanji, full-width characters) on both sides."
         },
         punctuationStyle: { ja: "，．（全角コンマ・ピリオド）と、。のどちらかにそろえます。", en: "Unifies Japanese punctuation to either 、。 or ，．." },
+        japaneseLatinSpace: {
+            ja: "和文の文字（かな・漢字・全角文字）と英数字のあいだのスペース（半角・全角）を削除します（第 3 章 → 第3章）。",
+            en: "Removes spaces (half- or full-width) between Japanese characters (kana, kanji, full-width characters) and Latin letters or digits (第 3 章 → 第3章)."
+        },
+        westernPunctuationSpace: {
+            ja: "英数字と英字にはさまれた半角の「,」、英字にはさまれた「:」、小文字と大文字にはさまれた「.」のあとに半角スペースを入れます（apples,oranges → apples, oranges、end.Next → end. Next）。1,000 や example.com、10:30 は変えません。",
+            en: "Adds a space after a half-width \",\" between a letter or digit and a letter, a \":\" between letters, and a \".\" between a lowercase and an uppercase letter (apples,oranges → apples, oranges; end.Next → end. Next). 1,000, example.com and 10:30 are left alone."
+        },
+        nakaguroToEllipsis: {
+            ja: "3つ続く中黒（・ ･）を三点リーダー（…）にします。6つなら……になります。",
+            en: "Turns three middle dots in a row (・ or ･) into an ellipsis (…); six become ……."
+        },
+        periodsToEllipsis: {
+            ja: "3つ続くピリオド（. ．）を三点リーダー（…）にします。6つなら……になります。",
+            en: "Turns three periods in a row (. or ．) into an ellipsis (…); six become ……."
+        },
+        kutenToEllipsis: {
+            ja: "3つ続く句点（。 ｡）を三点リーダー（…）にします。6つなら……になります。",
+            en: "Turns three Japanese full stops in a row (。 or ｡) into an ellipsis (…); six become ……."
+        },
         bracketInnerSpace: {
             ja: "開き括弧の直後と閉じ括弧の直前のスペース（半角・全角）を削除します。向きの無い \" ' と < > は対象外です。",
             en: "Removes spaces (half- or full-width) right after opening brackets and right before closing brackets. Straight quotes and < > are not affected."
@@ -967,13 +994,18 @@ var LABELS = {
     },
     resultLabel: {
         punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
+        westernPunctuationSpace: { ja: "欧文の,.:のあとのスペース", en: "Spaces after , . : in Western text" },
+        japaneseLatinSpace: { ja: "和欧間のスペース", en: "Spaces between Japanese and Western text" },
+        nakaguroToEllipsis: { ja: "・・・ → …", en: "・・・ → …" },
+        periodsToEllipsis: { ja: "... → …", en: "... → …" },
+        kutenToEllipsis: { ja: "。。。 → …", en: "。。。 → …" },
         bracketInnerSpace: { ja: "括弧の内側のスペース", en: "Spaces inside brackets" },
         bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" },
         numberCommaToTouten: { ja: "数字の中の「,」", en: "\",\" in numbers" },
         decimalToNakaguro: { ja: "数字の中の「.」", en: "\".\" in numbers" }
     },
     undo: {
-        convert: { ja: "全角・半角の変換", en: "Convert Character Width" }
+        convert: { ja: "全角・半角の変換と整形", en: "Convert Width & Clean Up Text" }
     }
 };
 
@@ -1139,7 +1171,12 @@ var FULL_FORM_CHOICES = {
 var EXTRA_SETTING_DEFS = [
     { key: "digitsByLength", valueCount: 2 },
     { key: "spaceBetweenJapaneseOnly", valueCount: 2 },
+    { key: "japaneseLatinSpace", valueCount: 2 },
     { key: "punctuationStyle", valueCount: 3 },
+    { key: "nakaguroToEllipsis", valueCount: 2 },
+    { key: "periodsToEllipsis", valueCount: 2 },
+    { key: "kutenToEllipsis", valueCount: 2 },
+    { key: "westernPunctuationSpace", valueCount: 2 },
     { key: "bracketInnerSpace", valueCount: 2 },
     { key: "bracketOuterSpace", valueCount: 2 },
     { key: "quoteForm", valueCount: 3 },
@@ -1186,6 +1223,17 @@ var DIGIT_RUN_PATTERN = DIGIT_CLASS + "+(?:[\\x{002C}\\x{002E}\\x{FF0C}\\x{FF0E}
 /* 数字にはさまれ、後ろがちょうど3桁の「,」「，」と、数字にはさまれた「.」「．」/ "," between digits followed by exactly three digits, and "." between digits */
 var NUMBER_COMMA_PATTERN = "(?<=" + DIGIT_CLASS + ")[\\x{002C}\\x{FF0C}](?=" + DIGIT_CLASS + "{3}(?!" + DIGIT_CLASS + "))";
 var DECIMAL_POINT_PATTERN = "(?<=" + DIGIT_CLASS + ")[\\x{002E}\\x{FF0E}](?=" + DIGIT_CLASS + ")";
+/* 三点リーダーにする3つ続きの中黒・ピリオド・句点（半角・全角）/ Three middle dots, periods or Japanese full stops in a row (half- or full-width) that become an ellipsis */
+var NAKAGURO_ELLIPSIS_PATTERN = "[\\x{30FB}\\x{FF65}]{3}";
+var PERIOD_ELLIPSIS_PATTERN = "[\\x{002E}\\x{FF0E}]{3}";
+var KUTEN_ELLIPSIS_PATTERN = "[\\x{3002}\\x{FF61}]{3}";
+/* 和文の文字と英数字のあいだのスペース（文字の範囲は JAPANESE_CHAR_PATTERN・LATIN_ALNUM_PATTERN と同じ）/ Spaces between Japanese characters and Latin letters or digits (same ranges as JAPANESE_CHAR_PATTERN and LATIN_ALNUM_PATTERN) */
+var JAPANESE_CHAR_CLASS = "[\\x{3001}-\\x{303F}\\x{3040}-\\x{30FF}\\x{31F0}-\\x{31FF}\\x{3400}-\\x{4DBF}\\x{4E00}-\\x{9FFF}\\x{F900}-\\x{FAFF}\\x{FF01}-\\x{FF9F}\\x{FFE0}-\\x{FFEF}]";
+var LATIN_ALNUM_CLASS = "[A-Za-z0-9\\x{00C0}-\\x{024F}]";
+/* スペースを入れる欧文の「,」「.」「:」（「,」は英数字と英字、「.」は小文字と大文字、「:」は英字どうしにはさまれたもの）/ Western ",", "." and ":" that get a space ("," between a letter or digit and a letter, "." between lowercase and uppercase, ":" between letters) */
+var WESTERN_PUNCTUATION_SPACE_PATTERN = "(?<=[A-Za-z0-9]),(?=[A-Za-z])|(?<=[a-z])\\.(?=[A-Z])|(?<=[A-Za-z]):(?=[A-Za-z])";
+var JAPANESE_LATIN_SPACE_PATTERN = "(?<=" + JAPANESE_CHAR_CLASS + ")[ \\x{3000}]+(?=" + LATIN_ALNUM_CLASS + ")|" +
+    "(?<=" + LATIN_ALNUM_CLASS + ")[ \\x{3000}]+(?=" + JAPANESE_CHAR_CLASS + ")";
 
 // =========================================
 // 前提チェック / Preconditions
@@ -1318,9 +1366,11 @@ var BUILTIN_PRESETS = [
     },
     {
         /* 縦組み：数字は1桁を全角・2桁以上を半角（縦中横向け）、!? !! は半角、和文の間のスペースは全角、チルダは波ダッシュ。
-           英字・コンマ・ピリオド・引用符の行はそのまま（欧文の単語を崩さない）、数字の中の「,」「.」は「、」「・」/
+           英字・コンマ・ピリオド・引用符の行はそのまま（欧文の単語を崩さない）、数字の中の「,」「.」は「、」「・」。
+           和欧間のスペースは削除し、・・・ ... 。。。 は … にする /
            Vertical: one digit full-width, two or more half-width (for tate-chu-yoko); !? and !! half-width; spaces between Japanese full-width;
-           tildes become wave dashes. Letter, comma, period and quote rows are kept so English words stay intact; "," and "." in numbers become 、 and ・ */
+           tildes become wave dashes. Letter, comma, period and quote rows are kept so English words stay intact; "," and "." in numbers become 、 and ・.
+           Spaces between Japanese and Western text are removed, and ・・・ ... 。。。 become … */
         name: getLabel(LABELS.preset.vertical), builtIn: true,
         rowOptions: rowOptionsWith(OPTION_FULL, {
             alphabet: OPTION_KEEP,
@@ -1335,18 +1385,25 @@ var BUILTIN_PRESETS = [
             spaceBetweenJapaneseOnly: 1,
             tildeForm: 1,
             numberCommaToTouten: 1,
-            decimalToNakaguro: 1
+            decimalToNakaguro: 1,
+            japaneseLatinSpace: 1,
+            nakaguroToEllipsis: 1,
+            periodsToEllipsis: 1,
+            kutenToEllipsis: 1
         })
     },
     {
-        /* 欧文組版：ASCII にある文字（全角スペース・円マークも）はすべて半角、和文のカタカナ・約物はそのまま / Western typesetting: everything with an ASCII form (ideographic space and yen too) to half-width; Japanese kana and punctuation kept */
+        /* 欧文組版：ASCII にある文字（全角スペース・円マークも）はすべて半角、和文のカタカナ・約物はそのまま、... は … にし、欧文の,.:のあとにスペース /
+           Western typesetting: everything with an ASCII form (ideographic space and yen too) to half-width; Japanese kana and punctuation kept; ... becomes …; a space after , . : */
         name: getLabel(LABELS.preset.western), builtIn: true,
         rowOptions: rowOptionsWith(OPTION_HALF, {
             katakana: OPTION_KEEP,
             kanaPunctuation: OPTION_KEEP,
             middleDot: OPTION_KEEP,
             kanaLeftBracket: OPTION_KEEP,
-            kanaRightBracket: OPTION_KEEP
+            kanaRightBracket: OPTION_KEEP,
+            periodsToEllipsis: 1,
+            westernPunctuationSpace: 1
         })
     }
 ];
@@ -1508,7 +1565,8 @@ function getRowPairs(row, rowOptions) {
  * 設定から、変換元の文字 → 変換後の文字の表と、ほかの処理の有無をまとめる
  * @param {Object} rowOptions - 設定のキー → 値
  * @returns {{map: Object, rowKeyBySource: Object, runUnits: Array, size: number, digitsByLength: boolean,
- *     spaceBetweenJapaneseOnly: boolean, punctuationStyle: number, bracketInnerSpace: boolean, bracketOuterSpace: boolean,
+ *     spaceBetweenJapaneseOnly: boolean, japaneseLatinSpace: boolean, punctuationStyle: number, nakaguroToEllipsis: boolean, periodsToEllipsis: boolean, kutenToEllipsis: boolean, westernPunctuationSpace: boolean,
+ *     bracketInnerSpace: boolean, bracketOuterSpace: boolean,
  *     numberCommaToTouten: boolean, decimalToNakaguro: boolean}}
  *     変換表（値は文字列、向きで決まる引用符は [開き, 閉じ]）・変換元の行のキー・連続する文字の組・実際に変換する項目の数（守るだけの組は数えない）とほかの処理
  */
@@ -1560,7 +1618,12 @@ function buildConversionMap(rowOptions) {
         size: mapSize,
         digitsByLength: digitsByLength,
         spaceBetweenJapaneseOnly: (rowOptions.spaceBetweenJapaneseOnly === 1),
+        japaneseLatinSpace: (rowOptions.japaneseLatinSpace === 1),
         punctuationStyle: rowOptions.punctuationStyle || 0,
+        nakaguroToEllipsis: (rowOptions.nakaguroToEllipsis === 1),
+        periodsToEllipsis: (rowOptions.periodsToEllipsis === 1),
+        kutenToEllipsis: (rowOptions.kutenToEllipsis === 1),
+        westernPunctuationSpace: (rowOptions.westernPunctuationSpace === 1),
         bracketInnerSpace: (rowOptions.bracketInnerSpace === 1),
         bracketOuterSpace: (rowOptions.bracketOuterSpace === 1),
         numberCommaToTouten: (rowOptions.numberCommaToTouten === 1),
@@ -1575,6 +1638,7 @@ function buildConversionMap(rowOptions) {
  */
 function hasConversionWork(conversion) {
     return conversion.size > 0 || conversion.digitsByLength || conversion.punctuationStyle > 0 ||
+        conversion.japaneseLatinSpace || conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis || conversion.westernPunctuationSpace ||
         conversion.bracketInnerSpace || conversion.bracketOuterSpace || conversion.numberCommaToTouten || conversion.decimalToNakaguro;
 }
 
@@ -1964,7 +2028,7 @@ function runReplacePass(targets, grepPattern, decideReplacement, styleLookup, re
 
 /**
  * 対象の文字を設定に従って変換する。
- * 変換表 → 句読点の種類 → 数字の桁数 → 数字の中の「,」「.」 → 括弧のまわりのスペースの順に処理する。contents の差し替えなので、文字の書式はそのまま残る
+ * 三点リーダー → 和欧間のスペース → 変換表 → 句読点の種類 → 数字の桁数 → 数字の中の「,」「.」 → 欧文の,.:のあとのスペース → 括弧のまわりのスペースの順に処理する。contents の差し替えなので、文字の書式はそのまま残る
  * @param {Array} targets - 対象（Document・Story・Text など）
  * @param {Object} conversion - buildConversionMap() の戻り値に excludedStyles（除外するスタイル名の表）と highlightColor（変換した文字に付ける色、付けないなら null）を足したもの
  * @returns {{converted: number, failed: number, countsByKey: Object}} 変換できた数・できなかった数・キーごとの数
@@ -1974,6 +2038,20 @@ function convertTargets(targets, conversion) {
         var result = { converted: 0, failed: 0, countsByKey: {} };
         var styleLookup = conversion.excludedStyles;
         var highlightColor = conversion.highlightColor || null;
+        /* 行の変換より先に置き換える（中黒・ピリオド・句点が1つずつ変換されて数が重ならないように）/ Before the rows, so the dots are not converted one by one first */
+        if (conversion.nakaguroToEllipsis) {
+            runReplacePass(targets, NAKAGURO_ELLIPSIS_PATTERN, function () { return { key: "nakaguroToEllipsis", text: "\u2026" }; }, styleLookup, result, highlightColor);
+        }
+        if (conversion.periodsToEllipsis) {
+            runReplacePass(targets, PERIOD_ELLIPSIS_PATTERN, function () { return { key: "periodsToEllipsis", text: "\u2026" }; }, styleLookup, result, highlightColor);
+        }
+        if (conversion.kutenToEllipsis) {
+            runReplacePass(targets, KUTEN_ELLIPSIS_PATTERN, function () { return { key: "kutenToEllipsis", text: "\u2026" }; }, styleLookup, result, highlightColor);
+        }
+        /* 英数字を全角にする前に、元の文字で和欧間を判定する / Judged on the original characters, before letters and digits turn full-width */
+        if (conversion.japaneseLatinSpace) {
+            runReplacePass(targets, JAPANESE_LATIN_SPACE_PATTERN, function () { return { key: "japaneseLatinSpace", text: "" }; }, styleLookup, result, highlightColor);
+        }
         if (conversion.size > 0) {
             runReplacePass(targets, buildGrepPattern(conversion.map, conversion.runUnits), makeTableReplacer(conversion), styleLookup, result, highlightColor);
         }
@@ -1990,6 +2068,11 @@ function convertTargets(targets, conversion) {
         }
         if (conversion.decimalToNakaguro) {
             runReplacePass(targets, DECIMAL_POINT_PATTERN, function () { return { key: "decimalToNakaguro", text: "\u30FB" }; }, styleLookup, result, highlightColor);
+        }
+        /* 行の変換のあと（半角のまま残った「,」「.」「:」だけが対象）/ After the rows, so only "," "." ":" left half-width are touched */
+        if (conversion.westernPunctuationSpace) {
+            runReplacePass(targets, WESTERN_PUNCTUATION_SPACE_PATTERN, function (foundText, sourceText) { return { key: "westernPunctuationSpace", text: sourceText + " " }; },
+                styleLookup, result, highlightColor);
         }
         if (conversion.bracketInnerSpace) {
             runReplacePass(targets, buildBracketSpacePattern(true), function () { return { key: "bracketInnerSpace", text: "" }; }, styleLookup, result, highlightColor);
@@ -2481,6 +2564,8 @@ function showConvertDialog(settings, scopeAvailability) {
     addExtraCheckbox(characterTypeExtrasGroup, "digitsByLength", LABELS.checkbox.digitsByLength, LABELS.tooltip.digitsByLength, tableContext);
     addExtraCheckbox(characterTypeExtrasGroup, "spaceBetweenJapaneseOnly", LABELS.checkbox.spaceBetweenJapaneseOnly,
         LABELS.tooltip.spaceBetweenJapaneseOnly, tableContext);
+    addExtraCheckbox(characterTypeExtrasGroup, "japaneseLatinSpace", LABELS.checkbox.japaneseLatinSpace, LABELS.tooltip.japaneseLatinSpace, tableContext);
+    addExtraCheckbox(characterTypeExtrasGroup, "westernPunctuationSpace", LABELS.checkbox.westernPunctuationSpace, LABELS.tooltip.westernPunctuationSpace, tableContext);
 
     var punctuationPanel = leftColumnGroup.add("panel", undefined, getLabel(LABELS.panel.punctuation));
     setupPanel(punctuationPanel);
@@ -2488,6 +2573,13 @@ function showConvertDialog(settings, scopeAvailability) {
     addExtraDropdown(punctuationPanel, "punctuationStyle", LABELS.fieldLabel.punctuationStyle,
         [LABELS.dropdown.punctuationStyleKeep, LABELS.dropdown.punctuationStyleJapanese, LABELS.dropdown.punctuationStyleWestern],
         LABELS.tooltip.punctuationStyle, tableContext);
+    /* 三点リーダーにする文字（「...に変換 : ☐・・・ ☐... ☐。。。」の1行）/ Characters turned into an ellipsis, on one row */
+    var ellipsisRowGroup = punctuationPanel.add("group");
+    setupRow(ellipsisRowGroup, "left", 6);
+    ellipsisRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.toEllipsis));
+    addExtraCheckbox(ellipsisRowGroup, "nakaguroToEllipsis", LABELS.checkbox.nakaguroToEllipsis, LABELS.tooltip.nakaguroToEllipsis, tableContext);
+    addExtraCheckbox(ellipsisRowGroup, "periodsToEllipsis", LABELS.checkbox.periodsToEllipsis, LABELS.tooltip.periodsToEllipsis, tableContext);
+    addExtraCheckbox(ellipsisRowGroup, "kutenToEllipsis", LABELS.checkbox.kutenToEllipsis, LABELS.tooltip.kutenToEllipsis, tableContext);
 
     var middleColumnGroup = columnsGroup.add("group");
     middleColumnGroup.orientation = "column";
@@ -2785,7 +2877,7 @@ function main() {
 }
 
 /* 内訳に出す、行以外のキー（行のあとに並べる）/ Keys besides the rows shown in the breakdown, listed after the rows */
-var RESULT_EXTRA_KEYS = ["punctuationStyle", "numberCommaToTouten", "decimalToNakaguro", "bracketInnerSpace", "bracketOuterSpace"];
+var RESULT_EXTRA_KEYS = ["nakaguroToEllipsis", "periodsToEllipsis", "kutenToEllipsis", "japaneseLatinSpace", "punctuationStyle", "numberCommaToTouten", "decimalToNakaguro", "westernPunctuationSpace", "bracketInnerSpace", "bracketOuterSpace"];
 
 /**
  * 変換した数の内訳を、行の並び順で「項目名 : 数」の行にする
