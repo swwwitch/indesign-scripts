@@ -10,6 +10,8 @@
 
 ### 新しいスクリプトを追加
 
+- [部ごとに見出しの派生スタイルを当てて、目次の書式を分ける](readme-ja/IdSplitHeadingStylesByPart.md)
+- [目次の項目を部ごとの派生スタイルに当て直す](readme-ja/IdApplyTocStylesByPart.md)
 - [文字の種類ごとに全角・半角を変換](readme-ja/IdCharacterWidthConverter.md)
 
 ## 20261029
