@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdTextFrameLinker
-Name=IdTextFrameLinker
+Name=複数のテキストフレームを連結
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.5
@@ -45,6 +45,8 @@ var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2023-12-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "複数のテキストフレームを連結"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTextFrameLinker.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTextFrameLinker.md"; /* README (English) */

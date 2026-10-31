@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdSmartGroup
-Name=IdSmartGroup
+Name=近接するオブジェクトを行・列単位でグループ化
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.1.4
@@ -42,6 +42,8 @@ var SCRIPT_VERSION  = "v1.1.4";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-11";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "近接するオブジェクトを行・列単位でグループ化"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSmartGroup.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSmartGroup.md"; /* README (English) */

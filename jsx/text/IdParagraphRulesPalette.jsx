@@ -4,7 +4,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdParagraphRulesPalette
-Name=IdParagraphRulesPalette
+Name=段落境界線をパレットでプレビューしながら設定
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.4.1
@@ -50,6 +50,8 @@ var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-19";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-21";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "段落境界線をパレットでプレビューしながら設定"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphRulesPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdParagraphRulesPalette.md"; /* README (English) */

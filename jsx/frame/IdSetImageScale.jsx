@@ -4,7 +4,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdSetImageScale
-Name=IdSetImageScale
+Name=画像の縮尺率を変更してフレームを合わせる
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.4.4
@@ -46,6 +46,8 @@ var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-09-26";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "画像の縮尺率を変更してフレームを合わせる"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSetImageScale.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetImageScale.md"; /* README (English) */

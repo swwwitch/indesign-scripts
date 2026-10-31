@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdAppendParagraphNumbering
-Name=IdAppendParagraphNumbering
+Name=同じ段落スタイルで繰り返すテキストに連番を付ける
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.2.4
@@ -45,6 +45,8 @@ var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "同じ段落スタイルで繰り返すテキストに連番を付ける"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAppendParagraphNumbering.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAppendParagraphNumbering.md"; /* README (English) */

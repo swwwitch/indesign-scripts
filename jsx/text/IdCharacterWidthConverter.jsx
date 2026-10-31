@@ -4,7 +4,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdCharacterWidthConverter
-Name=IdCharacterWidthConverter
+Name=文字の種類ごとに全角・半角を変換
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.3.0
@@ -50,6 +50,8 @@ var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-31";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "文字の種類ごとに全角・半角を変換"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCharacterWidthConverter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCharacterWidthConverter.md"; /* README (English) */

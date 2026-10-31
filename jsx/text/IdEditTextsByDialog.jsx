@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdEditTextsByDialog
-Name=IdEditTextsByDialog
+Name=ダイアログでテキストを編集して置換・挿入
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=0.1.7
@@ -42,6 +42,8 @@ var SCRIPT_VERSION  = "v0.1.7";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-05-28";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "ダイアログでテキストを編集して置換・挿入"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdEditTextsByDialog.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdEditTextsByDialog.md"; /* README (English) */

@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdCleanupPasteboard
-Name=IdCleanupPasteboard
+Name=ページ外（ペーストボード上）のオブジェクトを削除
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.0
@@ -46,6 +46,8 @@ var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-29";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-29";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "ページ外（ペーストボード上）のオブジェクトを削除"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCleanupPasteboard.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCleanupPasteboard.md"; /* README (English) */

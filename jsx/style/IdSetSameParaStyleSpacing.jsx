@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdSetSameParaStyleSpacing
-Name=IdSetSameParaStyleSpacing
+Name=同一スタイル間の段落間隔をスタイル定義に設定
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.2.1
@@ -42,6 +42,8 @@ var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "同一スタイル間の段落間隔をスタイル定義に設定"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSetSameParaStyleSpacing.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetSameParaStyleSpacing.md"; /* README (English) */

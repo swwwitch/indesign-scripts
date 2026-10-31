@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdSmartBorderBuilder
-Name=IdSmartBorderBuilder
+Name=表の罫線をプレビュー付きで描画・消去
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.7.3
@@ -45,6 +45,8 @@ var SCRIPT_VERSION  = "v1.7.3";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-11";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "表の罫線をプレビュー付きで描画・消去"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdSmartBorderBuilder.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSmartBorderBuilder.md"; /* README (English) */

@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdAutoParagraphStyleGenerator
-Name=IdAutoParagraphStyleGenerator
+Name=書式の組み合わせから段落スタイルを自動生成
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=3.4.2
@@ -42,6 +42,8 @@ var SCRIPT_VERSION  = "v3.4.2";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-13";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "書式の組み合わせから段落スタイルを自動生成"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAutoParagraphStyleGenerator.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAutoParagraphStyleGenerator.md"; /* README (English) */

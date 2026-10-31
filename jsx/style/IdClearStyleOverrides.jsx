@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdClearStyleOverrides
-Name=IdClearStyleOverrides
+Name=テキスト・表・オブジェクトのスタイルオーバーライドを一括消去
 Author=Gregor Fellenz (grefel)
 Target-App=InDesign
 Version=1.3.7
@@ -47,6 +47,8 @@ var SCRIPT_AUTHOR   = "Gregor Fellenz (grefel)";      /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2020-06-09";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "テキスト・表・オブジェクトのスタイルオーバーライドを一括消去"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdClearStyleOverrides.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdClearStyleOverrides.md"; /* README (English) */

@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdFontConverter
-Name=IdFontConverter
+Name=フォントの種別・ウエイトをまとめて切り替え
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.1.6
@@ -45,6 +45,8 @@ var SCRIPT_VERSION  = "v1.1.6";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-17";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-24";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "フォントの種別・ウエイトをまとめて切り替え"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFontConverter.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFontConverter.md"; /* README (English) */

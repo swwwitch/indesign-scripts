@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdFitAnchoredImageHeight
-Name=IdFitAnchoredImageHeight
+Name=アンカー画像の高さを文字サイズに合わせる
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
 Version=1.0.2
@@ -42,6 +42,8 @@ var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / versi
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-01";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-04";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "アンカー画像の高さを文字サイズに合わせる"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdFitAnchoredImageHeight.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFitAnchoredImageHeight.md"; /* README (English) */

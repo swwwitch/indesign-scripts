@@ -3,7 +3,7 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdMenuActionsViewer
-Name=IdMenuActionsViewer
+Name=メニューアクションを調べて実行コードをコピー
 Author=Peter Kahrel
 Target-App=InDesign
 Version=1.0.28
@@ -54,6 +54,8 @@ var SCRIPT_AUTHOR   = "Peter Kahrel";                 /* 作者 / author */
 var SCRIPT_MODIFIED = "Masahiro Takano (@swwwitch)";  /* 改変 / modified by */
 var SCRIPT_RELEASED = "2026-09-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+
+var SCRIPT_DESCRIPTION_JA = "メニューアクションを調べて実行コードをコピー"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdMenuActionsViewer.md"; /* README（日本語） */
 var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdMenuActionsViewer.md"; /* README (English) */
