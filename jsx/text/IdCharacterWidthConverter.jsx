@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdCharacterWidthConverter
 Name=文字の種類ごとに全角・半角を変換
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.4.0
+Version=1.5.0
 Release-Date=2026-10-30
 Description-BEGIN
 カタカナ・英数字・スペース・句読点・括弧・記号を、文字の種類ごとに「そのまま／半角／全角」を選んで変換します。
@@ -46,7 +46,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCharacterWidt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCharacterWidthConverter";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-10-30";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-01";                   /* 更新日 / last updated */
@@ -857,6 +857,7 @@ var LABELS = {
         /* 「…」は ScriptUI で天地中央に出るので「...」で書く / Written as "..." since "…" sits vertically centered in ScriptUI */
         toEllipsis: { ja: "...に変換", en: "Convert to ..." },
         punctuationStyle: { ja: "句読点の種類", en: "Punctuation style" },
+        dashForm: { ja: "ダッシュ", en: "Dashes" },
         quoteForm: { ja: "全角の引用符", en: "Full-width quotes" },
         hyphenForm: { ja: "全角のハイフン", en: "Full-width hyphen" },
         tildeForm: { ja: "全角のチルダ", en: "Full-width tilde" },
@@ -875,7 +876,10 @@ var LABELS = {
         numberCommaToTouten: { ja: "数字の中の「,」を「、」にする", en: "\",\" in numbers to \"、\"" },
         decimalToNakaguro: { ja: "数字の中の「.」を「・」にする", en: "\".\" in numbers to \"・\"" },
         longDigitsFullwidth: { ja: "3桁以上の数字は全角にする", en: "Numbers of 3+ digits to full-width" },
+        twoDigitGlyphForm: { ja: "2桁の数字は等幅2桁字形にする", en: "Half-width forms for 2-digit numbers" },
+        threeDigitGlyphForm: { ja: "3桁の数字は等幅3桁字形にする", en: "Third-width forms for 3-digit numbers" },
         shortCapsFullwidth: { ja: "3文字以内の大文字で構成する英単語は全角にする", en: "All-capital words of up to 3 letters to full-width" },
+        unitsKumimoji: { ja: "数字の直後の単位を組文字にする（kg → ㌕）", en: "Units after digits to squares (kg → ㌕)" },
         highlightChanges: { ja: "変換した文字に色を付ける", en: "Color converted characters" }
     },
     preset: {
@@ -891,6 +895,10 @@ var LABELS = {
         punctuationStyleKeep: { ja: "そのまま", en: "Keep" },
         punctuationStyleJapanese: { ja: "、。にそろえる", en: "Unify to 、。" },
         punctuationStyleWestern: { ja: "，．にそろえる", en: "Unify to ，．" },
+        dashFormKeep: { ja: "そのまま", en: "Keep" },
+        dashFormEmDash: { ja: "—（全角ダッシュ）にそろえる", en: "Unify to — (em dash)" },
+        dashFormHorizontalBar: { ja: "―（水平バー）にそろえる", en: "Unify to ― (horizontal bar)" },
+        dashFormBoxDrawing: { ja: "─（罫線）にそろえる", en: "Unify to ─ (box drawing)" },
         quoteFormPlain: { ja: "＂＇（全角）", en: "＂＇ (full-width)" },
         quoteFormCurly: { ja: "“ ” ‘ ’（向きあり）", en: "“ ” ‘ ’ (curly)" },
         quoteFormMinute: { ja: "〝 〟（ミニュート）", en: "〝 〟 (minutes)" },
@@ -949,6 +957,10 @@ var LABELS = {
             ja: "3つ続く句点（。 ｡）を三点リーダー（…）にします。6つなら……になります。",
             en: "Turns three Japanese full stops in a row (。 or ｡) into an ellipsis (…); six become ……."
         },
+        dashForm: {
+            ja: "—（U+2014 全角ダッシュ）・―（U+2015 水平バー）・─（U+2500 罫線）を、選んだ字形にそろえます。続いたもの（—— ―― ──）は1字ずつ変えます。—だけの続きで、前後がどちらも和文の文字でないもの（word—word や 2020—2021）は欧文のダッシュとして残します。",
+            en: "Unifies — (U+2014 em dash), ― (U+2015 horizontal bar) and ─ (U+2500 box drawing) to the chosen form; runs (——, ――, ──) are converted one by one. Runs of — alone with no Japanese character on either side (word—word, 2020—2021) are left as Western dashes."
+        },
         bracketInnerSpace: {
             ja: "開き括弧の直後と閉じ括弧の直前のスペース（半角・全角）を削除します。向きの無い \" ' と < > は対象外です。",
             en: "Removes spaces (half- or full-width) right after opening brackets and right before closing brackets. Straight quotes and < > are not affected."
@@ -973,9 +985,21 @@ var LABELS = {
             ja: "3桁以上の数字を全角にします（2026 → ２０２６）。3.5 や 1,000 のように区切りをはさむ数字はひとつながりとして数え、英字に続く数字は変えません。1〜2桁の数字は数字の行（または［数字は1桁を全角、2桁以上を半角にする］）に従います。",
             en: "Makes numbers of three or more digits full-width (2026 → ２０２６). Numbers such as 3.5 or 1,000 count as one number, and digits next to letters are left alone. Numbers of one or two digits follow the digits row (or \"Digits: one digit full-width…\")."
         },
+        twoDigitGlyphForm: {
+            ja: "半角2桁の数字に等幅半角の字形を適用し、2桁で全角1字分の幅にします（縦中横向け。縦中横は設定しません）。3.5 や 1,000 のように区切りをはさむ数字、英字に続く数字、全角の数字は変えません。",
+            en: "Applies half-width forms to two half-width digits so they take one full-width character (for Tate-Chu-Yoko, which is not set). Numbers with separators (3.5, 1,000), digits next to letters and full-width digits are left alone."
+        },
+        threeDigitGlyphForm: {
+            ja: "半角3桁の数字に等幅三分の字形を適用し、3桁で全角1字分の幅にします（縦中横向け。縦中横は設定しません）。3.5 や 1,000 のように区切りをはさむ数字、英字に続く数字、全角の数字は変えません。［3桁以上の数字は全角にする］で全角にした数字も変えません。",
+            en: "Applies third-width forms to three half-width digits so they take one full-width character (for Tate-Chu-Yoko, which is not set). Numbers with separators (3.5, 1,000), digits next to letters and full-width digits are left alone, including those made full-width by \"Numbers of 3+ digits to full-width\"."
+        },
         shortCapsFullwidth: {
             ja: "大文字だけでできた3文字以内の英単語を全角にします（PDF → ＰＤＦ、A → Ａ）。数字や記号を含む語（A4、U.S.）と4文字以上の語は変えません。",
             en: "Makes words of up to three capital letters full-width (PDF → ＰＤＦ, A → Ａ). Words with digits or marks (A4, U.S.) and longer words are left alone."
+        },
+        unitsKumimoji: {
+            ja: "数字の直後（間の半角スペースは詰める）の mm・cm・km・m・mg・g・kg・t・ml・dL・kL・L・cal・kcal・cc を ㍉・㌢・㌖・㍍・㍉㌘・㌘・㌕・㌧・㍉㍑・㌥㍑・㌔㍑・㍑・㌍・㌔㌍・㏄ に、m2・cm3・m² などを ㎡・㎤ にします。全角の英字も対象です。km/h・mmHg・5m20 のように後ろに英字・数字・「/」が続くものは変えません。字形の無いフォントもあります。",
+            en: "Turns units right after digits (a space between is removed), such as mm, cm, kg, ml, kcal and cc, into squares, and m2, cm3, m² into ㎡, ㎤; full-width letters too. Units followed by letters, digits or / (km/h, mmHg, 5m20) are left alone. Some fonts lack these glyphs."
         },
         highlightChanges: {
             ja: "変換した文字の塗りを赤にします（仕上がりの確認用。元の色には戻りません）。削除したスペースには付きません。",
@@ -1015,12 +1039,16 @@ var LABELS = {
         nakaguroToEllipsis: { ja: "・・・ → …", en: "・・・ → …" },
         periodsToEllipsis: { ja: "... → …", en: "... → …" },
         kutenToEllipsis: { ja: "。。。 → …", en: "。。。 → …" },
+        dashForm: { ja: "ダッシュ", en: "Dashes" },
         bracketInnerSpace: { ja: "括弧の内側のスペース", en: "Spaces inside brackets" },
         bracketOuterSpace: { ja: "括弧の外側のスペース", en: "Spaces outside brackets" },
         numberCommaToTouten: { ja: "数字の中の「,」", en: "\",\" in numbers" },
         decimalToNakaguro: { ja: "数字の中の「.」", en: "\".\" in numbers" },
         longDigitsFullwidth: { ja: "3桁以上の数字", en: "Numbers of 3+ digits" },
-        shortCapsFullwidth: { ja: "3文字以内の大文字の英単語", en: "Capital words of up to 3 letters" }
+        twoDigitGlyphForm: { ja: "2桁の数字の等幅2桁字形", en: "Half-width forms for 2-digit numbers" },
+        threeDigitGlyphForm: { ja: "3桁の数字の等幅3桁字形", en: "Third-width forms for 3-digit numbers" },
+        shortCapsFullwidth: { ja: "3文字以内の大文字の英単語", en: "Capital words of up to 3 letters" },
+        unitsKumimoji: { ja: "単位の組文字", en: "Units to squares" }
     },
     undo: {
         convert: { ja: "全角・半角の変換と整形", en: "Convert Width & Clean Up Text" }
@@ -1197,6 +1225,7 @@ var EXTRA_SETTING_DEFS = [
     { key: "nakaguroToEllipsis", valueCount: 2 },
     { key: "periodsToEllipsis", valueCount: 2 },
     { key: "kutenToEllipsis", valueCount: 2 },
+    { key: "dashForm", valueCount: 4 },
     { key: "westernPunctuationSpace", valueCount: 2, tab: "horizontal" },
     { key: "bracketInnerSpace", valueCount: 2 },
     { key: "bracketOuterSpace", valueCount: 2 },
@@ -1207,7 +1236,10 @@ var EXTRA_SETTING_DEFS = [
     { key: "numberCommaToTouten", valueCount: 2, tab: "vertical" },
     { key: "decimalToNakaguro", valueCount: 2, tab: "vertical" },
     { key: "longDigitsFullwidth", valueCount: 2, tab: "vertical" },
-    { key: "shortCapsFullwidth", valueCount: 2, tab: "vertical" }
+    { key: "twoDigitGlyphForm", valueCount: 2, tab: "vertical" },
+    { key: "threeDigitGlyphForm", valueCount: 2, tab: "vertical" },
+    { key: "shortCapsFullwidth", valueCount: 2, tab: "vertical" },
+    { key: "unitsKumimoji", valueCount: 2, tab: "vertical" }
 ];
 
 /* 設定を別々に持つタブ（組み方向）の並び / Tabs (text directions), each with its own settings */
@@ -1252,6 +1284,28 @@ var WORD_JOINERS = "'\u2019-.&";
 var SHORT_CAPS_WORD_PATTERN = /^[A-Z\uFF21-\uFF3A]{1,3}$/;
 /* ［3桁以上の数字は全角にする］の桁数 / Digit count for "numbers of 3+ digits to full-width" */
 var LONG_DIGIT_COUNT = 3;
+/* ［2桁の数字は等幅2桁字形にする］［3桁の数字は等幅3桁字形にする］の対象（半角の数字だけ）と、桁数 → 設定のキー・字形 /
+   Targets of the fixed-width form options (half-width digits only), and digit count → setting key and glyph form */
+var HALF_WIDTH_DIGITS_PATTERN = /^[0-9]+$/;
+var DIGIT_GLYPH_FORM_DEFS = {
+    2: { settingKey: "twoDigitGlyphForm", glyphForm: AlternateGlyphForms.MONOSPACED_HALF_WIDTH_FORM },
+    3: { settingKey: "threeDigitGlyphForm", glyphForm: AlternateGlyphForms.THIRD_WIDTH_FORM }
+};
+
+/* ［数字の直後の単位を組文字にする］の単位（英字の部分。全角も可）、面積・体積（m2・m²・cm3 など）、英字の範囲、数字との間に入れてよいスペース（全角スペースは除く）/
+   Units for "units after digits to squares" (letters, full-width too), area and volume units (m2, m², cm3 ...), unit letters, and spaces allowed between digits and units (not the ideographic space) */
+var UNIT_KUMIMOJI = {
+    mm: "\u3349", cm: "\u3322", km: "\u3316", m: "\u334D",
+    mg: "\u3349\u3318", g: "\u3318", kg: "\u3315", t: "\u3327",
+    ml: "\u3349\u3351", mL: "\u3349\u3351", dl: "\u3325\u3351", dL: "\u3325\u3351", kl: "\u3314\u3351", kL: "\u3314\u3351", l: "\u3351", L: "\u3351",
+    cal: "\u330D", kcal: "\u3314\u330D", cc: "\u33C4"
+};
+var UNIT_POWER_KUMIMOJI = {
+    mm2: "\u339F", cm2: "\u33A0", m2: "\u33A1", km2: "\u33A2",
+    mm3: "\u33A3", cm3: "\u33A4", m3: "\u33A5", km3: "\u33A6"
+};
+var UNIT_LETTER_PATTERN = /[A-Za-z\uFF21-\uFF3A\uFF41-\uFF5A]/;
+var UNIT_GAP_PATTERN = /[ \u00A0\u2000-\u200A\u202F]/;
 
 /* 数字のつながり（3.5 や 1,000 のように区切りをはさむものも1つ）/ A run of digits, including separators as in 3.5 or 1,000 */
 var DIGIT_CLASS = "[\\x{0030}-\\x{0039}\\x{FF10}-\\x{FF19}]";
@@ -1259,6 +1313,10 @@ var DIGIT_RUN_PATTERN = DIGIT_CLASS + "+(?:[\\x{002C}\\x{002E}\\x{FF0C}\\x{FF0E}
 /* 大文字だけの1〜3文字（前後が英数字でないもの。つなぎ（U.S. など）はあとで段落の文字列で調べる）/ One to three capitals not touching letters or digits (joiners such as U.S. are checked in the paragraph text afterwards) */
 var WORD_CHAR_CLASS = "[A-Za-z0-9\\x{00C0}-\\x{024F}\\x{FF10}-\\x{FF19}\\x{FF21}-\\x{FF3A}\\x{FF41}-\\x{FF5A}]";
 var SHORT_CAPS_PATTERN = "(?<!" + WORD_CHAR_CLASS + ")[A-Z\\x{FF21}-\\x{FF3A}]{1,3}(?!" + WORD_CHAR_CLASS + ")";
+/* 数字の直後の英字（間に半角スペース1つまで、後ろに 2・3・²・³ が1つまで。単位かどうかはあとで段落の文字列で調べる）/
+   Letters right after a digit (up to one space between, and up to one 2, 3, ², ³ after; whether it is a unit is checked in the paragraph text afterwards) */
+var UNIT_AFTER_DIGIT_PATTERN = "(?<=" + DIGIT_CLASS + ")[\\x{0020}\\x{00A0}\\x{2000}-\\x{200A}\\x{202F}]?[A-Za-z\\x{FF21}-\\x{FF3A}\\x{FF41}-\\x{FF5A}]+" +
+    "[23\\x{FF12}\\x{FF13}\\x{00B2}\\x{00B3}]?";
 /* 数字にはさまれ、後ろがちょうど3桁の「,」「，」と、数字にはさまれた「.」「．」/ "," between digits followed by exactly three digits, and "." between digits */
 var NUMBER_COMMA_PATTERN = "(?<=" + DIGIT_CLASS + ")[\\x{002C}\\x{FF0C}](?=" + DIGIT_CLASS + "{3}(?!" + DIGIT_CLASS + "))";
 var DECIMAL_POINT_PATTERN = "(?<=" + DIGIT_CLASS + ")[\\x{002E}\\x{FF0E}](?=" + DIGIT_CLASS + ")";
@@ -1266,6 +1324,9 @@ var DECIMAL_POINT_PATTERN = "(?<=" + DIGIT_CLASS + ")[\\x{002E}\\x{FF0E}](?=" + 
 var NAKAGURO_ELLIPSIS_PATTERN = "[\\x{30FB}\\x{FF65}]{3}";
 var PERIOD_ELLIPSIS_PATTERN = "[\\x{002E}\\x{FF0E}]{3}";
 var KUTEN_ELLIPSIS_PATTERN = "[\\x{3002}\\x{FF61}]{3}";
+/* ダッシュの続き（— ― ─ の混在も1つ）と、dashForm の値 → そろえる字形（0 はそのまま）/ Dash runs (mixed — ― ─ count as one) and dashForm value → target form (0 keeps) */
+var DASH_RUN_PATTERN = "[\\x{2014}\\x{2015}\\x{2500}]+";
+var DASH_FORMS = [null, "\u2014", "\u2015", "\u2500"];
 /* 和文の文字と英数字のあいだのスペース（文字の範囲は JAPANESE_CHAR_PATTERN・LATIN_ALNUM_PATTERN と同じ）/ Spaces between Japanese characters and Latin letters or digits (same ranges as JAPANESE_CHAR_PATTERN and LATIN_ALNUM_PATTERN) */
 var JAPANESE_CHAR_CLASS = "[\\x{3001}-\\x{303F}\\x{3040}-\\x{30FF}\\x{31F0}-\\x{31FF}\\x{3400}-\\x{4DBF}\\x{4E00}-\\x{9FFF}\\x{F900}-\\x{FAFF}\\x{FF01}-\\x{FF9F}\\x{FFE0}-\\x{FFEF}]";
 var LATIN_ALNUM_CLASS = "[A-Za-z0-9\\x{00C0}-\\x{024F}]";
@@ -1649,9 +1710,11 @@ function getRowPairs(row, rowOptions) {
  * 設定から、変換元の文字 → 変換後の文字の表と、ほかの処理の有無をまとめる
  * @param {Object} rowOptions - 設定のキー → 値
  * @returns {{map: Object, rowKeyBySource: Object, runUnits: Array, size: number, digitsByLength: boolean,
- *     spaceBetweenJapaneseOnly: boolean, japaneseLatinSpace: boolean, punctuationStyle: number, nakaguroToEllipsis: boolean, periodsToEllipsis: boolean, kutenToEllipsis: boolean, westernPunctuationSpace: boolean,
+ *     spaceBetweenJapaneseOnly: boolean, japaneseLatinSpace: boolean, punctuationStyle: number, nakaguroToEllipsis: boolean, periodsToEllipsis: boolean, kutenToEllipsis: boolean,
+ *     dashForm: number, westernPunctuationSpace: boolean,
  *     bracketInnerSpace: boolean, bracketOuterSpace: boolean,
- *     numberCommaToTouten: boolean, decimalToNakaguro: boolean, longDigitsFullwidth: boolean, shortCapsFullwidth: boolean}}
+ *     numberCommaToTouten: boolean, decimalToNakaguro: boolean, longDigitsFullwidth: boolean, unitsKumimoji: boolean, twoDigitGlyphForm: boolean, threeDigitGlyphForm: boolean,
+ *     shortCapsFullwidth: boolean}}
  *     変換表（値は文字列、向きで決まる引用符は [開き, 閉じ]）・変換元の行のキー・連続する文字の組・実際に変換する項目の数（守るだけの組は数えない）とほかの処理
  */
 function buildConversionMap(rowOptions) {
@@ -1707,12 +1770,16 @@ function buildConversionMap(rowOptions) {
         nakaguroToEllipsis: (rowOptions.nakaguroToEllipsis === 1),
         periodsToEllipsis: (rowOptions.periodsToEllipsis === 1),
         kutenToEllipsis: (rowOptions.kutenToEllipsis === 1),
+        dashForm: rowOptions.dashForm || 0,
         westernPunctuationSpace: (rowOptions.westernPunctuationSpace === 1),
         bracketInnerSpace: (rowOptions.bracketInnerSpace === 1),
         bracketOuterSpace: (rowOptions.bracketOuterSpace === 1),
         numberCommaToTouten: (rowOptions.numberCommaToTouten === 1),
         decimalToNakaguro: (rowOptions.decimalToNakaguro === 1),
         longDigitsFullwidth: (rowOptions.longDigitsFullwidth === 1),
+        unitsKumimoji: (rowOptions.unitsKumimoji === 1),
+        twoDigitGlyphForm: (rowOptions.twoDigitGlyphForm === 1),
+        threeDigitGlyphForm: (rowOptions.threeDigitGlyphForm === 1),
         shortCapsFullwidth: (rowOptions.shortCapsFullwidth === 1)
     };
 }
@@ -1724,9 +1791,10 @@ function buildConversionMap(rowOptions) {
  */
 function hasConversionWork(conversion) {
     return conversion.size > 0 || conversion.digitsByLength || conversion.punctuationStyle > 0 ||
-        conversion.japaneseLatinSpace || conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis || conversion.westernPunctuationSpace ||
+        conversion.japaneseLatinSpace || conversion.nakaguroToEllipsis || conversion.periodsToEllipsis || conversion.kutenToEllipsis || conversion.dashForm > 0 ||
+        conversion.westernPunctuationSpace ||
         conversion.bracketInnerSpace || conversion.bracketOuterSpace || conversion.numberCommaToTouten || conversion.decimalToNakaguro ||
-        conversion.longDigitsFullwidth || conversion.shortCapsFullwidth;
+        conversion.longDigitsFullwidth || conversion.unitsKumimoji || conversion.twoDigitGlyphForm || conversion.threeDigitGlyphForm || conversion.shortCapsFullwidth;
 }
 
 /**
@@ -2032,18 +2100,29 @@ function isLongDigitRun(text, runStart, digitRun) {
 }
 
 /**
- * 位置の数字が、［3桁以上の数字は全角にする］で全角にするつながりの中にあるか
+ * 位置の数字を含む数字のつながりの先頭を返す（数字にはさまれた区切りもつながりに含める）
  * @param {string} text - 文字列
  * @param {number} offset - 数字の位置
- * @returns {boolean} 中にあれば true
+ * @returns {number} つながりの先頭
  */
-function isInLongDigitRun(text, offset) {
+function findDigitRunStart(text, offset) {
     var runStart = offset;
     while (runStart > 0) {
         if (DIGIT_PATTERN.test(text.charAt(runStart - 1))) runStart--;
         else if (DIGIT_SEPARATORS.indexOf(text.charAt(runStart - 1)) >= 0 && DIGIT_PATTERN.test(text.charAt(runStart - 2))) runStart -= 2;
         else break;
     }
+    return runStart;
+}
+
+/**
+ * 位置の数字が、［3桁以上の数字は全角にする］で全角にするつながりの中にあるか
+ * @param {string} text - 文字列
+ * @param {number} offset - 数字の位置
+ * @returns {boolean} 中にあれば true
+ */
+function isInLongDigitRun(text, offset) {
+    var runStart = findDigitRunStart(text, offset);
     return isLongDigitRun(text, runStart, readDigitRun(text, runStart));
 }
 
@@ -2178,6 +2257,102 @@ function makeDigitRunReplacer(conversion) {
 }
 
 /**
+ * 見つかった数字のつながりに付ける等幅字形を決める関数を作る（［2桁の数字は等幅2桁字形にする］［3桁の数字は等幅3桁字形にする］）。
+ * 半角の数字だけで区切りをはさまず、段落の中でもそれだけで1つの数字（前後が数字・区切り・英字でない）ものが対象。すでにその字形なら変えない
+ * @param {{twoDigitGlyphForm: boolean, threeDigitGlyphForm: boolean}} conversion - どちらの処理をするか
+ * @returns {Function} (foundText, sourceText) → {key, glyphForm}|null
+ */
+function makeDigitGlyphFormDecider(conversion) {
+    return function (foundText, sourceText) {
+        if (!HALF_WIDTH_DIGITS_PATTERN.test(sourceText)) return null;
+        var glyphFormDef = DIGIT_GLYPH_FORM_DEFS[sourceText.length];
+        if (!glyphFormDef || !conversion[glyphFormDef.settingKey]) return null;
+        /* 選択した文字の途中から始まる数字や、英字に続く数字（A12 など）は除く / Skip numbers cut by the selection and digits next to letters (A12) */
+        var context = getParagraphContext(foundText);
+        if (context) {
+            var runEnd = context.offset + sourceText.length;
+            if (findDigitRunStart(context.text, context.offset) !== context.offset || readDigitRun(context.text, context.offset).end !== runEnd) return null;
+            if (LATIN_LETTER_PATTERN.test(context.text.charAt(context.offset - 1)) || LATIN_LETTER_PATTERN.test(context.text.charAt(runEnd))) return null;
+        }
+        if (foundText.glyphForm === glyphFormDef.glyphForm) return null;
+        return { key: glyphFormDef.settingKey, glyphForm: glyphFormDef.glyphForm };
+    };
+}
+
+/**
+ * 見つかったダッシュの続きを選んだ字形にそろえる関数を作る（— だけの続きで前後がどちらも和文の文字でなければ、欧文のダッシュとして残す）
+ * @param {string} dashChar - そろえる字形（DASH_FORMS の値）
+ * @returns {Function} (foundText, sourceText) → {key, text}|null
+ */
+function makeDashReplacer(dashChar) {
+    return function (foundText, sourceText) {
+        if (/^\u2014+$/.test(sourceText)) {
+            var neighbors = getNeighborChars(foundText, sourceText.length);
+            if (!JAPANESE_CHAR_PATTERN.test(neighbors.previous) && !JAPANESE_CHAR_PATTERN.test(neighbors.next)) return null;
+        }
+        var dashText = sourceText.replace(/[\u2014\u2015\u2500]/g, dashChar);
+        return (dashText === sourceText) ? null : { key: "dashForm", text: dashText };
+    };
+}
+
+/**
+ * 全角の英数字・記号を半角にする
+ * @param {string} sourceText - 文字列
+ * @returns {string} 半角にした文字列
+ */
+function toHalfWidthAscii(sourceText) {
+    var asciiText = "";
+    for (var i = 0; i < sourceText.length; i++) {
+        var charCode = sourceText.charCodeAt(i);
+        asciiText += String.fromCharCode((charCode >= 0xFF01 && charCode <= 0xFF5E) ? charCode - FULL_WIDTH_OFFSET : charCode);
+    }
+    return asciiText;
+}
+
+/**
+ * 位置から始まる単位（全角の英字も可）を組文字にした文字列と、元の文字数を返す。
+ * 2・3・²・³ が続けば面積・体積の組文字に。後ろに英字・数字・「/」が続くもの（km/h、mmHg、5m20）は単位とみなさない
+ * @param {string} text - 文字列
+ * @param {number} startOffset - 単位の先頭の位置
+ * @returns {{length: number, text: string}|null} 単位でなければ null
+ */
+function matchUnitKumimoji(text, startOffset) {
+    var letterEnd = startOffset;
+    while (letterEnd < text.length && UNIT_LETTER_PATTERN.test(text.charAt(letterEnd))) letterEnd++;
+    if (letterEnd === startOffset) return null;
+    var unitText = toHalfWidthAscii(text.substring(startOffset, letterEnd));
+    var powerText = toHalfWidthAscii(text.charAt(letterEnd)).replace("\u00B2", "2").replace("\u00B3", "3");
+    var squareText = null;
+    var unitLength = letterEnd - startOffset;
+    if ((powerText === "2" || powerText === "3") && UNIT_POWER_KUMIMOJI.hasOwnProperty(unitText + powerText)) {
+        squareText = UNIT_POWER_KUMIMOJI[unitText + powerText];
+        unitLength++;
+    } else if (UNIT_KUMIMOJI.hasOwnProperty(unitText)) {
+        squareText = UNIT_KUMIMOJI[unitText];
+    }
+    if (!squareText) return null;
+    var nextChar = text.charAt(startOffset + unitLength);
+    if (UNIT_LETTER_PATTERN.test(nextChar) || DIGIT_PATTERN.test(nextChar) || nextChar === "/" || nextChar === "\uFF0F") return null;
+    return { length: unitLength, text: squareText };
+}
+
+/**
+ * 見つかった数字の直後の英字が単位なら組文字にする（数字との間の半角スペースは詰める）
+ * @param {Text} foundText - 見つかった英字（前に半角スペースが付くこともある）
+ * @param {string} sourceText - 見つかった文字列
+ * @returns {{key: string, text: string}|null} 置き換え。単位でなければ null
+ */
+function replaceUnitWithKumimoji(foundText, sourceText) {
+    /* 後ろの文字は段落の文字列で見る / The following character is read from the paragraph */
+    var context = getParagraphContext(foundText);
+    var paragraphText = context ? context.text : sourceText;
+    var gapLength = UNIT_GAP_PATTERN.test(sourceText.charAt(0)) ? 1 : 0;
+    var unitMatch = matchUnitKumimoji(paragraphText, (context ? context.offset : 0) + gapLength);
+    if (!unitMatch || gapLength + unitMatch.length !== sourceText.length) return null;
+    return { key: "unitsKumimoji", text: unitMatch.text };
+}
+
+/**
  * 見つかった大文字が、大文字だけでできた3文字以内の英単語そのものなら全角にする
  * @param {Text} foundText - 見つかった大文字
  * @param {string} sourceText - 見つかった文字列
@@ -2248,6 +2423,18 @@ function applyReplacement(foundText, sourceText, replacementText, highlightColor
 }
 
 /**
+ * 見つかった文字に字形を適用する（文字は変えない）
+ * @param {Text} foundText - 見つかった文字
+ * @param {AlternateGlyphForms} glyphForm - 字形
+ * @param {Color|null} highlightColor - 変換した文字に付ける色（付けないなら null）
+ * @returns {void}
+ */
+function applyGlyphForm(foundText, glyphForm, highlightColor) {
+    if (highlightColor) foundText.fillColor = highlightColor;
+    foundText.glyphForm = glyphForm;
+}
+
+/**
  * ［変換した文字に色を付ける］のスウォッチを返す（無ければ HIGHLIGHT_CMYK で作る）
  * @returns {Color} スウォッチ
  */
@@ -2258,10 +2445,10 @@ function getHighlightSwatch() {
 }
 
 /**
- * GREP で拾った文字を、置き換えを決める関数に従って置き換える（後ろから順に）
+ * GREP で拾った文字を、置き換えを決める関数に従って置き換える（後ろから順に。glyphForm を返したときは文字を変えずに字形を適用する）
  * @param {Array} targets - 対象（Document・Story・Text など）
  * @param {string} grepPattern - GREP の検索文字列
- * @param {Function} decideReplacement - (foundText, sourceText) → {key, text}|null
+ * @param {Function} decideReplacement - (foundText, sourceText) → {key, text}|{key, glyphForm}|null
  * @param {Object|null} styleLookup - 除外するスタイル名の表
  * @param {{converted: number, failed: number, countsByKey: Object}} result - 数を足していく結果
  * @param {Color|null} highlightColor - 変換した文字に付ける色（付けないなら null）
@@ -2280,7 +2467,8 @@ function runReplacePass(targets, grepPattern, decideReplacement, styleLookup, re
             var replacement = decideReplacement(foundText, sourceText);
             if (!replacement) continue;
             try {
-                applyReplacement(foundText, sourceText, replacement.text, highlightColor);
+                if (replacement.glyphForm) applyGlyphForm(foundText, replacement.glyphForm, highlightColor);
+                else applyReplacement(foundText, sourceText, replacement.text, highlightColor);
                 result.converted++;
                 result.countsByKey[replacement.key] = (result.countsByKey[replacement.key] || 0) + 1;
             } catch (e) {
@@ -2292,7 +2480,7 @@ function runReplacePass(targets, grepPattern, decideReplacement, styleLookup, re
 
 /**
  * 対象の文字を設定に従って変換する。
- * 三点リーダー → 和欧間のスペース → 変換表 → 句読点の種類 → 数字の桁数 → 3文字以内の大文字の英単語 → 数字の中の「,」「.」 → 欧文の,.:のあとのスペース → 括弧のまわりのスペースの順に処理する。contents の差し替えなので、文字の書式はそのまま残る
+ * 三点リーダー → 全角ダッシュ → 和欧間のスペース → 単位の組文字 → 変換表 → 句読点の種類 → 数字の桁数 → 3文字以内の大文字の英単語 → 2・3桁の数字の等幅字形 → 数字の中の「,」「.」 → 欧文の,.:のあとのスペース → 括弧のまわりのスペースの順に処理する。contents の差し替えなので、文字の書式はそのまま残る
  * @param {Array} targets - 対象（Document・Story・Text など）
  * @param {Object} conversion - buildConversionMap() の戻り値に excludedStyles（除外するスタイル名の表）と highlightColor（変換した文字に付ける色、付けないなら null）を足したもの
  * @returns {{converted: number, failed: number, countsByKey: Object}} 変換できた数・できなかった数・キーごとの数
@@ -2312,10 +2500,14 @@ function convertTargets(targets, conversion) {
         if (conversion.kutenToEllipsis) {
             runReplacePass(targets, KUTEN_ELLIPSIS_PATTERN, function () { return { key: "kutenToEllipsis", text: "\u2026" }; }, styleLookup, result, highlightColor);
         }
+        if (conversion.dashForm > 0) runReplacePass(targets, DASH_RUN_PATTERN, makeDashReplacer(DASH_FORMS[conversion.dashForm]), styleLookup, result, highlightColor);
         /* 英数字を全角にする前に、元の文字で和欧間を判定する / Judged on the original characters, before letters and digits turn full-width */
         if (conversion.japaneseLatinSpace) {
             runReplacePass(targets, JAPANESE_LATIN_SPACE_PATTERN, function () { return { key: "japaneseLatinSpace", text: "" }; }, styleLookup, result, highlightColor);
         }
+        /* 英字の行・数字の桁数より先に（kg が全角になったり、英字に続く数字として扱われたりしないように）/
+           Before the letter row and digit lengths, so kg is not made full-width and digits are not treated as next to letters */
+        if (conversion.unitsKumimoji) runReplacePass(targets, UNIT_AFTER_DIGIT_PATTERN, replaceUnitWithKumimoji, styleLookup, result, highlightColor);
         if (conversion.size > 0) {
             runReplacePass(targets, buildGrepPattern(conversion.map, conversion.runUnits), makeTableReplacer(conversion), styleLookup, result, highlightColor);
         }
@@ -2329,6 +2521,11 @@ function convertTargets(targets, conversion) {
             runReplacePass(targets, DIGIT_RUN_PATTERN, makeDigitRunReplacer(conversion), styleLookup, result, highlightColor);
         }
         if (conversion.shortCapsFullwidth) runReplacePass(targets, SHORT_CAPS_PATTERN, replaceShortCaps, styleLookup, result, highlightColor);
+        /* 数字の幅を決めたあと（半角のまま残った数字だけが対象）、区切りを「、」「・」にする前（1,000 の 000 を拾わないように）/
+           After the digit widths (only digits left half-width), before separators become 、 and ・ (so 000 in 1,000 is not picked up) */
+        if (conversion.twoDigitGlyphForm || conversion.threeDigitGlyphForm) {
+            runReplacePass(targets, DIGIT_RUN_PATTERN, makeDigitGlyphFormDecider(conversion), styleLookup, result, highlightColor);
+        }
         /* 数字の桁数を決めたあとに区切りを置き換える（「、」「・」で数字のつながりが切れないように）/ After the digit lengths, so 、 and ・ do not split the runs */
         if (conversion.numberCommaToTouten) {
             runReplacePass(targets, NUMBER_COMMA_PATTERN, function () { return { key: "numberCommaToTouten", text: "\u3001" }; }, styleLookup, result, highlightColor);
@@ -2780,6 +2977,9 @@ function addSettingsTab(tabbedPanel, tabKey, onRowChange) {
     addExtraCheckbox(ellipsisRowGroup, "nakaguroToEllipsis", LABELS.checkbox.nakaguroToEllipsis, LABELS.tooltip.nakaguroToEllipsis, tabControls);
     addExtraCheckbox(ellipsisRowGroup, "periodsToEllipsis", LABELS.checkbox.periodsToEllipsis, LABELS.tooltip.periodsToEllipsis, tabControls);
     addExtraCheckbox(ellipsisRowGroup, "kutenToEllipsis", LABELS.checkbox.kutenToEllipsis, LABELS.tooltip.kutenToEllipsis, tabControls);
+    addExtraDropdown(punctuationPanel, "dashForm", LABELS.fieldLabel.dashForm,
+        [LABELS.dropdown.dashFormKeep, LABELS.dropdown.dashFormEmDash, LABELS.dropdown.dashFormHorizontalBar, LABELS.dropdown.dashFormBoxDrawing],
+        LABELS.tooltip.dashForm, tabControls);
 
     var middleColumnGroup = columnsGroup.add("group");
     middleColumnGroup.orientation = "column";
@@ -2803,9 +3003,12 @@ function addSettingsTab(tabbedPanel, tabKey, onRowChange) {
         var verticalPanel = middleColumnGroup.add("panel", undefined, getLabel(LABELS.panel.vertical));
         setupPanel(verticalPanel, 6);
         addExtraCheckbox(verticalPanel, "longDigitsFullwidth", LABELS.checkbox.longDigitsFullwidth, LABELS.tooltip.longDigitsFullwidth, tabControls);
+        addExtraCheckbox(verticalPanel, "twoDigitGlyphForm", LABELS.checkbox.twoDigitGlyphForm, LABELS.tooltip.twoDigitGlyphForm, tabControls);
+        addExtraCheckbox(verticalPanel, "threeDigitGlyphForm", LABELS.checkbox.threeDigitGlyphForm, LABELS.tooltip.threeDigitGlyphForm, tabControls);
         addExtraCheckbox(verticalPanel, "numberCommaToTouten", LABELS.checkbox.numberCommaToTouten, LABELS.tooltip.numberCommaToTouten, tabControls);
         addExtraCheckbox(verticalPanel, "decimalToNakaguro", LABELS.checkbox.decimalToNakaguro, LABELS.tooltip.decimalToNakaguro, tabControls);
         addExtraCheckbox(verticalPanel, "shortCapsFullwidth", LABELS.checkbox.shortCapsFullwidth, LABELS.tooltip.shortCapsFullwidth, tabControls);
+        addExtraCheckbox(verticalPanel, "unitsKumimoji", LABELS.checkbox.unitsKumimoji, LABELS.tooltip.unitsKumimoji, tabControls);
     }
 
     var rightColumnGroup = columnsGroup.add("group");
@@ -3221,8 +3424,8 @@ function main() {
 }
 
 /* 内訳に出す、行以外のキー（行のあとに並べる）/ Keys besides the rows shown in the breakdown, listed after the rows */
-var RESULT_EXTRA_KEYS = ["nakaguroToEllipsis", "periodsToEllipsis", "kutenToEllipsis", "japaneseLatinSpace", "punctuationStyle", "longDigitsFullwidth", "shortCapsFullwidth",
-    "numberCommaToTouten", "decimalToNakaguro", "westernPunctuationSpace", "bracketInnerSpace", "bracketOuterSpace"];
+var RESULT_EXTRA_KEYS = ["nakaguroToEllipsis", "periodsToEllipsis", "kutenToEllipsis", "dashForm", "japaneseLatinSpace", "unitsKumimoji", "punctuationStyle", "longDigitsFullwidth", "twoDigitGlyphForm",
+    "threeDigitGlyphForm", "shortCapsFullwidth", "numberCommaToTouten", "decimalToNakaguro", "westernPunctuationSpace", "bracketInnerSpace", "bracketOuterSpace"];
 
 /**
  * 変換した数の内訳を、行の並び順で「項目名 : 数」の行にする

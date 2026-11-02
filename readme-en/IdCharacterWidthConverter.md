@@ -22,12 +22,12 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 - "!?" and runs of "!" are handled as units; when kept, they stay as they are whatever the exclamation and question rows say
 - Extra options
   - Character Types: one digit full-width and two or more half-width; convert spaces only between Japanese characters; remove spaces between Japanese and Western text; add a space after , . : in Western text (Horizontal tab; apples,oranges → apples, oranges)
-  - Punctuation: punctuation style (unify to ，． or 、。); convert to ... (・・・, ... and 。。。 become an ellipsis …)
+  - Punctuation: punctuation style (unify to ，． or 、。); convert to ... (・・・, ... and 。。。 become an ellipsis …); dashes (unify to — em dash, ― horizontal bar or ─ box drawing)
   - Brackets: remove spaces inside brackets; remove spaces outside brackets; form of full-width quotes (＂＇, “ ” ‘ ’ or 〝 〟)
   - Symbols: form of the full-width hyphen (－, ‐, −) tilde (～, 〜) and asterisk (＊, ※)
 - Scope: Selection, Story or Document. Text in table cells and footnotes is converted too
 - "Excluded Styles..." skips text in the chosen paragraph and character styles
-- Vertical Text (Vertical tab): numbers of 3+ digits to full-width (2026 → ２０２６); "," in numbers to "、" (1,000 → 1、000); "." in numbers to "・" (12.5 → 12・5); all-capital words of up to 3 letters to full-width (PDF → ＰＤＦ)
+- Vertical Text (Vertical tab): numbers of 3+ digits to full-width (2026 → ２０２６); half-width forms for 2-digit numbers and third-width forms for 3-digit numbers (fixed-width forms for tate-chu-yoko); "," in numbers to "、" (1,000 → 1、000); "." in numbers to "・" (12.5 → 12・5); all-capital words of up to 3 letters to full-width (PDF → ＰＤＦ); units after digits to squares (5kg → 5㌕, 10m2 → 10㎡)
 - Check Coloring fills converted characters with red (removed spaces are not marked)
 - Presets switch all the settings at once. Six are built in: "Standard", "Letters, digits & symbols to half-width", "Letters, digits & symbols to full-width", "Katakana to full-width only", "For vertical typesetting" and "For Western typesetting". Presets apply to the open tab, except that "For vertical typesetting" switches to the Vertical tab and "For Western typesetting" to the Horizontal tab. "Save..." stores the current settings under a name, and "Delete" removes your own presets (choosing a saved preset switches to the tab it was saved from; "Custom" is shown when no preset matches)
 - Option-click a radio button to set every row in that panel to the same option
@@ -47,7 +47,7 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 - The whole run is a single undo step.
 - Only the open tab's settings are used. The text direction is not checked, so vertical text can be converted with the Horizontal tab's settings too.
 - Presets saved with v1.3.0 or earlier apply to the open tab (options not on the tab are ignored).
-- The steps run in this order: ellipses (・・・, ..., 。。。 → …), spaces between Japanese and Western text, row conversion, punctuation style, digits by length (one, two or more, three or more), capital words of up to 3 letters, "," and "." in numbers, spaces after , . : in Western text, spaces around brackets. For example, with "," set to full-width and the punctuation style set to 、。, "," becomes "、".
+- The steps run in this order: ellipses (・・・, ..., 。。。 → …), dashes, spaces between Japanese and Western text, units to squares, row conversion, punctuation style, digits by length (one, two or more, three or more), capital words of up to 3 letters, fixed-width forms for 2- and 3-digit numbers, "," and "." in numbers, spaces after , . : in Western text, spaces around brackets. For example, with "," set to full-width and the punctuation style set to 、。, "," becomes "、".
 - Selecting a text frame converts the whole story that contains it.
 - The available scopes depend on the selection; with nothing selected only "Document" is available.
 - "Document" also converts text on parent pages. Locked stories and text on locked or hidden layers are skipped.
@@ -55,7 +55,10 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 - Katakana with no half-width form (ヰ, ヱ, ヮ, ヵ, ヶ) are left as they are.
 - With "one digit full-width, two or more half-width", numbers such as 3.5 or 1,000 count as one number, and digits next to letters (A4) become half-width. The digits row is ignored while this is on.
 - "Numbers of 3+ digits to full-width" also counts numbers with separators as one (1,000 → １,０００; "," and "." stay as they are) and leaves digits next to letters alone. Numbers of one or two digits follow the digits row (or "one digit full-width, two or more half-width"), so with both on, one digit is full-width, two are half-width and three or more full-width.
+- "Half-width forms for 2-digit numbers" and "Third-width forms for 3-digit numbers" apply half-width or third-width glyph forms to numbers of two or three half-width digits so they take one full-width character (the characters themselves are not changed). Tate-chu-yoko itself is not applied. Numbers with separators (3.5, 1,000), digits next to letters (A12) and full-width digits are left alone, including those made full-width by "Numbers of 3+ digits to full-width".
 - "All-capital words of up to 3 letters to full-width" applies to words of one to three capital letters, half- or full-width (A → Ａ, NHK → ＮＨＫ). Words with lowercase letters, digits or marks (Pc, A4, U.S., AT&T) and longer words are left alone. These words become full-width even when the letters row is set to Half.
+- "Units after digits to squares" turns mm, cm, km, m, mg, g, kg, t, ml, dL, kL, L, cal, kcal and cc right after digits (a space between is removed) into ㍉, ㌢, ㌖, ㍍, ㍉㌘, ㌘, ㌕, ㌧, ㍉㍑, ㌥㍑, ㌔㍑, ㍑, ㌍, ㌔㌍ and ㏄, and m2, cm3, m² and so on into ㎡, ㎤; full-width letters too. Units followed by letters, digits or / (km/h, mmHg, 5m20) are left alone. It runs before the row conversion, so the letters row does not change the units. Some fonts lack these glyphs.
+- Dashes unifies — (U+2014 em dash), ― (U+2015 horizontal bar) and ─ (U+2500 box drawing) to the chosen form; runs (——, ――, ──) are converted one by one. Runs of — alone with no Japanese character on either side (word—word, 2020—2021) are left as Western dashes.
 - For "convert spaces only between Japanese characters", Japanese characters are kana, kanji, Japanese punctuation and full-width characters.
 - "Remove spaces inside brackets" ignores straight quotes, < > and ‘ ’ (which look like apostrophes). "Remove spaces outside brackets" only applies to full-width brackets, so "word (note)" keeps its space.
 - With curly full-width quotes, quotes open and close by their order in the paragraph (first opens, second closes), and a ' between letters becomes an apostrophe (’). Converting to half-width turns “ ” ‘ ’ back into " '.
@@ -73,7 +76,7 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdCharacterWidthConverter.jsx` |
-| Version | v1.4.0 |
+| Version | v1.5.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-10-30 |
 | Last updated | 2026-11-01 |
@@ -81,6 +84,7 @@ Converts katakana, letters, digits, spaces, punctuation, brackets and symbols be
 
 ### Update History
 
+- v1.5.0 (2026-11-01) Added "Half-width forms for 2-digit numbers" and "Third-width forms for 3-digit numbers" (applies fixed-width glyph forms to two or three half-width digits; numbers with separators and digits next to letters are skipped) and "Units after digits to squares" (5kg → 5㌕, 10m2 → 10㎡) to Vertical Text. Added Dashes to Punctuation (unifies — ― ─ to the chosen form)
 - v1.4.0 (2026-11-01) Split the settings into Horizontal and Vertical tabs, each with its own settings; the open tab's settings are used. Vertical Text is on the Vertical tab only, "Add a space after , . : in Western text" on the Horizontal tab only. Added "Numbers of 3+ digits to full-width" and "All-capital words of up to 3 letters to full-width" to Vertical Text. Moved Check Coloring next to Scope. Presets apply to the open tab; choosing "For vertical typesetting" switches to the Vertical tab and "For Western typesetting" to the Horizontal tab. Choosing a saved preset switches to the tab it was saved from
 - v1.3.0 (2026-10-31) Added "Remove spaces between Japanese and Western text" (第 3 章 → 第3章) and "Add a space after , . : in Western text" (1,000, example.com and 10:30 are left alone) to Character Types. Added "Convert to ..." (・・・, ..., 。。。) to Punctuation: three middle dots, periods or Japanese full stops in a row, half- or full-width, become an ellipsis (…). The "For vertical typesetting" preset now removes spaces between Japanese and Western text and converts to ellipses; "For Western typesetting" turns ... into … and adds spaces after , . :. Renamed the dialog to "Convert Width & Clean Up Text"
 - v1.2.0 (2026-10-30) Moved the middle dot row from Punctuation to Symbols. The dialog now has three columns so it fits the screen height. The full-width form menus (hyphen, tilde, asterisk, quotes) are dimmed while their row is set to Keep. Added minutes (〝 〟) as a full-width form of double quotes. Added Vertical Text options that turn "," in numbers into "、" and "." into "・" (on in the "For vertical typesetting" preset). Added Check Coloring to color converted characters
