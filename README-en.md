@@ -51,7 +51,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 
 ### Align to the nearest guide, margin, page edge, or bleed in a direction
 
-Moves the selected objects in the direction chosen with the 3×3 grid of buttons (plus two center buttons) on the palette, and aligns their edge or center to the nearest guide, margin guide, page edge, or bleed edge in that direction. The edge buttons move on to the next line when pressed again.
+Moves the selected objects in the direction chosen with the 3×3 grid of buttons (plus two center buttons) on the palette, and aligns their edge to the nearest guide, margin guide, page edge, or bleed edge in that direction. The edge buttons move on to the next line when pressed again. The center buttons align to the center of the page or of the margins.
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdAlignToNearestEdgePalette.jsx
 

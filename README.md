@@ -54,7 +54,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 
 ### 移動方向でいちばん近いガイド・マージン・ページ・裁ち落としに揃える
 
-選択したオブジェクトを、パレットの3×3＋2つのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺や中心を揃えます。辺を揃えるボタンは、続けて押すと次の線へ進みます。
+選択したオブジェクトを、パレットの3×3＋2つのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺を揃えます。辺を揃えるボタンは、続けて押すと次の線へ進みます。中央のボタンは、ページかマージンの内側の中央に揃えます。
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdAlignToNearestEdgePalette.jsx
 

@@ -7,12 +7,12 @@ Script-ID=com.swwwitch.indesign.IdAlignToNearestEdgePalette
 Name=移動方向でいちばん近いガイド・マージン・ページ・裁ち落としに揃えるパレット
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-11-03
 Description-BEGIN
-選択したオブジェクトを、パレットのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺や中心を揃えます。
+選択したオブジェクトを、パレットのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺を揃えます。中央のボタンは、ページかマージンの内側の中央に揃えます。
 
-Moves the selected objects in the direction chosen on the palette and aligns their edge or center to the nearest guide, margin guide, page edge, or bleed edge in that direction.
+Moves the selected objects in the direction chosen on the palette and aligns their edge to the nearest guide, margin guide, page edge, or bleed edge in that direction. The center buttons align to the center of the page or of the margins.
 Description-END
 SCRIPTMETA-END
 */
@@ -21,14 +21,14 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択したオブジェクトを、パレットのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺や中心を揃えます。
+選択したオブジェクトを、パレットのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺を揃えます。中央のボタンは、ページかマージンの内側の中央に揃えます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAlignToNearestEdgePalette.md
 
 ### Overview
 
-Moves the selected objects in the direction chosen on the palette and aligns their edge or center to the nearest guide, margin guide, page edge, or bleed edge in that direction.
+Moves the selected objects in the direction chosen on the palette and aligns their edge to the nearest guide, margin guide, page edge, or bleed edge in that direction. The center buttons align to the center of the page or of the margins.
 
 See the README for details.
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAlignToNearestEdgePalette.md
@@ -39,7 +39,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAlignToNeares
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdAlignToNearestEdgePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-03";                   /* 更新日 / last updated */
@@ -63,11 +63,23 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     var EDGE_TOLERANCE_POINTS = 0.001;
 
     // =========================================
+    // 外部からの実行 / Running from outside
+    // =========================================
+
+    /* LayoutKeys などで初期値を差し替えると、パレットを出さずにそのボタンの揃え方で実行する。1行に1つずつ書く（差し替えの対象になる形） */
+    /* When a launcher such as LayoutKeys changes these initial values, the button runs without the palette. Keep one per line (the form launchers can change) */
+    /* 行末の [a|b|…] は LayoutKeys が候補として読む / LayoutKeys reads the [a|b|…] list as the choices */
+    var SW_ACTION       = "";     /* 空ならパレット [upLeft|up|upRight|left|center|right|downLeft|down|downRight|centerH|centerV] / empty for the palette */
+    var SW_FROM_CENTER  = false;  /* true なら、いったん中央に移してから揃える（Option＋クリックと同じ）/ true: center first, like Option-click */
+    var SW_MOVE_AS_UNIT = "";     /* ［選択をまとめて移動］。空ならパレットの設定 [true|false] / "Move selection as a unit"; empty follows the palette */
+    var SW_CENTER_BASIS = "";     /* ［中央揃えの基準］。空ならパレットの設定 [page|margin] / "Center Alignment Basis"; empty follows the palette */
+
+    // =========================================
     // 揃え方 / Alignment modes
     // =========================================
 
-    /* 軸ごとの揃え方。edgeIndex は visibleBounds [天, 左, 地, 右] の添字（中心は null）、sign は座標が増える向きなら 1 */
-    /* One mode per axis. edgeIndex indexes visibleBounds [top, left, bottom, right] (null for the center); sign is 1 when the coordinate grows */
+    /* 軸ごとの揃え方。edgeIndex は visibleBounds [天, 左, 地, 右] の添字（中心は null。中心はページの中央に揃える）、sign は座標が増える向きなら 1 */
+    /* One mode per axis. edgeIndex indexes visibleBounds [top, left, bottom, right] (null for the center, which goes to the page center); sign is 1 when the coordinate grows */
     var AXIS_MODES = {
         left:    { axis: "x", edgeIndex: 1, sign: -1 },
         right:   { axis: "x", edgeIndex: 3, sign: 1 },
@@ -431,16 +443,25 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             up:        { ja: "上辺を、上方向でいちばん近い線に揃える（↑キー）", en: "Aligns the top edge to the nearest line above (Up Arrow)" },
             upRight:   { ja: "上辺と右辺を、それぞれの方向でいちばん近い線に揃える", en: "Aligns the top and right edges to the nearest line in each direction" },
             left:      { ja: "左辺を、左方向でいちばん近い線に揃える（←キー）", en: "Aligns the left edge to the nearest line on the left (Left Arrow)" },
-            center:    { ja: "中心を、水平・垂直それぞれでいちばん近い線に揃える", en: "Aligns the center to the nearest line on each axis" },
+            center:    { ja: "中心を、ページ（またはマージンの内側）の中央に揃える", en: "Aligns the center to the center of the page (or of the margins)" },
             right:     { ja: "右辺を、右方向でいちばん近い線に揃える（→キー）", en: "Aligns the right edge to the nearest line on the right (Right Arrow)" },
             downLeft:  { ja: "下辺と左辺を、それぞれの方向でいちばん近い線に揃える", en: "Aligns the bottom and left edges to the nearest line in each direction" },
             down:      { ja: "下辺を、下方向でいちばん近い線に揃える（↓キー）", en: "Aligns the bottom edge to the nearest line below (Down Arrow)" },
             downRight: { ja: "下辺と右辺を、それぞれの方向でいちばん近い線に揃える", en: "Aligns the bottom and right edges to the nearest line in each direction" },
-            centerH:   { ja: "水平方向の中心を、いちばん近い縦の線に揃える", en: "Aligns the horizontal center to the nearest vertical line" },
-            centerV:   { ja: "垂直方向の中心を、いちばん近い横の線に揃える", en: "Aligns the vertical center to the nearest horizontal line" },
+            centerH:   { ja: "水平方向の中心を、ページ（またはマージンの内側）の左右の中央に揃える", en: "Aligns the horizontal center to the horizontal center of the page (or of the margins)" },
+            centerV:   { ja: "垂直方向の中心を、ページ（またはマージンの内側）の天地の中央に揃える", en: "Aligns the vertical center to the vertical center of the page (or of the margins)" },
+            centerBasis: { ja: "中央揃えのボタン（十字・水平方向中央・垂直方向中央）で、どの範囲の中央に揃えるか", en: "Which area the center buttons (cross, horizontal center, vertical center) align to" },
             edgeSuffix: { ja: "続けて押すと次の線へ進む", en: "Press again to move on to the next line" },
+            optionFromCenter: { ja: "Option（Alt）＋クリックで、いったん中央（中央揃えの基準の範囲）に移してから揃える", en: "Option (Alt)-click: center first (within the center alignment basis), then align" },
             targetSuffix: { ja: "揃える先：ガイド・マージンガイド・ページのエッジ・裁ち落とし", en: "Targets: guides, margin guides, page edges, bleed" },
             moveAsUnit: { ja: "選択全体の境界を基準に、相対位置を保ったまま動かす", en: "Moves everything by the same amount, based on the bounds of the whole selection" }
+        },
+        panel: {
+            centerBasis: { ja: "中央揃えの基準", en: "Center Alignment Basis" }
+        },
+        radio: {
+            page: { ja: "ページ", en: "Page" },
+            margin: { ja: "マージン", en: "Margins" }
         },
         checkbox: {
             moveAsUnit: { ja: "選択をまとめて移動", en: "Move selection as a unit" }
@@ -451,7 +472,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             noMovableItem: { ja: "移動できるオブジェクトを選択してください（ロックしたもの・アンカー付きオブジェクトは対象外）。", en: "Please select objects that can be moved (locked and anchored objects are skipped)." },
-            noLineAhead: { ja: "揃える先が見つかりませんでした。", en: "No target line was found." }
+            noLineAhead: { ja: "揃える先が見つかりませんでした。", en: "No target line was found." },
+            unknownAction: { ja: "SW_ACTION の値「{name}」はボタンの名前ではありません。", en: "SW_ACTION \"{name}\" is not a button name." }
         },
         undo: {
             align: { ja: "近くの線に揃える（{name}）", en: "Align to Nearest Edge ({name})" }
@@ -465,6 +487,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     /**
      * @typedef {Object} PaletteSettings
      * @property {boolean} moveAsUnit - 選択をまとめて移動するなら true
+     * @property {string} centerBasis - 中央揃えの基準（"page"＝ページ、"margin"＝マージンの内側）
      * @property {number[]|null} paletteLocation - 前回閉じたときのパレットの位置 [x, y]
      */
 
@@ -474,6 +497,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      */
     function getSessionSettings() {
         if (!$.global[SETTINGS_GLOBAL_KEY]) $.global[SETTINGS_GLOBAL_KEY] = { moveAsUnit: false, paletteLocation: null };
+        /* 前の版で残した設定には centerBasis が無い / Settings kept by an earlier version lack centerBasis */
+        if (!$.global[SETTINGS_GLOBAL_KEY].centerBasis) $.global[SETTINGS_GLOBAL_KEY].centerBasis = "page";
         return $.global[SETTINGS_GLOBAL_KEY];
     }
 
@@ -598,24 +623,35 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 各ページのマージンガイドの座標を集める（見開きの左ページは左右の内側・外側を入れ替える）
+     * ページのマージンの内側（マージンガイドで囲んだ範囲）の境界を返す（見開きの左ページは左右の内側・外側を入れ替える）
+     * @param {Page} page - 対象のページ
+     * @returns {number[]} [天, 左, 地, 右]
+     */
+    function getMarginAreaBounds(page) {
+        var pageBounds = page.bounds;
+        var marginPrefs = page.marginPreferences;
+        var isLeftHand = (page.side === PageSideOptions.LEFT_HAND);
+        return [
+            pageBounds[0] + marginPrefs.top,
+            pageBounds[1] + (isLeftHand ? marginPrefs.right : marginPrefs.left),
+            pageBounds[2] - marginPrefs.bottom,
+            pageBounds[3] - (isLeftHand ? marginPrefs.left : marginPrefs.right)
+        ];
+    }
+
+    /**
+     * 各ページのマージンガイドの座標を集める
      * @param {Spread|MasterSpread} spread - 対象のスプレッド
      * @param {string} axis - "x" または "y"
      * @returns {number[]} 座標
      */
     function collectMarginLines(spread, axis) {
         var lines = [];
+        var endIndices = AXIS_BOUNDS_INDICES[axis];
         var pages = spread.pages;
         for (var i = 0; i < pages.length; i++) {
-            var pageBounds = pages[i].bounds;
-            var marginPrefs = pages[i].marginPreferences;
-            if (axis === "y") {
-                lines.push(pageBounds[0] + marginPrefs.top, pageBounds[2] - marginPrefs.bottom);
-                continue;
-            }
-            var isLeftHand = (pages[i].side === PageSideOptions.LEFT_HAND);
-            lines.push(pageBounds[1] + (isLeftHand ? marginPrefs.right : marginPrefs.left));
-            lines.push(pageBounds[3] - (isLeftHand ? marginPrefs.left : marginPrefs.right));
+            var marginBounds = getMarginAreaBounds(pages[i]);
+            lines.push(marginBounds[endIndices[0]], marginBounds[endIndices[1]]);
         }
         return lines;
     }
@@ -696,34 +732,46 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 中心からいちばん近い線を返す（向きは問わない。中心が載っている線も含むので、揃っていれば動かない）
-     * @param {number[]} lines - 線の座標
-     * @param {number} centerPosition - 中心の座標
-     * @returns {number|null} 線の座標。無ければ null
+     * オブジェクトが載っているページを返す（中心を含むページ。どのページにも無ければ、中心にいちばん近いページ）
+     * @param {Spread|MasterSpread} spread - 対象のスプレッド
+     * @param {number[]} bounds - オブジェクトの境界 [天, 左, 地, 右]
+     * @returns {Page|null} ページ。スプレッドにページが無ければ null
      */
-    function findNearestLine(lines, centerPosition) {
-        var nearestPosition = null;
-        for (var i = 0; i < lines.length; i++) {
-            if (nearestPosition === null || Math.abs(lines[i] - centerPosition) < Math.abs(nearestPosition - centerPosition)) {
-                nearestPosition = lines[i];
+    function findCenterPage(spread, bounds) {
+        var centerX = (bounds[1] + bounds[3]) / 2;
+        var centerY = (bounds[0] + bounds[2]) / 2;
+        var pages = spread.pages;
+        var nearestPage = null;
+        var nearestDistance = 0;
+        for (var i = 0; i < pages.length; i++) {
+            var pageBounds = pages[i].bounds;
+            /* ページの外なら、いちばん近い辺までの距離（中なら 0）/ Distance to the page rectangle (0 when inside) */
+            var distanceX = Math.max(pageBounds[1] - centerX, 0, centerX - pageBounds[3]);
+            var distanceY = Math.max(pageBounds[0] - centerY, 0, centerY - pageBounds[2]);
+            var distance = distanceX * distanceX + distanceY * distanceY;
+            if (nearestPage === null || distance < nearestDistance) {
+                nearestPage = pages[i];
+                nearestDistance = distance;
             }
         }
-        return nearestPosition;
+        return nearestPage;
     }
 
     /**
-     * 1つの軸で、揃える先までの移動量を求める
+     * 1つの軸で、揃える先までの移動量を求める（辺はいちばん近い線へ、中心はページかマージンの内側の中央へ）
      * @param {number[]} lines - その軸の線の座標
      * @param {number[]} bounds - オブジェクトの境界 [天, 左, 地, 右]
      * @param {Object} axisMode - AXIS_MODES の値
+     * @param {number[]|null} centerBasisBounds - 中心を揃える範囲 [天, 左, 地, 右]
      * @returns {number|null} 移動量（pt）。揃える先が無ければ null
      */
-    function findAxisOffset(lines, bounds, axisMode) {
+    function findAxisOffset(lines, bounds, axisMode, centerBasisBounds) {
         if (axisMode.edgeIndex === null) {
+            if (!centerBasisBounds) return null;
             var endIndices = AXIS_BOUNDS_INDICES[axisMode.axis];
-            var centerPosition = (bounds[endIndices[0]] + bounds[endIndices[1]]) / 2;
-            var centerTarget = findNearestLine(lines, centerPosition);
-            return (centerTarget === null) ? null : centerTarget - centerPosition;
+            var itemCenter = (bounds[endIndices[0]] + bounds[endIndices[1]]) / 2;
+            var basisCenter = (centerBasisBounds[endIndices[0]] + centerBasisBounds[endIndices[1]]) / 2;
+            return basisCenter - itemCenter;
         }
         var edgePosition = bounds[axisMode.edgeIndex];
         var edgeTarget = findNearestLineAhead(lines, edgePosition, axisMode.sign);
@@ -778,23 +826,22 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * オブジェクトを、ボタンの揃え方でいちばん近い線へ動かす
      * @param {PageItem[]} movableItems - 動かすオブジェクト
      * @param {string} actionKey - ACTION_AXIS_MODES のキー
-     * @param {boolean} moveAsUnit - まとめて動かすなら true
+     * @param {PaletteSettings} alignSettings - moveAsUnit と centerBasis を使う
+     * @param {boolean} fromCenter - いったん中央（centerBasis の範囲）へ移したものとして揃えるなら true
      * @param {Document} doc - 対象ドキュメント
      * @returns {number} 揃える先が見つかったオブジェクトの数
      */
-    function alignItemsToNearestLine(movableItems, actionKey, moveAsUnit, doc) {
+    function alignItemsToNearestLine(movableItems, actionKey, alignSettings, fromCenter, doc) {
         var axisModeKeys = ACTION_AXIS_MODES[actionKey];
         var linesBySpread = {};
 
         /**
          * スプレッドの線を、スプレッドと軸ごとに一度だけ集める
-         * @param {PageItem} pageItem - スプレッドを調べるオブジェクト
+         * @param {Spread|MasterSpread} spread - 対象のスプレッド
          * @param {string} axis - "x" または "y"
-         * @returns {number[]} 座標（スプレッドが無ければ空）
+         * @returns {number[]} 座標
          */
-        function getTargetLines(pageItem, axis) {
-            var spread = findParentSpread(pageItem);
-            if (!spread) return [];
+        function getTargetLines(spread, axis) {
             var cacheKey = spread.constructor.name + ":" + spread.id + ":" + axis;
             if (!linesBySpread[cacheKey]) linesBySpread[cacheKey] = collectTargetLines(spread, axis, doc);
             return linesBySpread[cacheKey];
@@ -803,17 +850,32 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         /**
          * 境界から、揃える先までの移動量 [x, y] を求める（見つからない軸は 0）
          * @param {number[]} bounds - 境界 [天, 左, 地, 右]
-         * @param {PageItem} spreadItem - 線を集めるスプレッドを決めるオブジェクト
+         * @param {PageItem} spreadItem - 線やページを調べるスプレッドを決めるオブジェクト
          * @returns {number[]|null} [x, y]。どの軸にも揃える先が無ければ null
          */
         function findOffsets(bounds, spreadItem) {
+            var spread = findParentSpread(spreadItem);
+            if (!spread) return null;
+            var centerPage = findCenterPage(spread, bounds);
+            var centerBasisBounds = null;
+            if (centerPage) centerBasisBounds = (alignSettings.centerBasis === "margin") ? getMarginAreaBounds(centerPage) : centerPage.bounds;
             var offsets = { x: 0, y: 0 };
             var isFound = false;
+            var startBounds = bounds;
+            /* Option＋クリックは、いったん中央へ移したものとして寄せ先を探す。中央への移動量を足し、境界も中央へずらしてから辺の移動量を出す（動かすのは最後の1回だけ）*/
+            /* Option-click: treat the object as centered first. Add the centering offset and shift the bounds before the edge offsets; it moves only once at the end */
+            if (fromCenter && centerBasisBounds) {
+                offsets.x = findAxisOffset([], bounds, AXIS_MODES.centerX, centerBasisBounds);
+                offsets.y = findAxisOffset([], bounds, AXIS_MODES.centerY, centerBasisBounds);
+                startBounds = [bounds[0] + offsets.y, bounds[1] + offsets.x, bounds[2] + offsets.y, bounds[3] + offsets.x];
+                isFound = true;
+            }
             for (var i = 0; i < axisModeKeys.length; i++) {
                 var axisMode = AXIS_MODES[axisModeKeys[i]];
-                var axisOffset = findAxisOffset(getTargetLines(spreadItem, axisMode.axis), bounds, axisMode);
+                var axisLines = (axisMode.edgeIndex === null) ? [] : getTargetLines(spread, axisMode.axis);
+                var axisOffset = findAxisOffset(axisLines, startBounds, axisMode, centerBasisBounds);
                 if (axisOffset === null) continue;
-                offsets[axisMode.axis] = axisOffset;
+                offsets[axisMode.axis] += axisOffset;
                 isFound = true;
             }
             return isFound ? [offsets.x, offsets.y] : null;
@@ -830,7 +892,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             pageItem.move(undefined, offsets);
         }
 
-        if (moveAsUnit) {
+        if (alignSettings.moveAsUnit) {
             /* 選択全体の境界を基準に、全体を同じ量だけ動かす / Move everything by one amount, based on the bounds of the whole selection */
             var unitOffsets = findOffsets(getUnionBounds(movableItems), movableItems[0]);
             if (!unitOffsets) return 0;
@@ -851,9 +913,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     /**
      * 今の選択を、ボタンの揃え方でいちばん近い線へ揃える（パレットのボタン・矢印キーから呼ぶ）
      * @param {string} actionKey - ACTION_AXIS_MODES のキー
+     * @param {boolean} fromCenter - いったん中央へ移してから揃えるなら true（Option／Alt キー）
+     * @param {boolean} [moveAsUnit] - ［選択をまとめて移動］をこの値にする（省略時はパレットの設定）
+     * @param {string} [centerBasis] - ［中央揃えの基準］を "page" か "margin" にする（省略時はパレットの設定）
      * @returns {void}
      */
-    function runAlign(actionKey) {
+    function runAlign(actionKey, fromCenter, moveAsUnit, centerBasis) {
         if (app.documents.length === 0) {
             alert(getLabel("alert.noDocument"));
             return;
@@ -864,12 +929,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             alert(getLabel("alert.noMovableItem"));
             return;
         }
-        var moveAsUnit = getSessionSettings().moveAsUnit;
+        var sessionSettings = getSessionSettings();
+        /* パレットの設定は書き換えずに、この1回だけ差し替える / Override for this run only, leaving the palette setting as it is */
+        var alignSettings = {
+            moveAsUnit: (typeof moveAsUnit === "boolean") ? moveAsUnit : sessionSettings.moveAsUnit,
+            centerBasis: (centerBasis === "page" || centerBasis === "margin") ? centerBasis : sessionSettings.centerBasis
+        };
         var foundCount = 0;
         /* 処理全体（定規の切り替えと復元を含む）を1回の取り消しにまとめる / One undo step, including the ruler switch and restore */
         app.doScript(function () {
             foundCount = runInPointsWithSpreadOrigin(targetDocument, function () {
-                return alignItemsToNearestLine(movableItems, actionKey, moveAsUnit, targetDocument);
+                return alignItemsToNearestLine(movableItems, actionKey, alignSettings, fromCenter, targetDocument);
             });
         }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.align", { name: getLabel("action." + actionKey) }));
 
@@ -1040,6 +1110,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
+     * Option（Alt）キーが押されているかを返す
+     * @returns {boolean} 押されていれば true（取得できない環境では false）
+     */
+    function isAltPressed() {
+        try {
+            return ScriptUI.environment.keyboardState.altKey === true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
      * 揃え方のボタンを1つ足す（画像なしの iconbutton はクリックが届かないことがあるので button に描く）
      * @param {Group} rowGroup - 足す先の行
      * @param {string} actionKey - ACTION_AXIS_MODES のキー
@@ -1049,8 +1131,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var actionButton = rowGroup.add("button", undefined, "");
         actionButton.minimumSize = actionButton.preferredSize = actionButton.maximumSize = [ICON_SIZE, ICON_SIZE];
         var isCenterAction = (actionKey === "center" || actionKey === "centerH" || actionKey === "centerV");
+        /* 中心はページの中央に揃えるので、揃える先の説明は辺のボタンだけに付ける / Only the edge buttons list the target lines; centers go to the page center */
         actionButton.helpTip = getLabel("tooltip." + actionKey) +
-            (isCenterAction ? "" : "\n" + getLabel("tooltip.edgeSuffix")) + "\n" + getLabel("tooltip.targetSuffix");
+            (isCenterAction ? "" : "\n" + getLabel("tooltip.edgeSuffix") + "\n" + getLabel("tooltip.optionFromCenter") + "\n" + getLabel("tooltip.targetSuffix"));
         actionButton.isHover = false;
         actionButton.onDraw = function () {
             drawButtonBase(actionButton);
@@ -1058,7 +1141,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         };
         actionButton.addEventListener("mouseover", function () { actionButton.isHover = true; redrawIconButton(actionButton); });
         actionButton.addEventListener("mouseout", function () { actionButton.isHover = false; redrawIconButton(actionButton); });
-        actionButton.onClick = function () { runAlign(actionKey); };
+        actionButton.onClick = function () { runAlign(actionKey, isAltPressed()); };
         return actionButton;
     }
 
@@ -1098,6 +1181,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
         addActionButtonGrid(alignPalette);
 
+        var centerBasisPanel = alignPalette.add("panel", undefined, getLabel("panel.centerBasis"));
+        setupPanel(centerBasisPanel, 6);
+        centerBasisPanel.helpTip = getLabel("tooltip.centerBasis");
+        /* ページとマージンは縦に並べる（パネルに直接置くので同じ親の中で排他になる）/ Page and Margins stacked; both in the panel, so they stay exclusive */
+        var pageBasisRadio = centerBasisPanel.add("radiobutton", undefined, getLabel("radio.page"));
+        var marginBasisRadio = centerBasisPanel.add("radiobutton", undefined, getLabel("radio.margin"));
+        pageBasisRadio.value = (sessionSettings.centerBasis !== "margin");
+        marginBasisRadio.value = (sessionSettings.centerBasis === "margin");
+        pageBasisRadio.onClick = function () { sessionSettings.centerBasis = "page"; };
+        marginBasisRadio.onClick = function () { sessionSettings.centerBasis = "margin"; };
+
         var moveAsUnitCheckbox = alignPalette.add("checkbox", undefined, getLabel("checkbox.moveAsUnit"));
         moveAsUnitCheckbox.helpTip = getLabel("tooltip.moveAsUnit");
         moveAsUnitCheckbox.value = sessionSettings.moveAsUnit;
@@ -1118,7 +1212,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             var actionKey = MOVE_ACTION_BY_KEY_NAME[event.keyName];
             if (!actionKey) return;
             event.preventDefault();
-            runAlign(actionKey);
+            runAlign(actionKey, event.altKey === true);
         });
 
         alignPalette.onClose = function () {
@@ -1131,6 +1225,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         /* パレットは show() から即座に戻るので、参照を $.global に残す / Keep a reference: palettes return from show() at once */
         $.global[PALETTE_GLOBAL_KEY] = alignPalette;
         alignPalette.show();
+    }
+
+    /* SW_ACTION があれば、パレットを出さずにそのボタンの揃え方で実行する（パレットの設定は同じエンジンなので共通）/ With SW_ACTION, run that button without the palette (the palette settings are shared through the same engine) */
+    /* 「, SW_…」と書くと差し替え側が複数宣言とみなして止まるので、いったん別の変数に受ける / Writing ", SW_…" looks like a multiple declaration to launchers, so copy it first */
+    if (SW_ACTION !== "") {
+        var isFromCenter = (SW_FROM_CENTER === true);
+        /* SW_MOVE_AS_UNIT は文字列 "true"／"false"。空ならパレットの設定 / A string "true" or "false"; empty follows the palette */
+        var moveAsUnitOverride = (SW_MOVE_AS_UNIT === "") ? undefined : (String(SW_MOVE_AS_UNIT) === "true");
+        var centerBasisOverride = String(SW_CENTER_BASIS);
+        if (ACTION_AXIS_MODES.hasOwnProperty(SW_ACTION)) runAlign(SW_ACTION, isFromCenter, moveAsUnitOverride, centerBasisOverride);
+        else alert(getLabel("alert.unknownAction", { name: SW_ACTION }));
+        return;
     }
 
     /* 前回のパレットが開いていれば閉じる（開いたままだと修正前のコードが動き続ける） / Close a palette left open, which would keep running the old code */
