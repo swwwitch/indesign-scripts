@@ -7,12 +7,12 @@ Script-ID=com.swwwitch.indesign.IdAlignToNearestEdgePalette
 Name=移動方向でいちばん近いガイド・マージン・ページ・裁ち落としに揃えるパレット
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-11-03
 Description-BEGIN
-選択したオブジェクトを、パレットのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺を揃えます。
+選択したオブジェクトを、パレットのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺や中心を揃えます。
 
-Moves the selected objects in the direction chosen on the palette and aligns their edge to the nearest guide, margin guide, page edge, or bleed edge in that direction.
+Moves the selected objects in the direction chosen on the palette and aligns their edge or center to the nearest guide, margin guide, page edge, or bleed edge in that direction.
 Description-END
 SCRIPTMETA-END
 */
@@ -21,14 +21,14 @@ SCRIPTMETA-END
 
 ### 概要
 
-選択したオブジェクトを、パレットのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺を揃えます。
+選択したオブジェクトを、パレットのボタンで選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺や中心を揃えます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAlignToNearestEdgePalette.md
 
 ### Overview
 
-Moves the selected objects in the direction chosen on the palette and aligns their edge to the nearest guide, margin guide, page edge, or bleed edge in that direction.
+Moves the selected objects in the direction chosen on the palette and aligns their edge or center to the nearest guide, margin guide, page edge, or bleed edge in that direction.
 
 See the README for details.
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAlignToNearestEdgePalette.md
@@ -39,7 +39,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAlignToNeares
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdAlignToNearestEdgePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-03";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-03";                   /* 更新日 / last updated */
@@ -63,20 +63,50 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     var EDGE_TOLERANCE_POINTS = 0.001;
 
     // =========================================
-    // 移動方向 / Directions
+    // 揃え方 / Alignment modes
     // =========================================
 
-    /* axis は線の向き、edgeIndex は visibleBounds [天, 左, 地, 右] の添字、sign は座標が増える向きなら 1 */
-    /* axis: which lines to use; edgeIndex: index into visibleBounds [top, left, bottom, right]; sign: 1 when the coordinate grows */
-    var DIRECTIONS = {
-        left:  { axis: "x", edgeIndex: 1, sign: -1 },
-        right: { axis: "x", edgeIndex: 3, sign: 1 },
-        up:    { axis: "y", edgeIndex: 0, sign: -1 },
-        down:  { axis: "y", edgeIndex: 2, sign: 1 }
+    /* 軸ごとの揃え方。edgeIndex は visibleBounds [天, 左, 地, 右] の添字（中心は null）、sign は座標が増える向きなら 1 */
+    /* One mode per axis. edgeIndex indexes visibleBounds [top, left, bottom, right] (null for the center); sign is 1 when the coordinate grows */
+    var AXIS_MODES = {
+        left:    { axis: "x", edgeIndex: 1, sign: -1 },
+        right:   { axis: "x", edgeIndex: 3, sign: 1 },
+        top:     { axis: "y", edgeIndex: 0, sign: -1 },
+        bottom:  { axis: "y", edgeIndex: 2, sign: 1 },
+        centerX: { axis: "x", edgeIndex: null, sign: 0 },
+        centerY: { axis: "y", edgeIndex: null, sign: 0 }
     };
 
-    /* パレットで押した矢印キー（ScriptUI の keyName）と方向 / Arrow keys pressed on the palette (ScriptUI keyName) */
-    var ARROW_KEY_DIRECTIONS = { Left: "left", Right: "right", Up: "up", Down: "down" };
+    /* 軸の両端の visibleBounds の添字 / visibleBounds indices of both ends of each axis */
+    var AXIS_BOUNDS_INDICES = { x: [1, 3], y: [0, 2] };
+
+    /* ボタンごとの揃え方（斜めは2軸）/ The axis modes of each button; a diagonal uses two */
+    var ACTION_AXIS_MODES = {
+        upLeft:    ["top", "left"],
+        up:        ["top"],
+        upRight:   ["top", "right"],
+        left:      ["left"],
+        center:    ["centerX", "centerY"],
+        right:     ["right"],
+        downLeft:  ["bottom", "left"],
+        down:      ["bottom"],
+        downRight: ["bottom", "right"],
+        centerH:   ["centerX"],
+        centerV:   ["centerY"]
+    };
+
+    /* 十字に並べるボタン / The buttons laid out as a 3×3 cross */
+    var MOVE_BUTTON_ROWS = [
+        ["upLeft",   "up",     "upRight"],
+        ["left",     "center", "right"],
+        ["downLeft", "down",   "downRight"]
+    ];
+
+    /* 十字の下に並べる、片方の軸だけ中央に揃えるボタン / The single-axis center buttons below the cross */
+    var CENTER_BUTTON_KEYS = ["centerH", "centerV"];
+
+    /* パレットで押した矢印キー（ScriptUI の keyName）とボタン / Arrow keys pressed on the palette (ScriptUI keyName) */
+    var MOVE_ACTION_BY_KEY_NAME = { Up: "up", Left: "left", Right: "right", Down: "down" };
 
     // =========================================
     // セッション記憶 / Session memory
@@ -90,8 +120,28 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     // レイアウト / Layout
     // =========================================
 
-    var DIRECTION_BUTTON_SIZE = [40, 28];  /* 方向ボタンの大きさ / size of a direction button */
-    var DIRECTION_SPACING = 4;             /* 方向ボタンどうしの間隔 / gap between direction buttons */
+    var ICON_SIZE      = 30;  /* ボタン1個の大きさ（px）/ size of each button (px) */
+    var CROSS_GAP      = 2;   /* 十字のボタンどうしの間隔 / gap between the cross buttons */
+    var CENTER_ROW_TOP = 8;   /* 十字と中央揃えボタンの間隔 / gap between the cross and the center buttons */
+
+    /* アイコンの形。すべて ICON_SIZE に対する比率 / Icon shapes, all as ratios of ICON_SIZE */
+    var ICON_RULE_INSET     = 0.12;  /* ケイ線の端の余白 / inset at both ends of a rule */
+    var ICON_RULE_OFFSET    = 0.17;  /* 端に置くケイ線の位置 / position of a rule at an edge */
+    var ICON_RULE_CLEARANCE = 0.05;  /* 端のケイ線とオブジェクトのすき間 / gap between an edge rule and the block */
+    var ICON_BLOCK_WIDTH    = 0.38;  /* オブジェクトの幅 / width of the block */
+    var ICON_BLOCK_HEIGHT   = 0.30;  /* オブジェクトの高さ / height of the block */
+
+    /* 方向ボタンのアイコンで、寄せ先を表すケイ線を引く辺（斜めは2辺）/ The edges that get a rule in each icon; a diagonal gets two */
+    var MOVE_ICON_RULES = {
+        up:        ["top"],
+        down:      ["bottom"],
+        left:      ["left"],
+        right:     ["right"],
+        upLeft:    ["top", "left"],
+        upRight:   ["top", "right"],
+        downLeft:  ["bottom", "left"],
+        downRight: ["bottom", "right"]
+    };
 
     // UIレイアウト（再利用パーツ） / UI layout (reusable)
 
@@ -245,6 +295,37 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
+    // UI の明暗（再利用パーツ） / UI theme (reusable)
+
+    /**
+     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
+     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
+     */
+    function isDarkUI() {
+        try {
+            if (app.preferences && app.preferences.getRealPreference) {
+                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
+            }
+            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
+
+    // =========================================
+    // 配色 / Colors
+    // =========================================
+
+    /* パレットの地に重ねる半透明の白・黒（地の明るさが分からないため、重ねる色で明暗を付ける）*/
+    /* Translucent overlays on the palette background (its exact color is not readable, so shade with overlays) */
+    var ICON_UI_DARK      = isDarkUI();
+    var ICON_COLOR        = ICON_UI_DARK ? [0.85, 0.85, 0.85, 1] : [0.25, 0.25, 0.25, 1]; /* ケイ線とオブジェクト / rules and block */
+    var ICON_BASE_BG      = ICON_UI_DARK ? [1, 1, 1, 0.06]       : [1, 1, 1, 0.60];       /* 通常時の地 / background */
+    var ICON_HOVER_BG     = ICON_UI_DARK ? [1, 1, 1, 0.16]       : [0, 0, 0, 0.08];       /* マウスオーバー時の地 / background while hovered */
+    var ICON_BORDER_COLOR = ICON_UI_DARK ? [1, 1, 1, 0.25]       : [0, 0, 0, 0.30];       /* マウスオーバー時の枠 / border while hovered */
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -332,36 +413,48 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         palette: {
             title: { ja: "近くの線に揃える", en: "Align to Nearest Edge" }
         },
-        panel: {
-            direction: { ja: "移動方向", en: "Direction" }
+        action: {
+            upLeft:    { ja: "左上", en: "Top Left" },
+            up:        { ja: "上", en: "Top" },
+            upRight:   { ja: "右上", en: "Top Right" },
+            left:      { ja: "左", en: "Left" },
+            center:    { ja: "中央", en: "Center" },
+            right:     { ja: "右", en: "Right" },
+            downLeft:  { ja: "左下", en: "Bottom Left" },
+            down:      { ja: "下", en: "Bottom" },
+            downRight: { ja: "右下", en: "Bottom Right" },
+            centerH:   { ja: "水平方向中央", en: "Horizontal Center" },
+            centerV:   { ja: "垂直方向中央", en: "Vertical Center" }
         },
-        button: {
-            left: { ja: "←", en: "←" },
-            right: { ja: "→", en: "→" },
-            up: { ja: "↑", en: "↑" },
-            down: { ja: "↓", en: "↓" },
-            close: { ja: "閉じる", en: "Close" }
+        tooltip: {
+            upLeft:    { ja: "上辺と左辺を、それぞれの方向でいちばん近い線に揃える", en: "Aligns the top and left edges to the nearest line in each direction" },
+            up:        { ja: "上辺を、上方向でいちばん近い線に揃える（↑キー）", en: "Aligns the top edge to the nearest line above (Up Arrow)" },
+            upRight:   { ja: "上辺と右辺を、それぞれの方向でいちばん近い線に揃える", en: "Aligns the top and right edges to the nearest line in each direction" },
+            left:      { ja: "左辺を、左方向でいちばん近い線に揃える（←キー）", en: "Aligns the left edge to the nearest line on the left (Left Arrow)" },
+            center:    { ja: "中心を、水平・垂直それぞれでいちばん近い線に揃える", en: "Aligns the center to the nearest line on each axis" },
+            right:     { ja: "右辺を、右方向でいちばん近い線に揃える（→キー）", en: "Aligns the right edge to the nearest line on the right (Right Arrow)" },
+            downLeft:  { ja: "下辺と左辺を、それぞれの方向でいちばん近い線に揃える", en: "Aligns the bottom and left edges to the nearest line in each direction" },
+            down:      { ja: "下辺を、下方向でいちばん近い線に揃える（↓キー）", en: "Aligns the bottom edge to the nearest line below (Down Arrow)" },
+            downRight: { ja: "下辺と右辺を、それぞれの方向でいちばん近い線に揃える", en: "Aligns the bottom and right edges to the nearest line in each direction" },
+            centerH:   { ja: "水平方向の中心を、いちばん近い縦の線に揃える", en: "Aligns the horizontal center to the nearest vertical line" },
+            centerV:   { ja: "垂直方向の中心を、いちばん近い横の線に揃える", en: "Aligns the vertical center to the nearest horizontal line" },
+            edgeSuffix: { ja: "続けて押すと次の線へ進む", en: "Press again to move on to the next line" },
+            targetSuffix: { ja: "揃える先：ガイド・マージンガイド・ページのエッジ・裁ち落とし", en: "Targets: guides, margin guides, page edges, bleed" },
+            moveAsUnit: { ja: "選択全体の境界を基準に、相対位置を保ったまま動かす", en: "Moves everything by the same amount, based on the bounds of the whole selection" }
         },
         checkbox: {
             moveAsUnit: { ja: "選択をまとめて移動", en: "Move selection as a unit" }
         },
-        tooltip: {
-            left: { ja: "左方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに左辺を揃える（←キー）", en: "Aligns the left edge to the nearest guide, margin, page edge, or bleed on the left (Left Arrow)" },
-            right: { ja: "右方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに右辺を揃える（→キー）", en: "Aligns the right edge to the nearest guide, margin, page edge, or bleed on the right (Right Arrow)" },
-            up: { ja: "上方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに上辺を揃える（↑キー）", en: "Aligns the top edge to the nearest guide, margin, page edge, or bleed above (Up Arrow)" },
-            down: { ja: "下方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに下辺を揃える（↓キー）", en: "Aligns the bottom edge to the nearest guide, margin, page edge, or bleed below (Down Arrow)" },
-            moveAsUnit: { ja: "移動方向の先頭にあるオブジェクトを基準に、相対位置を保ったまま動かす", en: "Moves everything by the same amount, based on the object furthest in the direction" }
+        button: {
+            close: { ja: "閉じる", en: "Close" }
         },
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             noMovableItem: { ja: "移動できるオブジェクトを選択してください（ロックしたもの・アンカー付きオブジェクトは対象外）。", en: "Please select objects that can be moved (locked and anchored objects are skipped)." },
-            noLineAhead: { ja: "移動方向に揃える先が見つかりませんでした。", en: "No target was found in that direction." }
+            noLineAhead: { ja: "揃える先が見つかりませんでした。", en: "No target line was found." }
         },
         undo: {
-            left: { ja: "左方向の線に揃える", en: "Align Left to Nearest Edge" },
-            right: { ja: "右方向の線に揃える", en: "Align Right to Nearest Edge" },
-            up: { ja: "上方向の線に揃える", en: "Align Top to Nearest Edge" },
-            down: { ja: "下方向の線に揃える", en: "Align Bottom to Nearest Edge" }
+            align: { ja: "近くの線に揃える（{name}）", en: "Align to Nearest Edge ({name})" }
         }
     };
 
@@ -602,6 +695,41 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         return nearestPosition;
     }
 
+    /**
+     * 中心からいちばん近い線を返す（向きは問わない。中心が載っている線も含むので、揃っていれば動かない）
+     * @param {number[]} lines - 線の座標
+     * @param {number} centerPosition - 中心の座標
+     * @returns {number|null} 線の座標。無ければ null
+     */
+    function findNearestLine(lines, centerPosition) {
+        var nearestPosition = null;
+        for (var i = 0; i < lines.length; i++) {
+            if (nearestPosition === null || Math.abs(lines[i] - centerPosition) < Math.abs(nearestPosition - centerPosition)) {
+                nearestPosition = lines[i];
+            }
+        }
+        return nearestPosition;
+    }
+
+    /**
+     * 1つの軸で、揃える先までの移動量を求める
+     * @param {number[]} lines - その軸の線の座標
+     * @param {number[]} bounds - オブジェクトの境界 [天, 左, 地, 右]
+     * @param {Object} axisMode - AXIS_MODES の値
+     * @returns {number|null} 移動量（pt）。揃える先が無ければ null
+     */
+    function findAxisOffset(lines, bounds, axisMode) {
+        if (axisMode.edgeIndex === null) {
+            var endIndices = AXIS_BOUNDS_INDICES[axisMode.axis];
+            var centerPosition = (bounds[endIndices[0]] + bounds[endIndices[1]]) / 2;
+            var centerTarget = findNearestLine(lines, centerPosition);
+            return (centerTarget === null) ? null : centerTarget - centerPosition;
+        }
+        var edgePosition = bounds[axisMode.edgeIndex];
+        var edgeTarget = findNearestLineAhead(lines, edgePosition, axisMode.sign);
+        return (edgeTarget === null) ? null : edgeTarget - edgePosition;
+    }
+
     // =========================================
     // 移動 / Moving
     // =========================================
@@ -630,74 +758,102 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * オブジェクトを移動方向に動かし、その方向の辺をいちばん近い線に揃える
-     * @param {PageItem[]} movableItems - 動かすオブジェクト
-     * @param {string} directionKey - "left" / "right" / "up" / "down"
-     * @param {boolean} moveAsUnit - まとめて動かすなら true
-     * @param {Document} doc - 対象ドキュメント
-     * @returns {number} 動かしたオブジェクトの数
+     * 選択全体の境界を返す
+     * @param {PageItem[]} pageItems - 対象
+     * @returns {number[]} [天, 左, 地, 右]
      */
-    function alignItemsToNearestLine(movableItems, directionKey, moveAsUnit, doc) {
-        var direction = DIRECTIONS[directionKey];
-        var linesBySpread = {};
-
-        /**
-         * スプレッドの線を、スプレッドごとに一度だけ集める
-         * @param {PageItem} pageItem - スプレッドを調べるオブジェクト
-         * @returns {number[]} 座標（スプレッドが無ければ空）
-         */
-        function getTargetLines(pageItem) {
-            var spread = findParentSpread(pageItem);
-            if (!spread) return [];
-            var spreadKey = spread.constructor.name + ":" + spread.id;
-            if (!linesBySpread[spreadKey]) linesBySpread[spreadKey] = collectTargetLines(spread, direction.axis, doc);
-            return linesBySpread[spreadKey];
+    function getUnionBounds(pageItems) {
+        var unionBounds = pageItems[0].visibleBounds.slice(0);
+        for (var i = 1; i < pageItems.length; i++) {
+            var itemBounds = pageItems[i].visibleBounds;
+            unionBounds[0] = Math.min(unionBounds[0], itemBounds[0]);
+            unionBounds[1] = Math.min(unionBounds[1], itemBounds[1]);
+            unionBounds[2] = Math.max(unionBounds[2], itemBounds[2]);
+            unionBounds[3] = Math.max(unionBounds[3], itemBounds[3]);
         }
-
-        /**
-         * 移動方向の軸に沿って動かす
-         * @param {PageItem} pageItem - 動かすオブジェクト
-         * @param {number} distance - 動かす量（pt）
-         * @returns {void}
-         */
-        function moveAlongAxis(pageItem, distance) {
-            pageItem.move(undefined, (direction.axis === "x") ? [distance, 0] : [0, distance]);
-        }
-
-        if (moveAsUnit) {
-            /* 移動方向の先頭にあるオブジェクトの辺を基準に、全体を同じ量だけ動かす / Move everything by one amount, based on the object furthest ahead */
-            var leadingItem = movableItems[0];
-            var leadingEdge = movableItems[0].visibleBounds[direction.edgeIndex];
-            for (var i = 1; i < movableItems.length; i++) {
-                var itemEdge = movableItems[i].visibleBounds[direction.edgeIndex];
-                if ((itemEdge - leadingEdge) * direction.sign > 0) {
-                    leadingEdge = itemEdge;
-                    leadingItem = movableItems[i];
-                }
-            }
-            var unitTarget = findNearestLineAhead(getTargetLines(leadingItem), leadingEdge, direction.sign);
-            if (unitTarget === null) return 0;
-            for (var j = 0; j < movableItems.length; j++) moveAlongAxis(movableItems[j], unitTarget - leadingEdge);
-            return movableItems.length;
-        }
-
-        var movedCount = 0;
-        for (var k = 0; k < movableItems.length; k++) {
-            var edgePosition = movableItems[k].visibleBounds[direction.edgeIndex];
-            var targetPosition = findNearestLineAhead(getTargetLines(movableItems[k]), edgePosition, direction.sign);
-            if (targetPosition === null) continue;
-            moveAlongAxis(movableItems[k], targetPosition - edgePosition);
-            movedCount++;
-        }
-        return movedCount;
+        return unionBounds;
     }
 
     /**
-     * 今の選択を、指定した方向のいちばん近い線へ揃える（パレットのボタン・矢印キーから呼ぶ）
-     * @param {string} directionKey - "left" / "right" / "up" / "down"
+     * オブジェクトを、ボタンの揃え方でいちばん近い線へ動かす
+     * @param {PageItem[]} movableItems - 動かすオブジェクト
+     * @param {string} actionKey - ACTION_AXIS_MODES のキー
+     * @param {boolean} moveAsUnit - まとめて動かすなら true
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {number} 揃える先が見つかったオブジェクトの数
+     */
+    function alignItemsToNearestLine(movableItems, actionKey, moveAsUnit, doc) {
+        var axisModeKeys = ACTION_AXIS_MODES[actionKey];
+        var linesBySpread = {};
+
+        /**
+         * スプレッドの線を、スプレッドと軸ごとに一度だけ集める
+         * @param {PageItem} pageItem - スプレッドを調べるオブジェクト
+         * @param {string} axis - "x" または "y"
+         * @returns {number[]} 座標（スプレッドが無ければ空）
+         */
+        function getTargetLines(pageItem, axis) {
+            var spread = findParentSpread(pageItem);
+            if (!spread) return [];
+            var cacheKey = spread.constructor.name + ":" + spread.id + ":" + axis;
+            if (!linesBySpread[cacheKey]) linesBySpread[cacheKey] = collectTargetLines(spread, axis, doc);
+            return linesBySpread[cacheKey];
+        }
+
+        /**
+         * 境界から、揃える先までの移動量 [x, y] を求める（見つからない軸は 0）
+         * @param {number[]} bounds - 境界 [天, 左, 地, 右]
+         * @param {PageItem} spreadItem - 線を集めるスプレッドを決めるオブジェクト
+         * @returns {number[]|null} [x, y]。どの軸にも揃える先が無ければ null
+         */
+        function findOffsets(bounds, spreadItem) {
+            var offsets = { x: 0, y: 0 };
+            var isFound = false;
+            for (var i = 0; i < axisModeKeys.length; i++) {
+                var axisMode = AXIS_MODES[axisModeKeys[i]];
+                var axisOffset = findAxisOffset(getTargetLines(spreadItem, axisMode.axis), bounds, axisMode);
+                if (axisOffset === null) continue;
+                offsets[axisMode.axis] = axisOffset;
+                isFound = true;
+            }
+            return isFound ? [offsets.x, offsets.y] : null;
+        }
+
+        /**
+         * 移動量が誤差より大きいときだけ動かす
+         * @param {PageItem} pageItem - 動かすオブジェクト
+         * @param {number[]} offsets - [x, y]
+         * @returns {void}
+         */
+        function moveByOffsets(pageItem, offsets) {
+            if (Math.abs(offsets[0]) <= EDGE_TOLERANCE_POINTS && Math.abs(offsets[1]) <= EDGE_TOLERANCE_POINTS) return;
+            pageItem.move(undefined, offsets);
+        }
+
+        if (moveAsUnit) {
+            /* 選択全体の境界を基準に、全体を同じ量だけ動かす / Move everything by one amount, based on the bounds of the whole selection */
+            var unitOffsets = findOffsets(getUnionBounds(movableItems), movableItems[0]);
+            if (!unitOffsets) return 0;
+            for (var j = 0; j < movableItems.length; j++) moveByOffsets(movableItems[j], unitOffsets);
+            return movableItems.length;
+        }
+
+        var foundCount = 0;
+        for (var k = 0; k < movableItems.length; k++) {
+            var itemOffsets = findOffsets(movableItems[k].visibleBounds, movableItems[k]);
+            if (!itemOffsets) continue;
+            moveByOffsets(movableItems[k], itemOffsets);
+            foundCount++;
+        }
+        return foundCount;
+    }
+
+    /**
+     * 今の選択を、ボタンの揃え方でいちばん近い線へ揃える（パレットのボタン・矢印キーから呼ぶ）
+     * @param {string} actionKey - ACTION_AXIS_MODES のキー
      * @returns {void}
      */
-    function runAlign(directionKey) {
+    function runAlign(actionKey) {
         if (app.documents.length === 0) {
             alert(getLabel("alert.noDocument"));
             return;
@@ -709,15 +865,160 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             return;
         }
         var moveAsUnit = getSessionSettings().moveAsUnit;
-        var movedCount = 0;
+        var foundCount = 0;
         /* 処理全体（定規の切り替えと復元を含む）を1回の取り消しにまとめる / One undo step, including the ruler switch and restore */
         app.doScript(function () {
-            movedCount = runInPointsWithSpreadOrigin(targetDocument, function () {
-                return alignItemsToNearestLine(movableItems, directionKey, moveAsUnit, targetDocument);
+            foundCount = runInPointsWithSpreadOrigin(targetDocument, function () {
+                return alignItemsToNearestLine(movableItems, actionKey, moveAsUnit, targetDocument);
             });
-        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo." + directionKey));
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel("undo.align", { name: getLabel("action." + actionKey) }));
 
-        if (movedCount === 0) alert(getLabel("alert.noLineAhead"));
+        if (foundCount === 0) alert(getLabel("alert.noLineAhead"));
+    }
+
+    // =========================================
+    // アイコンの描画 / Icon drawing
+    // =========================================
+
+    /**
+     * 塗りつぶした長方形を描く（newPath() を先に呼ばないとパスが重なり、塗りが線画になる）
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} x - 左端
+     * @param {number} y - 上端
+     * @param {number} width - 幅
+     * @param {number} height - 高さ
+     * @param {number[]} color - [r, g, b, a]
+     * @returns {void}
+     */
+    function fillRect(graphics, x, y, width, height, color) {
+        graphics.newPath();
+        graphics.rectPath(x, y, width, height);
+        graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, color));
+    }
+
+    /**
+     * 端に置くケイ線の座標を返す（太さ1の線がピクセル境界に乗るよう .5 の位置に取る）
+     * @param {number} size - アイコンの一辺
+     * @param {boolean} isStart - 左・上なら true、右・下なら false
+     * @returns {number} ケイ線の中心の座標
+     */
+    function getEdgeRulePosition(size, isStart) {
+        return isStart ? Math.round(size * ICON_RULE_OFFSET) + 0.5 : Math.round(size * (1 - ICON_RULE_OFFSET)) - 0.5;
+    }
+
+    /**
+     * アイコンの中心の座標を返す（太さ1のケイ線がピクセル境界に乗るよう .5 の位置に取る）
+     * @param {number} size - アイコンの一辺
+     * @returns {number} 中心の座標
+     */
+    function getIconCenter(size) {
+        return Math.round(size / 2) + 0.5;
+    }
+
+    /**
+     * 長さを奇数に丸める（中心が .5 の位置にあるので、奇数なら両側が同じ幅になる）
+     * @param {number} rawLength - 丸める前の長さ
+     * @returns {number} 奇数の長さ
+     */
+    function roundToOddLength(rawLength) {
+        var rounded = Math.round(rawLength);
+        if (rounded % 2 !== 0) return rounded;
+        return (rounded > 1) ? rounded - 1 : 1;
+    }
+
+    /**
+     * アイコンに置くオブジェクトの大きさを返す（どのアイコンも同じ長方形）
+     * @param {number} size - アイコンの一辺
+     * @returns {number[]} [幅, 高さ]
+     */
+    function getBlockSize(size) {
+        return [roundToOddLength(size * ICON_BLOCK_WIDTH), roundToOddLength(size * ICON_BLOCK_HEIGHT)];
+    }
+
+    /**
+     * 端のケイ線（寄せ先を表す線）を1本描く
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} size - アイコンの一辺
+     * @param {string} side - "top" / "bottom" / "left" / "right"
+     * @param {number[]} color - [r, g, b, a]
+     * @returns {number} 引いたケイ線の座標
+     */
+    function drawEdgeRule(graphics, size, side, color) {
+        var ruleInset = Math.round(size * ICON_RULE_INSET);
+        var ruleLength = size - ruleInset * 2;
+        var rulePosition = getEdgeRulePosition(size, side === "top" || side === "left");
+        if (side === "top" || side === "bottom") fillRect(graphics, ruleInset, rulePosition - 0.5, ruleLength, 1, color);
+        else fillRect(graphics, rulePosition - 0.5, ruleInset, 1, ruleLength, color);
+        return rulePosition;
+    }
+
+    /**
+     * アイコンの中央を貫くケイ線を1本描く
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {number} size - アイコンの一辺
+     * @param {boolean} isVerticalRule - 縦のケイ線なら true
+     * @param {number[]} color - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawCenterRule(graphics, size, isVerticalRule, color) {
+        var ruleInset = Math.round(size * ICON_RULE_INSET);
+        var ruleLength = size - ruleInset * 2;
+        var iconCenter = getIconCenter(size);
+        if (isVerticalRule) fillRect(graphics, iconCenter - 0.5, ruleInset, 1, ruleLength, color);
+        else fillRect(graphics, ruleInset, iconCenter - 0.5, ruleLength, 1, color);
+    }
+
+    /**
+     * ボタンの絵（ケイ線と、そこへ寄せたオブジェクト）を描く。
+     * 方向のボタンは端のケイ線、中央のボタンは中央を貫くケイ線（十字は2本）にオブジェクトを重ねる
+     * @param {ScriptUIGraphics} graphics - 描画先
+     * @param {string} actionKey - ACTION_AXIS_MODES のキー
+     * @param {number} size - アイコンの一辺
+     * @param {number[]} color - [r, g, b, a]
+     * @returns {void}
+     */
+    function drawActionIcon(graphics, actionKey, size, color) {
+        var blockSize = getBlockSize(size);
+        var iconCenter = getIconCenter(size);
+        /* ケイ線のない軸では中央に置く / Centered on any axis without an edge rule */
+        var blockX = iconCenter - blockSize[0] / 2;
+        var blockY = iconCenter - blockSize[1] / 2;
+
+        if (actionKey === "center" || actionKey === "centerH") drawCenterRule(graphics, size, true, color);
+        if (actionKey === "center" || actionKey === "centerV") drawCenterRule(graphics, size, false, color);
+
+        var ruleSides = MOVE_ICON_RULES[actionKey] || [];
+        var clearance = Math.round(size * ICON_RULE_CLEARANCE);
+        for (var i = 0; i < ruleSides.length; i++) {
+            var side = ruleSides[i];
+            var rulePosition = drawEdgeRule(graphics, size, side, color);
+            /* ケイ線は太さ1なので、その端から数えてすき間を取る / The rule is 1 unit thick, so measure from its edge */
+            if (side === "top") blockY = rulePosition + 0.5 + clearance;
+            if (side === "bottom") blockY = rulePosition - 0.5 - clearance - blockSize[1];
+            if (side === "left") blockX = rulePosition + 0.5 + clearance;
+            if (side === "right") blockX = rulePosition - 0.5 - clearance - blockSize[0];
+        }
+
+        /* ケイ線を先に描き、オブジェクトを上に重ねる（中央のケイ線がオブジェクトの下を通って見える）*/
+        /* Rules first, block on top, so a center rule runs behind it */
+        fillRect(graphics, blockX, blockY, blockSize[0], blockSize[1], color);
+    }
+
+    /**
+     * ボタンの下地（地と、マウスオーバー中だけの枠）を描く
+     * @param {Button} iconButton - 対象のボタン
+     * @returns {void}
+     */
+    function drawButtonBase(iconButton) {
+        var graphics = iconButton.graphics;
+        var width = iconButton.size[0];
+        var height = iconButton.size[1];
+        fillRect(graphics, 0, 0, width, height, iconButton.isHover ? ICON_HOVER_BG : ICON_BASE_BG);
+        if (!iconButton.isHover) return;
+        /* 0.5 ずらすと1pxの線がピクセル境界に乗ってくっきり出る / The 0.5 offset keeps the 1px border crisp */
+        graphics.newPath();
+        graphics.rectPath(0.5, 0.5, width - 1, height - 1);
+        graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, ICON_BORDER_COLOR, 1));
     }
 
     // =========================================
@@ -725,21 +1026,69 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     // =========================================
 
     /**
-     * 方向ボタンを足す
-     * @param {Group} rowGroup - 足す先の行
-     * @param {string} directionKey - "left" / "right" / "up" / "down"
-     * @returns {Button} 足したボタン
+     * ボタンを描き直す（notify が使えない環境では隠して再表示する）
+     * @param {Button} iconButton - 対象のボタン
+     * @returns {void}
      */
-    function addDirectionButton(rowGroup, directionKey) {
-        var btnDirection = rowGroup.add("button", undefined, getLabel("button." + directionKey));
-        btnDirection.preferredSize = DIRECTION_BUTTON_SIZE;
-        btnDirection.helpTip = getLabel("tooltip." + directionKey);
-        btnDirection.onClick = function () { runAlign(directionKey); };
-        return btnDirection;
+    function redrawIconButton(iconButton) {
+        try {
+            iconButton.notify("onDraw");
+        } catch (e) {
+            iconButton.hide();
+            iconButton.show();
+        }
     }
 
     /**
-     * 方向ボタンを十字に並べたパレットを表示する
+     * 揃え方のボタンを1つ足す（画像なしの iconbutton はクリックが届かないことがあるので button に描く）
+     * @param {Group} rowGroup - 足す先の行
+     * @param {string} actionKey - ACTION_AXIS_MODES のキー
+     * @returns {Button} 足したボタン
+     */
+    function addActionButton(rowGroup, actionKey) {
+        var actionButton = rowGroup.add("button", undefined, "");
+        actionButton.minimumSize = actionButton.preferredSize = actionButton.maximumSize = [ICON_SIZE, ICON_SIZE];
+        var isCenterAction = (actionKey === "center" || actionKey === "centerH" || actionKey === "centerV");
+        actionButton.helpTip = getLabel("tooltip." + actionKey) +
+            (isCenterAction ? "" : "\n" + getLabel("tooltip.edgeSuffix")) + "\n" + getLabel("tooltip.targetSuffix");
+        actionButton.isHover = false;
+        actionButton.onDraw = function () {
+            drawButtonBase(actionButton);
+            drawActionIcon(actionButton.graphics, actionKey, ICON_SIZE, ICON_COLOR);
+        };
+        actionButton.addEventListener("mouseover", function () { actionButton.isHover = true; redrawIconButton(actionButton); });
+        actionButton.addEventListener("mouseout", function () { actionButton.isHover = false; redrawIconButton(actionButton); });
+        actionButton.onClick = function () { runAlign(actionKey); };
+        return actionButton;
+    }
+
+    /**
+     * 3×3 の十字のボタンと、その下に中央揃えのボタン2つを並べる
+     * @param {Window} targetWindow - 足す先のパレット
+     * @returns {void}
+     */
+    function addActionButtonGrid(targetWindow) {
+        var gridGroup = targetWindow.add("group");
+        gridGroup.orientation = "column";
+        gridGroup.alignment = ["center", "top"];
+        gridGroup.alignChildren = ["center", "top"];
+        gridGroup.spacing = CROSS_GAP;
+
+        for (var i = 0; i < MOVE_BUTTON_ROWS.length; i++) {
+            var crossRowGroup = gridGroup.add("group");
+            setupRow(crossRowGroup, "center", CROSS_GAP);
+            for (var j = 0; j < MOVE_BUTTON_ROWS[i].length; j++) addActionButton(crossRowGroup, MOVE_BUTTON_ROWS[i][j]);
+        }
+
+        var centerRowGroup = gridGroup.add("group");
+        setupRow(centerRowGroup, "center", CROSS_GAP);
+        /* 十字の4段目に見えないよう、上に少し余白を取る / A little room so it does not read as a fourth row of the cross */
+        centerRowGroup.margins = [0, CENTER_ROW_TOP, 0, 0];
+        for (var k = 0; k < CENTER_BUTTON_KEYS.length; k++) addActionButton(centerRowGroup, CENTER_BUTTON_KEYS[k]);
+    }
+
+    /**
+     * 揃え方のボタンを並べたパレットを表示する
      * @returns {void}
      */
     function showAlignPalette() {
@@ -747,24 +1096,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var alignPalette = new Window("palette", getLabel("palette.title") + " " + SCRIPT_VERSION);
         setupWindow(alignPalette);
 
-        var directionPanel = alignPalette.add("panel", undefined, getLabel("panel.direction"));
-        setupPanel(directionPanel, DIRECTION_SPACING);
-        directionPanel.alignChildren = ["center", "top"];
-
-        var upRowGroup = directionPanel.add("group");
-        setupRow(upRowGroup, "center", DIRECTION_SPACING);
-        addDirectionButton(upRowGroup, "up");
-
-        var middleRowGroup = directionPanel.add("group");
-        setupRow(middleRowGroup, "center", DIRECTION_SPACING);
-        addDirectionButton(middleRowGroup, "left");
-        /* 十字の中央はあける / Leave the center of the cross empty */
-        middleRowGroup.add("group").preferredSize = DIRECTION_BUTTON_SIZE;
-        addDirectionButton(middleRowGroup, "right");
-
-        var downRowGroup = directionPanel.add("group");
-        setupRow(downRowGroup, "center", DIRECTION_SPACING);
-        addDirectionButton(downRowGroup, "down");
+        addActionButtonGrid(alignPalette);
 
         var moveAsUnitCheckbox = alignPalette.add("checkbox", undefined, getLabel("checkbox.moveAsUnit"));
         moveAsUnitCheckbox.helpTip = getLabel("tooltip.moveAsUnit");
@@ -776,17 +1108,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         btnClose.onClick = function () { alignPalette.close(); };
         alignRightOnlyButtonRow(buttonRow);
 
-        /* パレットは Esc で閉じないので自分で受ける。矢印キーは方向ボタンと同じ / Palettes ignore Esc, so handle it; arrow keys act like the buttons */
+        /* パレットは Esc で閉じないので自分で受ける。矢印キーは上下左右のボタンと同じ / Palettes ignore Esc, so handle it; arrow keys act like the edge buttons */
         alignPalette.addEventListener("keydown", function (event) {
             if (event.keyName === "Escape") {
                 event.preventDefault();
                 alignPalette.close();
                 return;
             }
-            var directionKey = ARROW_KEY_DIRECTIONS[event.keyName];
-            if (!directionKey) return;
+            var actionKey = MOVE_ACTION_BY_KEY_NAME[event.keyName];
+            if (!actionKey) return;
             event.preventDefault();
-            runAlign(directionKey);
+            runAlign(actionKey);
         });
 
         alignPalette.onClose = function () {
