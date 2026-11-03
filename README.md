@@ -52,6 +52,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 
 ## フレーム
 
+### 移動方向でいちばん近いガイド・マージン・ページ・裁ち落としに揃える
+
+選択したオブジェクトを、パレットの［←］［→］［↑］［↓］で選んだ方向へ動かし、その方向でいちばん近いガイド・マージンガイド・ページのエッジ・裁ち落としに辺を揃えます。続けて押すと次の線へ進みます。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdAlignToNearestEdgePalette.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdAlignToNearestEdgePalette.md)
+
 ### 画像の縮尺率を変更してフレームを合わせる
 
 選択したフレーム内の画像の縮尺率を、パレットで数値・幅・高さ・PPI・プリセット・マージン幅・親フレームの段幅から指定して変更し、フレームを画像に合わせます。値を変えるとその場でドキュメントに反映され、画像を選び替えるだけで次々に作業できます。

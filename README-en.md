@@ -49,6 +49,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 
 ## Frames
 
+### Align to the nearest guide, margin, page edge, or bleed in a direction
+
+Moves the selected objects in the direction chosen with the ←, →, ↑, and ↓ buttons on the palette, and aligns their edge to the nearest guide, margin guide, page edge, or bleed edge in that direction. Pressing again moves on to the next line.
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdAlignToNearestEdgePalette.jsx
+
+Details: [README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAlignToNearestEdgePalette.md)
+
 ### Change image scale and fit the frame
 
 Changes the scale of the image in each selected frame, set from a palette by value, width, height, PPI, preset, margin width or parent column width, and fits the frame to the image. Changes are applied as you edit, and you can move on just by selecting the next image.
