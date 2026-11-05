@@ -38,6 +38,7 @@ EXCLUDE_DIRS = ("/_templates/",)
 # Script-ID に使えない文字（A-Z a-z 0-9 . _ - 以外）を含む SCRIPT_NAME の代わりの ID。
 # 一度公開した ID は変えない / IDs for names with characters Script-ID does not allow. Never change once published
 ID_OVERRIDES = {
+    "IdInsertAnchoredRectangle": "IdInsertPageCrossReference",  # 2026-11-06 改名・内容差し替え（公開済みの ID は据え置き）
 }
 
 BLOCK_RE = re.compile(r"/\*\nSCRIPTMETA-BEGIN\n.*?\nSCRIPTMETA-END\n\*/\n\n", re.S)

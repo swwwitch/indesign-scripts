@@ -1,0 +1,55 @@
+# カーソル位置にアンカー付き長方形とテキストアンカーを作成
+
+[![Direct](https://img.shields.io/badge/Direct%20Link-IdInsertAnchoredRectangle.jsx-ffcc00.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdInsertAnchoredRectangle.jsx)
+
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInsertAnchoredRectangle.md)
+
+[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/indesign-scripts/blob/main/README.md)
+
+---
+
+カーソルを置いた位置に、アンカー付き（インライン）の小さな長方形と、その直前のテキストアンカーを作成します。
+
+長方形とテキストアンカーは同じ名前で対応づけられるので、ハイパーリンクや相互参照の行き先として使いながら、紙面上では長方形で位置を確かめられます。
+
+### 主な機能
+
+- カーソル位置（テキストを選択しているときはその先頭）に、12×12 pt・線幅 0.5 pt・塗りなしの長方形をインラインのアンカー付きオブジェクトとして挿入
+- 長方形のマーカー文字の直前にテキストアンカーを作成
+- テキストアンカー名は「anchored_rectangle_<時刻>」。同じ名前を長方形のスクリプトラベルにも入れる
+- 作成後は長方形を選択し、テキストアンカー名を表示
+- 取り消しは1回で元に戻る
+
+### 使い方
+
+1. 行き先にしたいテキストの位置に文字ツールでカーソルを置く（またはテキストを選択する）
+2. スクリプトを実行する
+3. 長方形が入り、作成したテキストアンカー名が表示される
+4. ［ハイパーリンク］パネルや［相互参照を挿入］で、このテキストアンカーを行き先に選ぶ
+
+### 制限事項・メモ
+
+- テキストフレームを選択ツールで選んだ状態や、オブジェクトを選んだ状態では実行できません。
+- ペーストボード上やオーバーセットのテキストでは使えません。
+- 長方形の線の色は、ドキュメントの既定のグラフィックフレームの設定に従います。
+- 大きさ・線幅・名前の接頭辞は、スクリプト冒頭の基本設定で変えられます。
+- 実機での動作は未確認です。
+
+### スクリプト情報
+
+| 項目 | 内容 |
+| --- | --- |
+| ファイル | `jsx/document/IdInsertAnchoredRectangle.jsx` |
+| バージョン | v2.0.0 |
+| 作者 | Masahiro Takano (@swwwitch) |
+| 初回リリース | 2026-11-06 |
+| 最終更新 | 2026-11-06 |
+
+### 更新履歴
+
+- v2.0.0（2026-11-06）：IdInsertPageCrossReference から改名し、カーソル位置にアンカー付き長方形とテキストアンカーを作成する内容に差し替え
+- v1.0.0（2026-11-06）：初版（段落のページ番号を「p.番号」の相互参照で挿入）
+
+### ライセンス
+
+MIT License — <http://opensource.org/licenses/mit-license.php>
