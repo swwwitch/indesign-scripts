@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdCountKeywordPalette
 Name=キーワードの件数を数えて表記の揺れを統一
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.1.1
+Version=1.3.0
 Release-Date=2026-11-05
 Description-BEGIN
 最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを常駐パレットで数え、該当箇所を一覧しながら表記の揺れを統一します。
@@ -39,7 +39,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCountKeywordP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCountKeywordPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
@@ -186,17 +186,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             total: { ja: "合計", en: "Total" },
             contextLength: { ja: "前後の文字数", en: "Characters Around" },
             zoom: { ja: "表示倍率", en: "Zoom" },
-            replaceWith: { ja: "置換後", en: "Replace with" }
+            changeTo: { ja: "置換文字列", en: "Change to" }
         },
         panel: {
-            keywords: { ja: "キーワード", en: "Keywords" },
+            keywords: { ja: "キーワード（○＝統一先）", en: "Keywords (○ = unify target)" },
             scope: { ja: "対象", en: "Scope" },
             options: { ja: "オプション", en: "Options" },
             matches: { ja: "該当箇所", en: "Matches" }
         },
         column: {
             page: { ja: "ページ", en: "Page" },
-            context: { ja: "前後の文字列", en: "Context" }
+            context: { ja: "前後の文字", en: "Context" }
         },
         radio: {
             story: { ja: "ストーリー", en: "Story" },
@@ -206,50 +206,52 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             caseSensitive: { ja: "大文字と小文字を区別", en: "Case Sensitive" },
             wholeWord: { ja: "単語単位", en: "Whole Word" },
             masterPages: { ja: "親ページを含む", en: "Include Parent Pages" },
-            excludeToc: { ja: "目次内は除外", en: "Skip Tables of Contents" },
-            excludeContained: { ja: "ほかのキーワードに含まれる分は数えない", en: "Skip matches inside other keywords" },
-            hideStandalone: { ja: "前後が改行のものは表示しない", en: "Hide matches next to line breaks" },
-            bracketMatch: { ja: "【】を付ける", en: "Mark with 【】" }
+            excludeToc: { ja: "目次を除く", en: "Exclude Tables of Contents" },
+            excludeContained: { ja: "長いキーワードの一部は除く", en: "Skip parts of longer keywords" },
+            hideLineEdge: { ja: "行頭・行末のものは表示しない", en: "Hide matches at line start or end" },
+            bracketMatch: { ja: "該当文字を【】で囲む", en: "Wrap matches in 【】" }
         },
         tooltip: {
-            story: { ja: "［数える］を押した時点で選択している文字やテキストフレームを含むストーリー（表・脚注を含む）で数えます。", en: "Counts in the stories that contain the text or text frames selected when you click Count, including tables and footnotes." },
-            document: { ja: "作業中のドキュメント内のすべてのテキストで数えます。", en: "Counts in all text in the active document." },
-            masterPages: { ja: "ドキュメントを対象にしたとき、親ページのテキストも数えます。", en: "Also counts text on parent pages when the scope is the document." },
-            excludeToc: { ja: "［目次の作成］で作った目次のストーリーにあるものは数えません。", en: "Does not count matches in table-of-contents stories made with Table of Contents." },
+            story: { ja: "［検索］を押した時点で選択している文字やテキストフレームを含むストーリー（表・脚注を含む）で検索します。", en: "Searches the stories that contain the text or text frames selected when you click Find, including tables and footnotes." },
+            document: { ja: "作業中のドキュメント内のすべてのテキストを検索します。", en: "Searches all text in the active document." },
+            masterPages: { ja: "ドキュメントを対象にしたとき、親ページのテキストも検索します。", en: "Also searches text on parent pages when the scope is the document." },
+            excludeToc: { ja: "［目次の作成］で作った目次のストーリーは検索しません。", en: "Does not search table-of-contents stories made with Table of Contents." },
             excludeContained: {
                 ja: "「取引」と「取引き」のように、長いキーワードの一部として見つかった分を短いキーワードの件数から除きます。",
                 en: "When a keyword is found as part of a longer keyword (e.g. \"deal\" inside \"dealer\"), it is not counted for the shorter one."
             },
-            useSelection: { ja: "選択している文字を、最後に入力したキーワード欄（空いていれば最初の空欄）に入れます。", en: "Puts the selected text into the keyword field you last typed in, or the first empty one." },
-            keyword: { ja: "return キーでも数えます。", en: "Press Return to count." },
+            loadSelection: { ja: "選択している文字を、最後に入力したキーワード欄（空いていれば最初の空欄）に入れます。", en: "Puts the selected text into the keyword field you last typed in, or the first empty one." },
+            keyword: { ja: "return キーでも検索します。", en: "Press Return to find." },
+            clearKeyword: { ja: "キーワード欄を空にします。", en: "Clears the keyword field." },
+            find: { ja: "キーワードを検索し、件数と該当箇所を表示します（キーワード欄の return キーでも検索）。", en: "Finds the keywords and shows the counts and matches (Return in a keyword field also finds)." },
             contextLength: { ja: "見つかった文字の前後に表示する文字数", en: "Number of characters shown before and after each match" },
             matchList: {
-                ja: "クリックでその文字を選択して表示し、［置換後］に入れます。ダブルクリックで除外する／しないを切り替えます（チェックなし＝除外）。",
-                en: "Click to select and show the text and put it in Replace with. Double-click to exclude or include the row (unchecked = excluded)."
+                ja: "クリックでその文字を選択して表示し、［置換文字列］に入れます。ダブルクリックで除外する／しないを切り替えます（チェックなし＝除外）。",
+                en: "Click to select and show the text and put it in Change to. Double-click to exclude or include the row (unchecked = excluded)."
             },
             exclude: {
-                ja: "一覧で選んだ行を除外します。除外した行はチェックが外れ、件数と［統一する］の対象から外れます。除外した行を選んで押すと元に戻します（行のダブルクリックでも切り替え）。",
-                en: "Excludes the selected row: it is unchecked and left out of the counts and of Unify. Select an excluded row and click again to include it (or double-click the row)."
+                ja: "一覧で選んだ行を除外します。除外した行はチェックが外れ、件数と［すべてを統一］の対象から外れます。除外した行を選んで押すと元に戻します（行のダブルクリックでも切り替え）。",
+                en: "Excludes the selected row: it is unchecked and left out of the counts and of Unify All. Select an excluded row and click again to include it (or double-click the row)."
             },
-            hideStandalone: {
-                ja: "見つかった文字の直前か直後が改行（段落の改行・強制改行・各種区切り、またはストーリー・セルの先頭・末尾）のものを一覧に出さず、［統一する］でも置き換えません。件数には含みます。",
-                en: "Leaves out matches right after or before a line break (a return, forced line break or break character, or the start or end of a story or cell) from the list and from Unify. They are still counted."
+            hideLineEdge: {
+                ja: "見つかった文字の直前か直後が改行（段落の改行・強制改行・各種区切り、またはストーリー・セルの先頭・末尾）のものを一覧に出さず、［すべてを統一］でも置き換えません。件数には含みます。",
+                en: "Leaves out matches right after or before a line break (a return, forced line break or break character, or the start or end of a story or cell) from the list and from Unify All. They are still counted."
             },
             zoom: { ja: "一覧で選んだ文字を、この表示倍率で表示します。", en: "The text picked in the list is shown at this zoom." },
             bracketMatch: { ja: "一覧で、見つかった文字を【】で囲んで前後の文字列と見分けやすくします。", en: "Wraps each match in 【】 in the list to set it apart from the surrounding text." },
-            unifyTarget: { ja: "統一先にするキーワード。［統一する］で、ほかの欄で見つかった文字をこのキーワードに置き換えます。", en: "The keyword to unify to. Unify replaces the matches of the other fields with this keyword." },
-            unify: { ja: "チェックの付いた行を、統一先のキーワードに置き換えます（1回の取り消しで戻せます）。", en: "Replaces the checked rows with the unify target (undoable in one step)." },
-            replaceWith: { ja: "一覧で選んだ文字を、この文字に置き換えます。", en: "The text that replaces the match picked in the list." },
-            apply: { ja: "一覧で選んだ1か所を、［置換後］の文字に置き換えます。", en: "Replaces the match picked in the list with the Replace with text." }
+            unifyTarget: { ja: "統一先にするキーワード。［すべてを統一］で、ほかの欄で見つかった文字をこのキーワードに置き換えます。", en: "The keyword to unify to. Unify All replaces the matches of the other fields with this keyword." },
+            unify: { ja: "除外していない（チェックの付いた）行を、統一先のキーワードに置き換えます（1回の取り消しで戻せます）。", en: "Replaces the checked rows with the unify target (undoable in one step)." },
+            changeTo: { ja: "一覧で選んだ文字を、この文字に置き換えます。", en: "The text that replaces the match picked in the list." },
+            change: { ja: "一覧で選んだ1か所を、［置換文字列］の文字に置き換えます。", en: "Changes the match picked in the list to the Change to text." }
         },
         button: {
-            useSelection: { ja: "選択文字を入れる", en: "Use Selection" },
+            loadSelection: { ja: "選択文字を取り込む", en: "Load Selection" },
             close: { ja: "閉じる", en: "Close" },
-            count: { ja: "数える", en: "Count" },
-            unify: { ja: "統一する", en: "Unify" },
+            find: { ja: "検索", en: "Find" },
+            unify: { ja: "すべてを統一", en: "Unify All" },
             exclude: { ja: "除外する", en: "Exclude" },
             include: { ja: "除外を解除", en: "Include" },
-            apply: { ja: "適用", en: "Apply" }
+            change: { ja: "置換", en: "Change" }
         },
         status: {
             initial: { ja: "-", en: "-" },
@@ -258,24 +260,24 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             totalWithExcluded: { ja: "{count} 件（{scope}、除外 {excluded} 件）", en: "{count} ({scope}, {excluded} excluded)" },
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             noStory: { ja: "テキストを選択してください。", en: "Please select text." },
-            failed: { ja: "数えられませんでした: {message}", en: "Could not count: {message}" },
+            failed: { ja: "検索できませんでした: {message}", en: "Could not search: {message}" },
             truncated: { ja: "{total} 件のうち先頭の {shown} 件を表示", en: "Showing the first {shown} of {total}" },
             overset: { ja: "オーバーセット", en: "Overset" },
             pasteboard: { ja: "ペーストボード", en: "Pasteboard" },
             unavailable: { ja: "（参照できません）", en: "(unavailable)" },
-            hidden: { ja: "前後が改行の {count} 件は非表示", en: "{count} hidden (between line breaks)" },
-            stale: { ja: "キーワードか設定が変わりました。［数える］で数え直してください。", en: "Keywords or settings changed. Click Count again." },
+            hidden: { ja: "行頭・行末の {count} 件は非表示", en: "{count} at line start or end hidden" },
+            stale: { ja: "キーワードか設定が変わりました。［検索］で検索し直してください。", en: "Keywords or settings changed. Click Find again." },
             unified: { ja: "{count} 件を「{target}」に置き換えました", en: "Replaced {count} with \"{target}\"" },
-            applied: { ja: "「{before}」を「{after}」に置き換えました", en: "Replaced \"{before}\" with \"{after}\"" },
+            changed: { ja: "「{before}」を「{after}」に置き換えました", en: "Replaced \"{before}\" with \"{after}\"" },
             skipped: { ja: "{count} 件は文字が変わっていたため置き換えませんでした", en: "{count} skipped because the text had changed" },
-            nothingToUnify: { ja: "置き換える文字がありません", en: "Nothing to replace" }
+            nothingToReplace: { ja: "置き換える文字がありません", en: "Nothing to replace" }
         },
         alert: {
             confirmUnify: { ja: "{count} 件を「{target}」に置き換えますか？", en: "Replace {count} matches with \"{target}\"?" }
         },
         undo: {
             unify: { ja: "表記を統一", en: "Unify Spelling" },
-            apply: { ja: "表記を置換", en: "Replace Spelling" }
+            change: { ja: "表記を置換", en: "Change Spelling" }
         }
     };
 
@@ -667,19 +669,23 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     // バージョン表示（再利用パーツ）ここまで / End of the reusable version footer
 
     /* コントロールの寸法 / Control sizes */
+    var CLEAR_BUTTON_SIZE = [16, 16];       /* キーワード欄の × の大きさ（px）/ size of the × next to a keyword field */
+    var CLEAR_BUTTON_CIRCLE_COLOR = isDarkUI() ? [1, 1, 1, 0.30] : [0, 0, 0, 0.30]; /* × の丸の色（macOS の検索欄の × に近い薄い灰色）/ circle color, a light gray like macOS search fields */
+    var CLEAR_BUTTON_MARK_COLOR = isDarkUI() ? [0.2, 0.2, 0.2, 1] : [1, 1, 1, 1]; /* × の線の色（丸を抜いたように見せる）/ color of the × lines, cut out of the circle */
     var KEYWORD_FIELD_WIDTH = 150;          /* キーワード欄の幅（px）/ width of a keyword field */
     var COUNT_TEXT_WIDTH = 70;              /* 欄の右に出す件数の幅（px）/ width of the count next to each field */
     var MATCH_LIST_WIDTH = 380;             /* 該当箇所の一覧の幅（px）/ width of the match list */
     var MATCH_LIST_MIN_HEIGHT = 200;        /* 一覧の最小の高さ（px。左のカラムに合わせて伸びる）/ minimum list height; it grows to the left column */
     var MATCH_LIST_PAGE_COLUMN_WIDTH = 90;  /* 一覧のページ列の幅（px）/ width of the page column */
-    var REPLACE_FIELD_WIDTH = 260;          /* 置換後の欄の幅（px）/ width of the Replace with field */
+    var CHANGE_TO_FIELD_WIDTH = 260;          /* ［置換文字列］の幅（px）/ width of the Change to field */
+    var TOTAL_ROW_TOP_MARGIN = 5;           /* ［合計］の行の上の余白（px）/ top margin of the Total row */
     var TOTAL_ROW_BOTTOM_MARGIN = 10;       /* ［合計］の行の下の余白（px）/ bottom margin of the Total row */
     var ZOOM_ROW_BOTTOM_MARGIN = 10;        /* ［表示倍率］の行の下の余白（px）/ bottom margin of the Zoom row */
     var CONTEXT_ROW_BOTTOM_MARGIN = 4;      /* ［前後の文字数］の行の下の余白（px）/ bottom margin of the Characters Around row */
     var SLIDER_LABEL_WIDTH = 90;            /* スライダーの項目名の幅（px。2本のスライダーの左端をそろえる）/ width of slider labels, so both sliders line up */
     var SLIDER_VALUE_WIDTH = 40;            /* スライダーの右の数字の幅（px。「800%」が入る幅で2本そろえる）/ width of the value next to a slider, fitting "800%" for both */
     var EXCLUDE_BUTTON_WIDTH = 94;         /* ［除外する］［除外を解除］の幅（px。長いほうの文言の幅、実測93px。広げない）/ width of Exclude / Include, fitted to the longer label */
-    var APPLY_BUTTON_WIDTH = 50;            /* ［適用］の幅（px。文字数分にして、置換後の欄を広くとる）/ width of Apply, kept to its label so the field gets the room */
+    var CHANGE_BUTTON_WIDTH = 64;            /* ［置換］の幅（px。文字数分にして、［置換文字列］を広くとる）/ width of Change, kept to its label so the field gets the room */
 
     // =========================================
     // 選択の読み取り / Reading the selection
@@ -701,8 +707,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     function collectStories(items, stories, storyIds) {
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
-            var typeName;
-            try { typeName = item.constructor.name; } catch (e) { continue; }
+            var typeName = item.constructor.name;
 
             var story = null;
             if (typeName === "Story") story = item;
@@ -745,7 +750,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     // =========================================
 
     /**
-     * @typedef {Object} CountSettings
+     * @typedef {Object} HelperSettings
      * @property {string[]} keywords - キーワード欄の文字（KEYWORD_FIELD_COUNT 個。空欄は空文字）
      * @property {string} scope - "story" または "document"
      * @property {boolean} caseSensitive - 大文字と小文字を区別するか
@@ -754,7 +759,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @property {boolean} excludeToc - 目次のストーリーにあるものを除くか
      * @property {boolean} excludeContained - ほかのキーワードに含まれる分を除くか
      * @property {number} contextLength - 一覧に出す前後の文字数
-     * @property {boolean} hideStandalone - 前後が改行のものを一覧に出さないか
+     * @property {boolean} hideLineEdge - 行頭・行末（直前か直後が改行）のものを一覧に出さないか
      * @property {boolean} bracketMatch - 一覧で見つかった文字を【】で囲むか
      * @property {number} zoomPercent - 一覧で選んだ文字を表示するときの表示倍率（％）
      * @property {number} targetIndex - 統一先の欄の番号（選んでいなければ -1）
@@ -762,7 +767,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
     /**
      * 前回の設定を読む
-     * @returns {CountSettings} 設定
+     * @returns {HelperSettings} 設定
      */
     function loadSettings() {
         var saved = $.global[SESSION_KEY] || {};
@@ -773,22 +778,32 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         return {
             keywords: keywords,
             scope: saved.scope || "document",
-            caseSensitive: !!saved.caseSensitive,
-            wholeWord: !!saved.wholeWord,
-            masterPages: !!saved.masterPages,
-            excludeToc: (saved.excludeToc == null) ? true : !!saved.excludeToc,
-            excludeContained: (saved.excludeContained == null) ? true : !!saved.excludeContained,
+            caseSensitive: readSavedFlag(saved.caseSensitive, false),
+            wholeWord: readSavedFlag(saved.wholeWord, false),
+            masterPages: readSavedFlag(saved.masterPages, false),
+            excludeToc: readSavedFlag(saved.excludeToc, true),
+            excludeContained: readSavedFlag(saved.excludeContained, true),
             contextLength: (typeof saved.contextLength === "number") ? saved.contextLength : DEFAULT_CONTEXT_LENGTH,
-            hideStandalone: (saved.hideStandalone == null) ? true : !!saved.hideStandalone,
-            bracketMatch: !!saved.bracketMatch,
+            hideLineEdge: readSavedFlag(saved.hideLineEdge, true),
+            bracketMatch: readSavedFlag(saved.bracketMatch, false),
             zoomPercent: (typeof saved.zoomPercent === "number") ? saved.zoomPercent : DEFAULT_ZOOM_PERCENT,
             targetIndex: (typeof saved.targetIndex === "number") ? saved.targetIndex : -1
         };
     }
 
     /**
+     * 控えた真偽値を読む（まだ控えていなければ初期値）
+     * @param {*} savedValue - 控えた値
+     * @param {boolean} defaultValue - 初期値
+     * @returns {boolean} 値
+     */
+    function readSavedFlag(savedValue, defaultValue) {
+        return (savedValue == null) ? defaultValue : !!savedValue;
+    }
+
+    /**
      * 設定を次回のために控える
-     * @param {CountSettings} settings - 設定
+     * @param {HelperSettings} settings - 設定
      * @returns {void}
      */
     function saveSettings(settings) {
@@ -852,7 +867,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * キーワードごとに見つかった位置を集める
      * @param {Array<Document|Story>} searchTargets - 検索する対象
      * @param {string[]} keywords - キーワード（空文字は探さない）
-     * @param {CountSettings} settings - 設定
+     * @param {HelperSettings} settings - 設定
      * @returns {Array<Array<MatchRange>>} キーワードごとの位置（keywords と同じ並び）
      */
     function findKeywordRanges(searchTargets, keywords, settings) {
@@ -880,9 +895,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 app.findTextPreferences.findWhat = toLiteralFindWhat(keywords[k]);
                 for (var j = 0; j < searchTargets.length; j++) {
                     var found = searchTargets[j].findText();
-                    for (var m = 0; m < found.length; m++) {
-                        if (settings.excludeToc && isInTocStory(found[m])) continue;
-                        ranges.push(toMatchRange(found[m]));
+                    for (var foundIndex = 0; foundIndex < found.length; foundIndex++) {
+                        if (settings.excludeToc && isInTocStory(found[foundIndex])) continue;
+                        ranges.push(toMatchRange(found[foundIndex]));
                     }
                 }
             }
@@ -919,7 +934,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @param {boolean} excludeContained - ほかのキーワードに含まれる分を除くか
      * @returns {Array<Array<MatchRange>>} キーワードごとに数える位置
      */
-    function filterRanges(rangesByKeyword, keywords, excludeContained) {
+    function removeContainedRanges(rangesByKeyword, keywords, excludeContained) {
         if (!excludeContained) return rangesByKeyword;
         var keptByKeyword = [];
         for (var k = 0; k < rangesByKeyword.length; k++) {
@@ -927,9 +942,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
             /* 自分より長い別のキーワードの一致だけが、自分の一致を包める / Only matches of a different, longer keyword can enclose this one */
             var longerRanges = [];
-            for (var other = 0; other < rangesByKeyword.length; other++) {
-                if (other === k || keywords[other].length <= keywords[k].length) continue;
-                longerRanges = longerRanges.concat(rangesByKeyword[other]);
+            for (var otherIndex = 0; otherIndex < rangesByKeyword.length; otherIndex++) {
+                if (otherIndex === k || keywords[otherIndex].length <= keywords[k].length) continue;
+                longerRanges = longerRanges.concat(rangesByKeyword[otherIndex]);
             }
             var longerByContainer = groupRangesByContainer(longerRanges);
 
@@ -937,8 +952,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             for (var i = 0; i < ranges.length; i++) {
                 var candidates = longerByContainer.hasOwnProperty(ranges[i].container) ? longerByContainer[ranges[i].container] : [];
                 var isContained = false;
-                for (var c = 0; c < candidates.length; c++) {
-                    if (candidates[c].start <= ranges[i].start && ranges[i].end <= candidates[c].end) { isContained = true; break; }
+                for (var j = 0; j < candidates.length; j++) {
+                    if (candidates[j].start <= ranges[i].start && ranges[i].end <= candidates[j].end) { isContained = true; break; }
                 }
                 if (!isContained) keptRanges.push(ranges[i]);
             }
@@ -948,11 +963,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 今の選択とドキュメントで数える
-     * @param {CountSettings} settings - 設定
+     * 今の選択とドキュメントで検索する
+     * @param {HelperSettings} settings - 設定
      * @returns {{matchesByKeyword: Array<Array<MatchRange>>|null, message: string}} キーワードごとの位置（数えられなければ null）と合計の行に出す文言
      */
-    function runCount(settings) {
+    function runFind(settings) {
         if (app.documents.length === 0) return { matchesByKeyword: null, message: getLabel(LABELS.status.noDocument) };
 
         var searchTargets;
@@ -967,7 +982,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         /* パレット表示中に選択やドキュメントが変わるので、失敗は合計の行に出す / The selection or document may change while the palette is open, so report failures in the total row */
         try {
             var rangesByKeyword = findKeywordRanges(searchTargets, settings.keywords, settings);
-            var matchesByKeyword = filterRanges(rangesByKeyword, settings.keywords, settings.excludeContained);
+            var matchesByKeyword = removeContainedRanges(rangesByKeyword, settings.keywords, settings.excludeContained);
             var totalCount = 0;
             for (var i = 0; i < matchesByKeyword.length; i++) totalCount += matchesByKeyword[i].length;
             return { matchesByKeyword: matchesByKeyword, message: getLabel(LABELS.status.total, { count: totalCount, scope: getLabel(LABELS.radio[settings.scope]) }) };
@@ -1025,6 +1040,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
+     * 見つかった文字の入れ物の文字数を返す（同じ入れ物は1回だけ数えて控える）
+     * @param {MatchRange} matchRange - 見つかった位置
+     * @param {Object} containerLengths - 入れ物ごとの文字数の控え
+     * @returns {number} 文字数
+     */
+    function getContainerLength(matchRange, containerLengths) {
+        if (!containerLengths.hasOwnProperty(matchRange.container)) containerLengths[matchRange.container] = matchRange.text.parent.characters.length;
+        return containerLengths[matchRange.container];
+    }
+
+    /**
      * 見つかった文字を前後の文字列と合わせて返す
      * @param {MatchRange} matchRange - 見つかった位置
      * @param {number} contextLength - 前後の文字数
@@ -1034,8 +1060,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      */
     function buildContextText(matchRange, contextLength, containerLengths, useBrackets) {
         var container = matchRange.text.parent;
-        if (!containerLengths.hasOwnProperty(matchRange.container)) containerLengths[matchRange.container] = container.characters.length;
-        var containerLength = containerLengths[matchRange.container];
+        var containerLength = getContainerLength(matchRange, containerLengths);
         var beforeText = getRangeText(container, Math.max(0, matchRange.start - contextLength), matchRange.start - 1);
         var afterText = getRangeText(container, matchRange.end, Math.min(containerLength - 1, matchRange.end + contextLength - 1));
         var matchText = toDisplayText(matchRange.matchedText);
@@ -1061,9 +1086,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      */
     function isNextToLineBreak(matchRange, containerLengths) {
         var container = matchRange.text.parent;
-        if (!containerLengths.hasOwnProperty(matchRange.container)) containerLengths[matchRange.container] = container.characters.length;
         if (matchRange.start === 0 || isLineBreak(getRangeText(container, matchRange.start - 1, matchRange.start - 1))) return true;
-        return (matchRange.end >= containerLengths[matchRange.container]) || isLineBreak(getRangeText(container, matchRange.end, matchRange.end));
+        return (matchRange.end >= getContainerLength(matchRange, containerLengths)) || isLineBreak(getRangeText(container, matchRange.end, matchRange.end));
+    }
+
+    /**
+     * 前後の文字数を整数に丸め、0〜MAX_CONTEXT_LENGTH に収める
+     * @param {number} contextLength - 前後の文字数
+     * @returns {number} 丸めた文字数
+     */
+    function clampContextLength(contextLength) {
+        if (isNaN(contextLength)) return DEFAULT_CONTEXT_LENGTH;
+        return Math.max(0, Math.min(MAX_CONTEXT_LENGTH, Math.round(contextLength)));
     }
 
     /**
@@ -1195,31 +1229,101 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
 
     /**
-     * パレットを組み立てる（左に設定、右に該当箇所の一覧と置き換え）
-     * @param {CountSettings} settings - 初期値
-     * @returns {Window} パレット
+     * 入力欄の横に置く × のボタン（onDraw で描く）を足す。押すと onClick を呼ぶ
+     * @param {Group} parentGroup - 足す先
+     * @returns {Group} ボタン
      */
-    function buildPalette(settings) {
-        var countPalette = new Window("palette", getLabel(LABELS.palette.title)); /* バージョンは左下に出す / the version is shown at the bottom left */
-        setupWindow(countPalette);
+    function addClearButton(parentGroup) {
+        var clearButton = parentGroup.add("group");
+        clearButton.preferredSize = CLEAR_BUTTON_SIZE;
+        clearButton.minimumSize = CLEAR_BUTTON_SIZE;
+        clearButton.maximumSize = CLEAR_BUTTON_SIZE;
+        clearButton.onDraw = function () {
+            drawClearMark(this.graphics, CLEAR_BUTTON_SIZE[0], CLEAR_BUTTON_SIZE[1]);
+        };
+        /* フォーカスを入力欄へ移すので、押したときではなく離したときに呼ぶ（押したときに移しても離すと外れる）
+           / fire on mouseup, since focus moved on mousedown is lost when the button is released */
+        clearButton.addEventListener("mouseup", function () {
+            if (typeof clearButton.onClick === "function") clearButton.onClick();
+        });
+        return clearButton;
+    }
 
-        /* 2カラム（左右とも高さをそろえる）/ Two columns of the same height */
-        var columnsGroup = countPalette.add("group");
-        setupRow(columnsGroup, ["fill", "fill"], COLUMN_SPACING);
-        columnsGroup.alignChildren = ["fill", "fill"];
+    /**
+     * 丸の中に × を描く（入力欄を空にするボタンの絵）
+     * @param {ScriptUIGraphics} buttonGraphics - 描く先の graphics
+     * @param {number} buttonWidth - 幅
+     * @param {number} buttonHeight - 高さ
+     * @returns {void}
+     */
+    function drawClearMark(buttonGraphics, buttonWidth, buttonHeight) {
+        var diameter = Math.min(buttonWidth, buttonHeight) - 2;
+        var left = (buttonWidth - diameter) / 2;
+        var top = (buttonHeight - diameter) / 2;
+        buttonGraphics.newPath();
+        buttonGraphics.ellipsePath(left, top, diameter, diameter);
+        buttonGraphics.fillPath(buttonGraphics.newBrush(buttonGraphics.BrushType.SOLID_COLOR, CLEAR_BUTTON_CIRCLE_COLOR));
+        /* × は丸の中央に、直径の 3 割の幅で / the × sits in the middle, 30% of the diameter on each side */
+        var centerX = left + diameter / 2;
+        var centerY = top + diameter / 2;
+        var arm = diameter * 0.18;
+        var markPen = buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, CLEAR_BUTTON_MARK_COLOR, 1.5);
+        buttonGraphics.newPath();
+        buttonGraphics.moveTo(centerX - arm, centerY - arm);
+        buttonGraphics.lineTo(centerX + arm, centerY + arm);
+        buttonGraphics.moveTo(centerX + arm, centerY - arm);
+        buttonGraphics.lineTo(centerX - arm, centerY + arm);
+        buttonGraphics.strokePath(markPen);
+    }
 
-        var leftColumn = columnsGroup.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = ["fill", "top"];
-        leftColumn.spacing = WINDOW_SPACING;
+    /**
+     * スライダーの行（項目名・スライダー・今の値）を足す
+     * @param {Panel} parentPanel - 足す先
+     * @param {Object} labelEntry - 項目名の { ja, en }
+     * @param {Object} tooltipEntry - ツールチップの { ja, en }
+     * @param {number[]} sliderRange - [初期値, 最小, 最大]
+     * @param {string} valueLabel - 右に出す今の値
+     * @param {number} bottomMargin - 行の下の余白（px）
+     * @returns {{slider: Slider, valueText: StaticText}} スライダーと値の表示
+     */
+    function addSliderRow(parentPanel, labelEntry, tooltipEntry, sliderRange, valueLabel, bottomMargin) {
+        var sliderRowGroup = parentPanel.add("group");
+        setupRow(sliderRowGroup, "fill", 6);
+        sliderRowGroup.margins = [0, 0, 0, bottomMargin];
+        sliderRowGroup.add("statictext", undefined, labelText(labelEntry)).preferredSize.width = SLIDER_LABEL_WIDTH;
+        var slider = sliderRowGroup.add("slider", undefined, sliderRange[0], sliderRange[1], sliderRange[2]);
+        slider.alignment = ["fill", "center"];
+        slider.helpTip = getLabel(tooltipEntry);
+        var valueText = sliderRowGroup.add("statictext", undefined, valueLabel);
+        valueText.preferredSize.width = SLIDER_VALUE_WIDTH;
+        return { slider: slider, valueText: valueText };
+    }
 
-        /* キーワード（左に統一先のラジオ、右に件数）/ Keywords, with the unify-target radio on the left and the count on the right */
-        var keywordsPanel = leftColumn.add("panel", undefined, getLabel(LABELS.panel.keywords));
+    /**
+     * チェックボックスを足し、ツールチップと初期値を入れる
+     * @param {Panel} parentPanel - 足す先
+     * @param {Object} labelEntry - 文言の { ja, en }
+     * @param {Object|null} tooltipEntry - ツールチップの { ja, en }（無ければ null）
+     * @param {boolean} initialValue - 初期値
+     * @returns {Checkbox} チェックボックス
+     */
+    function addOptionCheckbox(parentPanel, labelEntry, tooltipEntry, initialValue) {
+        var optionCheckbox = parentPanel.add("checkbox", undefined, getLabel(labelEntry));
+        if (tooltipEntry) optionCheckbox.helpTip = getLabel(tooltipEntry);
+        optionCheckbox.value = initialValue;
+        return optionCheckbox;
+    }
+
+    /**
+     * ［キーワード］パネルを作る（各行に統一先のラジオ・キーワード欄・×・件数、下に合計とオプション）
+     * @param {Group} parentColumn - 足す先（左のカラム）
+     * @param {HelperSettings} settings - 初期値
+     * @returns {Object} パネルの部品（targetRadios / keywordInputs / clearButtons / countTexts / totalText / excludeContainedCheckbox）
+     */
+    function buildKeywordsPanel(parentColumn, settings) {
+        var keywordsPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.keywords));
         setupPanel(keywordsPanel, 6);
-        var targetRadios = [];
-        var keywordInputs = [];
-        var countTexts = [];
-        var lastActiveIndex = -1;
+        var keywordsUi = { targetRadios: [], keywordInputs: [], clearButtons: [], countTexts: [] };
         for (var i = 0; i < KEYWORD_FIELD_COUNT; i++) {
             var keywordRowGroup = keywordsPanel.add("group");
             setupRow(keywordRowGroup, "fill", 6);
@@ -1229,27 +1333,36 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             keywordInput.preferredSize.width = KEYWORD_FIELD_WIDTH;
             keywordInput.alignment = ["fill", "center"];
             keywordInput.helpTip = getLabel(LABELS.tooltip.keyword);
+            var clearButton = addClearButton(keywordRowGroup);
+            clearButton.helpTip = getLabel(LABELS.tooltip.clearKeyword);
             var countText = keywordRowGroup.add("statictext", undefined, getLabel(LABELS.status.initial));
             countText.preferredSize.width = COUNT_TEXT_WIDTH;
             countText.justify = "right";
-            targetRadios.push(targetRadio);
-            keywordInputs.push(keywordInput);
-            countTexts.push(countText);
+            keywordsUi.targetRadios.push(targetRadio);
+            keywordsUi.keywordInputs.push(keywordInput);
+            keywordsUi.clearButtons.push(clearButton);
+            keywordsUi.countTexts.push(countText);
         }
 
         /* 合計 / Total */
         var totalRowGroup = keywordsPanel.add("group");
         setupRow(totalRowGroup, "fill", 6);
-        totalRowGroup.margins = [0, 0, 0, TOTAL_ROW_BOTTOM_MARGIN];
+        totalRowGroup.margins = [0, TOTAL_ROW_TOP_MARGIN, 0, TOTAL_ROW_BOTTOM_MARGIN];
         totalRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.total));
-        var totalText = totalRowGroup.add("statictext", undefined, getLabel(LABELS.status.initial));
-        totalText.alignment = ["fill", "center"];
-        var excludeContainedCheckbox = keywordsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.excludeContained));
-        excludeContainedCheckbox.helpTip = getLabel(LABELS.tooltip.excludeContained);
-        excludeContainedCheckbox.value = settings.excludeContained;
+        keywordsUi.totalText = totalRowGroup.add("statictext", undefined, getLabel(LABELS.status.initial));
+        keywordsUi.totalText.alignment = ["fill", "center"];
+        keywordsUi.excludeContainedCheckbox = addOptionCheckbox(keywordsPanel, LABELS.checkbox.excludeContained, LABELS.tooltip.excludeContained, settings.excludeContained);
+        return keywordsUi;
+    }
 
-        /* 対象（ラジオは横並び）/ Scope (radios in a row) */
-        var scopePanel = leftColumn.add("panel", undefined, getLabel(LABELS.panel.scope));
+    /**
+     * ［対象］パネルを作る（ラジオは横並び）
+     * @param {Group} parentColumn - 足す先（左のカラム）
+     * @param {HelperSettings} settings - 初期値
+     * @returns {{story: RadioButton, document: RadioButton}} 対象のラジオ
+     */
+    function buildScopePanel(parentColumn, settings) {
+        var scopePanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.scope));
         setupPanel(scopePanel);
         scopePanel.orientation = "row";
         scopePanel.alignChildren = ["left", "center"];
@@ -1260,52 +1373,51 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         scopeRadios.story.helpTip = getLabel(LABELS.tooltip.story);
         scopeRadios.document.helpTip = getLabel(LABELS.tooltip.document);
         scopeRadios[scopeRadios[settings.scope] ? settings.scope : "document"].value = true;
+        return scopeRadios;
+    }
 
-        /* オプション / Options */
-        var optionsPanel = leftColumn.add("panel", undefined, getLabel(LABELS.panel.options));
+    /**
+     * ［オプション］パネルを作る
+     * @param {Group} parentColumn - 足す先（左のカラム）
+     * @param {HelperSettings} settings - 初期値
+     * @returns {{caseSensitive: Checkbox, wholeWord: Checkbox, masterPages: Checkbox, excludeToc: Checkbox}} オプションのチェックボックス
+     */
+    function buildOptionsPanel(parentColumn, settings) {
+        var optionsPanel = parentColumn.add("panel", undefined, getLabel(LABELS.panel.options));
         setupPanel(optionsPanel, 6);
-        var caseSensitiveCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.caseSensitive));
-        var wholeWordCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.wholeWord));
-        var masterPagesCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.masterPages));
-        masterPagesCheckbox.helpTip = getLabel(LABELS.tooltip.masterPages);
-        caseSensitiveCheckbox.value = settings.caseSensitive;
-        wholeWordCheckbox.value = settings.wholeWord;
-        masterPagesCheckbox.value = settings.masterPages;
-        var excludeTocCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.excludeToc));
-        excludeTocCheckbox.helpTip = getLabel(LABELS.tooltip.excludeToc);
-        excludeTocCheckbox.value = settings.excludeToc;
+        return {
+            caseSensitive: addOptionCheckbox(optionsPanel, LABELS.checkbox.caseSensitive, null, settings.caseSensitive),
+            wholeWord: addOptionCheckbox(optionsPanel, LABELS.checkbox.wholeWord, null, settings.wholeWord),
+            masterPages: addOptionCheckbox(optionsPanel, LABELS.checkbox.masterPages, LABELS.tooltip.masterPages, settings.masterPages),
+            excludeToc: addOptionCheckbox(optionsPanel, LABELS.checkbox.excludeToc, LABELS.tooltip.excludeToc, settings.excludeToc)
+        };
+    }
 
-        /* 該当箇所（右のカラム。左のカラムと同じ高さまで伸ばす）/ Matches (right column, stretched to the left column's height) */
-        var matchesPanel = columnsGroup.add("panel", undefined, getLabel(LABELS.panel.matches));
+    /**
+     * ［該当箇所］パネルを作る（上にスライダーと表示のオプション、一覧、メモと［除外する］、いちばん下に1か所ずつの置換）
+     * @param {Group} parentRow - 足す先（2カラムの行）
+     * @param {HelperSettings} settings - 初期値
+     * @returns {Object} パネルの部品
+     */
+    function buildMatchesPanel(parentRow, settings) {
+        var matchesPanel = parentRow.add("panel", undefined, getLabel(LABELS.panel.matches));
         setupPanel(matchesPanel, 6);
         matchesPanel.alignment = ["fill", "fill"];
-        /* 前後の文字数（スライダー。右に今の値）/ Characters around (slider with its value on the right) */
-        var contextRowGroup = matchesPanel.add("group");
-        setupRow(contextRowGroup, "fill", 6);
-        contextRowGroup.margins = [0, 0, 0, CONTEXT_ROW_BOTTOM_MARGIN];
-        contextRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.contextLength)).preferredSize.width = SLIDER_LABEL_WIDTH;
-        var initialContextLength = Math.max(0, Math.min(MAX_CONTEXT_LENGTH, Math.round(settings.contextLength)));
-        var contextLengthSlider = contextRowGroup.add("slider", undefined, initialContextLength, 0, MAX_CONTEXT_LENGTH);
-        contextLengthSlider.alignment = ["fill", "center"];
-        contextLengthSlider.helpTip = getLabel(LABELS.tooltip.contextLength);
-        var contextLengthText = contextRowGroup.add("statictext", undefined, String(initialContextLength));
-        contextLengthText.preferredSize.width = SLIDER_VALUE_WIDTH;
-        var hideStandaloneCheckbox = matchesPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.hideStandalone));
-        hideStandaloneCheckbox.helpTip = getLabel(LABELS.tooltip.hideStandalone);
-        hideStandaloneCheckbox.value = settings.hideStandalone;
-        var bracketMatchCheckbox = matchesPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.bracketMatch));
-        bracketMatchCheckbox.helpTip = getLabel(LABELS.tooltip.bracketMatch);
-        bracketMatchCheckbox.value = settings.bracketMatch;
-        /* 表示倍率（スライダー。右に今の値）/ Zoom (slider with its value on the right) */
-        var zoomRowGroup = matchesPanel.add("group");
-        setupRow(zoomRowGroup, "fill", 6);
-        zoomRowGroup.margins = [0, 0, 0, ZOOM_ROW_BOTTOM_MARGIN];
-        zoomRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.zoom)).preferredSize.width = SLIDER_LABEL_WIDTH;
-        var zoomSlider = zoomRowGroup.add("slider", undefined, snapZoomPercent(settings.zoomPercent), MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT);
-        zoomSlider.alignment = ["fill", "center"];
-        zoomSlider.helpTip = getLabel(LABELS.tooltip.zoom);
-        var zoomText = zoomRowGroup.add("statictext", undefined, snapZoomPercent(settings.zoomPercent) + "%");
-        zoomText.preferredSize.width = SLIDER_VALUE_WIDTH;
+        var matchesUi = { panel: matchesPanel };
+
+        var initialContextLength = clampContextLength(settings.contextLength);
+        var contextRow = addSliderRow(matchesPanel, LABELS.fieldLabel.contextLength, LABELS.tooltip.contextLength,
+            [initialContextLength, 0, MAX_CONTEXT_LENGTH], String(initialContextLength), CONTEXT_ROW_BOTTOM_MARGIN);
+        matchesUi.contextLengthSlider = contextRow.slider;
+        matchesUi.contextLengthText = contextRow.valueText;
+        var initialZoomPercent = snapZoomPercent(settings.zoomPercent);
+        var zoomRow = addSliderRow(matchesPanel, LABELS.fieldLabel.zoom, LABELS.tooltip.zoom,
+            [initialZoomPercent, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT], initialZoomPercent + "%", ZOOM_ROW_BOTTOM_MARGIN);
+        matchesUi.zoomSlider = zoomRow.slider;
+        matchesUi.zoomText = zoomRow.valueText;
+        matchesUi.hideLineEdgeCheckbox = addOptionCheckbox(matchesPanel, LABELS.checkbox.hideLineEdge, LABELS.tooltip.hideLineEdge, settings.hideLineEdge);
+        matchesUi.bracketMatchCheckbox = addOptionCheckbox(matchesPanel, LABELS.checkbox.bracketMatch, LABELS.tooltip.bracketMatch, settings.bracketMatch);
+
         /* 1列目は短いページ名にする（Mac は1列目の長い文字列で列幅が崩れる）/ Keep the first column short (long text in column 1 breaks the widths on Mac) */
         var matchList = matchesPanel.add("listbox", undefined, [], {
             numberOfColumns: 2,
@@ -1316,47 +1428,93 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         matchList.preferredSize = [MATCH_LIST_WIDTH, MATCH_LIST_MIN_HEIGHT];
         matchList.alignment = ["fill", "fill"];
         matchList.helpTip = getLabel(LABELS.tooltip.matchList);
+        matchesUi.matchList = matchList;
+
         /* 一覧の下：メモと［除外する］ / Below the list: notes and Exclude */
         var listFooterGroup = matchesPanel.add("group");
         setupRow(listFooterGroup, ["fill", "bottom"], 6);
-        var listNoteText = listFooterGroup.add("statictext", undefined, " ");
-        listNoteText.preferredSize.width = MATCH_LIST_WIDTH - EXCLUDE_BUTTON_WIDTH - 6;
-        listNoteText.alignment = ["fill", "center"];
-        var btnExclude = listFooterGroup.add("button", undefined, getLabel(LABELS.button.exclude));
-        btnExclude.preferredSize.width = EXCLUDE_BUTTON_WIDTH;
-        btnExclude.helpTip = getLabel(LABELS.tooltip.exclude);
+        matchesUi.listNoteText = listFooterGroup.add("statictext", undefined, " ");
+        matchesUi.listNoteText.preferredSize.width = MATCH_LIST_WIDTH - EXCLUDE_BUTTON_WIDTH - 6;
+        matchesUi.listNoteText.alignment = ["fill", "center"];
+        matchesUi.btnExclude = listFooterGroup.add("button", undefined, getLabel(LABELS.button.exclude));
+        matchesUi.btnExclude.preferredSize.width = EXCLUDE_BUTTON_WIDTH;
+        matchesUi.btnExclude.helpTip = getLabel(LABELS.tooltip.exclude);
 
-        /* 1か所ずつ置き換える（一覧で選んだ文字を編集して［適用］）/ Replace one match at a time (edit the picked text, then Apply) */
-        var replaceRowGroup = matchesPanel.add("group");
-        setupRow(replaceRowGroup, ["fill", "bottom"], 6);
-        replaceRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.replaceWith));
-        var replaceInput = replaceRowGroup.add("edittext", undefined, "");
-        replaceInput.preferredSize.width = REPLACE_FIELD_WIDTH;
-        replaceInput.alignment = ["fill", "center"];
-        replaceInput.helpTip = getLabel(LABELS.tooltip.replaceWith);
-        var btnApply = replaceRowGroup.add("button", undefined, getLabel(LABELS.button.apply));
-        btnApply.preferredSize.width = APPLY_BUTTON_WIDTH;
-        btnApply.helpTip = getLabel(LABELS.tooltip.apply);
+        /* 1か所ずつ置換する（一覧で選んだ文字を直して［置換］）/ Change one match at a time (edit the picked text, then Change) */
+        var changeRowGroup = matchesPanel.add("group");
+        setupRow(changeRowGroup, ["fill", "bottom"], 6);
+        changeRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.changeTo));
+        matchesUi.changeToInput = changeRowGroup.add("edittext", undefined, "");
+        matchesUi.changeToInput.preferredSize.width = CHANGE_TO_FIELD_WIDTH;
+        matchesUi.changeToInput.alignment = ["fill", "center"];
+        matchesUi.changeToInput.helpTip = getLabel(LABELS.tooltip.changeTo);
+        matchesUi.btnChange = changeRowGroup.add("button", undefined, getLabel(LABELS.button.change));
+        matchesUi.btnChange.preferredSize.width = CHANGE_BUTTON_WIDTH;
+        matchesUi.btnChange.helpTip = getLabel(LABELS.tooltip.change);
+        return matchesUi;
+    }
 
-        /* ボタン：左に［選択文字を入れる］［統一する］、右に［閉じる］［数える］ / Buttons: Use Selection and Unify on the left, Close and Count on the right */
-        var buttonRow = addButtonRow(countPalette);
-        var btnUseSelection = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.useSelection));
-        btnUseSelection.helpTip = getLabel(LABELS.tooltip.useSelection);
+    /**
+     * パレットを組み立てる（左に設定、右に該当箇所の一覧と置き換え）
+     * @param {HelperSettings} settings - 初期値
+     * @returns {Window} パレット
+     */
+    function buildPalette(settings) {
+        var helperPalette = new Window("palette", getLabel(LABELS.palette.title)); /* バージョンは左下に出す / the version is shown at the bottom left */
+        setupWindow(helperPalette);
+
+        /* 2カラム（左右とも高さをそろえる）/ Two columns of the same height */
+        var columnsGroup = helperPalette.add("group");
+        setupRow(columnsGroup, ["fill", "fill"], COLUMN_SPACING);
+        columnsGroup.alignChildren = ["fill", "fill"];
+        var leftColumn = columnsGroup.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = ["fill", "top"];
+        leftColumn.spacing = WINDOW_SPACING;
+
+        var keywordsUi = buildKeywordsPanel(leftColumn, settings);
+        var targetRadios = keywordsUi.targetRadios;
+        var keywordInputs = keywordsUi.keywordInputs;
+        var clearButtons = keywordsUi.clearButtons;
+        var countTexts = keywordsUi.countTexts;
+        var totalText = keywordsUi.totalText;
+        var excludeContainedCheckbox = keywordsUi.excludeContainedCheckbox;
+        var scopeRadios = buildScopePanel(leftColumn, settings);
+        var optionCheckboxes = buildOptionsPanel(leftColumn, settings);
+        var matchesUi = buildMatchesPanel(columnsGroup, settings);
+        var contextLengthSlider = matchesUi.contextLengthSlider;
+        var contextLengthText = matchesUi.contextLengthText;
+        var zoomSlider = matchesUi.zoomSlider;
+        var zoomText = matchesUi.zoomText;
+        var hideLineEdgeCheckbox = matchesUi.hideLineEdgeCheckbox;
+        var bracketMatchCheckbox = matchesUi.bracketMatchCheckbox;
+        var matchList = matchesUi.matchList;
+        var listNoteText = matchesUi.listNoteText;
+        var btnExclude = matchesUi.btnExclude;
+        var changeToInput = matchesUi.changeToInput;
+        var btnChange = matchesUi.btnChange;
+        var lastActiveIndex = -1;
+
+        /* ボタン：左に［選択文字を取り込む］［すべてを統一］、右に［閉じる］［検索］ / Buttons: Load Selection and Unify All on the left, Close and Find on the right */
+        var buttonRow = addButtonRow(helperPalette);
+        var btnLoadSelection = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.loadSelection));
+        btnLoadSelection.helpTip = getLabel(LABELS.tooltip.loadSelection);
         var btnUnify = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.unify));
         btnUnify.helpTip = getLabel(LABELS.tooltip.unify);
         var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close));
-        var btnCount = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.count));
+        var btnFind = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.find));
+        btnFind.helpTip = getLabel(LABELS.tooltip.find);
         alignRightOnlyButtonRow(buttonRow);
-        addVersionFooter(countPalette);
+        addVersionFooter(helperPalette);
 
-        /* 最後に数えた結果（前後の文字数などを変えたら、数え直さずに一覧だけ作り直す）/ Last results; display-only changes rebuild just the list */
+        /* 最後に検索した結果（前後の文字数などを変えたら、検索し直さずに一覧だけ作り直す）/ Last results; display-only changes rebuild just the list */
         var lastMatchesByKeyword = null;
         var lastKeywords = [];
         var lastScope = "document";
-        /* 数えたあとにキーワードや設定を変えたら、数え直すまで置き換えさせない / After keywords or settings change, block replacing until counted again */
+        /* 検索したあとにキーワードや設定を変えたら、検索し直すまで置き換えさせない / After keywords or settings change, block replacing until found again */
         var isResultStale = false;
-        /* 除外した位置（「入れ物#開始位置」→ 見つけたときの文字）。数え直しても残し、置き換えでずれた分は付け直す
-           / Excluded matches ("container#start" -> matched text); kept across recounts and shifted after replacing */
+        /* 除外した位置（「入れ物#開始位置」→ 見つけたときの文字）。検索し直しても残し、置き換えでずれた分は付け直す
+           / Excluded matches ("container#start" -> matched text); kept across searches and shifted after replacing */
         var excludedMatches = {};
 
         /**
@@ -1402,9 +1560,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 var containerKey = matchKey.substring(0, separatorIndex);
                 var start = Number(matchKey.substring(separatorIndex + 1));
                 var delta = 0;
-                for (var r = 0; r < replacedRanges.length; r++) {
-                    if (replacedRanges[r].container === containerKey && replacedRanges[r].end <= start) {
-                        delta += replacementLength - (replacedRanges[r].end - replacedRanges[r].start);
+                for (var j = 0; j < replacedRanges.length; j++) {
+                    if (replacedRanges[j].container === containerKey && replacedRanges[j].end <= start) {
+                        delta += replacementLength - (replacedRanges[j].end - replacedRanges[j].start);
                     }
                 }
                 shiftedMatches[containerKey + "#" + (start + delta)] = excludedMatches[matchKey];
@@ -1417,7 +1575,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
          * @returns {number} 前後の文字数（0〜MAX_CONTEXT_LENGTH の整数。スライダーの値を丸める）
          */
         function readContextLength() {
-            return Math.max(0, Math.min(MAX_CONTEXT_LENGTH, Math.round(contextLengthSlider.value)));
+            return clampContextLength(contextLengthSlider.value);
         }
 
         /**
@@ -1441,7 +1599,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
         /**
          * 画面の値を設定にまとめる
-         * @returns {CountSettings} 設定
+         * @returns {HelperSettings} 設定
          */
         function readSettings() {
             var keywords = [];
@@ -1449,13 +1607,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             return {
                 keywords: keywords,
                 scope: scopeRadios.story.value ? "story" : "document",
-                caseSensitive: caseSensitiveCheckbox.value,
-                wholeWord: wholeWordCheckbox.value,
-                masterPages: masterPagesCheckbox.value,
-                excludeToc: excludeTocCheckbox.value,
+                caseSensitive: optionCheckboxes.caseSensitive.value,
+                wholeWord: optionCheckboxes.wholeWord.value,
+                masterPages: optionCheckboxes.masterPages.value,
+                excludeToc: optionCheckboxes.excludeToc.value,
                 excludeContained: excludeContainedCheckbox.value,
                 contextLength: readContextLength(),
-                hideStandalone: hideStandaloneCheckbox.value,
+                hideLineEdge: hideLineEdgeCheckbox.value,
                 bracketMatch: bracketMatchCheckbox.value,
                 zoomPercent: readZoomPercent(),
                 targetIndex: getTargetIndex()
@@ -1474,7 +1632,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
 
         /**
-         * 一覧の行が［統一する］で置き換える対象かを返す（統一先と異なるキーワードの行）
+         * 一覧の行が［すべてを統一］で置き換える対象かを返す（統一先と異なるキーワードの行）
          * @param {ListItem} listItem - 一覧の行
          * @returns {boolean} 置き換える対象なら true
          */
@@ -1489,15 +1647,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
          * @returns {void}
          */
         function updateEnabled() {
-            masterPagesCheckbox.enabled = scopeRadios.document.value;
-            btnCount.enabled = hasAnyKeyword();
+            optionCheckboxes.masterPages.enabled = scopeRadios.document.value;
+            btnFind.enabled = hasAnyKeyword();
             var canReplace = !!lastMatchesByKeyword && !isResultStale;
             var targetIndex = getTargetIndex();
             btnUnify.enabled = canReplace && targetIndex >= 0 && lastKeywords[targetIndex] !== "";
-            btnApply.enabled = canReplace && !!matchList.selection;
             var selectedItem = matchList.selection;
-            btnExclude.enabled = !!(selectedItem && selectedItem.matchRange);
-            btnExclude.text = (selectedItem && selectedItem.matchRange && isMatchExcluded(selectedItem.matchRange))
+            var hasSelectedMatch = !!(selectedItem && selectedItem.matchRange);
+            btnChange.enabled = canReplace && hasSelectedMatch;
+            btnExclude.enabled = hasSelectedMatch;
+            btnExclude.text = (hasSelectedMatch && isMatchExcluded(selectedItem.matchRange))
                 ? getLabel(LABELS.button.include)
                 : getLabel(LABELS.button.exclude);
         }
@@ -1513,8 +1672,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             for (var k = 0; k < countTexts.length; k++) {
                 var matches = lastMatchesByKeyword[k] || [];
                 var keptCount = 0;
-                for (var m = 0; m < matches.length; m++) {
-                    if (isMatchExcluded(matches[m])) excludedCount++;
+                for (var matchIndex = 0; matchIndex < matches.length; matchIndex++) {
+                    if (isMatchExcluded(matches[matchIndex])) excludedCount++;
                     else keptCount++;
                 }
                 totalCount += keptCount;
@@ -1553,7 +1712,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
 
         /**
-         * 数えた結果が古くなったことにする（キーワード・対象・検索オプションを変えたとき）
+         * 検索した結果が古くなったことにする（キーワード・対象・検索オプションを変えたとき）
          * @returns {void}
          */
         function markResultStale() {
@@ -1571,34 +1730,34 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
          */
         function renderMatchList() {
             matchList.removeAll();
-            replaceInput.text = "";
+            changeToInput.text = "";
             listNoteText.text = " ";
             if (!lastMatchesByKeyword) { updateEnabled(); return; }
 
             var contextLength = readContextLength();
-            var hideStandalone = hideStandaloneCheckbox.value;
+            var hideLineEdge = hideLineEdgeCheckbox.value;
             var containerLengths = {};
             var listedCount = 0;
             var hiddenCount = 0;
             var shownCount = 0;
             for (var k = 0; k < lastMatchesByKeyword.length; k++) {
                 var matches = lastMatchesByKeyword[k];
-                for (var m = 0; m < matches.length; m++) {
+                for (var matchIndex = 0; matchIndex < matches.length; matchIndex++) {
                     var pageLabel, contextText;
                     /* パレット表示中に文字が消されたり、ドキュメントが閉じられたりする / the text or document may be gone while the palette is open */
                     try {
-                        if (hideStandalone && isNextToLineBreak(matches[m], containerLengths)) { hiddenCount++; continue; }
+                        if (hideLineEdge && isNextToLineBreak(matches[matchIndex], containerLengths)) { hiddenCount++; continue; }
                         listedCount++;
                         if (shownCount >= MAX_LIST_ITEMS) continue;
-                        pageLabel = getPageLabel(matches[m].text);
-                        contextText = buildContextText(matches[m], contextLength, containerLengths, bracketMatchCheckbox.value);
+                        pageLabel = getPageLabel(matches[matchIndex].text);
+                        contextText = buildContextText(matches[matchIndex], contextLength, containerLengths, bracketMatchCheckbox.value);
                     } catch (e) {
                         if (shownCount >= MAX_LIST_ITEMS) continue;
                         pageLabel = "-";
                         contextText = getLabel(LABELS.status.unavailable);
                     }
                     var listItem = matchList.add("item", pageLabel);
-                    listItem.matchRange = matches[m];
+                    listItem.matchRange = matches[matchIndex];
                     listItem.keywordIndex = k;
                     listItem.baseContext = contextText;
                     refreshListItem(listItem);
@@ -1615,14 +1774,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
 
         /**
-         * 数えて、件数を各欄の右と合計の行に、該当箇所を右の一覧に出す
+         * 検索して、件数を各欄の右と合計の行に、該当箇所を右の一覧に出す
          * @returns {void}
          */
-        function countAndShow() {
+        function findAndShow() {
             if (!hasAnyKeyword()) return;
             var currentSettings = readSettings();
             saveSettings(currentSettings);
-            var countResult = runCount(currentSettings);
+            var countResult = runFind(currentSettings);
             lastMatchesByKeyword = countResult.matchesByKeyword;
             lastKeywords = currentSettings.keywords;
             lastScope = currentSettings.scope;
@@ -1637,22 +1796,22 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
 
         /**
-         * 置き換えたあとに数え直し、結果を一覧の下に出す
+         * 置き換えたあとに検索し直し、結果を一覧の下に出す
          * @param {{replaced: number, skipped: number, replacedRanges: Array<MatchRange>}} replaceResult - replaceMatches() の戻り値
          * @param {string} replacementText - 置き換えた文字
          * @param {string} doneMessage - 置き換えた件数の文言
          * @returns {void}
          */
-        function recountAfterReplace(replaceResult, replacementText, doneMessage) {
+        function refindAfterReplace(replaceResult, replacementText, doneMessage) {
             shiftExcludedMatches(replaceResult.replacedRanges, replacementText.length);
-            countAndShow();
+            findAndShow();
             var notes = [doneMessage];
             if (replaceResult.skipped > 0) notes.push(getLabel(LABELS.status.skipped, { count: replaceResult.skipped }));
             listNoteText.text = notes.join(" / ");
         }
 
         /**
-         * ［統一する］：統一先と異なるキーワードの行のうち、除外していないもの（チェックが付いたもの）を統一先に置き換える
+         * ［すべてを統一］：統一先と異なるキーワードの行のうち、除外していないもの（チェックが付いたもの）を統一先に置き換える
          * @returns {void}
          */
         function unifyMatches() {
@@ -1664,43 +1823,43 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             for (var k = 0; k < lastMatchesByKeyword.length; k++) {
                 if (k === targetIndex || lastKeywords[k] === targetKeyword) continue;
                 var matches = lastMatchesByKeyword[k];
-                for (var m = 0; m < matches.length; m++) {
-                    if (isMatchExcluded(matches[m])) continue;
-                    /* 一覧に出していないもの（前後が改行）は置き換えない / do not replace what the list hides */
+                for (var matchIndex = 0; matchIndex < matches.length; matchIndex++) {
+                    if (isMatchExcluded(matches[matchIndex])) continue;
+                    /* 一覧に出していないもの（行頭・行末）は置き換えない / do not replace what the list hides */
                     try {
-                        if (hideStandaloneCheckbox.value && isNextToLineBreak(matches[m], containerLengths)) continue;
+                        if (hideLineEdgeCheckbox.value && isNextToLineBreak(matches[matchIndex], containerLengths)) continue;
                     } catch (e) { continue; }
-                    replaceTargets.push(matches[m]);
+                    replaceTargets.push(matches[matchIndex]);
                 }
             }
             if (replaceTargets.length === 0) {
-                listNoteText.text = getLabel(LABELS.status.nothingToUnify);
+                listNoteText.text = getLabel(LABELS.status.nothingToReplace);
                 return;
             }
             if (!confirm(getLabel(LABELS.alert.confirmUnify, { count: replaceTargets.length, target: targetKeyword }))) return;
 
             var replaceResult = replaceMatches(replaceTargets, targetKeyword, getLabel(LABELS.undo.unify));
-            recountAfterReplace(replaceResult, targetKeyword, getLabel(LABELS.status.unified, { count: replaceResult.replaced, target: targetKeyword }));
+            refindAfterReplace(replaceResult, targetKeyword, getLabel(LABELS.status.unified, { count: replaceResult.replaced, target: targetKeyword }));
         }
 
         /**
-         * ［適用］：一覧で選んだ1か所を、置換後の欄の文字に置き換える
+         * ［置換］：一覧で選んだ1か所を、［置換文字列］の文字に置き換える
          * @returns {void}
          */
-        function applyToSelectedMatch() {
+        function changeSelectedMatch() {
             var listItem = matchList.selection;
             if (!listItem || !listItem.matchRange || isResultStale) return;
             var matchRange = listItem.matchRange;
-            var replacementText = replaceInput.text;
+            var replacementText = changeToInput.text;
             if (replacementText === matchRange.matchedText) return;
 
             var keywordIndex = listItem.keywordIndex;
             var offsetInKeyword = listItem.index - findFirstRowOfKeyword(keywordIndex);
-            var replaceResult = replaceMatches([matchRange], replacementText, getLabel(LABELS.undo.apply));
+            var replaceResult = replaceMatches([matchRange], replacementText, getLabel(LABELS.undo.change));
             var doneMessage = (replaceResult.replaced > 0)
-                ? getLabel(LABELS.status.applied, { before: matchRange.matchedText, after: replacementText })
-                : getLabel(LABELS.status.nothingToUnify);
-            recountAfterReplace(replaceResult, replacementText, doneMessage);
+                ? getLabel(LABELS.status.changed, { before: matchRange.matchedText, after: replacementText })
+                : getLabel(LABELS.status.nothingToReplace);
+            refindAfterReplace(replaceResult, replacementText, doneMessage);
 
             /* 続けて直せるように、同じキーワードの次の行（置き換えた行があった位置）を選ぶ / select the next row of the same keyword so you can continue */
             var firstRow = findFirstRowOfKeyword(keywordIndex);
@@ -1723,7 +1882,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
 
         /**
-         * 選択文字を入れる欄を決める（最後に入力した欄、なければ最初の空欄、空欄も無ければ1つ目）
+         * 選択文字を取り込む欄を決める（最後に入力した欄、なければ最初の空欄、空欄も無ければ1つ目）
          * @returns {EditText} キーワード欄
          */
         function getInsertTargetInput() {
@@ -1746,11 +1905,19 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 markResultStale();
             };
             keywordInput.onActivate = function () { lastActiveIndex = fieldIndex; };
-            /* キーワード欄の return で数える / Return in a keyword field counts */
+            /* × で欄を空にして、その欄に入力できるようにする / the × clears the field and puts the cursor in it */
+            clearButtons[fieldIndex].onClick = function () {
+                if (keywordInput.text === "") return;
+                keywordInput.text = "";
+                lastActiveIndex = fieldIndex;
+                markResultStale();
+                keywordInput.active = true;
+            };
+            /* キーワード欄の return で検索する / Return in a keyword field finds */
             keywordInput.addEventListener("keydown", function (event) {
                 if (event.keyName !== "Enter") return;
                 event.preventDefault();
-                countAndShow();
+                findAndShow();
             });
             /* ラジオは行ごとに別のグループにあるので、自分以外を外す（同じ親の中でしか排他にならない）
                / The radios sit in separate row groups, so clear the others by hand (radios are exclusive only within one parent) */
@@ -1759,7 +1926,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 renderMatchList();
             };
         }
-        for (var n = 0; n < keywordInputs.length; n++) bindKeywordRow(n);
+        for (var fieldIndex = 0; fieldIndex < keywordInputs.length; fieldIndex++) bindKeywordRow(fieldIndex);
         var initialTargetIndex = (typeof settings.targetIndex === "number") ? settings.targetIndex : -1;
         if (initialTargetIndex >= 0 && initialTargetIndex < targetRadios.length) targetRadios[initialTargetIndex].value = true;
 
@@ -1769,11 +1936,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             contextLengthText.text = String(readContextLength());
         };
         contextLengthSlider.onChange = function () {
-            contextLengthSlider.value = readContextLength();
-            contextLengthText.text = String(readContextLength());
+            var contextLength = readContextLength();
+            contextLengthSlider.value = contextLength;
+            contextLengthText.text = String(contextLength);
             renderMatchList();
         };
-        hideStandaloneCheckbox.onClick = renderMatchList;
+        hideLineEdgeCheckbox.onClick = renderMatchList;
         bracketMatchCheckbox.onClick = renderMatchList;
         /* 動かしている間もつまみを10%刻みの位置に置き直す / keep the knob on the 10% steps while dragging */
         zoomSlider.onChanging = function () {
@@ -1783,12 +1951,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         };
         zoomSlider.onChange = zoomSlider.onChanging;
 
-        /* 一覧で選んだ文字を選択して表示し、置換後の欄に入れる / Select and show the picked text, and put it in the Replace with field */
+        /* 一覧で選んだ文字を選択して表示し、［置換文字列］に入れる / Select and show the picked text, and put it in Change to */
         matchList.onChange = function () {
             var listItem = matchList.selection;
             updateEnabled();
             if (!listItem || !listItem.matchRange) return;
-            replaceInput.text = listItem.matchRange.matchedText;
+            changeToInput.text = listItem.matchRange.matchedText;
             try {
                 var foundText = listItem.matchRange.text;
                 if (!foundText.isValid) return;
@@ -1803,44 +1971,41 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         matchList.onDoubleClick = toggleSelectedExcluded;
         btnExclude.onClick = toggleSelectedExcluded;
 
-        scopeRadios.story.onClick = markResultStale;
-        scopeRadios.document.onClick = markResultStale;
-        caseSensitiveCheckbox.onClick = markResultStale;
-        wholeWordCheckbox.onClick = markResultStale;
-        excludeContainedCheckbox.onClick = markResultStale;
-        masterPagesCheckbox.onClick = markResultStale;
-        excludeTocCheckbox.onClick = markResultStale;
-        btnCount.onClick = countAndShow;
+        /* 検索の条件が変わったら、検索し直すまで置き換えさせない / changing the search conditions blocks replacing until the next Find */
+        var conditionControls = [scopeRadios.story, scopeRadios.document, excludeContainedCheckbox,
+            optionCheckboxes.caseSensitive, optionCheckboxes.wholeWord, optionCheckboxes.masterPages, optionCheckboxes.excludeToc];
+        for (var controlIndex = 0; controlIndex < conditionControls.length; controlIndex++) conditionControls[controlIndex].onClick = markResultStale;
+        btnFind.onClick = findAndShow;
         btnUnify.onClick = unifyMatches;
-        btnApply.onClick = applyToSelectedMatch;
-        btnUseSelection.onClick = function () {
+        btnChange.onClick = changeSelectedMatch;
+        btnLoadSelection.onClick = function () {
             var selectedKeyword = getSelectedKeyword(getCurrentSelection());
             if (selectedKeyword === "") return;
             getInsertTargetInput().text = selectedKeyword;
             markResultStale();
         };
-        btnClose.onClick = function () { countPalette.close(); };
+        btnClose.onClick = function () { helperPalette.close(); };
 
         /* パレットは Esc で閉じないので、［閉じる］と同じにする / palettes do not close on Esc, so treat it as Close */
-        countPalette.addEventListener("keydown", function (event) {
+        helperPalette.addEventListener("keydown", function (event) {
             if (event.keyName !== "Escape") return;
             event.preventDefault();
-            countPalette.close();
+            helperPalette.close();
         });
 
         /* 閉じるときは設定を控えて参照を外すだけ（DOM には触れない）/ On close, only keep the settings and drop the reference (no DOM access) */
-        countPalette.onClose = function () {
+        helperPalette.onClose = function () {
             saveSettings(readSettings());
             $.global[PALETTE_GLOBAL_KEY] = null;
         };
 
-        countPalette.onShow = function () {
+        helperPalette.onShow = function () {
             getInsertTargetInput().active = true;
         };
 
         updateEnabled();
-        fitMatchListHeight(countPalette, matchesPanel, matchList);
-        return countPalette;
+        fitMatchListHeight(helperPalette, matchesUi.panel, matchList);
+        return helperPalette;
     }
 
     // =========================================
@@ -1849,7 +2014,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
     /**
      * 選択した文字を、まだ入っていなければ最初の空欄に入れる
-     * @param {CountSettings} settings - 設定（keywords を書き換える）
+     * @param {HelperSettings} settings - 設定（keywords を書き換える）
      * @param {string} selectedKeyword - 選択した文字
      * @returns {void}
      */
@@ -1873,10 +2038,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var settings = loadSettings();
         addSelectedKeyword(settings, getSelectedKeyword(getCurrentSelection()));
 
-        var countPalette = buildPalette(settings);
+        var helperPalette = buildPalette(settings);
         /* パレットは show() から即座に戻るので、参照を $.global に残す / palettes return from show() at once, so keep a reference */
-        $.global[PALETTE_GLOBAL_KEY] = countPalette;
-        countPalette.show();
+        $.global[PALETTE_GLOBAL_KEY] = helperPalette;
+        helperPalette.show();
     }
 
     main();
