@@ -51,6 +51,7 @@ Enter/Return works as Select, and Esc as Close.
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
 | Last updated | 2026-11-05 |
+| Article | https://note.com/dtp_tranist/n/ne2cdd5f60080 |
 | Tested with | InDesign 2026 (v21.6) / macOS |
 
 ### Update History

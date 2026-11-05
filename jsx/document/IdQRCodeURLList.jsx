@@ -28,6 +28,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdQRCodeURLList.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/ne2cdd5f60080
+
 ### Overview
 
 Lists, in page order, the URLs of the QR codes in the active document (made with Object > Generate QR Code).
@@ -49,9 +52,10 @@ var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last update
 
 var SCRIPT_DESCRIPTION_JA = "ドキュメント内のQRコードのURLを一覧"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdQRCodeURLList.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdQRCodeURLList.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdQRCodeURLList.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdQRCodeURLList.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdQRCodeURLList.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne2cdd5f60080"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdQRCodeURLList.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
