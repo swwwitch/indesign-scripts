@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdInsertPageCrossReference
 Name=カーソル位置にアンカー付き長方形とテキストアンカーを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=2.1.0
+Version=2.2.0
 Release-Date=2026-11-06
 Description-BEGIN
 カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。
@@ -42,7 +42,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInsertAnchore
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdInsertAnchoredRectangle";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
@@ -66,8 +66,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     var RECT_WIDTH  = 12;
     var RECT_HEIGHT = 12;
 
-    /* 長方形の線幅（pt）/ Rectangle stroke weight (pt) */
-    var RECT_STROKE_WEIGHT = 0.5;
+    /* 長方形の塗りの CMYK（線はなし）/ CMYK of the rectangle fill (no stroke) */
+    var RECT_FILL_CMYK = [0, 100, 100, 0];
 
     /* テキストアンカー名・スクリプトラベルの接頭辞 / Prefix of the text anchor name and script label */
     var ANCHOR_NAME_PREFIX = "anchored_rectangle";
@@ -248,7 +248,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 塗りなしの長方形をページ上に作る（位置はアンカー化で変わるので、大きさだけ決める）
+     * 塗りが RECT_FILL_CMYK・線なしの長方形をページ上に作る（位置はアンカー化で変わるので、大きさだけ決める）
      * @param {Document} doc - 対象ドキュメント
      * @param {Page} page - 作成するページ
      * @param {string} labelName - スクリプトラベルに入れる名前
@@ -257,14 +257,26 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     function createRectangle(doc, page, labelName) {
         var rectangle = page.rectangles.add();
         rectangle.geometricBounds = [0, 0, RECT_HEIGHT, RECT_WIDTH];
-        rectangle.strokeWeight = RECT_STROKE_WEIGHT;
+        rectangle.fillColor = getCmykColor(doc, RECT_FILL_CMYK);
+        rectangle.strokeColor = doc.swatches.itemByName("None");
         /* 目印なのでプリント・書き出しには出さない / A marker only, so keep it out of print and export */
         rectangle.nonprinting = true;
-        var noneSwatch = doc.swatches.itemByName("None");
-        if (noneSwatch.isValid) rectangle.fillColor = noneSwatch;
         /* テキストアンカーと同じ名前で追えるようにする / Lets the rectangle be matched with its text anchor by name */
         rectangle.label = labelName;
         return rectangle;
+    }
+
+    /**
+     * CMYK のプロセスカラーのスウォッチを返す。無ければ「C=0 M=100 Y=100 K=0」の形の名前で作る
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array} cmykValues - [C, M, Y, K]（0〜100）
+     * @returns {Color} カラー
+     */
+    function getCmykColor(doc, cmykValues) {
+        var colorName = "C=" + cmykValues[0] + " M=" + cmykValues[1] + " Y=" + cmykValues[2] + " K=" + cmykValues[3];
+        var color = doc.colors.itemByName(colorName);
+        if (color.isValid) return color;
+        return doc.colors.add({ name: colorName, model: ColorModel.PROCESS, space: ColorSpace.CMYK, colorValue: cmykValues });
     }
 
     /**

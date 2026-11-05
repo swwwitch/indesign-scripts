@@ -14,7 +14,8 @@ The rectangle and the text anchor share the same name, so you can use the anchor
 
 ### Features
 
-- Inserts a 12 × 12 pt rectangle with a 0.5 pt stroke and no fill as an anchored object at the cursor (or at the start of the selected text), with Position set to Custom in Anchored Object Options
+- Inserts a 12 × 12 pt rectangle filled with M100 Y100 and no stroke as an anchored object at the cursor (or at the start of the selected text), with Position set to Custom in Anchored Object Options
+- The fill uses the swatch "C=0 M=100 Y=100 K=0", created if the document does not have it
 - Sets the rectangle to Nonprinting (Attributes panel), so it does not appear in print or PDF export
 - Creates a text anchor right before the rectangle's marker character
 - The text anchor is named "anchored_rectangle_<time>"; the same name goes into the rectangle's script label
@@ -32,8 +33,7 @@ The rectangle and the text anchor share the same name, so you can use the anchor
 
 - Does not run when a text frame is selected with the Selection tool, or when an object is selected.
 - Cannot be used on text on the pasteboard or in overset text.
-- The stroke color follows the document's default graphic frame settings.
-- The size, stroke weight and name prefix can be changed in the settings at the top of the script.
+- The size, fill CMYK and name prefix can be changed in the settings at the top of the script.
 - Not yet tested in InDesign.
 
 ### Script info
@@ -41,13 +41,14 @@ The rectangle and the text anchor share the same name, so you can use the anchor
 | Item | Value |
 | --- | --- |
 | File | `jsx/document/IdInsertAnchoredRectangle.jsx` |
-| Version | v2.1.0 |
+| Version | v2.2.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-06 |
 | Last updated | 2026-11-06 |
 
 ### Update History
 
+- v2.2.0 (2026-11-06): The rectangle is now filled with M100 Y100 (swatch "C=0 M=100 Y=100 K=0", created if missing) with no stroke
 - v2.1.0 (2026-11-06): Changed the anchored object position from Inline to Custom and set the rectangle to Nonprinting
 - v2.0.0 (2026-11-06): Renamed from IdInsertPageCrossReference and replaced with creating an anchored rectangle and a text anchor at the cursor
 - v1.0.0 (2026-11-06): Initial release (inserted a paragraph's page number as a "p.<number>" cross-reference)
