@@ -508,7 +508,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdTextAnchor
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdInsertAnchoredRectangle.jsx
 
-詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInsertAnchoredRectangle.md)
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInsertAnchoredRectangle.md)／[note記事](https://note.com/dtp_tranist/n/nde76a2dc06ae)
 
 ## その他
 

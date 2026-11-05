@@ -53,6 +53,7 @@ The anchor name and the rectangle's fill, stroke and position (left or right of 
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-06 |
 | Last updated | 2026-11-06 |
+| Article | https://note.com/dtp_tranist/n/nde76a2dc06ae |
 
 ### Update History
 
