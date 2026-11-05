@@ -8,13 +8,14 @@
 
 ---
 
-Creates a small anchored (inline) rectangle at the text cursor, plus a text anchor right before it.
+Creates a small non-printing anchored (custom) rectangle at the text cursor, plus a text anchor right before it.
 
 The rectangle and the text anchor share the same name, so you can use the anchor as a target for hyperlinks and cross-references while seeing its position on the page as a rectangle.
 
 ### Features
 
-- Inserts a 12 × 12 pt rectangle with a 0.5 pt stroke and no fill as an inline anchored object at the cursor (or at the start of the selected text)
+- Inserts a 12 × 12 pt rectangle with a 0.5 pt stroke and no fill as an anchored object at the cursor (or at the start of the selected text), with Position set to Custom in Anchored Object Options
+- Sets the rectangle to Nonprinting (Attributes panel), so it does not appear in print or PDF export
 - Creates a text anchor right before the rectangle's marker character
 - The text anchor is named "anchored_rectangle_<time>"; the same name goes into the rectangle's script label
 - Selects the rectangle afterwards and shows the text anchor name
@@ -40,13 +41,14 @@ The rectangle and the text anchor share the same name, so you can use the anchor
 | Item | Value |
 | --- | --- |
 | File | `jsx/document/IdInsertAnchoredRectangle.jsx` |
-| Version | v2.0.0 |
+| Version | v2.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-06 |
 | Last updated | 2026-11-06 |
 
 ### Update History
 
+- v2.1.0 (2026-11-06): Changed the anchored object position from Inline to Custom and set the rectangle to Nonprinting
 - v2.0.0 (2026-11-06): Renamed from IdInsertPageCrossReference and replaced with creating an anchored rectangle and a text anchor at the cursor
 - v1.0.0 (2026-11-06): Initial release (inserted a paragraph's page number as a "p.<number>" cross-reference)
 

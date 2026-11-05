@@ -6,13 +6,13 @@ Script-ID=com.swwwitch.indesign.IdInsertPageCrossReference
 Name=カーソル位置にアンカー付き長方形とテキストアンカーを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=2.0.0
+Version=2.1.0
 Release-Date=2026-11-06
 Description-BEGIN
-カーソルを置いた位置に、アンカー付き（インライン）の小さな長方形と、その直前のテキストアンカーを作成します。
+カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。
 長方形とテキストアンカーは同じ名前で対応づけられ、ハイパーリンクや相互参照の行き先として使えます。
 
-Creates a small anchored (inline) rectangle at the text cursor, plus a text anchor right before it.
+Creates a small non-printing anchored (custom) rectangle at the text cursor, plus a text anchor right before it.
 The rectangle and the text anchor share the same name and can serve as a target for hyperlinks and cross-references.
 Description-END
 SCRIPTMETA-END
@@ -22,7 +22,7 @@ SCRIPTMETA-END
 
 ### 概要
 
-カーソルを置いた位置に、アンカー付き（インライン）の小さな長方形と、その直前のテキストアンカーを作成します。
+カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。
 長方形とテキストアンカーは同じ名前で対応づけられ、ハイパーリンクや相互参照の行き先として使えます。
 
 詳細は README を参照してください。
@@ -30,7 +30,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInsertAnchore
 
 ### Overview
 
-Creates a small anchored (inline) rectangle at the text cursor, plus a text anchor right before it.
+Creates a small non-printing anchored (custom) rectangle at the text cursor, plus a text anchor right before it.
 The rectangle and the text anchor share the same name and can serve as a target for hyperlinks and cross-references.
 
 See the README for details.
@@ -42,7 +42,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInsertAnchore
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdInsertAnchoredRectangle";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
@@ -210,7 +210,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var anchorName = makeUniqueDestinationName(doc, ANCHOR_NAME_PREFIX);
         var rectangle = createRectangle(doc, page, anchorName);
 
-        rectangle.anchoredObjectSettings.insertAnchoredObject(insertionPoint, AnchorPosition.INLINE_POSITION);
+        rectangle.anchoredObjectSettings.insertAnchoredObject(insertionPoint, AnchorPosition.ANCHORED);
 
         /* アンカー化した長方形の親は、オブジェクト置換文字（Character）/ An anchored rectangle's parent is its object replacement Character */
         var anchorCharacter = rectangle.parent;
@@ -258,6 +258,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var rectangle = page.rectangles.add();
         rectangle.geometricBounds = [0, 0, RECT_HEIGHT, RECT_WIDTH];
         rectangle.strokeWeight = RECT_STROKE_WEIGHT;
+        /* 目印なのでプリント・書き出しには出さない / A marker only, so keep it out of print and export */
+        rectangle.nonprinting = true;
         var noneSwatch = doc.swatches.itemByName("None");
         if (noneSwatch.isValid) rectangle.fillColor = noneSwatch;
         /* テキストアンカーと同じ名前で追えるようにする / Lets the rectangle be matched with its text anchor by name */
