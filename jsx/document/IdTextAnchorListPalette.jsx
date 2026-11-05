@@ -7,14 +7,14 @@ Script-ID=com.swwwitch.indesign.IdTextAnchorListPalette
 Name=テキストアンカーを一覧して表示
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-11-06
 Description-BEGIN
 アクティブなドキュメントのテキストアンカーを、ページ・アンカー名・テキスト（アンカーのある段落）の3列で、常駐パレットにページ順に一覧します。
-パレットを開いたまま、ダブルクリックでそのアンカーのページを表示して段落のテキストを選択でき、［更新］で一覧を読み直せます。
+パレットを開いたまま、ダブルクリックでそのアンカーのページを表示して段落のテキストを選択できます。リストで選んだアンカーは［削除］で削除でき（複数選択可）、［更新］で一覧を読み直せます。
 
 Lists the text anchors in the active document in page order in a floating palette, with three columns: page, anchor name and text (the paragraph that holds the anchor).
-With the palette left open, double-click an anchor to show its page and select the paragraph text; Refresh reads the list again.
+With the palette left open, double-click an anchor to show its page and select the paragraph text. Delete removes the anchors chosen in the list (several can be chosen), and Refresh reads the list again.
 Description-END
 SCRIPTMETA-END
 */
@@ -24,7 +24,7 @@ SCRIPTMETA-END
 ### 概要
 
 アクティブなドキュメントのテキストアンカーを、ページ・アンカー名・テキスト（アンカーのある段落）の3列で、常駐パレットにページ順に一覧します。
-パレットを開いたまま、ダブルクリックでそのアンカーのページを表示して段落のテキストを選択でき、［更新］で一覧を読み直せます。
+パレットを開いたまま、ダブルクリックでそのアンカーのページを表示して段落のテキストを選択できます。リストで選んだアンカーは［削除］で削除でき（複数選択可）、［更新］で一覧を読み直せます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTextAnchorListPalette.md
@@ -35,7 +35,7 @@ https://note.com/dtp_tranist/n/n23fa2f14621f
 ### Overview
 
 Lists the text anchors in the active document in page order in a floating palette, with three columns: page, anchor name and text (the paragraph that holds the anchor).
-With the palette left open, double-click an anchor to show its page and select the paragraph text; Refresh reads the list again.
+With the palette left open, double-click an anchor to show its page and select the paragraph text. Delete removes the anchors chosen in the list (several can be chosen), and Refresh reads the list again.
 
 See the README for details.
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTextAnchorListPalette.md
@@ -46,7 +46,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTextAnchorLis
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTextAnchorListPalette";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
@@ -579,13 +579,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         },
         button: {
             refresh: { ja: "更新", en: "Refresh" },
+            remove:  { ja: "削除", en: "Delete" },
             show:    { ja: "表示", en: "Show" },
             close:   { ja: "閉じる", en: "Close" }
         },
         tooltip: {
             list: {
-                ja: "ダブルクリックすると、そのアンカーのページを表示してテキストを選択します。",
-                en: "Double-click to show the page of that anchor and select its text."
+                ja: "ダブルクリックすると、そのアンカーのページを表示してテキストを選択します。Shift・⌘キーを押しながらクリックすると、複数のアンカーを選べます。",
+                en: "Double-click to show the page of that anchor and select its text. Shift- or Command-click to choose several anchors."
             },
             refresh: {
                 ja: "アクティブなドキュメントのアンカーを読み直します。アンカーを追加・削除したときや、ドキュメントを切り替えたときに使います。",
@@ -594,7 +595,28 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             show: {
                 ja: "リストで選んだアンカーのページを表示し、アンカーのある段落のテキストを選択します。",
                 en: "Shows the page of the anchor chosen in the list and selects the text of the paragraph that holds it."
+            },
+            remove: {
+                ja: "リストで選んだアンカーを削除します。段落のテキストは残ります。",
+                en: "Deletes the anchors chosen in the list. The paragraph text stays."
             }
+        },
+        confirm: {
+            removeOne: {
+                ja: "テキストアンカー「%1」を削除しますか？",
+                en: "Delete the text anchor \"%1\"?"
+            },
+            removeMany: {
+                ja: "選択した%1件のテキストアンカーを削除しますか？",
+                en: "Delete the %1 selected text anchors?"
+            },
+            linkedReferences: {
+                ja: "参照しているハイパーリンク・相互参照が%1件あります。",
+                en: "Hyperlinks and cross-references that point here: %1"
+            }
+        },
+        undo: {
+            remove: { ja: "テキストアンカーを削除", en: "Delete Text Anchors" }
         },
         alert: {
             noDocument: { ja: "ドキュメントを開いてから実行してください。", en: "Open a document first." },
@@ -610,6 +632,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             showFailed: {
                 ja: "アンカーを表示できませんでした（オーバーセット、ロック・非表示のレイヤーなど）。",
                 en: "Could not show the anchor (overset text, locked or hidden layer, etc.)."
+            },
+            removeFailed: {
+                ja: "テキストアンカーを削除できませんでした。",
+                en: "Could not delete the text anchors."
             }
         },
         counter: {
@@ -917,15 +943,88 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     }
 
     /**
+     * 指定のアンカーを行き先にしているハイパーリンク・相互参照を数える
+     * @param {Document} doc - 一覧を作ったドキュメント
+     * @param {AnchorEntry[]} entries - 対象のアンカー
+     * @returns {number} 件数
+     */
+    function countLinkedReferences(doc, entries) {
+        var isTargetId = {};
+        for (var i = 0; i < entries.length; i++) {
+            isTargetId[entries[i].destination.id] = true;
+        }
+        var hyperlinks = doc.hyperlinks.everyItem().getElements();
+        var linkedCount = 0;
+        for (var j = 0; j < hyperlinks.length; j++) {
+            try {
+                var linkDestination = hyperlinks[j].destination;
+                if (linkDestination.constructor.name === "HyperlinkTextDestination" && isTargetId[linkDestination.id]) linkedCount++;
+            } catch (e) {
+                /* 行き先が切れているリンクは数えない / Links with a broken destination are not counted */
+            }
+        }
+        return linkedCount;
+    }
+
+    /**
+     * 削除の確認文を作る
+     * @param {AnchorEntry[]} entries - 対象のアンカー
+     * @param {number} linkedCount - 参照しているハイパーリンク・相互参照の件数
+     * @returns {string} 確認文
+     */
+    function buildRemoveMessage(entries, linkedCount) {
+        var message = (entries.length === 1)
+            ? getLabel(LABELS.confirm.removeOne, [entries[0].name])
+            : getLabel(LABELS.confirm.removeMany, [formatThousands(entries.length)]);
+        if (linkedCount > 0) message += "\n\n" + getLabel(LABELS.confirm.linkedReferences, [formatThousands(linkedCount)]);
+        return message;
+    }
+
+    /**
+     * 確認のうえ、アンカーを削除する（段落のテキストは残る。取り消しは1回で戻る）。
+     * 別のドキュメントのアンカーと取り違えないよう、一覧を作ったドキュメントをアクティブにしてから確認する
+     * @param {Document} doc - 一覧を作ったドキュメント
+     * @param {AnchorEntry[]} entries - 対象のアンカー
+     * @returns {boolean} 削除を試みたら true（一覧の読み直しが必要）。やめたときは false
+     */
+    function removeAnchors(doc, entries) {
+        if (!doc.isValid) {
+            alert(getLabel(LABELS.alert.closedDocument));
+            return false;
+        }
+        var targetEntries = [];
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i].destination.isValid) targetEntries.push(entries[i]);
+        }
+        if (targetEntries.length === 0) {
+            alert(getLabel(LABELS.alert.removedAnchor));
+            return false;
+        }
+        if (!isSameDocument(app.activeDocument, doc)) app.activeDocument = doc;
+        if (!confirm(buildRemoveMessage(targetEntries, countLinkedReferences(doc, targetEntries)), true)) return false;
+        try {
+            app.doScript(function () {
+                for (var j = 0; j < targetEntries.length; j++) {
+                    targetEntries[j].destination.remove();
+                }
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undo.remove));
+        } catch (e) {
+            alert(getLabel(LABELS.alert.removeFailed) + "\n" + e.message);
+        }
+        return true;
+    }
+
+    /**
      * リストの中身を一覧で入れ直す。選んでいたアンカーと同じ名前の行があれば選び直す
      * @param {ListBox} anchorList - リスト
      * @param {AnchorEntry[]} entries - アンカーの一覧
-     * @param {string|null} keepName - 選び直すアンカー名（無ければ先頭）
+     * @param {string|null} keepName - 選び直すアンカー名
+     * @param {number} [fallbackIndex] - keepName の行が無いときに選ぶ行（省略時は先頭。行数を超えたら末尾）
      * @returns {void}
      */
-    function fillAnchorList(anchorList, entries, keepName) {
+    function fillAnchorList(anchorList, entries, keepName, fallbackIndex) {
         anchorList.removeAll();
-        var selectIndex = 0;
+        var selectIndex = Math.min(fallbackIndex || 0, entries.length - 1);
         for (var i = 0; i < entries.length; i++) {
             var listItem = anchorList.add("item", entries[i].pageLabel);
             listItem.subItems[0].text = entries[i].name;
@@ -949,7 +1048,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         setupWindow(anchorPalette);
 
         var anchorList = anchorPalette.add("listbox", [0, 0, LIST_SIZE[0], LIST_SIZE[1]], "", {
-            multiselect: false,
+            multiselect: true,
             numberOfColumns: 3,
             showHeaders: true,
             columnTitles: [
@@ -966,22 +1065,56 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         var buttonRow = addButtonRow(anchorPalette);
         var btnRefresh = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.refresh));
         btnRefresh.helpTip = getLabel(LABELS.tooltip.refresh);
+        var btnRemove = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.remove));
+        btnRemove.helpTip = getLabel(LABELS.tooltip.remove);
         var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close));
         var btnShow = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.show));
         btnShow.helpTip = getLabel(LABELS.tooltip.show);
+
+        /**
+         * 選んでいる行を返す
+         * @returns {ListItem[]} 選んでいる行（無ければ空の配列）
+         */
+        function getSelectedRows() {
+            var selectedRows = anchorList.selection;
+            if (selectedRows === null) return [];
+            return (selectedRows instanceof Array) ? selectedRows : [selectedRows];
+        }
+
+        /**
+         * 選んでいる行の数に合わせてボタンを切り替える（［表示］は1行のときだけ）
+         * @returns {void}
+         */
+        function updateButtons() {
+            var selectedCount = getSelectedRows().length;
+            btnShow.enabled = (selectedCount === 1);
+            btnRemove.enabled = (selectedCount > 0);
+        }
+
+        /**
+         * アンカーを読み直してリストとタイトルを入れ直す
+         * @param {string|null} keepName - 選び直すアンカー名
+         * @param {number} [fallbackIndex] - keepName の行が無いときに選ぶ行
+         * @returns {void}
+         */
+        function reloadList(keepName, fallbackIndex) {
+            listedEntries = collectAnchors(listedDocument);
+            fillAnchorList(anchorList, listedEntries, keepName, fallbackIndex);
+            anchorPalette.text = buildPaletteTitle(listedEntries.length);
+            updateButtons();
+        }
 
         /**
          * 選んでいる行のアンカーを表示する（パレットは開いたまま）
          * @returns {void}
          */
         function showSelectedAnchor() {
-            if (anchorList.selection === null) return;
-            showAnchor(listedDocument, listedEntries[anchorList.selection.index]);
+            var selectedRows = getSelectedRows();
+            if (selectedRows.length !== 1) return;
+            showAnchor(listedDocument, listedEntries[selectedRows[0].index]);
         }
 
-        anchorList.onChange = function () {
-            btnShow.enabled = (anchorList.selection !== null);
-        };
+        anchorList.onChange = updateButtons;
         anchorList.onDoubleClick = showSelectedAnchor;
         btnShow.onClick = showSelectedAnchor;
         btnRefresh.onClick = function () {
@@ -989,14 +1122,24 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
                 alert(getLabel(LABELS.alert.noDocument));
                 return;
             }
-            var keepName = (anchorList.selection !== null && listedDocument.isValid && isSameDocument(listedDocument, app.activeDocument))
-                ? listedEntries[anchorList.selection.index].name
+            var selectedRows = getSelectedRows();
+            var keepName = (selectedRows.length > 0 && listedDocument.isValid && isSameDocument(listedDocument, app.activeDocument))
+                ? listedEntries[selectedRows[0].index].name
                 : null;
             listedDocument = app.activeDocument;
-            listedEntries = collectAnchors(listedDocument);
-            fillAnchorList(anchorList, listedEntries, keepName);
-            anchorPalette.text = buildPaletteTitle(listedEntries.length);
-            btnShow.enabled = (anchorList.selection !== null);
+            reloadList(keepName);
+        };
+        btnRemove.onClick = function () {
+            var selectedRows = getSelectedRows();
+            var selectedEntries = [];
+            var firstIndex = listedEntries.length;
+            for (var i = 0; i < selectedRows.length; i++) {
+                selectedEntries.push(listedEntries[selectedRows[i].index]);
+                firstIndex = Math.min(firstIndex, selectedRows[i].index);
+            }
+            if (selectedEntries.length === 0) return;
+            /* 削除した行の位置に残った次の行を選ぶ / Choose the row that moved up into the deleted position */
+            if (removeAnchors(listedDocument, selectedEntries)) reloadList(null, firstIndex);
         };
         btnClose.onClick = function () {
             anchorPalette.close();
@@ -1014,7 +1157,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             $.global[PALETTE_GLOBAL_KEY] = null;
         };
 
-        btnShow.enabled = (anchorList.selection !== null);
+        updateButtons();
         addVersionFooter(anchorPalette);
         return anchorPalette;
     }
