@@ -264,9 +264,9 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdCharacterWidth
 
 詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCharacterWidthConverter.md)／[note記事](https://note.com/dtp_tranist/n/nf9d7245b0653)
 
-### キーワードの件数をパレットで数える
+### キーワードの件数を数えて表記の揺れを統一
 
-最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを、常駐パレットで数えます。
+最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを常駐パレットで数え、該当箇所を一覧しながら表記の揺れを統一します。
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdCountKeywordPalette.jsx
 

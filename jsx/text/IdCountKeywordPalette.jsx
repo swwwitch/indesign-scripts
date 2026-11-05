@@ -4,15 +4,15 @@
 /*
 SCRIPTMETA-BEGIN
 Script-ID=com.swwwitch.indesign.IdCountKeywordPalette
-Name=キーワードの件数をパレットで数える
+Name=キーワードの件数を数えて表記の揺れを統一
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-11-05
 Description-BEGIN
-最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを、常駐パレットで数えます。
+最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを常駐パレットで数え、該当箇所を一覧しながら表記の揺れを統一します。
 
-A floating palette that counts how many times each of up to five keywords appears in the selected stories or in the whole document.
+A floating palette that counts how many times each of up to five keywords appears in the selected stories or in the whole document, lists where they are, and unifies spelling variants.
 Description-END
 SCRIPTMETA-END
 */
@@ -21,14 +21,14 @@ SCRIPTMETA-END
 
 ### 概要
 
-最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを、常駐パレットで数えます。
+最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを常駐パレットで数え、該当箇所を一覧しながら表記の揺れを統一します。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCountKeywordPalette.md
 
 ### Overview
 
-A floating palette that counts how many times each of up to five keywords appears in the selected stories or in the whole document.
+A floating palette that counts how many times each of up to five keywords appears in the selected stories or in the whole document, lists where they are, and unifies spelling variants.
 
 See the README for details.
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCountKeywordPalette.md
@@ -39,12 +39,12 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCountKeywordP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCountKeywordPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
 
-var SCRIPT_DESCRIPTION_JA = "キーワードの件数をパレットで数える"; /* README の見出し / README title (Japanese) */
+var SCRIPT_DESCRIPTION_JA = "キーワードの件数を数えて表記の揺れを統一"; /* README の見出し / README title (Japanese) */
 
 var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCountKeywordPalette.md"; /* README（日本語） */
 var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCountKeywordPalette.md"; /* README (English) */
@@ -63,8 +63,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     var KEYWORD_FIELD_COUNT = 5;
 
     /* 一覧に出す前後の文字数の初期値と上限 / Default and maximum number of characters shown around each match */
-    var DEFAULT_CONTEXT_LENGTH = 2;
-    var MAX_CONTEXT_LENGTH = 50;
+    var DEFAULT_CONTEXT_LENGTH = 3;
+    var MAX_CONTEXT_LENGTH = 20;
+
+    /* 一覧で選んだ文字を表示するときの表示倍率（％）の初期値と、スライダーの範囲
+       / Default zoom (%) used to show the picked text, and the slider range */
+    var DEFAULT_ZOOM_PERCENT = 200;
+    var MIN_ZOOM_PERCENT = 50;
+    var MAX_ZOOM_PERCENT = 800;
+    var ZOOM_STEP_PERCENT = 10; /* スライダーの値をこの単位に丸める / the slider value snaps to this step */
 
     /* 一覧に出す件数の上限（多すぎると一覧の作成に時間がかかる）/ Maximum rows in the match list (large lists are slow to build) */
     var MAX_LIST_ITEMS = 500;
@@ -177,13 +184,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         },
         fieldLabel: {
             total: { ja: "合計", en: "Total" },
-            contextLength: { ja: "前後の文字数", en: "Characters Around" }
+            contextLength: { ja: "前後の文字数", en: "Characters Around" },
+            zoom: { ja: "表示倍率", en: "Zoom" },
+            replaceWith: { ja: "置換後", en: "Replace with" }
         },
         panel: {
             keywords: { ja: "キーワード", en: "Keywords" },
             scope: { ja: "対象", en: "Scope" },
             options: { ja: "オプション", en: "Options" },
-            matches: { ja: "見つかった場所", en: "Matches" }
+            matches: { ja: "該当箇所", en: "Matches" }
         },
         column: {
             page: { ja: "ページ", en: "Page" },
@@ -197,12 +206,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             caseSensitive: { ja: "大文字と小文字を区別", en: "Case Sensitive" },
             wholeWord: { ja: "単語単位", en: "Whole Word" },
             masterPages: { ja: "親ページを含む", en: "Include Parent Pages" },
-            excludeContained: { ja: "ほかのキーワードに含まれる分は数えない", en: "Skip matches inside other keywords" }
+            excludeToc: { ja: "目次内は除外", en: "Skip Tables of Contents" },
+            excludeContained: { ja: "ほかのキーワードに含まれる分は数えない", en: "Skip matches inside other keywords" },
+            hideStandalone: { ja: "前後が改行のものは表示しない", en: "Hide matches next to line breaks" },
+            bracketMatch: { ja: "【】を付ける", en: "Mark with 【】" }
         },
         tooltip: {
             story: { ja: "［数える］を押した時点で選択している文字やテキストフレームを含むストーリー（表・脚注を含む）で数えます。", en: "Counts in the stories that contain the text or text frames selected when you click Count, including tables and footnotes." },
             document: { ja: "作業中のドキュメント内のすべてのテキストで数えます。", en: "Counts in all text in the active document." },
             masterPages: { ja: "ドキュメントを対象にしたとき、親ページのテキストも数えます。", en: "Also counts text on parent pages when the scope is the document." },
+            excludeToc: { ja: "［目次の作成］で作った目次のストーリーにあるものは数えません。", en: "Does not count matches in table-of-contents stories made with Table of Contents." },
             excludeContained: {
                 ja: "「取引」と「取引き」のように、長いキーワードの一部として見つかった分を短いキーワードの件数から除きます。",
                 en: "When a keyword is found as part of a longer keyword (e.g. \"deal\" inside \"dealer\"), it is not counted for the shorter one."
@@ -210,35 +223,59 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             useSelection: { ja: "選択している文字を、最後に入力したキーワード欄（空いていれば最初の空欄）に入れます。", en: "Puts the selected text into the keyword field you last typed in, or the first empty one." },
             keyword: { ja: "return キーでも数えます。", en: "Press Return to count." },
             contextLength: { ja: "見つかった文字の前後に表示する文字数", en: "Number of characters shown before and after each match" },
-            matchList: { ja: "クリックすると、その文字を選択して表示します。", en: "Click to select and show the text." },
-            /* ステップボタン用 / for the stepper */
-            stepUp: {
-                ja: "値を増やす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
-                en: "Increase (Shift-click to snap to 10s, Option-click by 0.1)"
+            matchList: {
+                ja: "クリックでその文字を選択して表示し、［置換後］に入れます。ダブルクリックで除外する／しないを切り替えます（チェックなし＝除外）。",
+                en: "Click to select and show the text and put it in Replace with. Double-click to exclude or include the row (unchecked = excluded)."
             },
-            stepDown: {
-                ja: "値を減らす（shift＋クリックで10の倍数へ、option＋クリックで0.1ずつ）",
-                en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
+            exclude: {
+                ja: "一覧で選んだ行を除外します。除外した行はチェックが外れ、件数と［統一する］の対象から外れます。除外した行を選んで押すと元に戻します（行のダブルクリックでも切り替え）。",
+                en: "Excludes the selected row: it is unchecked and left out of the counts and of Unify. Select an excluded row and click again to include it (or double-click the row)."
             },
-            stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
-            stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+            hideStandalone: {
+                ja: "見つかった文字の直前か直後が改行（段落の改行・強制改行・各種区切り、またはストーリー・セルの先頭・末尾）のものを一覧に出さず、［統一する］でも置き換えません。件数には含みます。",
+                en: "Leaves out matches right after or before a line break (a return, forced line break or break character, or the start or end of a story or cell) from the list and from Unify. They are still counted."
+            },
+            zoom: { ja: "一覧で選んだ文字を、この表示倍率で表示します。", en: "The text picked in the list is shown at this zoom." },
+            bracketMatch: { ja: "一覧で、見つかった文字を【】で囲んで前後の文字列と見分けやすくします。", en: "Wraps each match in 【】 in the list to set it apart from the surrounding text." },
+            unifyTarget: { ja: "統一先にするキーワード。［統一する］で、ほかの欄で見つかった文字をこのキーワードに置き換えます。", en: "The keyword to unify to. Unify replaces the matches of the other fields with this keyword." },
+            unify: { ja: "チェックの付いた行を、統一先のキーワードに置き換えます（1回の取り消しで戻せます）。", en: "Replaces the checked rows with the unify target (undoable in one step)." },
+            replaceWith: { ja: "一覧で選んだ文字を、この文字に置き換えます。", en: "The text that replaces the match picked in the list." },
+            apply: { ja: "一覧で選んだ1か所を、［置換後］の文字に置き換えます。", en: "Replaces the match picked in the list with the Replace with text." }
         },
         button: {
             useSelection: { ja: "選択文字を入れる", en: "Use Selection" },
             close: { ja: "閉じる", en: "Close" },
-            count: { ja: "数える", en: "Count" }
+            count: { ja: "数える", en: "Count" },
+            unify: { ja: "統一する", en: "Unify" },
+            exclude: { ja: "除外する", en: "Exclude" },
+            include: { ja: "除外を解除", en: "Include" },
+            apply: { ja: "適用", en: "Apply" }
         },
         status: {
             initial: { ja: "-", en: "-" },
             count: { ja: "{count} 件", en: "{count}" },
             total: { ja: "{count} 件（{scope}）", en: "{count} ({scope})" },
+            totalWithExcluded: { ja: "{count} 件（{scope}、除外 {excluded} 件）", en: "{count} ({scope}, {excluded} excluded)" },
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             noStory: { ja: "テキストを選択してください。", en: "Please select text." },
             failed: { ja: "数えられませんでした: {message}", en: "Could not count: {message}" },
             truncated: { ja: "{total} 件のうち先頭の {shown} 件を表示", en: "Showing the first {shown} of {total}" },
             overset: { ja: "オーバーセット", en: "Overset" },
             pasteboard: { ja: "ペーストボード", en: "Pasteboard" },
-            unavailable: { ja: "（参照できません）", en: "(unavailable)" }
+            unavailable: { ja: "（参照できません）", en: "(unavailable)" },
+            hidden: { ja: "前後が改行の {count} 件は非表示", en: "{count} hidden (between line breaks)" },
+            stale: { ja: "キーワードか設定が変わりました。［数える］で数え直してください。", en: "Keywords or settings changed. Click Count again." },
+            unified: { ja: "{count} 件を「{target}」に置き換えました", en: "Replaced {count} with \"{target}\"" },
+            applied: { ja: "「{before}」を「{after}」に置き換えました", en: "Replaced \"{before}\" with \"{after}\"" },
+            skipped: { ja: "{count} 件は文字が変わっていたため置き換えませんでした", en: "{count} skipped because the text had changed" },
+            nothingToUnify: { ja: "置き換える文字がありません", en: "Nothing to replace" }
+        },
+        alert: {
+            confirmUnify: { ja: "{count} 件を「{target}」に置き換えますか？", en: "Replace {count} matches with \"{target}\"?" }
+        },
+        undo: {
+            unify: { ja: "表記を統一", en: "Unify Spelling" },
+            apply: { ja: "表記を置換", en: "Replace Spelling" }
         }
     };
 
@@ -398,590 +435,56 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
     // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
+    // バージョン表示（再利用パーツ） / Version footer (reusable)
+
+    var VERSION_FOOTER_TOP_MARGIN = 4;    /* バージョンの行の上に足す余白（px。ウィンドウの間隔に足す）/ extra space above the version row, added to the window spacing */
+    var VERSION_FOOTER_BOTTOM_MARGIN = 8; /* バージョンの行の下の余白（px。ウィンドウの下余白をこの値にする）/ space below the version row (replaces the window's bottom margin) */
+
+    /**
+     * ウィンドウの下端にバージョン（SCRIPT_VERSION）を薄く入れる。部品をすべて足したあと、show() の直前に呼ぶ。
+     * 直前の行（ボタン行など）の下余白を 0 にし、ウィンドウの下余白を VERSION_FOOTER_BOTTOM_MARGIN にする。
+     * 文字サイズは変えられない（InDesign の ScriptUI は無視する）ので、無効にしてディム表示の薄さにする
+     * @param {Window} targetWindow - ダイアログまたはパレット（縦並び）
+     * @returns {StaticText|null} バージョンの文字。すでに足してあれば null
+     */
+    function addVersionFooter(targetWindow) {
+        if (targetWindow.versionFooter) return null;
+
+        /* ボタン行の下余白（BUTTON_ROW_BOTTOM_MARGIN）は、この行が引き受ける / this row takes over the button row's bottom margin */
+        var lastChild = targetWindow.children[targetWindow.children.length - 1];
+        if (lastChild && lastChild.type === "group") {
+            var rowMargins = lastChild.margins;
+            lastChild.margins = [rowMargins[0], rowMargins[1], rowMargins[2], 0];
+        }
+        var windowMargins = targetWindow.margins;
+        targetWindow.margins = [windowMargins[0], windowMargins[1], windowMargins[2], VERSION_FOOTER_BOTTOM_MARGIN];
+
+        var footerGroup = targetWindow.add("group");
+        footerGroup.orientation = "row";
+        footerGroup.alignment = ["fill", "bottom"];
+        footerGroup.alignChildren = ["left", "center"];
+        footerGroup.margins = [0, VERSION_FOOTER_TOP_MARGIN, 0, 0];
+        var versionText = footerGroup.add("statictext", undefined, SCRIPT_VERSION);
+        versionText.enabled = false;
+        targetWindow.versionFooter = versionText;
+        return versionText;
+    }
+
+    // バージョン表示（再利用パーツ）ここまで / End of the reusable version footer
+
     /* コントロールの寸法 / Control sizes */
-    var KEYWORD_FIELD_WIDTH = 200;          /* キーワード欄の幅（px）/ width of a keyword field */
+    var KEYWORD_FIELD_WIDTH = 150;          /* キーワード欄の幅（px）/ width of a keyword field */
     var COUNT_TEXT_WIDTH = 70;              /* 欄の右に出す件数の幅（px）/ width of the count next to each field */
-    var MATCH_LIST_WIDTH = 380;             /* 見つかった場所の一覧の幅（px）/ width of the match list */
+    var MATCH_LIST_WIDTH = 380;             /* 該当箇所の一覧の幅（px）/ width of the match list */
     var MATCH_LIST_MIN_HEIGHT = 200;        /* 一覧の最小の高さ（px。左のカラムに合わせて伸びる）/ minimum list height; it grows to the left column */
     var MATCH_LIST_PAGE_COLUMN_WIDTH = 90;  /* 一覧のページ列の幅（px）/ width of the page column */
-
-    // UI の明暗（再利用パーツ） / UI theme (reusable)
-
-    /**
-     * UI がダークテーマかどうかを判定する（Illustrator は uiBrightness、InDesign は uiBrightnessPreference）
-     * @returns {boolean} ダークなら true。取得できない環境では false（明るいUI扱い）
-     */
-    function isDarkUI() {
-        try {
-            if (app.preferences && app.preferences.getRealPreference) {
-                return app.preferences.getRealPreference("uiBrightness") <= 0.5; /* Illustrator */
-            }
-            return app.generalPreferences.uiBrightnessPreference <= 0.5; /* InDesign */
-        } catch (e) {
-            return false;
-        }
-    }
-
-    // UI の明暗（再利用パーツ）ここまで / End of the reusable UI theme
-
-    // ステップボタン（再利用パーツ） / Stepper buttons (reusable)
-
-    // -----------------------------------------
-    // ステップボタンの寸法・増減量 / Stepper metrics and steps
-    // -----------------------------------------
-    var STEPPER_BUTTON_WIDTH   = 20;  /* ∧∨ボタンの幅 / button width */
-    var STEPPER_BUTTON_HEIGHT  = 11;  /* ∧∨ボタン1つの高さ（2つ重ねた全体の高さは22） / button height (22 for the pair) */
-    var STEPPER_CORNER_RADIUS  = 2;   /* 枠の角丸の半径（ScriptUIは円弧を描けないため短い線分で近似） / corner radius, approximated with segments */
-    var STEPPER_FIELD_SPACING  = 3;   /* 項目名と∧∨の間隔 / spacing between the label and the stepper */
-    var STEPPER_SIDE_MARGIN    = 3;   /* ∧∨の左に足す余白（右は入力欄に突き合わせる） / extra space left of the stepper */
-    var STEPPER_SHIFT_MULTIPLE = 10;  /* shift＋クリックでそろえる倍数 / Shift-click snaps to multiples of this */
-    var STEPPER_OPTION_STEP    = 0.1; /* option＋クリックの増減量 / Option-click step */
-
-    /* 単位の換算は UnitValue に任せる（in / ft / yd / mm / cm / m / pt / pc / px ほか、単数形・複数形も可）。
-       UnitValue に無い単位だけ、ここで UnitValue の単位に読み替える（値は「1単位＝何 unit か」）。
-       「p」は「1p6」（1パイカ6ポイント）の形にも使う
-       Units UnitValue lacks, mapped onto UnitValue units (how many of `unit` make one) */
-    var STEPPER_UNIT_ALIASES = {
-        "q": { unit: "mm", amount: 0.25 },    /* 級 / Q */
-        "h": { unit: "mm", amount: 0.25 },    /* 歯 / H */
-        "p": { unit: "pc", amount: 1 },       /* パイカ / pica */
-        "ft/in": { unit: "ft", amount: 1 },   /* Illustrator の単位コード7の表示 / Illustrator unit code 7 */
-        "c": { unit: "ci", amount: 1 },       /* シセロ（InDesign の表示） / ciceros as InDesign shows them */
-        "ag": { unit: "in", amount: 1 / 14 }, /* アゲート / agates */
-        "ap": { unit: "tpt", amount: 1 }      /* アメリカンポイント / American points */
-    };
-
-    // -----------------------------------------
-    // ステップボタンの配色 / Stepper colors
-    // -----------------------------------------
-    var STEPPER_UI_DARK           = isDarkUI();
-    /* UIの明るさは4段階あり、段階ごとに背景色が違う。どの段階でも背景に対する差で見せるよう、黒・白の半透明を重ねる。
-       ダーク側は Illustrator 標準のスピナー（［グリッドに分割］）で実測、明るい側は最も明るい段階（背景 約0.94）から逆算
-       UI brightness has four levels with different backgrounds, so colors are translucent overlays that follow the
-       dialog background. Dark values are measured from Illustrator's own spinner; light values derived for the lightest level */
-    var STEPPER_FILL_COLOR        = STEPPER_UI_DARK ? [0, 0, 0, 0.10]  : [1, 1, 1, 0.50];  /* 地 / background */
-    var STEPPER_FRAME_COLOR       = STEPPER_UI_DARK ? [1, 1, 1, 0.07]  : [0, 0, 0, 0.10];  /* 枠線 / frame */
-    var STEPPER_PRESSED_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 0.12]  : [0, 0, 0, 0.13];  /* 押下中 / pressed */
-    var STEPPER_CHEVRON_COLOR     = STEPPER_UI_DARK ? [1, 1, 1, 1]     : [0, 0, 0, 0.70];  /* 山形の線 / chevron */
-    var STEPPER_DIM_FILL_COLOR    = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [1, 1, 1, 0.30];  /* 無効時の地 / background when disabled */
-    var STEPPER_DIM_FRAME_COLOR   = STEPPER_UI_DARK ? [1, 1, 1, 0.035] : [0, 0, 0, 0.05];  /* 無効時の枠線（ダークは地と同じで見せない） / frame when disabled */
-    var STEPPER_DIM_CHEVRON_COLOR = STEPPER_UI_DARK ? [1, 1, 1, 0.20]  : [0, 0, 0, 0.25];  /* 無効時の山形 / chevron when disabled */
-
-    // -----------------------------------------
-    // 数値欄を作る（外から呼ぶ関数） / Public API
-    // -----------------------------------------
-    /**
-     * 「項目名・∧∨・入力欄」をひと組にした数値欄を追加する。
-     * ↑↓キーでも∧∨と同じように増減する。直接入力した値も、フォーカスが外れたときに
-     * 整数化・下限・上限・単位（「20 mm」の形）へそろえ、数値でなければ直前の値に戻す。
-     * 四則演算（+ - * / と括弧）を入れると、確定時に計算した値にする。欄と異なる単位で入れた値は欄の単位へ換算する（mm の欄に「1 in」→「25.4 mm」）
-     * @param {Group|Panel} parent - 追加先
-     * @param {Object} fieldOptions - label（コロン込みの項目名）/ labelWidth / text / characters /
-     *     step / min / max / integer（true で整数のみ）/ unit / onStep
-     * @returns {EditText} 入力欄（項目名は .fieldLabel、∧∨は .stepperGroup で参照できる）
-     */
-    function addSteppedField(parent, fieldOptions) {
-        var fieldRowGroup = parent.add("group");
-        fieldRowGroup.orientation = "row";
-        fieldRowGroup.alignChildren = ["left", "center"];
-        fieldRowGroup.spacing = STEPPER_FIELD_SPACING;
-
-        var fieldLabel = fieldRowGroup.add("statictext", undefined, fieldOptions.label || "");
-        if (fieldOptions.labelWidth) {
-            fieldLabel.preferredSize.width = fieldOptions.labelWidth;
-            fieldLabel.justify = "right";
-        }
-
-        /* ∧∨と入力欄は隙間0で突き合わせる / butt the stepper against the field */
-        var stepperInputGroup = fieldRowGroup.add("group");
-        stepperInputGroup.orientation = "row";
-        stepperInputGroup.alignChildren = ["left", "center"];
-        stepperInputGroup.spacing = 0;
-        stepperInputGroup.margins = 0;
-
-        var numberInput;
-        var stepperGroup = addStepper(stepperInputGroup, function () { return numberInput; }, fieldOptions);
-        numberInput = stepperInputGroup.add("edittext", undefined, fieldOptions.text || "");
-        numberInput.characters = fieldOptions.characters || 6;
-        numberInput.fieldLabel = fieldLabel;
-        numberInput.stepperGroup = stepperGroup;
-
-        /* ↑↓キーも∧∨と同じ処理で増減する（増減量・下限・上限・単位・修飾キーをそろえる） / arrow keys share the stepper's logic */
-        bindSteppedArrowKeys(numberInput, stepperGroup);
-
-        /* 直接入力をそろえる。計算式は計算し、数値でなければ直前の値に戻す / normalize typed values; evaluate arithmetic, revert non-numbers */
-        numberInput.lastValidText = numberInput.text;
-        numberInput.onChange = function () {
-            var value = evaluateArithmetic(numberInput.text, fieldOptions.unit);
-            if (isNaN(value)) {
-                numberInput.text = numberInput.lastValidText;
-                return;
-            }
-            writeSteppedValue(numberInput, value, fieldOptions);
-        };
-        return numberInput;
-    }
-
-    /**
-     * 数値欄の有効／無効を、項目名・∧∨ごとまとめて切り替える
-     * @param {EditText} numberInput - addSteppedField() で作った入力欄
-     * @param {boolean} isEnabled - 有効にするなら true
-     * @returns {void}
-     */
-    function setSteppedFieldEnabled(numberInput, isEnabled) {
-        numberInput.enabled = isEnabled;
-        numberInput.fieldLabel.enabled = isEnabled;
-        numberInput.stepperGroup.enabled = isEnabled;
-        /* ∧∨は自作描画なので、描き直してディム表示を切り替える / redraw the custom-drawn buttons to update the dimming */
-        for (var i = 0; i < numberInput.stepperGroup.children.length; i++) {
-            redrawStepperGroup(numberInput.stepperGroup.children[i]);
-        }
-    }
-
-    /**
-     * 数値欄の単位を差し替える（単位の設定やドロップダウンを切り替えたとき用）。
-     * shouldConvert が true なら値を新しい単位へ換算し（10 mm → 28.35 pt）、false なら数値はそのままで単位だけ付け替える
-     * @param {EditText} numberInput - addSteppedField() で作った入力欄、または bindSteppedArrowKeys() を呼んだ入力欄
-     * @param {string} unit - 新しい単位（例 " pt"。単位なしは ""）
-     * @param {boolean} [shouldConvert] - 値も換算するなら true
-     * @returns {void}
-     */
-    function setSteppedFieldUnit(numberInput, unit, shouldConvert) {
-        var stepOptions = numberInput.stepperGroup.stepOptions;
-        var oldUnit = stepOptions.unit || "";
-        var value = parseFloat(numberInput.text);
-        stepOptions.unit = unit;
-        if (isNaN(value)) return;
-        if (shouldConvert) {
-            var converted = evaluateArithmetic(String(value) + oldUnit, unit);
-            if (!isNaN(converted)) value = converted;
-        }
-        numberInput.text = formatStepperNumber(value) + unit;
-        numberInput.lastValidText = numberInput.text;
-    }
-
-    /**
-     * 入力欄の値を増減する∧∨ボタンを、隙間なく縦に積んで追加する
-     * @param {Group|Panel} parent - 追加先
-     * @param {Function} getNumberInput - 対象の入力欄を返す関数（入力欄を∧∨より後に作れるよう、クリック時に引く）
-     * @param {Object} stepOptions - step（増減量）/ min / max / integer / unit（例 " mm"）/ onStep(numberInput)
-     * @returns {Group} ∧∨をまとめた group（.stepBy(direction) で同じ増減を呼べる）
-     */
-    function addStepper(parent, getNumberInput, stepOptions) {
-        var stepperGroup = parent.add("group");
-        stepperGroup.orientation = "column";
-        stepperGroup.spacing = 0; /* 2つのボタンをつなげて1つの枠に見せる / join the buttons into one frame */
-        stepperGroup.margins = [STEPPER_SIDE_MARGIN, 0, 0, 0]; /* 右は入力欄に突き合わせる / butt against the field on the right */
-        stepperGroup.alignment = ["left", "center"];
-
-        /**
-         * 入力欄の値を増減する（shift を押しながらなら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ。下限・上限で止める）
-         * @param {number} direction - 増やすなら 1、減らすなら -1
-         * @returns {void}
-         */
-        function stepBy(direction) {
-            var numberInput = getNumberInput();
-            if (!isStepperEnabledInTree(numberInput)) return; /* 入力欄か親が無効の間は動かさない */
-            var value = evaluateArithmetic(numberInput.text, stepOptions.unit); /* 確定前の計算式も計算してから増減 / evaluate an uncommitted expression first */
-            if (isNaN(value)) value = parseFloat(numberInput.text); /* 計算できなければ従来どおり先頭の数値 / fall back to the leading number */
-            if (isNaN(value)) value = 0;
-            writeSteppedValue(numberInput, computeSteppedValue(value, direction, stepOptions), stepOptions);
-            if (stepOptions.onStep) stepOptions.onStep(numberInput);
-        }
-
-        /* 整数の欄では option＋クリックの0.1刻みが効かないので、説明から外す / integer fields have no 0.1 step */
-        var upTooltip = stepOptions.integer ? LABELS.tooltip.stepUpInteger : LABELS.tooltip.stepUp;
-        var downTooltip = stepOptions.integer ? LABELS.tooltip.stepDownInteger : LABELS.tooltip.stepDown;
-        makeStepperChevronButton(stepperGroup, "up", function () { stepBy(1); }).helpTip = getLabel(upTooltip);
-        makeStepperChevronButton(stepperGroup, "down", function () { stepBy(-1); }).helpTip = getLabel(downTooltip);
-        stepperGroup.stepBy = stepBy; /* ↑↓キーからも同じ処理で増減できるよう公開 / shared with the arrow keys */
-        stepperGroup.stepOptions = stepOptions; /* 確定時の計算で欄の単位を引けるよう公開 / lets the commit-time evaluation find the unit */
-        return stepperGroup;
-    }
-
-    /**
-     * 入力欄の↑↓キーを、∧∨と同じ処理で増減させる。ほかのキーは素通し。
-     * あわせて、確定時に計算式・単位付きの値を計算して書き戻す（各スクリプトの onChange より先に呼ばれるので、onChange は計算後の値を読む）
-     * @param {EditText} numberInput - 対象の入力欄
-     * @param {Group} stepperGroup - addStepper() で作った∧∨
-     * @returns {void}
-     */
-    function bindSteppedArrowKeys(numberInput, stepperGroup) {
-        numberInput.addEventListener("keydown", function (event) {
-            if (event.keyName !== "Up" && event.keyName !== "Down") return;
-            stepperGroup.stepBy(event.keyName === "Up" ? 1 : -1);
-            event.preventDefault(); /* カーソル移動を止める / keep the caret from moving */
-        });
-        numberInput.addEventListener("change", function () {
-            var fieldUnit = stepperGroup.stepOptions ? stepperGroup.stepOptions.unit : undefined;
-            var value = evaluateArithmetic(numberInput.text, fieldUnit);
-            if (isNaN(value)) return; /* 計算できなければ各スクリプトの処理に任せる / leave it to the script's own handler */
-            /* 式か、換算で値が変わったときだけ書き戻す（ただの数値は書式を崩さない） / rewrite only expressions and converted values */
-            var hasOperator = /[*\/()\u00D7\u00F7\uFF0A\uFF0F\uFF08\uFF09]|[\d.\uFF10-\uFF19][^\d.\uFF10-\uFF19]*[+\-\u2212\uFF0B\uFF0D]/.test(numberInput.text);
-            if (!hasOperator && value === parseFloat(numberInput.text)) {
-                /* 単位を省いて入れた数値には、欄の単位だけ付け足す（桁は丸めない） / append the field unit to a bare number */
-                var trimmedText = numberInput.text.replace(/^\s+|\s+$/g, "");
-                if (fieldUnit && /[\d.]$/.test(trimmedText)) numberInput.text = trimmedText + fieldUnit;
-                return;
-            }
-            numberInput.text = formatStepperNumber(value) + (fieldUnit || "");
-        });
-        numberInput.stepperGroup = stepperGroup; /* setSteppedFieldUnit() から∧∨の設定を引けるようにする / lets setSteppedFieldUnit() find the options */
-    }
-
-    // -----------------------------------------
-    // 値の計算 / Value helpers
-    // -----------------------------------------
-    /**
-     * 押された修飾キーに応じて、1回分増減した値を返す
-     * （shift なら STEPPER_SHIFT_MULTIPLE の倍数へ、option なら STEPPER_OPTION_STEP ずつ、それ以外は step の倍数へ（1.5→2、1.5→1）。
-     * 整数の欄では option を無視して step の倍数へ）
-     * @param {number} value - 元の値
-     * @param {number} direction - 増やすなら 1、減らすなら -1
-     * @param {Object} stepOptions - step（通常の増減量。省略時は 1）/ integer
-     * @returns {number} 増減した値（下限・上限は未適用）
-     */
-    function computeSteppedValue(value, direction, stepOptions) {
-        var keyState = ScriptUI.environment.keyboardState;
-        if (keyState.shiftKey) return snapStepperToNextMultiple(value, STEPPER_SHIFT_MULTIPLE, direction);
-        if (keyState.altKey && !stepOptions.integer) return value + direction * STEPPER_OPTION_STEP;
-        return snapStepperToNextMultiple(value, stepOptions.step || 1, direction);
-    }
-
-    /**
-     * 値を、指定した方向にある次の倍数へ移す（230→240、232→240、下げるときは 232→230、230→220）
-     * @param {number} value - 元の値
-     * @param {number} multiple - 倍数の単位（例 10）
-     * @param {number} direction - 上げるなら 1、下げるなら -1
-     * @returns {number} 移した値
-     */
-    function snapStepperToNextMultiple(value, multiple, direction) {
-        /* 0.29 / 0.01 = 28.999… のような浮動小数の誤差で同じ値に戻らないよう、商を丸めてから切り捨て・切り上げる
-           round the quotient first so float error (0.29 / 0.01 = 28.999…) does not step back to the same value */
-        var quotient = Math.round(value / multiple * 1e6) / 1e6;
-        if (direction > 0) return Math.round((Math.floor(quotient) + 1) * multiple * 1e6) / 1e6;
-        return Math.round((Math.ceil(quotient) - 1) * multiple * 1e6) / 1e6;
-    }
-
-    /**
-     * 値を下限・上限の範囲に収める
-     * @param {number} value - 数値
-     * @param {Object} rangeOptions - min / max（どちらも省略可）
-     * @returns {number} 範囲に収めた値
-     */
-    function clampSteppedValue(value, rangeOptions) {
-        if (rangeOptions.min !== undefined && value < rangeOptions.min) return rangeOptions.min;
-        if (rangeOptions.max !== undefined && value > rangeOptions.max) return rangeOptions.max;
-        return value;
-    }
-
-    /**
-     * 入力欄の文字列を四則演算（+ - * / と括弧）として計算する。eval は使わない。
-     * 数値の後ろの単位は UnitValue で欄の単位へ換算する（mm の欄に「1in」→ 25.4、「1p6」は1パイカ6ポイント）。単位のない数値は欄の単位とみなす。
-     * 全角の数字・記号と × ÷ は半角に直す
-     * @param {string} text - 入力欄の文字列
-     * @param {string} [fieldUnit] - 欄の単位（例 " mm"。前後の空白は無視）
-     * @returns {number} 欄の単位での計算結果（式として読めない・換算できない単位・0で割ったときは NaN）
-     */
-    function evaluateArithmetic(text, fieldUnit) {
-        var source = String(text)
-            .replace(/[！-～]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); })
-            .replace(/×/g, "*")
-            .replace(/÷/g, "/")
-            .replace(/[−–—]/g, "-")
-            .replace(/\s/g, "");
-        if (source === "") return NaN;
-        var fieldUnitKey = String(fieldUnit || "").replace(/^\s+|\s+$/g, "").toLowerCase();
-        var fieldUnitValue = createStepperUnitValue(1, fieldUnitKey); /* 欄の単位の1単位（換算できない欄は null） / one field unit */
-        var position = 0;
-
-        /**
-         * 加減算の並び（項 ± 項 …）を読む
-         * @returns {number} 値（読めなければ NaN）
-         */
-        function readSum() {
-            var total = readProduct();
-            while (position < source.length && (source.charAt(position) === "+" || source.charAt(position) === "-")) {
-                var operator = source.charAt(position++);
-                var operand = readProduct();
-                total = (operator === "+") ? total + operand : total - operand;
-            }
-            return total;
-        }
-
-        /**
-         * 乗除算の並び（因子 × 因子 …）を読む
-         * @returns {number} 値（読めなければ NaN）
-         */
-        function readProduct() {
-            var total = readFactor();
-            while (position < source.length && (source.charAt(position) === "*" || source.charAt(position) === "/")) {
-                var operator = source.charAt(position++);
-                var operand = readFactor();
-                if (operator === "/" && operand === 0) return NaN;
-                total = (operator === "*") ? total * operand : total / operand;
-            }
-            return total;
-        }
-
-        /**
-         * 符号付きの数値（単位付きなら欄の単位へ換算）か、括弧で囲んだ式を読む
-         * @returns {number} 値（読めなければ NaN）
-         */
-        function readFactor() {
-            var ch = source.charAt(position);
-            if (ch === "+" || ch === "-") {
-                position++;
-                var signedValue = readFactor();
-                return (ch === "-") ? -signedValue : signedValue;
-            }
-            if (ch === "(") {
-                position++;
-                var innerValue = readSum();
-                if (source.charAt(position) !== ")") return NaN;
-                position++;
-                return innerValue;
-            }
-            var numberMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
-            if (!numberMatch) return NaN;
-            position += numberMatch[0].length;
-            return readUnitSuffix(parseFloat(numberMatch[0]));
-        }
-
-        /**
-         * 数値の直後の単位を読み、欄の単位へ換算する
-         * @param {number} value - 単位の前の数値
-         * @returns {number} 欄の単位での値（換算できない単位なら NaN）
-         */
-        function readUnitSuffix(value) {
-            var unitMatch = /^(ft\/in|[A-Za-z]+|%|°)/i.exec(source.substring(position));
-            if (!unitMatch) return value; /* 単位なしは欄の単位 / no unit means the field's unit */
-            position += unitMatch[0].length;
-            var unitKey = unitMatch[0].toLowerCase();
-            if (unitKey === fieldUnitKey) return value;
-            var typedValue = createStepperUnitValue(value, unitKey);
-            if (!typedValue || !fieldUnitValue) return NaN; /* 知らない単位・単位のない欄 / unknown unit or unitless field */
-            var points = typedValue.as("pt");
-            /* 「1p6」＝1パイカ6ポイント / pica-point notation */
-            if (unitKey === "p") {
-                var pointMatch = /^(\d+\.?\d*|\.\d+)/.exec(source.substring(position));
-                if (pointMatch) {
-                    position += pointMatch[0].length;
-                    points += parseFloat(pointMatch[0]);
-                }
-            }
-            return points / fieldUnitValue.as("pt");
-        }
-
-        var result = readSum();
-        if (position !== source.length || !isFinite(result)) return NaN; /* 読み残しがあれば式として不正 / leftovers mean a malformed expression */
-        return result;
-    }
-
-    /**
-     * 数値と単位から UnitValue を作る。Q・H・p は STEPPER_UNIT_ALIASES で UnitValue の単位に読み替える。
-     * %（percent）は基準の長さが無いと換算できないので扱わない
-     * @param {number} value - 数値
-     * @param {string} unitKey - 単位（小文字。例 "mm"、"inches"、"q"）
-     * @returns {UnitValue|null} UnitValue（UnitValue が知らない単位・空・% なら null）
-     */
-    function createStepperUnitValue(value, unitKey) {
-        if (unitKey === "" || unitKey === "%") return null;
-        var alias = STEPPER_UNIT_ALIASES[unitKey];
-        var unitValue = alias ? new UnitValue(value * alias.amount, alias.unit) : new UnitValue(value, unitKey);
-        if (unitValue.type === "?" || unitValue.type === "%") return null; /* 知らない単位は例外にならず "?" になる。"percent" も除く / unknown units become "?" */
-        return unitValue;
-    }
-
-    /**
-     * 値を整数化・下限・上限でそろえ、単位を付けて入力欄に書き込む（直前の正しい値としても控える）
-     * @param {EditText} numberInput - 書き込む入力欄
-     * @param {number} value - 数値
-     * @param {Object} valueOptions - integer / min / max / unit（どれも省略可）
-     * @returns {void}
-     */
-    function writeSteppedValue(numberInput, value, valueOptions) {
-        numberInput.text = formatSteppedValue(value, valueOptions);
-        numberInput.lastValidText = numberInput.text;
-    }
-
-    /**
-     * 値を整数化・下限・上限でそろえ、丸めて単位を付けた表示用の文字列にする。
-     * 整数化してから下限で止めるので、「整数・下限1」の欄に 0.4 が入っても 1 になる
-     * @param {number} value - 数値
-     * @param {Object} valueOptions - integer / min / max / unit（どれも省略可）
-     * @returns {string} 入力欄に入れる文字列（例 "20 mm"）
-     */
-    function formatSteppedValue(value, valueOptions) {
-        if (valueOptions.integer) value = Math.round(value);
-        return formatStepperNumber(clampSteppedValue(value, valueOptions)) + (valueOptions.unit || "");
-    }
-
-    /**
-     * 小数第2位で丸めた数値を文字列で返す
-     * @param {number} value - 数値
-     * @returns {string} 表示用の数値文字列
-     */
-    function formatStepperNumber(value) {
-        return String(Math.round(value * 100) / 100);
-    }
-
-    // -----------------------------------------
-    // ∧∨ボタンの描画 / Drawing
-    // -----------------------------------------
-    /**
-     * 山形（∧／∨）の極小ボタンを作成する。
-     * 上下2つを隙間なく積んで1つの枠に見えるよう、枠線は外側の辺だけ描き（上ボタンは上側、下ボタンは下側）、
-     * 継ぎ目に線は引かない
-     * @param {Group|Panel} parent - 追加先
-     * @param {string} direction - "up" または "down"
-     * @param {Function} onClickFn - クリック時の処理
-     * @returns {Group} ボタンとして使う group
-     */
-    function makeStepperChevronButton(parent, direction, onClickFn) {
-        var buttonWidth = STEPPER_BUTTON_WIDTH;
-        var buttonHeight = STEPPER_BUTTON_HEIGHT;
-        var isUp = (direction === "up");
-        var chevronBox = parent.add("group");
-        chevronBox.margins = 0;
-        chevronBox.spacing = 0;
-        chevronBox.preferredSize = [buttonWidth, buttonHeight];
-        chevronBox.minimumSize = [buttonWidth, buttonHeight];
-        chevronBox.maximumSize = [buttonWidth, buttonHeight];
-        chevronBox.isPressed = false;
-        chevronBox.isStepperButton = true; /* redrawSteppersIn() の目印 / marker for redrawSteppersIn() */
-
-        chevronBox.onDraw = function () {
-            var boxGraphics = chevronBox.graphics;
-            /* 自作描画は自動でディムにならないため、無効なら薄い色で描く。親の無効化は子の enabled に出ないので親も見る
-               Custom drawing is not dimmed automatically; the parent's state does not reach the child's enabled */
-            var isDimmed = !isStepperEnabledInTree(chevronBox);
-
-            /* 枠線の内側の地（押下中は押下色） / background inside the frame, pressed color while pressed */
-            var fillColor = isDimmed ? STEPPER_DIM_FILL_COLOR : (chevronBox.isPressed ? STEPPER_PRESSED_COLOR : STEPPER_FILL_COLOR);
-            boxGraphics.newPath();
-            boxGraphics.rectPath(1, isUp ? 1 : 0, buttonWidth - 2, buttonHeight - 1);
-            boxGraphics.fillPath(boxGraphics.newBrush(boxGraphics.BrushType.SOLID_COLOR, fillColor));
-
-            drawStepperFrame(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_FRAME_COLOR : STEPPER_FRAME_COLOR);
-            drawStepperChevron(boxGraphics, buttonWidth, buttonHeight, isUp, isDimmed ? STEPPER_DIM_CHEVRON_COLOR : STEPPER_CHEVRON_COLOR);
-        };
-
-        /**
-         * 押下状態を変えて描き直す
-         * @param {boolean} isPressed - 押下中なら true
-         * @returns {void}
-         */
-        function repaint(isPressed) {
-            if (chevronBox.isPressed === isPressed) return;
-            chevronBox.isPressed = isPressed;
-            redrawStepperGroup(chevronBox);
-        }
-        chevronBox.addEventListener("mousedown", function () {
-            if (!isStepperEnabledInTree(chevronBox)) return;
-            repaint(true);
-            if (onClickFn) onClickFn();
-        });
-        chevronBox.addEventListener("mouseup", function () { repaint(false); });
-        /* 押したまま外へ出たときも押下色を残さない / reset when the pointer leaves while pressed */
-        chevronBox.addEventListener("mouseout", function () { repaint(false); });
-        return chevronBox;
-    }
-
-    /**
-     * 外側の辺だけの枠を描く（角は丸める）。継ぎ目側は開けておき、上下2つで1つの枠に見せる。
-     * ScriptUI は円弧を描けないため、角丸は短い線分で近似する
-     * @param {ScriptUIGraphics} boxGraphics - 描画先
-     * @param {number} boxWidth - ボタンの幅
-     * @param {number} boxHeight - ボタンの高さ
-     * @param {boolean} isUp - 上のボタンなら true（上側に枠を描く）
-     * @param {number[]} frameColor - [r, g, b, a]
-     * @returns {void}
-     */
-    function drawStepperFrame(boxGraphics, boxWidth, boxHeight, isUp, frameColor) {
-        var frameLeft = 0.5;
-        var frameRight = boxWidth - 0.5;
-        var outerY = isUp ? 0.5 : boxHeight - 0.5;
-        var seamY = isUp ? boxHeight : 0;
-        var towardSeam = isUp ? 1 : -1; /* 外側の辺から継ぎ目へ向かう向き / direction from the outer edge to the seam */
-        var radius = STEPPER_CORNER_RADIUS;
-        var arcSteps = 4; /* 角丸1つを何本の線分で近似するか / segments per corner */
-        var angle, k;
-
-        boxGraphics.newPath();
-        boxGraphics.moveTo(frameLeft, seamY);
-        /* 左の角丸 / left corner */
-        for (k = 0; k <= arcSteps; k++) {
-            angle = (Math.PI / 2) * k / arcSteps;
-            boxGraphics.lineTo(frameLeft + radius - radius * Math.cos(angle), outerY + towardSeam * (radius - radius * Math.sin(angle)));
-        }
-        /* 右の角丸 / right corner */
-        for (k = 0; k <= arcSteps; k++) {
-            angle = (Math.PI / 2) * k / arcSteps;
-            boxGraphics.lineTo(frameRight - radius + radius * Math.sin(angle), outerY + towardSeam * (radius - radius * Math.cos(angle)));
-        }
-        boxGraphics.lineTo(frameRight, seamY);
-        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, frameColor, 1));
-    }
-
-    /**
-     * 山形（∧／∨）を描く。文字グリフの▲▼は上下で大きさやベースラインが揃わないため、線で描く
-     * @param {ScriptUIGraphics} boxGraphics - 描画先
-     * @param {number} boxWidth - ボタンの幅
-     * @param {number} boxHeight - ボタンの高さ
-     * @param {boolean} isUp - ∧なら true、∨なら false
-     * @param {number[]} chevronColor - [r, g, b, a]
-     * @returns {void}
-     */
-    function drawStepperChevron(boxGraphics, boxWidth, boxHeight, isUp, chevronColor) {
-        var centerX = boxWidth / 2;
-        var centerY = isUp ? boxHeight / 2 + 0.5 : boxHeight / 2 - 0.5; /* 継ぎ目から少し離す / nudged away from the seam */
-        var halfWidth = 3.6; /* 山形の半幅（高さ1.8に対して開き約127°） / half width of the chevron */
-        var tipOffsetY = isUp ? -1.8 : 1.8; /* 頂点の中心からのずれ（上向きは上、下向きは下） */
-        boxGraphics.newPath();
-        boxGraphics.moveTo(centerX - halfWidth, centerY - tipOffsetY);
-        boxGraphics.lineTo(centerX, centerY + tipOffsetY);
-        boxGraphics.lineTo(centerX + halfWidth, centerY - tipOffsetY);
-        boxGraphics.strokePath(boxGraphics.newPen(boxGraphics.PenType.SOLID_COLOR, chevronColor, 1.2));
-    }
-
-    /**
-     * コントロールと、その親をたどってすべて有効かを返す（親の無効化は子の enabled に出ない）
-     * @param {Object} control - 対象のコントロール
-     * @returns {boolean} すべて有効なら true
-     */
-    function isStepperEnabledInTree(control) {
-        for (var node = control; node; node = node.parent) {
-            if (!node.enabled) return false;
-        }
-        return true;
-    }
-
-    /**
-     * コンテナ以下にある∧∨ボタンをすべて描き直す。行やパネルの enabled を切り替えたあとに呼ぶ
-     * @param {Object} container - 行・グループ・パネルなど
-     * @returns {void}
-     */
-    function redrawSteppersIn(container) {
-        if (!container.children) return;
-        for (var i = 0; i < container.children.length; i++) {
-            var child = container.children[i];
-            if (child.isStepperButton) redrawStepperGroup(child);
-            else redrawSteppersIn(child);
-        }
-    }
-
-    /**
-     * group の onDraw を呼び直す。group には notify() が無いため、隠して再表示して描き直させる
-     * @param {Group} targetGroup - 描き直す group
-     * @returns {void}
-     */
-    function redrawStepperGroup(targetGroup) {
-        targetGroup.hide();
-        targetGroup.show();
-    }
-
-    // ステップボタン（再利用パーツ）ここまで / End of the reusable stepper
+    var REPLACE_FIELD_WIDTH = 260;          /* 置換後の欄の幅（px）/ width of the Replace with field */
+    var TOTAL_ROW_BOTTOM_MARGIN = 10;       /* ［合計］の行の下の余白（px）/ bottom margin of the Total row */
+    var CONTEXT_ROW_BOTTOM_MARGIN = 4;      /* ［前後の文字数］の行の下の余白（px）/ bottom margin of the Characters Around row */
+    var SLIDER_LABEL_WIDTH = 90;            /* スライダーの項目名の幅（px。2本のスライダーの左端をそろえる）/ width of slider labels, so both sliders line up */
+    var SLIDER_VALUE_WIDTH = 40;            /* スライダーの右の数字の幅（px。「800%」が入る幅で2本そろえる）/ width of the value next to a slider, fitting "800%" for both */
+    var EXCLUDE_BUTTON_WIDTH = 94;         /* ［除外する］［除外を解除］の幅（px。長いほうの文言の幅、実測93px。広げない）/ width of Exclude / Include, fitted to the longer label */
+    var APPLY_BUTTON_WIDTH = 50;            /* ［適用］の幅（px。文字数分にして、置換後の欄を広くとる）/ width of Apply, kept to its label so the field gets the room */
 
     // =========================================
     // 選択の読み取り / Reading the selection
@@ -1053,8 +556,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @property {boolean} caseSensitive - 大文字と小文字を区別するか
      * @property {boolean} wholeWord - 単語単位で探すか
      * @property {boolean} masterPages - 親ページを含むか（ドキュメントのときだけ）
+     * @property {boolean} excludeToc - 目次のストーリーにあるものを除くか
      * @property {boolean} excludeContained - ほかのキーワードに含まれる分を除くか
      * @property {number} contextLength - 一覧に出す前後の文字数
+     * @property {boolean} hideStandalone - 前後が改行のものを一覧に出さないか
+     * @property {boolean} bracketMatch - 一覧で見つかった文字を【】で囲むか
+     * @property {number} zoomPercent - 一覧で選んだ文字を表示するときの表示倍率（％）
+     * @property {number} targetIndex - 統一先の欄の番号（選んでいなければ -1）
      */
 
     /**
@@ -1069,12 +577,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
         return {
             keywords: keywords,
-            scope: saved.scope || "story",
+            scope: saved.scope || "document",
             caseSensitive: !!saved.caseSensitive,
             wholeWord: !!saved.wholeWord,
             masterPages: !!saved.masterPages,
+            excludeToc: (saved.excludeToc == null) ? true : !!saved.excludeToc,
             excludeContained: (saved.excludeContained == null) ? true : !!saved.excludeContained,
-            contextLength: (typeof saved.contextLength === "number") ? saved.contextLength : DEFAULT_CONTEXT_LENGTH
+            contextLength: (typeof saved.contextLength === "number") ? saved.contextLength : DEFAULT_CONTEXT_LENGTH,
+            hideStandalone: (saved.hideStandalone == null) ? true : !!saved.hideStandalone,
+            bracketMatch: !!saved.bracketMatch,
+            zoomPercent: (typeof saved.zoomPercent === "number") ? saved.zoomPercent : DEFAULT_ZOOM_PERCENT,
+            targetIndex: (typeof saved.targetIndex === "number") ? saved.targetIndex : -1
         };
     }
 
@@ -1112,6 +625,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @property {string} container - 入れ物（ストーリー・セル・脚注）の指定子
      * @property {number} start - 入れ物の中での開始位置
      * @property {number} end - 入れ物の中での終了位置（この位置は含まない）
+     * @property {string} matchedText - 見つけたときの文字（置き換える前に、変わっていないかを確かめる）
      */
 
     /**
@@ -1121,7 +635,22 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @returns {MatchRange} 見つかった文字と、入れ物の指定子・範囲
      */
     function toMatchRange(foundText) {
-        return { text: foundText, container: foundText.parent.toSpecifier(), start: foundText.index, end: foundText.index + foundText.length };
+        return {
+            text: foundText,
+            container: foundText.parent.toSpecifier(),
+            start: foundText.index,
+            end: foundText.index + foundText.length,
+            matchedText: String(foundText.contents)
+        };
+    }
+
+    /**
+     * 見つかった文字が目次のストーリー（［目次の作成］で作ったもの）にあるかを返す
+     * @param {Text} foundText - 見つかった文字
+     * @returns {boolean} 目次の中なら true
+     */
+    function isInTocStory(foundText) {
+        return foundText.parentStory.storyType === StoryTypes.TOC_STORY;
     }
 
     /**
@@ -1156,7 +685,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 app.findTextPreferences.findWhat = toLiteralFindWhat(keywords[k]);
                 for (var j = 0; j < searchTargets.length; j++) {
                     var found = searchTargets[j].findText();
-                    for (var m = 0; m < found.length; m++) ranges.push(toMatchRange(found[m]));
+                    for (var m = 0; m < found.length; m++) {
+                        if (settings.excludeToc && isInTocStory(found[m])) continue;
+                        ranges.push(toMatchRange(found[m]));
+                    }
                 }
             }
         } finally {
@@ -1250,7 +782,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     // =========================================
-    // 見つかった場所の一覧 / Match list
+    // 該当箇所の一覧 / Match list
     // =========================================
 
     /**
@@ -1298,19 +830,131 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 見つかった文字を前後の文字列と合わせて返す（見つかった文字は【】で囲む）
+     * 見つかった文字を前後の文字列と合わせて返す
      * @param {MatchRange} matchRange - 見つかった位置
      * @param {number} contextLength - 前後の文字数
      * @param {Object} containerLengths - 入れ物ごとの文字数（同じ入れ物を何度も数えないための控え）
+     * @param {boolean} useBrackets - 見つかった文字を【】で囲むか
      * @returns {string} 一覧に出す文字列
      */
-    function buildContextText(matchRange, contextLength, containerLengths) {
+    function buildContextText(matchRange, contextLength, containerLengths, useBrackets) {
         var container = matchRange.text.parent;
         if (!containerLengths.hasOwnProperty(matchRange.container)) containerLengths[matchRange.container] = container.characters.length;
         var containerLength = containerLengths[matchRange.container];
         var beforeText = getRangeText(container, Math.max(0, matchRange.start - contextLength), matchRange.start - 1);
         var afterText = getRangeText(container, matchRange.end, Math.min(containerLength - 1, matchRange.end + contextLength - 1));
-        return toDisplayText(beforeText) + "【" + toDisplayText(String(matchRange.text.contents)) + "】" + toDisplayText(afterText);
+        var matchText = toDisplayText(matchRange.matchedText);
+        if (useBrackets) matchText = "【" + matchText + "】";
+        return toDisplayText(beforeText) + matchText + toDisplayText(afterText);
+    }
+
+    /**
+     * 文字が改行か（段落の改行・強制改行）
+     * @param {string} rawText - 1文字
+     * @returns {boolean} 改行なら true
+     */
+    function isLineBreak(rawText) {
+        /* 段・フレーム・ページ区切りも contents では \r になる（2026-11-05 実測）/ column, frame and page breaks also read as \r */
+        return rawText === "\r" || rawText === "\n";
+    }
+
+    /**
+     * 見つかった文字の直前か直後が改行（または入れ物の先頭・末尾）かを返す
+     * @param {MatchRange} matchRange - 見つかった位置
+     * @param {Object} containerLengths - 入れ物ごとの文字数の控え
+     * @returns {boolean} 前か後ろが改行なら true
+     */
+    function isNextToLineBreak(matchRange, containerLengths) {
+        var container = matchRange.text.parent;
+        if (!containerLengths.hasOwnProperty(matchRange.container)) containerLengths[matchRange.container] = container.characters.length;
+        if (matchRange.start === 0 || isLineBreak(getRangeText(container, matchRange.start - 1, matchRange.start - 1))) return true;
+        return (matchRange.end >= containerLengths[matchRange.container]) || isLineBreak(getRangeText(container, matchRange.end, matchRange.end));
+    }
+
+    /**
+     * 表示倍率を ZOOM_STEP_PERCENT 単位に丸め、スライダーの範囲に収める
+     * @param {number} zoomPercent - 表示倍率（％）
+     * @returns {number} 丸めた表示倍率
+     */
+    function snapZoomPercent(zoomPercent) {
+        if (isNaN(zoomPercent)) return DEFAULT_ZOOM_PERCENT;
+        var snapped = Math.round(zoomPercent / ZOOM_STEP_PERCENT) * ZOOM_STEP_PERCENT;
+        return Math.max(MIN_ZOOM_PERCENT, Math.min(MAX_ZOOM_PERCENT, snapped));
+    }
+
+    /**
+     * 作業中のレイアウトウィンドウの表示倍率を変える（ストーリーエディターなどレイアウト以外のウィンドウでは何もしない）
+     * @param {number} zoomPercent - 表示倍率（％）
+     * @returns {void}
+     */
+    function setLayoutZoom(zoomPercent) {
+        if (app.layoutWindows.length === 0) return;
+        var activeWindow = app.activeWindow;
+        if (activeWindow.constructor.name !== "LayoutWindow") return;
+        activeWindow.zoomPercentage = zoomPercent;
+    }
+
+    // =========================================
+    // 置き換え / Replacing
+    // =========================================
+
+    /**
+     * 見つかった文字を置き換える（1回の取り消しで戻せるようにまとめる）。
+     * 同じ入れ物の中は後ろから置き換え、前の置き換えで後ろの位置がずれないようにする。
+     * 見つけたときから文字が変わっているもの・消えたものは飛ばす
+     * @param {Array<MatchRange>} matchRanges - 置き換える位置
+     * @param {string} replacementText - 置き換える文字
+     * @param {string} undoName - 取り消しの名前
+     * @returns {{replaced: number, skipped: number, replacedRanges: Array<MatchRange>}} 置き換えた件数・飛ばした件数・置き換えた位置
+     */
+    function replaceMatches(matchRanges, replacementText, undoName) {
+        var replaceResult = { replaced: 0, skipped: 0, replacedRanges: [] };
+        var rangesByContainer = groupRangesByContainer(matchRanges);
+        var orderedRanges = [];
+        for (var containerKey in rangesByContainer) {
+            if (!rangesByContainer.hasOwnProperty(containerKey)) continue;
+            var descendingRanges = sortRangesDescending(rangesByContainer[containerKey]);
+            /* 重なる位置（「取引」と「取引き」が同じ場所など）は後ろ側を優先し、残りは飛ばす / for overlapping ranges keep the later one and skip the rest */
+            var nextStart = Infinity;
+            for (var i = 0; i < descendingRanges.length; i++) {
+                if (descendingRanges[i].end > nextStart) { replaceResult.skipped++; continue; }
+                orderedRanges.push(descendingRanges[i]);
+                nextStart = descendingRanges[i].start;
+            }
+        }
+
+        app.doScript(function () {
+            for (var k = 0; k < orderedRanges.length; k++) {
+                var matchRange = orderedRanges[k];
+                try {
+                    if (!matchRange.text.isValid || String(matchRange.text.contents) !== matchRange.matchedText) {
+                        replaceResult.skipped++;
+                        continue;
+                    }
+                    matchRange.text.contents = replacementText;
+                    replaceResult.replaced++;
+                    replaceResult.replacedRanges.push(matchRange);
+                } catch (e) {
+                    replaceResult.skipped++;
+                }
+            }
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, undoName);
+        return replaceResult;
+    }
+
+    /**
+     * 位置を開始位置の大きい順に並べる（比較関数つき sort() は ExtendScript で遅く並びも狂うので、挿入ソートで並べる）
+     * @param {Array<MatchRange>} ranges - 位置
+     * @returns {Array<MatchRange>} 大きい順に並べた新しい配列
+     */
+    function sortRangesDescending(ranges) {
+        var sortedRanges = [];
+        for (var i = 0; i < ranges.length; i++) {
+            var insertAt = sortedRanges.length;
+            while (insertAt > 0 && sortedRanges[insertAt - 1].start < ranges[i].start) insertAt--;
+            sortedRanges.splice(insertAt, 0, ranges[i]);
+        }
+        return sortedRanges;
     }
 
     // =========================================
@@ -1318,12 +962,50 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     // =========================================
 
     /**
-     * パレットを組み立てる（左に設定、右に見つかった場所の一覧）
+     * 右のパネルの余った高さを一覧に足す。
+     * 縦並びのパネルでは listbox の alignment "fill" が縦に効かず、余りがパネルの上や行の間に配られるため、
+     * 一度レイアウトしてから余りを測り、一覧の高さに足して並べ直す
+     * @param {Window} targetWindow - パレット
+     * @param {Panel} matchesPanel - 右のパネル
+     * @param {ListBox} matchList - 一覧
+     * @returns {void}
+     */
+    function fitMatchListHeight(targetWindow, matchesPanel, matchList) {
+        targetWindow.layout.layout(true);
+        var panelHeight = matchesPanel.size.height;
+        var usedHeight = PANEL_MARGINS[1] + PANEL_MARGINS[3] + matchesPanel.spacing * (matchesPanel.children.length - 1);
+        for (var i = 0; i < matchesPanel.children.length; i++) usedHeight += matchesPanel.children[i].size.height;
+        var extraHeight = panelHeight - usedHeight;
+        if (extraHeight <= 0) return;
+        setListHeight(matchList.size.height + extraHeight);
+        targetWindow.layout.layout(true);
+        /* パネルが求める高さには見出しの分が足されるので、伸ばしすぎてカラムごと高くなった分を戻す
+           / the panel asks for extra height for its title, so take back what made the whole column taller */
+        var overshoot = matchesPanel.size.height - panelHeight;
+        if (overshoot > 0) {
+            setListHeight(matchList.size.height - overshoot);
+            targetWindow.layout.layout(true);
+        }
+
+        /**
+         * 一覧の高さを変える（一度レイアウトしたあとは preferredSize だけでは効かないので size も入れる）
+         * @param {number} listHeight - 高さ（px）
+         * @returns {void}
+         */
+        function setListHeight(listHeight) {
+            matchList.preferredSize.height = listHeight;
+            matchList.size = [matchList.size.width, listHeight];
+        }
+    }
+
+
+    /**
+     * パレットを組み立てる（左に設定、右に該当箇所の一覧と置き換え）
      * @param {CountSettings} settings - 初期値
      * @returns {Window} パレット
      */
     function buildPalette(settings) {
-        var countPalette = new Window("palette", getLabel(LABELS.palette.title) + " " + SCRIPT_VERSION);
+        var countPalette = new Window("palette", getLabel(LABELS.palette.title)); /* バージョンは左下に出す / the version is shown at the bottom left */
         setupWindow(countPalette);
 
         /* 2カラム（左右とも高さをそろえる）/ Two columns of the same height */
@@ -1336,15 +1018,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         leftColumn.alignChildren = ["fill", "top"];
         leftColumn.spacing = WINDOW_SPACING;
 
-        /* キーワード（欄の右に件数）/ Keywords, each with its count on the right */
+        /* キーワード（左に統一先のラジオ、右に件数）/ Keywords, with the unify-target radio on the left and the count on the right */
         var keywordsPanel = leftColumn.add("panel", undefined, getLabel(LABELS.panel.keywords));
         setupPanel(keywordsPanel, 6);
+        var targetRadios = [];
         var keywordInputs = [];
         var countTexts = [];
         var lastActiveIndex = -1;
         for (var i = 0; i < KEYWORD_FIELD_COUNT; i++) {
             var keywordRowGroup = keywordsPanel.add("group");
             setupRow(keywordRowGroup, "fill", 6);
+            var targetRadio = keywordRowGroup.add("radiobutton", undefined, "");
+            targetRadio.helpTip = getLabel(LABELS.tooltip.unifyTarget);
             var keywordInput = keywordRowGroup.add("edittext", undefined, settings.keywords[i]);
             keywordInput.preferredSize.width = KEYWORD_FIELD_WIDTH;
             keywordInput.alignment = ["fill", "center"];
@@ -1352,6 +1037,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             var countText = keywordRowGroup.add("statictext", undefined, getLabel(LABELS.status.initial));
             countText.preferredSize.width = COUNT_TEXT_WIDTH;
             countText.justify = "right";
+            targetRadios.push(targetRadio);
             keywordInputs.push(keywordInput);
             countTexts.push(countText);
         }
@@ -1359,9 +1045,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         /* 合計 / Total */
         var totalRowGroup = keywordsPanel.add("group");
         setupRow(totalRowGroup, "fill", 6);
+        totalRowGroup.margins = [0, 0, 0, TOTAL_ROW_BOTTOM_MARGIN];
         totalRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.total));
         var totalText = totalRowGroup.add("statictext", undefined, getLabel(LABELS.status.initial));
         totalText.alignment = ["fill", "center"];
+        var excludeContainedCheckbox = keywordsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.excludeContained));
+        excludeContainedCheckbox.helpTip = getLabel(LABELS.tooltip.excludeContained);
+        excludeContainedCheckbox.value = settings.excludeContained;
 
         /* 対象（ラジオは横並び）/ Scope (radios in a row) */
         var scopePanel = leftColumn.add("panel", undefined, getLabel(LABELS.panel.scope));
@@ -1374,32 +1064,52 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         };
         scopeRadios.story.helpTip = getLabel(LABELS.tooltip.story);
         scopeRadios.document.helpTip = getLabel(LABELS.tooltip.document);
-        scopeRadios[scopeRadios[settings.scope] ? settings.scope : "story"].value = true;
+        scopeRadios[scopeRadios[settings.scope] ? settings.scope : "document"].value = true;
 
         /* オプション / Options */
         var optionsPanel = leftColumn.add("panel", undefined, getLabel(LABELS.panel.options));
         setupPanel(optionsPanel, 6);
         var caseSensitiveCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.caseSensitive));
         var wholeWordCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.wholeWord));
-        var excludeContainedCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.excludeContained));
-        excludeContainedCheckbox.helpTip = getLabel(LABELS.tooltip.excludeContained);
         var masterPagesCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.masterPages));
         masterPagesCheckbox.helpTip = getLabel(LABELS.tooltip.masterPages);
         caseSensitiveCheckbox.value = settings.caseSensitive;
         wholeWordCheckbox.value = settings.wholeWord;
-        excludeContainedCheckbox.value = settings.excludeContained;
         masterPagesCheckbox.value = settings.masterPages;
+        var excludeTocCheckbox = optionsPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.excludeToc));
+        excludeTocCheckbox.helpTip = getLabel(LABELS.tooltip.excludeToc);
+        excludeTocCheckbox.value = settings.excludeToc;
 
-        /* 見つかった場所（右のカラム。左のカラムと同じ高さまで伸ばす）/ Matches (right column, stretched to the left column's height) */
+        /* 該当箇所（右のカラム。左のカラムと同じ高さまで伸ばす）/ Matches (right column, stretched to the left column's height) */
         var matchesPanel = columnsGroup.add("panel", undefined, getLabel(LABELS.panel.matches));
         setupPanel(matchesPanel, 6);
         matchesPanel.alignment = ["fill", "fill"];
-        var contextLengthInput = addSteppedField(matchesPanel, {
-            label: labelText(LABELS.fieldLabel.contextLength),
-            text: String(settings.contextLength), characters: 4, step: 1, min: 0, max: MAX_CONTEXT_LENGTH, integer: true,
-            onStep: function () { renderMatchList(); }
-        });
-        contextLengthInput.helpTip = getLabel(LABELS.tooltip.contextLength);
+        /* 前後の文字数（スライダー。右に今の値）/ Characters around (slider with its value on the right) */
+        var contextRowGroup = matchesPanel.add("group");
+        setupRow(contextRowGroup, "fill", 6);
+        contextRowGroup.margins = [0, 0, 0, CONTEXT_ROW_BOTTOM_MARGIN];
+        contextRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.contextLength)).preferredSize.width = SLIDER_LABEL_WIDTH;
+        var initialContextLength = Math.max(0, Math.min(MAX_CONTEXT_LENGTH, Math.round(settings.contextLength)));
+        var contextLengthSlider = contextRowGroup.add("slider", undefined, initialContextLength, 0, MAX_CONTEXT_LENGTH);
+        contextLengthSlider.alignment = ["fill", "center"];
+        contextLengthSlider.helpTip = getLabel(LABELS.tooltip.contextLength);
+        var contextLengthText = contextRowGroup.add("statictext", undefined, String(initialContextLength));
+        contextLengthText.preferredSize.width = SLIDER_VALUE_WIDTH;
+        var hideStandaloneCheckbox = matchesPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.hideStandalone));
+        hideStandaloneCheckbox.helpTip = getLabel(LABELS.tooltip.hideStandalone);
+        hideStandaloneCheckbox.value = settings.hideStandalone;
+        var bracketMatchCheckbox = matchesPanel.add("checkbox", undefined, getLabel(LABELS.checkbox.bracketMatch));
+        bracketMatchCheckbox.helpTip = getLabel(LABELS.tooltip.bracketMatch);
+        bracketMatchCheckbox.value = settings.bracketMatch;
+        /* 表示倍率（スライダー。右に今の値）/ Zoom (slider with its value on the right) */
+        var zoomRowGroup = matchesPanel.add("group");
+        setupRow(zoomRowGroup, "fill", 6);
+        zoomRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.zoom)).preferredSize.width = SLIDER_LABEL_WIDTH;
+        var zoomSlider = zoomRowGroup.add("slider", undefined, snapZoomPercent(settings.zoomPercent), MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT);
+        zoomSlider.alignment = ["fill", "center"];
+        zoomSlider.helpTip = getLabel(LABELS.tooltip.zoom);
+        var zoomText = zoomRowGroup.add("statictext", undefined, snapZoomPercent(settings.zoomPercent) + "%");
+        zoomText.preferredSize.width = SLIDER_VALUE_WIDTH;
         /* 1列目は短いページ名にする（Mac は1列目の長い文字列で列幅が崩れる）/ Keep the first column short (long text in column 1 breaks the widths on Mac) */
         var matchList = matchesPanel.add("listbox", undefined, [], {
             numberOfColumns: 2,
@@ -1410,28 +1120,127 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         matchList.preferredSize = [MATCH_LIST_WIDTH, MATCH_LIST_MIN_HEIGHT];
         matchList.alignment = ["fill", "fill"];
         matchList.helpTip = getLabel(LABELS.tooltip.matchList);
-        var listNoteText = matchesPanel.add("statictext", undefined, " ");
-        listNoteText.alignment = ["fill", "bottom"];
+        /* 一覧の下：メモと［除外する］ / Below the list: notes and Exclude */
+        var listFooterGroup = matchesPanel.add("group");
+        setupRow(listFooterGroup, ["fill", "bottom"], 6);
+        var listNoteText = listFooterGroup.add("statictext", undefined, " ");
+        listNoteText.preferredSize.width = MATCH_LIST_WIDTH - EXCLUDE_BUTTON_WIDTH - 6;
+        listNoteText.alignment = ["fill", "center"];
+        var btnExclude = listFooterGroup.add("button", undefined, getLabel(LABELS.button.exclude));
+        btnExclude.preferredSize.width = EXCLUDE_BUTTON_WIDTH;
+        btnExclude.helpTip = getLabel(LABELS.tooltip.exclude);
 
-        /* ボタン：左に［選択文字を入れる］、右に［閉じる］［数える］ / Buttons: Use Selection on the left, Close and Count on the right */
+        /* 1か所ずつ置き換える（一覧で選んだ文字を編集して［適用］）/ Replace one match at a time (edit the picked text, then Apply) */
+        var replaceRowGroup = matchesPanel.add("group");
+        setupRow(replaceRowGroup, ["fill", "bottom"], 6);
+        replaceRowGroup.add("statictext", undefined, labelText(LABELS.fieldLabel.replaceWith));
+        var replaceInput = replaceRowGroup.add("edittext", undefined, "");
+        replaceInput.preferredSize.width = REPLACE_FIELD_WIDTH;
+        replaceInput.alignment = ["fill", "center"];
+        replaceInput.helpTip = getLabel(LABELS.tooltip.replaceWith);
+        var btnApply = replaceRowGroup.add("button", undefined, getLabel(LABELS.button.apply));
+        btnApply.preferredSize.width = APPLY_BUTTON_WIDTH;
+        btnApply.helpTip = getLabel(LABELS.tooltip.apply);
+
+        /* ボタン：左に［選択文字を入れる］［統一する］、右に［閉じる］［数える］ / Buttons: Use Selection and Unify on the left, Close and Count on the right */
         var buttonRow = addButtonRow(countPalette);
         var btnUseSelection = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.useSelection));
         btnUseSelection.helpTip = getLabel(LABELS.tooltip.useSelection);
+        var btnUnify = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.unify));
+        btnUnify.helpTip = getLabel(LABELS.tooltip.unify);
         var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close));
         var btnCount = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.count));
         alignRightOnlyButtonRow(buttonRow);
+        addVersionFooter(countPalette);
 
-        /* 最後に数えた結果（前後の文字数を変えたら、数え直さずに一覧だけ作り直す）/ Last results; changing the context length rebuilds only the list */
+        /* 最後に数えた結果（前後の文字数などを変えたら、数え直さずに一覧だけ作り直す）/ Last results; display-only changes rebuild just the list */
         var lastMatchesByKeyword = null;
+        var lastKeywords = [];
+        var lastScope = "document";
+        /* 数えたあとにキーワードや設定を変えたら、数え直すまで置き換えさせない / After keywords or settings change, block replacing until counted again */
+        var isResultStale = false;
+        /* 除外した位置（「入れ物#開始位置」→ 見つけたときの文字）。数え直しても残し、置き換えでずれた分は付け直す
+           / Excluded matches ("container#start" -> matched text); kept across recounts and shifted after replacing */
+        var excludedMatches = {};
+
+        /**
+         * 除外の控えのキーを返す
+         * @param {MatchRange} matchRange - 見つかった位置
+         * @returns {string} 「入れ物の指定子#開始位置」
+         */
+        function getMatchKey(matchRange) {
+            return matchRange.container + "#" + matchRange.start;
+        }
+
+        /**
+         * 除外したものかを返す（同じ位置でも文字が変わっていれば除外していないものとみなす）
+         * @param {MatchRange} matchRange - 見つかった位置
+         * @returns {boolean} 除外したものなら true
+         */
+        function isMatchExcluded(matchRange) {
+            return excludedMatches[getMatchKey(matchRange)] === matchRange.matchedText;
+        }
+
+        /**
+         * 除外する／しないを切り替える
+         * @param {MatchRange} matchRange - 見つかった位置
+         * @param {boolean} shouldExclude - 除外するなら true
+         * @returns {void}
+         */
+        function setMatchExcluded(matchRange, shouldExclude) {
+            if (shouldExclude) excludedMatches[getMatchKey(matchRange)] = matchRange.matchedText;
+            else delete excludedMatches[getMatchKey(matchRange)];
+        }
+
+        /**
+         * 置き換えで文字数が変わった分、同じ入れ物の後ろにある除外の位置をずらす
+         * @param {Array<MatchRange>} replacedRanges - 置き換えた位置
+         * @param {number} replacementLength - 置き換えた文字の長さ
+         * @returns {void}
+         */
+        function shiftExcludedMatches(replacedRanges, replacementLength) {
+            var shiftedMatches = {};
+            for (var matchKey in excludedMatches) {
+                if (!excludedMatches.hasOwnProperty(matchKey)) continue;
+                var separatorIndex = matchKey.lastIndexOf("#");
+                var containerKey = matchKey.substring(0, separatorIndex);
+                var start = Number(matchKey.substring(separatorIndex + 1));
+                var delta = 0;
+                for (var r = 0; r < replacedRanges.length; r++) {
+                    if (replacedRanges[r].container === containerKey && replacedRanges[r].end <= start) {
+                        delta += replacementLength - (replacedRanges[r].end - replacedRanges[r].start);
+                    }
+                }
+                shiftedMatches[containerKey + "#" + (start + delta)] = excludedMatches[matchKey];
+            }
+            excludedMatches = shiftedMatches;
+        }
 
         /**
          * 前後の文字数の欄の値を返す
-         * @returns {number} 前後の文字数（0〜MAX_CONTEXT_LENGTH の整数）
+         * @returns {number} 前後の文字数（0〜MAX_CONTEXT_LENGTH の整数。スライダーの値を丸める）
          */
         function readContextLength() {
-            var contextLength = parseInt(contextLengthInput.text, 10);
-            if (isNaN(contextLength) || contextLength < 0) return 0;
-            return Math.min(contextLength, MAX_CONTEXT_LENGTH);
+            return Math.max(0, Math.min(MAX_CONTEXT_LENGTH, Math.round(contextLengthSlider.value)));
+        }
+
+        /**
+         * 表示倍率の欄の値を返す
+         * @returns {number} 表示倍率（％。スライダーの値を ZOOM_STEP_PERCENT 単位に丸める）
+         */
+        function readZoomPercent() {
+            return snapZoomPercent(zoomSlider.value);
+        }
+
+        /**
+         * 統一先に選んだ欄の番号を返す
+         * @returns {number} 欄の番号。選んでいなければ -1
+         */
+        function getTargetIndex() {
+            for (var j = 0; j < targetRadios.length; j++) {
+                if (targetRadios[j].value) return j;
+            }
+            return -1;
         }
 
         /**
@@ -1447,8 +1256,13 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 caseSensitive: caseSensitiveCheckbox.value,
                 wholeWord: wholeWordCheckbox.value,
                 masterPages: masterPagesCheckbox.value,
+                excludeToc: excludeTocCheckbox.value,
                 excludeContained: excludeContainedCheckbox.value,
-                contextLength: readContextLength()
+                contextLength: readContextLength(),
+                hideStandalone: hideStandaloneCheckbox.value,
+                bracketMatch: bracketMatchCheckbox.value,
+                zoomPercent: readZoomPercent(),
+                targetIndex: getTargetIndex()
             };
         }
 
@@ -1464,51 +1278,148 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
 
         /**
-         * 親ページの項目はドキュメントを対象にしたときだけ、［数える］はキーワードがあるときだけ押せるようにする
+         * 一覧の行が［統一する］で置き換える対象かを返す（統一先と異なるキーワードの行）
+         * @param {ListItem} listItem - 一覧の行
+         * @returns {boolean} 置き換える対象なら true
+         */
+        function isUnifyRow(listItem) {
+            var targetIndex = getTargetIndex();
+            if (targetIndex < 0 || lastKeywords[targetIndex] === "") return false;
+            return listItem.keywordIndex !== targetIndex && lastKeywords[listItem.keywordIndex] !== lastKeywords[targetIndex];
+        }
+
+        /**
+         * ボタンなどを押せるかどうかをそろえる
          * @returns {void}
          */
         function updateEnabled() {
             masterPagesCheckbox.enabled = scopeRadios.document.value;
             btnCount.enabled = hasAnyKeyword();
+            var canReplace = !!lastMatchesByKeyword && !isResultStale;
+            var targetIndex = getTargetIndex();
+            btnUnify.enabled = canReplace && targetIndex >= 0 && lastKeywords[targetIndex] !== "";
+            btnApply.enabled = canReplace && !!matchList.selection;
+            var selectedItem = matchList.selection;
+            btnExclude.enabled = !!(selectedItem && selectedItem.matchRange);
+            btnExclude.text = (selectedItem && selectedItem.matchRange && isMatchExcluded(selectedItem.matchRange))
+                ? getLabel(LABELS.button.include)
+                : getLabel(LABELS.button.exclude);
         }
 
         /**
-         * 見つかった場所の一覧を作り直す（キーワード欄の順、その中は見つかった順。先頭の MAX_LIST_ITEMS 件まで）
+         * 件数（除外した分を除く）を各欄の右と合計の行に出す
+         * @returns {void}
+         */
+        function updateCountTexts() {
+            if (!lastMatchesByKeyword) return;
+            var totalCount = 0;
+            var excludedCount = 0;
+            for (var k = 0; k < countTexts.length; k++) {
+                var matches = lastMatchesByKeyword[k] || [];
+                var keptCount = 0;
+                for (var m = 0; m < matches.length; m++) {
+                    if (isMatchExcluded(matches[m])) excludedCount++;
+                    else keptCount++;
+                }
+                totalCount += keptCount;
+                countTexts[k].text = (lastKeywords[k] !== "") ? getLabel(LABELS.status.count, { count: keptCount }) : getLabel(LABELS.status.initial);
+            }
+            var scopeLabel = getLabel(LABELS.radio[lastScope]);
+            totalText.text = (excludedCount > 0)
+                ? getLabel(LABELS.status.totalWithExcluded, { count: totalCount, scope: scopeLabel, excluded: excludedCount })
+                : getLabel(LABELS.status.total, { count: totalCount, scope: scopeLabel });
+        }
+
+        /**
+         * 一覧の行の前後の文字列に「→ 統一先」を付ける（統一する行で、除外していないものだけ）
+         * @param {ListItem} listItem - 一覧の行（baseContext に前後の文字列を持つ）
+         * @returns {void}
+         */
+        function refreshListItem(listItem) {
+            var isExcluded = isMatchExcluded(listItem.matchRange);
+            listItem.checked = !isExcluded;
+            var contextText = listItem.baseContext;
+            if (!isExcluded && isUnifyRow(listItem)) contextText += " → " + lastKeywords[getTargetIndex()];
+            listItem.subItems[0].text = contextText;
+        }
+
+        /**
+         * 一覧で選んだ行の除外を切り替える
+         * @returns {void}
+         */
+        function toggleSelectedExcluded() {
+            var listItem = matchList.selection;
+            if (!listItem || !listItem.matchRange) return;
+            setMatchExcluded(listItem.matchRange, !isMatchExcluded(listItem.matchRange));
+            refreshListItem(listItem);
+            updateCountTexts();
+            updateEnabled();
+        }
+
+        /**
+         * 数えた結果が古くなったことにする（キーワード・対象・検索オプションを変えたとき）
+         * @returns {void}
+         */
+        function markResultStale() {
+            if (lastMatchesByKeyword && !isResultStale) {
+                isResultStale = true;
+                listNoteText.text = getLabel(LABELS.status.stale);
+            }
+            updateEnabled();
+        }
+
+        /**
+         * 該当箇所の一覧を作り直す（キーワード欄の順、その中は見つかった順。先頭の MAX_LIST_ITEMS 件まで）。
+         * チェックは「除外していない」印。統一先を選んでいれば、置き換える行に「→ 統一先」を付ける
          * @returns {void}
          */
         function renderMatchList() {
             matchList.removeAll();
+            replaceInput.text = "";
             listNoteText.text = " ";
-            if (!lastMatchesByKeyword) return;
+            if (!lastMatchesByKeyword) { updateEnabled(); return; }
 
             var contextLength = readContextLength();
+            var hideStandalone = hideStandaloneCheckbox.value;
             var containerLengths = {};
-            var totalCount = 0;
+            var listedCount = 0;
+            var hiddenCount = 0;
             var shownCount = 0;
             for (var k = 0; k < lastMatchesByKeyword.length; k++) {
                 var matches = lastMatchesByKeyword[k];
-                totalCount += matches.length;
-                for (var m = 0; m < matches.length && shownCount < MAX_LIST_ITEMS; m++) {
+                for (var m = 0; m < matches.length; m++) {
                     var pageLabel, contextText;
                     /* パレット表示中に文字が消されたり、ドキュメントが閉じられたりする / the text or document may be gone while the palette is open */
                     try {
+                        if (hideStandalone && isNextToLineBreak(matches[m], containerLengths)) { hiddenCount++; continue; }
+                        listedCount++;
+                        if (shownCount >= MAX_LIST_ITEMS) continue;
                         pageLabel = getPageLabel(matches[m].text);
-                        contextText = buildContextText(matches[m], contextLength, containerLengths);
+                        contextText = buildContextText(matches[m], contextLength, containerLengths, bracketMatchCheckbox.value);
                     } catch (e) {
+                        if (shownCount >= MAX_LIST_ITEMS) continue;
                         pageLabel = "-";
                         contextText = getLabel(LABELS.status.unavailable);
                     }
                     var listItem = matchList.add("item", pageLabel);
-                    listItem.subItems[0].text = contextText;
-                    listItem.foundText = matches[m].text;
+                    listItem.matchRange = matches[m];
+                    listItem.keywordIndex = k;
+                    listItem.baseContext = contextText;
+                    refreshListItem(listItem);
                     shownCount++;
                 }
             }
-            if (shownCount < totalCount) listNoteText.text = getLabel(LABELS.status.truncated, { total: totalCount, shown: shownCount });
+
+            var notes = [];
+            if (isResultStale) notes.push(getLabel(LABELS.status.stale));
+            if (shownCount < listedCount) notes.push(getLabel(LABELS.status.truncated, { total: listedCount, shown: shownCount }));
+            if (hiddenCount > 0) notes.push(getLabel(LABELS.status.hidden, { count: hiddenCount }));
+            if (notes.length > 0) listNoteText.text = notes.join(" / ");
+            updateEnabled();
         }
 
         /**
-         * 数えて、件数を各欄の右と合計の行に、見つかった場所を右の一覧に出す
+         * 数えて、件数を各欄の右と合計の行に、該当箇所を右の一覧に出す
          * @returns {void}
          */
         function countAndShow() {
@@ -1516,13 +1427,103 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             var currentSettings = readSettings();
             saveSettings(currentSettings);
             var countResult = runCount(currentSettings);
-            for (var j = 0; j < countTexts.length; j++) {
-                var hasCount = countResult.matchesByKeyword && currentSettings.keywords[j] !== "";
-                countTexts[j].text = hasCount ? getLabel(LABELS.status.count, { count: countResult.matchesByKeyword[j].length }) : getLabel(LABELS.status.initial);
-            }
-            totalText.text = countResult.message;
             lastMatchesByKeyword = countResult.matchesByKeyword;
+            lastKeywords = currentSettings.keywords;
+            lastScope = currentSettings.scope;
+            isResultStale = false;
+            if (lastMatchesByKeyword) {
+                updateCountTexts();
+            } else {
+                for (var j = 0; j < countTexts.length; j++) countTexts[j].text = getLabel(LABELS.status.initial);
+                totalText.text = countResult.message;
+            }
             renderMatchList();
+        }
+
+        /**
+         * 置き換えたあとに数え直し、結果を一覧の下に出す
+         * @param {{replaced: number, skipped: number, replacedRanges: Array<MatchRange>}} replaceResult - replaceMatches() の戻り値
+         * @param {string} replacementText - 置き換えた文字
+         * @param {string} doneMessage - 置き換えた件数の文言
+         * @returns {void}
+         */
+        function recountAfterReplace(replaceResult, replacementText, doneMessage) {
+            shiftExcludedMatches(replaceResult.replacedRanges, replacementText.length);
+            countAndShow();
+            var notes = [doneMessage];
+            if (replaceResult.skipped > 0) notes.push(getLabel(LABELS.status.skipped, { count: replaceResult.skipped }));
+            listNoteText.text = notes.join(" / ");
+        }
+
+        /**
+         * ［統一する］：統一先と異なるキーワードの行のうち、除外していないもの（チェックが付いたもの）を統一先に置き換える
+         * @returns {void}
+         */
+        function unifyMatches() {
+            var targetIndex = getTargetIndex();
+            if (targetIndex < 0 || !lastMatchesByKeyword || isResultStale) return;
+            var targetKeyword = lastKeywords[targetIndex];
+            var containerLengths = {};
+            var replaceTargets = [];
+            for (var k = 0; k < lastMatchesByKeyword.length; k++) {
+                if (k === targetIndex || lastKeywords[k] === targetKeyword) continue;
+                var matches = lastMatchesByKeyword[k];
+                for (var m = 0; m < matches.length; m++) {
+                    if (isMatchExcluded(matches[m])) continue;
+                    /* 一覧に出していないもの（前後が改行）は置き換えない / do not replace what the list hides */
+                    try {
+                        if (hideStandaloneCheckbox.value && isNextToLineBreak(matches[m], containerLengths)) continue;
+                    } catch (e) { continue; }
+                    replaceTargets.push(matches[m]);
+                }
+            }
+            if (replaceTargets.length === 0) {
+                listNoteText.text = getLabel(LABELS.status.nothingToUnify);
+                return;
+            }
+            if (!confirm(getLabel(LABELS.alert.confirmUnify, { count: replaceTargets.length, target: targetKeyword }))) return;
+
+            var replaceResult = replaceMatches(replaceTargets, targetKeyword, getLabel(LABELS.undo.unify));
+            recountAfterReplace(replaceResult, targetKeyword, getLabel(LABELS.status.unified, { count: replaceResult.replaced, target: targetKeyword }));
+        }
+
+        /**
+         * ［適用］：一覧で選んだ1か所を、置換後の欄の文字に置き換える
+         * @returns {void}
+         */
+        function applyToSelectedMatch() {
+            var listItem = matchList.selection;
+            if (!listItem || !listItem.matchRange || isResultStale) return;
+            var matchRange = listItem.matchRange;
+            var replacementText = replaceInput.text;
+            if (replacementText === matchRange.matchedText) return;
+
+            var keywordIndex = listItem.keywordIndex;
+            var offsetInKeyword = listItem.index - findFirstRowOfKeyword(keywordIndex);
+            var replaceResult = replaceMatches([matchRange], replacementText, getLabel(LABELS.undo.apply));
+            var doneMessage = (replaceResult.replaced > 0)
+                ? getLabel(LABELS.status.applied, { before: matchRange.matchedText, after: replacementText })
+                : getLabel(LABELS.status.nothingToUnify);
+            recountAfterReplace(replaceResult, replacementText, doneMessage);
+
+            /* 続けて直せるように、同じキーワードの次の行（置き換えた行があった位置）を選ぶ / select the next row of the same keyword so you can continue */
+            var firstRow = findFirstRowOfKeyword(keywordIndex);
+            if (firstRow < 0) return;
+            var nextRow = Math.min(firstRow + offsetInKeyword, matchList.items.length - 1);
+            if (matchList.items[nextRow].keywordIndex !== keywordIndex) nextRow--;
+            if (nextRow >= firstRow) matchList.selection = nextRow;
+        }
+
+        /**
+         * 一覧で、指定したキーワードの最初の行の番号を返す
+         * @param {number} keywordIndex - キーワード欄の番号
+         * @returns {number} 行の番号。無ければ -1
+         */
+        function findFirstRowOfKeyword(keywordIndex) {
+            for (var j = 0; j < matchList.items.length; j++) {
+                if (matchList.items[j].keywordIndex === keywordIndex) return j;
+            }
+            return -1;
         }
 
         /**
@@ -1538,15 +1539,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
 
         /**
-         * キーワード欄のイベントを付ける
-         * @param {EditText} keywordInput - キーワード欄
+         * キーワード欄と統一先のラジオのイベントを付ける
          * @param {number} fieldIndex - 何番目の欄か
          * @returns {void}
          */
-        function bindKeywordInput(keywordInput, fieldIndex) {
+        function bindKeywordRow(fieldIndex) {
+            var keywordInput = keywordInputs[fieldIndex];
             keywordInput.onChanging = function () {
                 lastActiveIndex = fieldIndex;
-                updateEnabled();
+                markResultStale();
             };
             keywordInput.onActivate = function () { lastActiveIndex = fieldIndex; };
             /* キーワード欄の return で数える / Return in a keyword field counts */
@@ -1555,35 +1556,72 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 event.preventDefault();
                 countAndShow();
             });
+            /* ラジオは行ごとに別のグループにあるので、自分以外を外す（同じ親の中でしか排他にならない）
+               / The radios sit in separate row groups, so clear the others by hand (radios are exclusive only within one parent) */
+            targetRadios[fieldIndex].onClick = function () {
+                for (var j = 0; j < targetRadios.length; j++) targetRadios[j].value = (j === fieldIndex);
+                renderMatchList();
+            };
         }
-        for (var n = 0; n < keywordInputs.length; n++) bindKeywordInput(keywordInputs[n], n);
+        for (var n = 0; n < keywordInputs.length; n++) bindKeywordRow(n);
+        var initialTargetIndex = (typeof settings.targetIndex === "number") ? settings.targetIndex : -1;
+        if (initialTargetIndex >= 0 && initialTargetIndex < targetRadios.length) targetRadios[initialTargetIndex].value = true;
 
-        /* 前後の文字数を直接入力したときも一覧を作り直す（値をそろえる部品の onChange のあと）/ Rebuild the list after typing too (after the part's own onChange) */
-        var normalizeContextLength = contextLengthInput.onChange;
-        contextLengthInput.onChange = function () {
-            normalizeContextLength();
+        /* 動かしている間は数字だけ変え、離したときに一覧を作り直す（一覧の作り直しは件数が多いと重い）
+           / Update only the number while dragging and rebuild the list on release (rebuilding is slow with many rows) */
+        contextLengthSlider.onChanging = function () {
+            contextLengthText.text = String(readContextLength());
+        };
+        contextLengthSlider.onChange = function () {
+            contextLengthSlider.value = readContextLength();
+            contextLengthText.text = String(readContextLength());
             renderMatchList();
         };
+        hideStandaloneCheckbox.onClick = renderMatchList;
+        bracketMatchCheckbox.onClick = renderMatchList;
+        /* 動かしている間もつまみを10%刻みの位置に置き直す / keep the knob on the 10% steps while dragging */
+        zoomSlider.onChanging = function () {
+            var zoomPercent = readZoomPercent();
+            if (zoomSlider.value !== zoomPercent) zoomSlider.value = zoomPercent;
+            zoomText.text = zoomPercent + "%";
+        };
+        zoomSlider.onChange = zoomSlider.onChanging;
 
-        /* 一覧で選んだ文字を選択して表示する / Select and show the text picked in the list */
+        /* 一覧で選んだ文字を選択して表示し、置換後の欄に入れる / Select and show the picked text, and put it in the Replace with field */
         matchList.onChange = function () {
             var listItem = matchList.selection;
-            if (!listItem || !listItem.foundText) return;
+            updateEnabled();
+            if (!listItem || !listItem.matchRange) return;
+            replaceInput.text = listItem.matchRange.matchedText;
             try {
-                if (!listItem.foundText.isValid) return;
-                listItem.foundText.select();
-                listItem.foundText.showText();
+                var foundText = listItem.matchRange.text;
+                if (!foundText.isValid) return;
+                foundText.select();
+                /* 表示倍率を先に変えてから、その文字の位置へ移動する / change the zoom first, then move to the text */
+                setLayoutZoom(readZoomPercent());
+                foundText.showText();
             } catch (e) { /* 表示できない場所（閉じたドキュメントなど）は何もしない / nothing to show (e.g. a closed document) */ }
         };
+        /* ダブルクリックでも除外を切り替える（Mac はチェック欄を直接クリックできない）
+           / Double-click also toggles exclusion (the check box cannot be clicked directly on Mac) */
+        matchList.onDoubleClick = toggleSelectedExcluded;
+        btnExclude.onClick = toggleSelectedExcluded;
 
-        scopeRadios.story.onClick = updateEnabled;
-        scopeRadios.document.onClick = updateEnabled;
+        scopeRadios.story.onClick = markResultStale;
+        scopeRadios.document.onClick = markResultStale;
+        caseSensitiveCheckbox.onClick = markResultStale;
+        wholeWordCheckbox.onClick = markResultStale;
+        excludeContainedCheckbox.onClick = markResultStale;
+        masterPagesCheckbox.onClick = markResultStale;
+        excludeTocCheckbox.onClick = markResultStale;
         btnCount.onClick = countAndShow;
+        btnUnify.onClick = unifyMatches;
+        btnApply.onClick = applyToSelectedMatch;
         btnUseSelection.onClick = function () {
             var selectedKeyword = getSelectedKeyword(getCurrentSelection());
             if (selectedKeyword === "") return;
             getInsertTargetInput().text = selectedKeyword;
-            updateEnabled();
+            markResultStale();
         };
         btnClose.onClick = function () { countPalette.close(); };
 
@@ -1605,6 +1643,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         };
 
         updateEnabled();
+        fitMatchListHeight(countPalette, matchesPanel, matchList);
         return countPalette;
     }
 
