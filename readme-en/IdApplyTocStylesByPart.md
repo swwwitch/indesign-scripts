@@ -39,13 +39,14 @@ To split the body headings into variant styles so that a plain Update Table of C
 | Item | Details |
 | --- | --- |
 | File | `jsx/style/IdApplyTocStylesByPart.jsx` |
-| Version | v1.0.0 |
+| Version | v1.0.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-10-30 |
-| Last updated | 2026-10-30 |
+| Last updated | 2026-11-05 |
 
 ### Update History
 
+- v1.0.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
 - v1.0.0 (2026-10-30): Initial release
 
 ### License

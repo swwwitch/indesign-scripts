@@ -34,13 +34,14 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdCreateFrameFromSelectedText.jsx` |
-| Version | v2.7.2 |
+| Version | v2.7.5 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-17 |
-| Last updated | 2026-10-01 |
+| Last updated | 2026-11-05 |
 | Article | https://note.com/dtp_tranist/n/ndd1b7c5246a3 |
 
 ### Update History
+- v2.7.5 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
 - v2.7.4 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v2.7.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 

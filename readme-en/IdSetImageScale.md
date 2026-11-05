@@ -73,13 +73,14 @@ The Scale, Width, Height and PPI fields are linked: changing one updates the oth
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdSetImageScale.jsx` |
-| Version | v1.4.2 |
+| Version | v1.4.5 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-26 |
-| Last updated | 2026-10-01 |
+| Last updated | 2026-11-05 |
 | Article | https://note.com/dtp_tranist/n/n91c6a628b7ed |
 
 ### Update History
+- v1.4.5 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
 - v1.4.4 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.4.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 

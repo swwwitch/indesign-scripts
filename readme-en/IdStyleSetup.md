@@ -96,13 +96,14 @@ Choosing Word means a Word file placed with "Preserve Styles and Formatting from
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdStyleSetup.jsx` |
-| Version | v1.5.1 |
+| Version | v1.5.4 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-03 |
-| Last updated | 2026-10-01 |
+| Last updated | 2026-11-05 |
 | Article | https://note.com/dtp_tranist/n/nfe87ec253780 |
 
 ### Update History
+- v1.5.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
 - v1.5.3 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.5.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 

@@ -62,13 +62,14 @@ In LayoutKeys, register this script once and click "Add a Row for Each SW_ACTION
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdAlignToNearestEdgePalette.jsx` |
-| Version | v1.2.0 |
+| Version | v1.2.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-03 |
-| Last updated | 2026-11-03 |
+| Last updated | 2026-11-05 |
 
 ### Update History
 
+- v1.2.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
 - v1.2.0 (2026-11-03) The center (cross), horizontal center, and vertical center buttons now always align to the center of the page instead of the nearest line. Added "Center Alignment Basis" (Page / Margins) and Option (Alt)-click to center first, then align. Added the variables `SW_ACTION`, `SW_FROM_CENTER`, `SW_MOVE_AS_UNIT`, and `SW_CENTER_BASIS` to run one button without the palette
 - v1.1.0 (2026-11-03) Buttons redrawn as a 3×3 grid plus two, with the same icons as the Illustrator script AiAlignToArtboardPalette. Added the diagonals (two edges), center (cross), horizontal center and vertical center. "Move selection as a unit" now uses the bounds of the whole selection
 - v1.0.0 (2026-11-03) First release

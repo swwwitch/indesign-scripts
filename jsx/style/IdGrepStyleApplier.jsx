@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdGrepStyleApplier
 Name=段落スタイルの正規表現スタイルを適用・管理
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.4
+Version=1.0.5
 Release-Date=2026-05-03
 Description-BEGIN
 段落スタイルに正規表現スタイル（GREP スタイル）を適用・管理します。ルールと文字スタイルを選び、複数の段落スタイルへまとめて反映できます。
@@ -38,10 +38,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdGrepStyleAppl
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdGrepStyleApplier";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-10-19";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "段落スタイルの正規表現スタイルを適用・管理"; /* README の見出し / README title (Japanese) */
 
@@ -291,6 +291,43 @@ function alignRightOnlyButtonRow(buttonRow) {
 
 // ボタン行（再利用パーツ）ここまで / End of the reusable button row
 
+// バージョン表示（再利用パーツ） / Version footer (reusable)
+
+var VERSION_FOOTER_TOP_MARGIN = 4;    /* バージョンの行の上に足す余白（px。ウィンドウの間隔に足す）/ extra space above the version row, added to the window spacing */
+var VERSION_FOOTER_BOTTOM_MARGIN = 8; /* バージョンの行の下の余白（px。ウィンドウの下余白をこの値にする）/ space below the version row (replaces the window's bottom margin) */
+
+/**
+ * ウィンドウの下端にバージョン（SCRIPT_VERSION）を薄く入れる。部品をすべて足したあと、show() の直前に呼ぶ。
+ * 直前の行（ボタン行など）の下余白を 0 にし、ウィンドウの下余白を VERSION_FOOTER_BOTTOM_MARGIN にする。
+ * 文字サイズは変えられない（InDesign の ScriptUI は無視する）ので、無効にしてディム表示の薄さにする
+ * @param {Window} targetWindow - ダイアログまたはパレット（縦並び）
+ * @returns {StaticText|null} バージョンの文字。すでに足してあれば null
+ */
+function addVersionFooter(targetWindow) {
+    if (targetWindow.versionFooter) return null;
+
+    /* ボタン行の下余白（BUTTON_ROW_BOTTOM_MARGIN）は、この行が引き受ける / this row takes over the button row's bottom margin */
+    var lastChild = targetWindow.children[targetWindow.children.length - 1];
+    if (lastChild && lastChild.type === "group") {
+        var rowMargins = lastChild.margins;
+        lastChild.margins = [rowMargins[0], rowMargins[1], rowMargins[2], 0];
+    }
+    var windowMargins = targetWindow.margins;
+    targetWindow.margins = [windowMargins[0], windowMargins[1], windowMargins[2], VERSION_FOOTER_BOTTOM_MARGIN];
+
+    var footerGroup = targetWindow.add("group");
+    footerGroup.orientation = "row";
+    footerGroup.alignment = ["fill", "bottom"];
+    footerGroup.alignChildren = ["left", "center"];
+    footerGroup.margins = [0, VERSION_FOOTER_TOP_MARGIN, 0, 0];
+    var versionText = footerGroup.add("statictext", undefined, SCRIPT_VERSION);
+    versionText.enabled = false;
+    targetWindow.versionFooter = versionText;
+    return versionText;
+}
+
+// バージョン表示（再利用パーツ）ここまで / End of the reusable version footer
+
 var LABELS = {
     dialog: {
         title:      { ja: "正規表現スタイルを適用", en: "Apply GREP Styles" },
@@ -465,7 +502,7 @@ var LABELS = {
      * @returns {Array<object>|null} 適用するスタイルの組み合わせ。キャンセル時は null
      */
     function showDialog(grepRules, paragraphStyleNames, characterStyleNames, targetDocument) {
-        var dialogWindow = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        var dialogWindow = new Window("dialog", getLabel("dialog.title"));
         setupWindow(dialogWindow);
 
         var mainContentGroup = dialogWindow.add("group");
@@ -635,7 +672,7 @@ var LABELS = {
 
         btnAddRule.onClick = function () {
 
-            var ruleDialog = new Window("dialog", getLabel("button.addRule") + " " + SCRIPT_VERSION);
+            var ruleDialog = new Window("dialog", getLabel("button.addRule"));
             setupWindow(ruleDialog, 10);
 
             // --- タイトル入力 ---
@@ -766,6 +803,7 @@ var LABELS = {
 
         updateOkButtonState();
 
+        addVersionFooter(dialogWindow);
         if (dialogWindow.show() !== 1) return null;
 
         var styleRegistrations = [];

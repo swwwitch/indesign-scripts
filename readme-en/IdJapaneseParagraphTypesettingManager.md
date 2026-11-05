@@ -35,12 +35,13 @@ Reviews and bulk-applies Japanese typesetting settings (kinsoku set, kinsoku adj
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdJapaneseParagraphTypesettingManager.jsx` |
-| Version | v1.3.1 |
+| Version | v1.3.4 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-05 |
-| Last updated | 2026-10-01 |
+| Last updated | 2026-11-05 |
 
 ### Update History
+- v1.3.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
 - v1.3.3 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 

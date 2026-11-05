@@ -74,14 +74,15 @@ Main changes from the original:
 | Item | Details |
 | --- | --- |
 | File | `jsx/misc/IdMenuActionsViewer.jsx` |
-| Version | v1.0.26 |
+| Version | v1.0.29 |
 | Original author | Peter Kahrel |
 | Modified by | Masahiro Takano (@swwwitch) |
 | First release | 2026-09-25 |
-| Last updated | 2026-10-01 |
+| Last updated | 2026-11-05 |
 | Article | https://note.com/dtp_tranist/n/n5038c9d2cc85 |
 
 ### Update History
+- v1.0.29 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
 - v1.0.28 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.0.27 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 
