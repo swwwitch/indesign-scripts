@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdZebraRowFill
 Name=表の行に交互の塗り（縞模様）を適用
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.4.4
+Version=1.4.5
 Release-Date=2026-04-17
 Description-BEGIN
 選択した表セルに、選択範囲内の行の並びを基準に交互の塗り（縞模様）をプレビュー付きで適用します。
@@ -45,10 +45,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdZebraRowFill.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdZebraRowFill";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "表の行に交互の塗り（縞模様）を適用"; /* README の見出し / README title (Japanese) */
 
@@ -2180,7 +2180,7 @@ function main() {
 
     refreshPreview(context, ui);
 
-    addVersionFooter(dialog);
+    addVersionFooter(ui.dialog);
     if (ui.dialog.show() === 1) {
         clearPreview(context);
         var settings = readZebraSettings(ui);

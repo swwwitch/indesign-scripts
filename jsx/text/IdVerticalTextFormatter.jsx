@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdVerticalTextFormatter
 Name=縦組みの欧文回転・縦中横・数字の書き換えをまとめて適用
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.1
+Version=1.0.2
 Release-Date=2026-11-01
 Description-BEGIN
 選択したテキストを縦組みにし、欧文回転・縦中横・数字の書き換え（全角・漢数字・和暦）・禁則・文字組みなどをまとめて適用します。
@@ -45,10 +45,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdVerticalTextF
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdVerticalTextFormatter";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "縦組みの欧文回転・縦中横・数字の書き換えをまとめて適用"; /* README の見出し / README title (Japanese) */
 
@@ -5024,7 +5024,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             dialogControls = buildDialog(dialogSettings);
             bindDialogEvents(dialogControls, textTargets);
             if (switchCenter) keepWindowCenterOnShow(dialogControls.dialog, switchCenter);
-            addVersionFooter(dialog);
+            addVersionFooter(dialogControls.dialog);
             dialogResult = dialogControls.dialog.show();
             if (dialogResult === MODE_SWITCH_RESULT) {
                 dialogSettings = readDialogOptions(dialogControls);

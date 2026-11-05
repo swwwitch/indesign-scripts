@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdLayoutGridBuilder
 Name=版面・グリッド・区切り線をプレビュー付きで作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.2.3
+Version=1.2.4
 Release-Date=2026-03-13
 Description-BEGIN
 アクティブページに版面・タイトルエリア・額縁・列行グリッド・区切り線などを、プレビューを見ながら一括作成します。
@@ -38,10 +38,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdLayoutGridBui
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdLayoutGridBuilder";          /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-13";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "版面・グリッド・区切り線をプレビュー付きで作成"; /* README の見出し / README title (Japanese) */
 
@@ -3696,7 +3696,7 @@ function main() {
     bindDialogEvents(ui);
     handleChange(ui);
 
-    addVersionFooter(dlg);
+    addVersionFooter(ui.dlg);
     var confirmed = (ui.dlg.show() === 1);
     removePreviewLayer(doc);
     if (!confirmed) return;

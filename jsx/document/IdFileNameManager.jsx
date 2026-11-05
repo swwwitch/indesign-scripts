@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdFileNameManager
 Name=ファイル名をセグメント単位で編集してリネーム・保存
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.3.8
+Version=1.3.9
 Release-Date=2026-05-27
 Description-BEGIN
 アクティブなドキュメントのファイル名を、ベース・サブテキスト・ステータス・日付・連番・バージョンのセグメント単位で編集し、リネーム／別名保存／コピー保存を行います。
@@ -45,10 +45,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdFileNameManag
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdFileNameManager";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.8";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.9";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "ファイル名をセグメント単位で編集してリネーム・保存"; /* README の見出し / README title (Japanese) */
 
@@ -2811,7 +2811,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             if (!targetFolder) return; // キャンセル
 
             var ui = createDialog(segments, info.currentName, prefs, info.parentFolderName, info.grandparentFolderName, targetFolder, isNativeDocument(info));
-            addVersionFooter(dialog);
+            addVersionFooter(ui.dialog);
             if (ui.dialog.show() !== 1) return; // キャンセル
 
             // プレビュー中はフォルダー列挙をキャッシュしている。実保存の採番は取り直した一覧で行う

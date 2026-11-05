@@ -14,6 +14,7 @@
 
 ### 調整
 
+- 起動時に「dialog is undefined」「dlg is undefined」のエラーで止まる不具合を修正（VersionFooter の追加時に、ダイアログボックスを別の関数で作っているスクリプトで変数名を誤っていた）：[表の行に交互の塗り（縞模様）を適用](readme-ja/IdZebraRowFill.md) v1.4.5、[IdFileNameManager](readme-ja/IdFileNameManager.md) v1.3.9、[IdLayoutGridBuilder](readme-ja/IdLayoutGridBuilder.md) v1.2.4、[IdTypesettingStyleManager](readme-ja/IdTypesettingStyleManager.md) v1.3.6、[IdSmartBorderBuilder](readme-ja/IdSmartBorderBuilder.md) v1.7.5、[IdVerticalTextFormatter](readme-ja/IdVerticalTextFormatter.md) v1.0.2
 - 共通部品 VersionFooter v1.2.1：左下のバージョン表示で、小文字の高さ（xハイト）を4ドットから5ドットにした（部品を貼った49本の字形を差し替え。各スクリプトのバージョンは据え置き）
 
 ## 20261105

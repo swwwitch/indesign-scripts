@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdSmartBorderBuilder
 Name=表の罫線をプレビュー付きで描画・消去
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.7.4
+Version=1.7.5
 Release-Date=2026-04-11
 Description-BEGIN
 選択した表セルに対して、モード・線幅・カラー・濃淡を指定しながら罫線をプレビュー付きで描画・消去します。
@@ -41,10 +41,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSmartBorderBu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdSmartBorderBuilder";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-11";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "表の罫線をプレビュー付きで描画・消去"; /* README の見出し / README title (Japanese) */
 
@@ -2714,7 +2714,7 @@ function main() {
     bindDialogEvents(ui, state);
     restoreLastSettings(ui, state);
 
-    addVersionFooter(dlg);
+    addVersionFooter(ui.dlg);
     if (ui.dlg.show() === 1) {
         applyDialogSettings(ui, state);
     } else {

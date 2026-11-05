@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdTypesettingStyleManager
 Name=段落スタイルの文字組版設定をまとめて設定
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.3.5
+Version=1.3.6
 Release-Date=2026-05-06
 Description-BEGIN
 段落スタイルの文字組版設定（禁則・文字組み・グリッド揃え・ハイフネーションなど）をダイアログでまとめて設定します。
@@ -41,10 +41,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypesettingSt
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTypesettingStyleManager";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-06";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "段落スタイルの文字組版設定をまとめて設定"; /* README の見出し / README title (Japanese) */
 
@@ -2777,7 +2777,7 @@ function showTypesettingSettingsDialog(kinsokuNames, kinsokuTypeNames, kinsokuHa
         }
     }
 
-    addVersionFooter(dialog);
+    addVersionFooter(dialogUi.dialog);
     if (dialogUi.dialog.show() !== 1) return null;
     return buildDialogResult(dialogUi);
 }

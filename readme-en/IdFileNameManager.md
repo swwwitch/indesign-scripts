@@ -65,13 +65,14 @@ The folder listing is read once while the dialog is open and reused for the prev
 | Item | Value |
 | --- | --- |
 | File | `jsx/document/IdFileNameManager.jsx` |
-| Version | v1.3.8 |
+| Version | v1.3.9 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-27 |
 | Last updated | 2026-11-05 |
 | Article | https://note.com/dtp_tranist/n/nc88dd887eb1c |
 
 ### Update History
+- v1.3.9 (2026-11-06) Fixed the "dialog is undefined" error that stopped the script at launch
 - v1.3.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.7 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.6 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)

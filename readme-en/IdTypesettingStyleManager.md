@@ -36,13 +36,14 @@ Sets typesetting options (kinsoku, mojikumi, grid alignment, hyphenation, and mo
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdTypesettingStyleManager.jsx` |
-| Version | v1.3.5 |
+| Version | v1.3.6 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-05-06 |
 | Last updated | 2026-11-05 |
 | Article | https://note.com/dtp_tranist/n/n7f67e8da571f |
 
 ### Update History
+- v1.3.6 (2026-11-06) Fixed the "dialog is undefined" error that stopped the script at launch
 - v1.3.5 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.4 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.3 (2026-10-06) Confirmation dialogs for deleting or overwriting now default to No (Enter cancels)
