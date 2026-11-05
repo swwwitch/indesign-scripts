@@ -64,6 +64,7 @@ A floating palette that counts how many times each of up to five keywords appear
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
 | Last updated | 2026-11-05 |
+| Article | https://note.com/dtp_tranist/n/n9f6d4d2bbeed |
 
 ### Update History
 

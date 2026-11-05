@@ -64,6 +64,7 @@
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-11-05 |
 | 最終更新 | 2026-11-05 |
+| 紹介記事 | https://note.com/dtp_tranist/n/n9f6d4d2bbeed |
 
 ### 更新履歴
 

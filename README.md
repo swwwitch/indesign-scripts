@@ -270,7 +270,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdCharacterWidth
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdCountKeywordPalette.jsx
 
-詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCountKeywordPalette.md)
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCountKeywordPalette.md)／[note記事](https://note.com/dtp_tranist/n/n9f6d4d2bbeed)
 
 ### カーソル位置から段落末尾までを削除
 

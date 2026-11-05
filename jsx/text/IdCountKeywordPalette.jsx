@@ -26,6 +26,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCountKeywordPalette.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/n9f6d4d2bbeed
+
 ### Overview
 
 A floating palette that counts how many times each of up to five keywords appears in the selected stories or in the whole document, lists where they are, and unifies spelling variants.
@@ -46,9 +49,10 @@ var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last update
 
 var SCRIPT_DESCRIPTION_JA = "キーワードの件数を数えて表記の揺れを統一"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCountKeywordPalette.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCountKeywordPalette.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdCountKeywordPalette.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdCountKeywordPalette.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCountKeywordPalette.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n9f6d4d2bbeed"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdCountKeywordPalette.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
