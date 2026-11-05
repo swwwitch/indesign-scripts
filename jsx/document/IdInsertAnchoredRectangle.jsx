@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdInsertPageCrossReference
 Name=カーソル位置にアンカー付き長方形とテキストアンカーを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=2.3.0
+Version=2.7.2
 Release-Date=2026-11-06
 Description-BEGIN
 カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。
@@ -42,7 +42,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInsertAnchore
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdInsertAnchoredRectangle";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
@@ -71,6 +71,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
     /* 線幅の初期値（pt）/ Default stroke weight (pt) */
     var DEFAULT_STROKE_WEIGHT = 0.5;
+
+    /* 長方形を置くページの端の初期値（"left" / "right"）/ Default page edge for the rectangle ("left" / "right") */
+    var DEFAULT_PAGE_SIDE = "left";
 
     /* テキストアンカー名の初期値の形（p12_01）/ Form of the default text anchor name (p12_01) */
     var ANCHOR_NAME_PAGE_PREFIX = "p";
@@ -162,6 +165,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
     /* 行ラベルの幅（px）/ Row label width (px) */
     var ROW_LABEL_WIDTH = 56;
+
+    /* 色見本の一辺（px）/ Side of the color chip (px) */
+    var SWATCH_CHIP_SIZE = 16;
 
     /* 名前の欄・線幅の欄の文字数 / Characters of the name and stroke weight fields */
     var NAME_FIELD_CHARACTERS   = 20;
@@ -263,7 +269,12 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             name:         { ja: "名前", en: "Name" },
             fill:         { ja: "塗り", en: "Fill" },
             stroke:       { ja: "線", en: "Stroke" },
-            strokeWeight: { ja: "線幅", en: "Weight" }
+            strokeWeight: { ja: "線幅", en: "Weight" },
+            pageSide:     { ja: "位置", en: "Position" }
+        },
+        radio: {
+            pageLeft:  { ja: "ページの左", en: "Left of page" },
+            pageRight: { ja: "ページの右", en: "Right of page" }
         },
         swatch: {
             None:         { ja: "なし", en: "None" },
@@ -629,9 +640,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @param {Object} labelEntry - { ja, en }
      * @param {Array} swatchChoices - getSwatchChoices() の items
      * @param {number} selectedIndex - 最初に選ぶ項目の番号
+     * @param {Function} [onSelectionChange] - 選択が変わったときに呼ぶ関数
      * @returns {DropDownList} ドロップダウンリスト
      */
-    function addSwatchRow(parentPanel, labelEntry, swatchChoices, selectedIndex) {
+    function addSwatchRow(parentPanel, labelEntry, swatchChoices, selectedIndex, onSelectionChange) {
         var swatchRow = parentPanel.add("group");
         setupRow(swatchRow, "fill");
         addRowLabel(swatchRow, labelEntry);
@@ -640,7 +652,40 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var swatchDropdown = swatchRow.add("dropdownlist", undefined, swatchLabels);
         swatchDropdown.alignment = ["fill", "center"];
         swatchDropdown.selection = selectedIndex;
+
+        var swatchChip = addSwatchChip(swatchRow);
+        paintSwatchChip(swatchChip, swatchChoices[selectedIndex].rgb);
+        swatchDropdown.onChange = function () {
+            paintSwatchChip(swatchChip, swatchChoices[swatchDropdown.selection.index].rgb);
+            swatchChip.window.update();
+            if (onSelectionChange) onSelectionChange();
+        };
         return swatchDropdown;
+    }
+
+    /**
+     * 色見本を足す
+     * @param {Group} rowGroup - 行グループ
+     * @returns {Group} 色見本
+     */
+    function addSwatchChip(rowGroup) {
+        var swatchChip = rowGroup.add("group");
+        swatchChip.minimumSize = swatchChip.preferredSize = swatchChip.maximumSize = [SWATCH_CHIP_SIZE, SWATCH_CHIP_SIZE];
+        return swatchChip;
+    }
+
+    /**
+     * 色見本を塗る
+     * @param {Group} swatchChip - 色見本
+     * @param {Array|null} chipRgb - [R, G, B]（0〜1）。［なし］の null は白で塗る
+     * @returns {void}
+     */
+    function paintSwatchChip(swatchChip, chipRgb) {
+        var fillRgb = chipRgb || [1, 1, 1];
+        swatchChip.graphics.backgroundColor = swatchChip.graphics.newBrush(
+            swatchChip.graphics.BrushType.SOLID_COLOR,
+            [fillRgb[0], fillRgb[1], fillRgb[2], 1]
+        );
     }
 
     /**
@@ -648,7 +693,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @param {string} defaultName - 名前の初期値
      * @param {{items: Array, fillIndex: number, strokeIndex: number}} swatchChoices - getSwatchChoices() の戻り値
      * @param {Object} usedNames - 使用中のテキストアンカー名（名前をキーにしたオブジェクト）
-     * @returns {{anchorName: string, fillChoice: Object, strokeChoice: Object, strokeWeight: number}|null} 指定内容。キャンセルなら null
+     * @returns {{anchorName: string, fillChoice: Object, strokeChoice: Object, strokeWeight: number, pageSide: string}|null} 指定内容。キャンセルなら null
      */
     function showOptionsDialog(defaultName, swatchChoices, usedNames) {
         var optionsDialog = new Window("dialog", getLabel(LABELS.dialog.title));
@@ -667,7 +712,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var rectanglePanel = optionsDialog.add("panel", undefined, getLabel(LABELS.panel.rectangle));
         setupPanel(rectanglePanel);
         var fillDropdown = addSwatchRow(rectanglePanel, LABELS.field.fill, swatchChoices.items, swatchChoices.fillIndex);
-        var strokeDropdown = addSwatchRow(rectanglePanel, LABELS.field.stroke, swatchChoices.items, swatchChoices.strokeIndex);
+        var strokeDropdown = addSwatchRow(rectanglePanel, LABELS.field.stroke, swatchChoices.items, swatchChoices.strokeIndex, updateWeightEnabled);
 
         var weightRow = rectanglePanel.add("group");
         setupRow(weightRow, "fill");
@@ -685,8 +730,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             weightField.enabled = hasStroke;
             weightUnit.enabled = hasStroke;
         }
-        strokeDropdown.onChange = updateWeightEnabled;
         updateWeightEnabled();
+
+        var sideRow = rectanglePanel.add("group");
+        setupRow(sideRow, "fill");
+        addRowLabel(sideRow, LABELS.field.pageSide);
+        var pageLeftRadio = sideRow.add("radiobutton", undefined, getLabel(LABELS.radio.pageLeft));
+        var pageRightRadio = sideRow.add("radiobutton", undefined, getLabel(LABELS.radio.pageRight));
+        pageLeftRadio.value = (DEFAULT_PAGE_SIDE !== "right");
+        pageRightRadio.value = (DEFAULT_PAGE_SIDE === "right");
 
         var buttonRow = addButtonRow(optionsDialog);
         buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
@@ -712,7 +764,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 anchorName: anchorName,
                 fillChoice: swatchChoices.items[fillDropdown.selection.index],
                 strokeChoice: swatchChoices.items[strokeDropdown.selection.index],
-                strokeWeight: strokeWeight
+                strokeWeight: strokeWeight,
+                pageSide: pageRightRadio.value ? "right" : "left"
             };
             optionsDialog.close(1);
         };
@@ -788,10 +841,74 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
+     * CMYK を色見本用の RGB に簡易換算する
+     * @param {Array} cmykValues - [C, M, Y, K]（0〜100）
+     * @returns {Array} [R, G, B]（0〜1）
+     */
+    function cmykToRgb(cmykValues) {
+        var keyFactor = 1 - cmykValues[3] / 100;
+        return [
+            (1 - cmykValues[0] / 100) * keyFactor,
+            (1 - cmykValues[1] / 100) * keyFactor,
+            (1 - cmykValues[2] / 100) * keyFactor
+        ];
+    }
+
+    /**
+     * スウォッチのプロパティを読む。種類に無いプロパティは例外になるので undefined にする
+     * @param {Swatch} swatchItem - スウォッチ
+     * @param {string} propertyName - プロパティ名
+     * @returns {*} 値。その種類に無ければ undefined
+     */
+    function readSwatchProperty(swatchItem, propertyName) {
+        var propertyValue;
+        try {
+            /* return の式の中で例外が出ると catch に届かなかったので、代入してから返す / An exception in a return expression did not reach catch, so assign first */
+            propertyValue = swatchItem[propertyName];
+        } catch (e) {
+            propertyValue = undefined;
+        }
+        return propertyValue;
+    }
+
+    /**
+     * スウォッチの色見本の RGB を返す（表示用の簡易換算）。
+     * doc.swatches の要素は種類によらず constructor.name が "Swatch" なので、持っているプロパティで見分ける。
+     * 濃淡は白と混ぜ、グラデーションは先頭の色、Lab は明度の灰色、それ以外（混合インキなど）は中間の灰色にする
+     * @param {Swatch} swatchItem - スウォッチ
+     * @returns {Array} [R, G, B]（0〜1）
+     */
+    function getPreviewRgb(swatchItem) {
+        var tintValue = readSwatchProperty(swatchItem, "tintValue");
+        var baseColor = readSwatchProperty(swatchItem, "baseColor");
+        if (tintValue !== undefined && baseColor) {
+            var baseRgb = getPreviewRgb(baseColor);
+            var tintRatio = (tintValue < 0) ? 1 : tintValue / 100;
+            return [
+                1 - (1 - baseRgb[0]) * tintRatio,
+                1 - (1 - baseRgb[1]) * tintRatio,
+                1 - (1 - baseRgb[2]) * tintRatio
+            ];
+        }
+
+        var gradientStops = readSwatchProperty(swatchItem, "gradientStops");
+        if (gradientStops && gradientStops.length > 0) return getPreviewRgb(gradientStops[0].stopColor);
+
+        var colorValues = readSwatchProperty(swatchItem, "colorValue");
+        if (colorValues) {
+            var colorSpace = swatchItem.space;
+            if (colorSpace === ColorSpace.CMYK) return cmykToRgb(colorValues);
+            if (colorSpace === ColorSpace.RGB) return [colorValues[0] / 255, colorValues[1] / 255, colorValues[2] / 255];
+            if (colorSpace === ColorSpace.LAB) return [colorValues[0] / 100, colorValues[0] / 100, colorValues[0] / 100];
+        }
+        return [0.5, 0.5, 0.5];
+    }
+
+    /**
      * ダイアログボックスのドロップダウンリストに並べるスウォッチの一覧を作る。
      * 塗りの初期値のスウォッチがドキュメントに無ければ、作成前の項目として末尾に足す
      * @param {Document} doc - 対象ドキュメント
-     * @returns {{items: Array, fillIndex: number, strokeIndex: number}} 項目 { label, name, swatch } と、塗り・線の初期値の番号
+     * @returns {{items: Array, fillIndex: number, strokeIndex: number}} 項目 { label, name, swatch, rgb } と、塗り・線の初期値の番号
      */
     function getSwatchChoices(doc) {
         var defaultFillName = makeCmykColorName(DEFAULT_FILL_CMYK);
@@ -803,13 +920,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             choices.items.push({
                 label: isBuiltIn ? "[" + getLabel(LABELS.swatch[swatchName]) + "]" : swatchName,
                 name: swatchName,
-                swatch: swatches[i]
+                swatch: swatches[i],
+                rgb: (swatchName === "None") ? null : getPreviewRgb(swatches[i])
             });
             if (swatchName === defaultFillName) choices.fillIndex = i;
             if (swatchName === "None") choices.strokeIndex = i;
         }
         if (choices.fillIndex < 0) {
-            choices.items.push({ label: defaultFillName, name: defaultFillName, swatch: null });
+            choices.items.push({ label: defaultFillName, name: defaultFillName, swatch: null, rgb: cmykToRgb(DEFAULT_FILL_CMYK) });
             choices.fillIndex = choices.items.length - 1;
         }
         return choices;
@@ -833,7 +951,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * 指定の塗り・線でプリントしない長方形をページ上に作る（位置はアンカー化で変わるので、大きさだけ決める）
      * @param {Document} doc - 対象ドキュメント
      * @param {Page} page - 作成するページ
-     * @param {{anchorName: string, fillChoice: Object, strokeChoice: Object, strokeWeight: number}} rectangleOptions - ダイアログボックスの指定内容
+     * @param {{anchorName: string, fillChoice: Object, strokeChoice: Object, strokeWeight: number, pageSide: string}} rectangleOptions - ダイアログボックスの指定内容
      * @returns {Rectangle} 作成した長方形
      */
     function createRectangle(doc, page, rectangleOptions) {
@@ -851,16 +969,42 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
+     * ページの左または右のマージンの幅を返す（見開きの左ページは left が内側＝画面の右なので入れ替える）
+     * @param {Page} page - 対象のページ
+     * @param {boolean} isRightSide - 右のマージンなら true
+     * @returns {number} マージンの幅（定規の単位）
+     */
+    function getSideMargin(page, isRightSide) {
+        var marginPrefs = page.marginPreferences;
+        var isLeftHand = (page.side === PageSideOptions.LEFT_HAND);
+        return (isRightSide !== isLeftHand) ? marginPrefs.right : marginPrefs.left;
+    }
+
+    /**
      * カーソル位置にアンカー付き長方形を入れ、その直前にテキストアンカーを作る
      * @param {Document} doc - 対象ドキュメント
      * @param {Page} page - 長方形を作るページ
      * @param {InsertionPoint} insertionPoint - カーソル位置
-     * @param {{anchorName: string, fillChoice: Object, strokeChoice: Object, strokeWeight: number}} rectangleOptions - ダイアログボックスの指定内容
+     * @param {{anchorName: string, fillChoice: Object, strokeChoice: Object, strokeWeight: number, pageSide: string}} rectangleOptions - ダイアログボックスの指定内容
      * @returns {void}
      */
     function insertAnchoredRectangle(doc, page, insertionPoint, rectangleOptions) {
         var rectangle = createRectangle(doc, page, rectangleOptions);
-        rectangle.anchoredObjectSettings.insertAnchoredObject(insertionPoint, AnchorPosition.ANCHORED);
+        var anchorSettings = rectangle.anchoredObjectSettings;
+        anchorSettings.insertAnchoredObject(insertionPoint, AnchorPosition.ANCHORED);
+
+        /* カスタムのままだとページの左上に残るので、下端を行のベースラインに揃える（文章が流れても行に付いて動く）/ Custom leaves it at the top left of the page, so sit its bottom on the line's baseline (it follows the line when text reflows) */
+        anchorSettings.verticalReferencePoint = VerticallyRelativeTo.LINE_BASELINE;
+        anchorSettings.anchorYoffset = 0;
+
+        /* 横はページの端とマージンの中間に中心を置く。見開きでも左右が入れ替わらないよう、ノドは基準にしない / Center it halfway between the page edge and the margin; not spine relative, so left and right stay put on facing pages */
+        var isRightSide = (rectangleOptions.pageSide === "right");
+        anchorSettings.spineRelative = false;
+        anchorSettings.horizontalReferencePoint = AnchoredRelativeTo.PAGE_EDGE;
+        anchorSettings.horizontalAlignment = isRightSide ? HorizontalAlignment.RIGHT_ALIGN : HorizontalAlignment.LEFT_ALIGN;
+        anchorSettings.anchorPoint = AnchorPoint.BOTTOM_CENTER_ANCHOR;
+        var halfMargin = getSideMargin(page, isRightSide) / 2;
+        anchorSettings.anchorXoffset = isRightSide ? -halfMargin : halfMargin;
 
         /* アンカー化した長方形の親は、オブジェクト置換文字（Character）/ An anchored rectangle's parent is its object replacement Character */
         var anchorCharacter = rectangle.parent;
