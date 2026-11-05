@@ -24,7 +24,7 @@ Lists every panel in the Window menu in a single list, including those inside su
 - Mark panels and filter by the marks
   - Select panels in the list and click ♥ at the bottom left for ♥ (frequently used) or ♢ for ♢ (rarely used). If all the selected panels already have the mark, clicking again removes it
   - A panel has either ♥ or ♢. You can mark several panels at once
-  - Filter radio buttons: **All** / **♥ Frequent** (only ♥ panels) / **Hide ♢** (leaves out ♢ panels)
+  - Filter checkboxes: **♥ Frequent** (only ♥ panels) / **Hide ♢** (leaves out ♢ panels). With both off, every panel is listed
   - The marks and the filter are kept for the next run
 - Set buttons show a fixed group of panels at once (regardless of the filter, search or selection; the dialog closes and the panels open)
   - **Tables**: Cell Styles, Table Styles, Table
@@ -67,7 +67,7 @@ Press Down in the search field to move to the list. Cmd (Ctrl) / Shift-click to 
 | Item | Value |
 | --- | --- |
 | File | `jsx/misc/IdPanelLauncher.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
 | Last updated | 2026-11-06 |
@@ -75,6 +75,7 @@ Press Down in the search field to move to the list. Cmd (Ctrl) / Shift-click to 
 
 ### Update History
 
+- v1.1.1 (2026-11-06): The filter is now two checkboxes instead of radio buttons, so ♥ Frequent and Hide ♢ can be on together
 - v1.1.0 (2026-11-06): Added the ♥ (frequently used) and ♢ (rarely used) marks and filtering by them, and set buttons that show a fixed group of panels at once (Tables, Text, Book)
 - v1.0.0 (2026-11-05): Initial release
 

@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdPanelLauncher
 Name=パネルを検索して表示
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.1.0
+Version=1.1.1
 Release-Date=2026-11-05
 Description-BEGIN
 ［ウィンドウ］メニューのパネルを、サブメニューの中まで展開して1つのリストに並べます。
@@ -43,7 +43,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdPanelLauncher
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdPanelLauncher";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
@@ -87,10 +87,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         rare: "\u2662"   /* ♢ */
     };
 
-    /* 絞り込み（ラジオボタンの順）。all＝すべて、fav＝よく使う（♥）だけ、hideRare＝あまり使わない（♢）を除く
-       / Filters (radio button order): all, fav = only ♥ panels, hideRare = hide ♢ panels */
-    var FILTER_KEYS = ["all", "fav", "hideRare"];
-    var DEFAULT_FILTER_KEY = "all";
+    /* 絞り込みのチェックボックス（並びの順）。fav＝よく使う（♥）だけ、hideRare＝あまり使わない（♢）を除く。両方オフならすべて
+       / Filter checkboxes (in order): fav = only ♥ panels, hideRare = hide ♢ panels. Both off shows everything */
+    var FILTER_KEYS = ["fav", "hideRare"];
 
     /* 印と絞り込みを残す設定ファイル（Folder.userData の中）/ File that keeps the marks and the filter (in Folder.userData) */
     var SETTINGS_FILE_NAME = "IdPanelLauncher-settings.txt";
@@ -715,7 +714,6 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             panelSet:  { ja: "セット", en: "Sets" }
         },
         filter: {
-            all:      { ja: "すべて", en: "All" },
             fav:      { ja: "\u2665 よく使う", en: "\u2665 Frequent" },
             hideRare: { ja: "\u2662 を除く", en: "Hide \u2662" }
         },
@@ -733,8 +731,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 en: "Filters by name and category (submenu name). Separate words with spaces to match all of them. Press Down to move to the list."
             },
             filter: {
-                ja: "♥ よく使う：♥ を付けたパネルだけを出します。♢ を除く：♢（あまり使わない）を付けたパネルを隠します。",
-                en: "\u2665 Frequent lists only the panels marked \u2665. Hide \u2662 leaves out the panels marked \u2662 (rarely used)."
+                ja: "♥ よく使う：♥ を付けたパネルだけを出します。♢ を除く：♢（あまり使わない）を付けたパネルを隠します。両方オフならすべて出します。",
+                en: "\u2665 Frequent lists only the panels marked \u2665. Hide \u2662 leaves out the panels marked \u2662 (rarely used). With both off, every panel is listed."
             },
             markFav: {
                 ja: "選んだパネルに ♥（よく使う）を付けます。すべてに付いていれば外します。",
@@ -862,7 +860,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     /**
      * @typedef {Object} LauncherSettings
      * @property {Object} marks - パネルの鍵（getPanelKey）から印（"fav"／"rare"）への対応
-     * @property {string} filterKey - 前回の絞り込み（FILTER_KEYS のどれか）
+     * @property {Object} filters - 絞り込み（FILTER_KEYS の鍵ごとにオンなら true）
      */
 
     /**
@@ -883,11 +881,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 設定ファイルを読む。1行に「filter=絞り込み」か「fav=鍵」「rare=鍵」
-     * @returns {LauncherSettings} 読んだ設定（読めなければ印なし・既定の絞り込み）
+     * 設定ファイルを読む。1行に「filter=オンの絞り込み（カンマ区切り）」か「fav=鍵」「rare=鍵」
+     * @returns {LauncherSettings} 読んだ設定（読めなければ印なし・絞り込みなし）
      */
     function loadSettings() {
-        var settings = { marks: {}, filterKey: DEFAULT_FILTER_KEY };
+        var settings = { marks: {}, filters: { fav: false, hideRare: false } };
         var settingsFile = getSettingsFile();
         if (!settingsFile.exists) return settings;
         var rawText = "";
@@ -905,7 +903,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             if (separatorIndex <= 0) continue;
             var lineKey = lines[i].substring(0, separatorIndex);
             var lineValue = lines[i].substring(separatorIndex + 1);
-            if (lineKey === "filter" && isKnownKey(FILTER_KEYS, lineValue)) settings.filterKey = lineValue;
+            if (lineKey === "filter") readFilterValue(lineValue, settings.filters);
             else if (MARK_GLYPHS.hasOwnProperty(lineKey)) settings.marks[lineValue] = lineKey;
         }
         return settings;
@@ -917,7 +915,11 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @returns {void}
      */
     function saveSettings(settings) {
-        var lines = ["filter=" + settings.filterKey];
+        var onFilterKeys = [];
+        for (var i = 0; i < FILTER_KEYS.length; i++) {
+            if (settings.filters[FILTER_KEYS[i]]) onFilterKeys.push(FILTER_KEYS[i]);
+        }
+        var lines = ["filter=" + onFilterKeys.join(",")];
         for (var panelKey in settings.marks) {
             if (settings.marks.hasOwnProperty(panelKey)) lines.push(settings.marks[panelKey] + "=" + panelKey);
         }
@@ -933,16 +935,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 値が一覧に含まれるかを返す
-     * @param {string[]} knownKeys - 一覧
-     * @param {string} value - 調べる値
-     * @returns {boolean} 含まれれば true
+     * 「filter=」の値（カンマ区切りの鍵。v1.1.0 の1つだけの値や "all" も同じ書き方で読める）を絞り込みに写す
+     * @param {string} filterValue - 値
+     * @param {Object} filters - 写す先（FILTER_KEYS の鍵ごとの真偽）
+     * @returns {void}
      */
-    function isKnownKey(knownKeys, value) {
-        for (var i = 0; i < knownKeys.length; i++) {
-            if (knownKeys[i] === value) return true;
+    function readFilterValue(filterValue, filters) {
+        var onKeys = "," + filterValue + ",";
+        for (var i = 0; i < FILTER_KEYS.length; i++) {
+            filters[FILTER_KEYS[i]] = (onKeys.indexOf("," + FILTER_KEYS[i] + ",") >= 0);
         }
-        return false;
     }
 
     /**
@@ -986,17 +988,17 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 絞り込み（FILTER_KEYS）に合うパネルだけを返す
+     * 絞り込み（オンのものすべて）に合うパネルだけを返す
      * @param {PanelEntry[]} entries - パネルの一覧
-     * @param {string} filterKey - FILTER_KEYS のどれか
+     * @param {Object} filters - FILTER_KEYS の鍵ごとの真偽
      * @returns {PanelEntry[]} 条件に合うパネル
      */
-    function filterByMark(entries, filterKey) {
-        if (filterKey !== "fav" && filterKey !== "hideRare") return entries.slice(0);
+    function filterByMark(entries, filters) {
         var matched = [];
         for (var i = 0; i < entries.length; i++) {
-            var isMatch = (filterKey === "fav") ? (entries[i].mark === "fav") : (entries[i].mark !== "rare");
-            if (isMatch) matched.push(entries[i]);
+            if (filters.fav && entries[i].mark !== "fav") continue;
+            if (filters.hideRare && entries[i].mark === "rare") continue;
+            matched.push(entries[i]);
         }
         return matched;
     }
@@ -1264,6 +1266,28 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
+     * チェックボックスの行を作る
+     * @param {Window} parent - 追加先
+     * @param {Object} rowLabelSet - 行ラベル
+     * @param {string[]} optionKeys - 選択肢の鍵（並びの順）
+     * @param {Object} optionLabels - 鍵ごとの文言
+     * @param {Object} tooltipLabel - ツールチップ
+     * @param {Object} checkedKeys - 鍵ごとの最初の値
+     * @returns {Checkbox[]} optionKeys と同じ順のチェックボックス
+     */
+    function buildCheckboxRow(parent, rowLabelSet, optionKeys, optionLabels, tooltipLabel, checkedKeys) {
+        var checkboxRow = addFieldRow(parent, rowLabelSet);
+        var checkboxes = [];
+        for (var i = 0; i < optionKeys.length; i++) {
+            var checkbox = checkboxRow.add("checkbox", undefined, getLabel(optionLabels[optionKeys[i]]));
+            checkbox.helpTip = getLabel(tooltipLabel);
+            checkbox.value = !!checkedKeys[optionKeys[i]];
+            checkboxes.push(checkbox);
+        }
+        return checkboxes;
+    }
+
+    /**
      * 印を付けるボタン（♥・♢）を作る
      * @param {Group} parent - 追加先
      * @param {string} markKey - "fav"／"rare"
@@ -1320,7 +1344,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var searchUI = buildSearchRow(mainDialog);
         var searchInput = searchUI.input;
         var clearButton = searchUI.clearButton;
-        var filterRadios = buildRadioRow(mainDialog, LABELS.fieldLabel.filter, FILTER_KEYS, LABELS.filter, LABELS.tooltip.filter, settings.filterKey);
+        var filterChecks = buildCheckboxRow(mainDialog, LABELS.fieldLabel.filter, FILTER_KEYS, LABELS.filter, LABELS.tooltip.filter, settings.filters);
         var sortRadios = buildRadioRow(mainDialog, LABELS.fieldLabel.sortOrder, SORT_KEYS, LABELS.sort, LABELS.tooltip.sortOrder, currentSortKey);
         var setButtons = buildPanelSetRow(mainDialog);
         var panelList = buildPanelList(mainDialog);
@@ -1355,7 +1379,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
          * @returns {void}
          */
         function rebuildList(keepEntries) {
-            visibleEntries = sortPanelEntries(filterPanelEntries(filterByMark(allEntries, settings.filterKey), searchInput.text), currentSortKey);
+            visibleEntries = sortPanelEntries(filterPanelEntries(filterByMark(allEntries, settings.filters), searchInput.text), currentSortKey);
             panelList.removeAll();
             var reselectIndexes = [];
             for (var i = 0; i < visibleEntries.length; i++) {
@@ -1407,13 +1431,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         }
 
         /**
-         * 絞り込みのラジオボタンで一覧を作り直し、選んでいたパネルを選び直す
-         * @param {string} filterKey - 選んだ絞り込み
+         * 絞り込みのチェックボックスで一覧を作り直し、選んでいたパネルを選び直す
+         * @param {string} filterKey - 切り替えた絞り込み
+         * @param {boolean} isOn - オンなら true
          * @returns {void}
          */
-        function applyFilterKey(filterKey) {
-            if (filterKey === settings.filterKey) return;
-            settings.filterKey = filterKey;
+        function applyFilter(filterKey, isOn) {
+            if (settings.filters[filterKey] === isOn) return;
+            settings.filters[filterKey] = isOn;
             saveSettings(settings);
             rebuildList(getSelectedEntries());
         }
@@ -1478,9 +1503,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 return function () { applySortKey(sortKey); };
             }(SORT_KEYS[i]));
         }
-        for (var f = 0; f < filterRadios.length; f++) {
-            filterRadios[f].onClick = (function (filterKey) {
-                return function () { applyFilterKey(filterKey); };
+        for (var f = 0; f < filterChecks.length; f++) {
+            filterChecks[f].onClick = (function (filterKey) {
+                return function () { applyFilter(filterKey, this.value); };
             }(FILTER_KEYS[f]));
         }
         for (var p = 0; p < setButtons.length; p++) {
