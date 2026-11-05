@@ -504,7 +504,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdTextAnchor
 
 ### カーソル位置にアンカー付き長方形とテキストアンカーを作成
 
-カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。名前と塗り・線はダイアログボックスで指定でき、ハイパーリンクや相互参照の行き先として使えます。
+カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。名前と塗り・線・位置はダイアログボックスで指定でき、ハイパーリンクや相互参照の行き先として使えます。
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdInsertAnchoredRectangle.jsx
 

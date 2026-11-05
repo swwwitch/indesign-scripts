@@ -6,14 +6,14 @@ Script-ID=com.swwwitch.indesign.IdInsertPageCrossReference
 Name=カーソル位置にアンカー付き長方形とテキストアンカーを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=2.7.2
+Version=2.7.5
 Release-Date=2026-11-06
 Description-BEGIN
 カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。
-テキストアンカーの名前と長方形の塗り・線はダイアログボックスで指定でき、ハイパーリンクや相互参照の行き先として使えます。
+テキストアンカーの名前と長方形の塗り・線・位置（ページの左／右）はダイアログボックスで指定でき、ハイパーリンクや相互参照の行き先として使えます。
 
 Creates a small non-printing anchored (custom) rectangle at the text cursor, plus a text anchor right before it.
-The anchor name and the rectangle's fill and stroke are set in a dialog box, and the anchor can serve as a target for hyperlinks and cross-references.
+The anchor name and the rectangle's fill, stroke and position (left or right of the page) are set in a dialog box, and the anchor can serve as a target for hyperlinks and cross-references.
 Description-END
 SCRIPTMETA-END
 */
@@ -23,7 +23,7 @@ SCRIPTMETA-END
 ### 概要
 
 カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。
-テキストアンカーの名前と長方形の塗り・線はダイアログボックスで指定でき、ハイパーリンクや相互参照の行き先として使えます。
+テキストアンカーの名前と長方形の塗り・線・位置（ページの左／右）はダイアログボックスで指定でき、ハイパーリンクや相互参照の行き先として使えます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInsertAnchoredRectangle.md
@@ -31,7 +31,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInsertAnchore
 ### Overview
 
 Creates a small non-printing anchored (custom) rectangle at the text cursor, plus a text anchor right before it.
-The anchor name and the rectangle's fill and stroke are set in a dialog box, and the anchor can serve as a target for hyperlinks and cross-references.
+The anchor name and the rectangle's fill, stroke and position (left or right of the page) are set in a dialog box, and the anchor can serve as a target for hyperlinks and cross-references.
 
 See the README for details.
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInsertAnchoredRectangle.md
@@ -42,7 +42,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInsertAnchore
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdInsertAnchoredRectangle";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.7.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
@@ -415,9 +415,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     var VERSION_FOOTER_COLOR = isDarkUI() ? [0.45, 0.45, 0.45, 1] : [0.62, 0.62, 0.62, 1]; /* 文字の色（ディム表示に近い灰色）/ text color, a gray close to the dimmed look */
 
     /* 字形：Sigi 7px Regular（Rasmus Andersson、CC0。https://github.com/rsms/sigi-pixel-font）の大文字・数字・「. - _ +」・空白を
-       9 行のドット（# が点。上7行が大文字の高さ、下2行は小文字の下に出る部分）に写したもの。Sigi に小文字が無いので、a〜z は同じ大きさで描き足した
+       9 行のドット（# が点。上7行が大文字の高さ、下2行は小文字の下に出る部分）に写したもの。Sigi に小文字が無いので、a〜z は同じ大きさで描き足した。I は l と見分けるよう上下に横棒を足した
        / Glyphs: uppercase, digits, ". - _ +" and space from Sigi 7px Regular by Rasmus Andersson (CC0, https://github.com/rsms/sigi-pixel-font),
-         nine rows each ("#" is a dot; seven rows of cap height plus two for descenders). Sigi has no lowercase, so a-z were drawn to match */
+         nine rows each ("#" is a dot; seven rows of cap height plus two for descenders). Sigi has no lowercase, so a-z were drawn to match. I has top and bottom bars to tell it from l */
     var VERSION_FOOTER_GLYPH_HEIGHT = 9;  /* 字の高さ（ドット。下2行は g・j・p・q・y の下に出る部分）/ glyph height (dots), including two descender rows */
     var VERSION_FOOTER_GLYPHS = {
         "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#", ".....", "....."],
@@ -428,7 +428,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         "F": ["#####", "#....", "#....", "####.", "#....", "#....", "#....", ".....", "....."],
         "G": [".###.", "#...#", "#....", "#..##", "#...#", "#...#", ".###.", ".....", "....."],
         "H": ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#", ".....", "....."],
-        "I": ["#", "#", "#", "#", "#", "#", "#", ".", "."],
+        "I": ["###", ".#.", ".#.", ".#.", ".#.", ".#.", "###", "...", "..."],
         "J": ["....#", "....#", "....#", "....#", "....#", "#...#", ".###.", ".....", "....."],
         "K": ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#", ".....", "....."],
         "L": ["#...", "#...", "#...", "#...", "#...", "#...", "####", "....", "...."],
@@ -463,7 +463,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         "o": ["....", "....", ".##.", "#..#", "#..#", "#..#", ".##.", "....", "...."],
         "p": ["....", "....", "###.", "#..#", "#..#", "#..#", "###.", "#...", "#..."],
         "q": ["....", "....", ".###", "#..#", "#..#", "#..#", ".###", "...#", "...#"],
-        "r": ["....", "....", "#.##", "##..", "#...", "#...", "#...", "....", "...."],
+        "r": ["...", "...", "#.#", "##.", "#..", "#..", "#..", "...", "..."],
         "s": ["....", "....", ".###", "#...", ".##.", "...#", "###.", "....", "...."],
         "t": ["...", ".#.", "###", ".#.", ".#.", ".#.", ".##", "...", "..."],
         "u": ["....", "....", "#..#", "#..#", "#..#", "#..#", ".###", "....", "...."],
@@ -473,7 +473,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         "y": ["....", "....", "#..#", "#..#", "#..#", "#..#", ".###", "...#", "###."],
         "z": ["....", "....", "####", "...#", ".##.", "#...", "####", "....", "...."],
         "0": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###.", ".....", "....."],
-        "1": [".#", "##", ".#", ".#", ".#", ".#", ".#", "..", ".."],
+        "1": [".#.", "##.", ".#.", ".#.", ".#.", ".#.", "###", "...", "..."],
         "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####", ".....", "....."],
         "3": [".###.", "#...#", "....#", "..##.", "....#", "#...#", ".###.", ".....", "....."],
         "4": ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#.", ".....", "....."],

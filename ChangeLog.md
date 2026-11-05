@@ -4,7 +4,7 @@
 
 ### 新しいスクリプトを追加
 
-- [カーソル位置にアンカー付き長方形とテキストアンカーを作成](readme-ja/IdInsertAnchoredRectangle.md) v2.7.2：カーソル位置に 12×12 pt のアンカー付き（位置はカスタム）・プリントしない長方形を、下端を行のベースラインに揃えて入れ、その直前にテキストアンカー（長方形のスクリプトラベルと同じ名前）を作成する。ダイアログボックスで名前（初期値はページ番号と通し番号）、塗り・線（色見本付きのポップアップメニュー、初期値は M100Y100・線なし）、位置（ページの左／右、初期値は左。ページの端とマージンの中間に置く）を指定する。ハイパーリンク・相互参照の行き先に使う。同日追加の IdInsertPageCrossReference（段落のページ番号を「p.番号」の相互参照で挿入、v1.0.0）から改名・差し替え
+- [カーソル位置にアンカー付き長方形とテキストアンカーを作成](readme-ja/IdInsertAnchoredRectangle.md) v2.7.5：カーソル位置に 12×12 pt のアンカー付き（位置はカスタム）・プリントしない長方形を、下端を行のベースラインに揃えて入れ、その直前にテキストアンカー（長方形のスクリプトラベルと同じ名前）を作成する。ダイアログボックスで名前（初期値はページ番号と通し番号）、塗り・線（色見本付きのポップアップメニュー、初期値は M100Y100・線なし）、位置（ページの左／右、初期値は左。ページの端とマージンの中間に置く）を指定する。ハイパーリンク・相互参照の行き先に使う。同日追加の IdInsertPageCrossReference（段落のページ番号を「p.番号」の相互参照で挿入、v1.0.0）から改名・差し替え
 - [テキストアンカーを一覧して表示](readme-ja/IdTextAnchorListPalette.md)：アクティブなドキュメントのテキストアンカー（ハイパーリンク先）を「ページ｜アンカー名｜テキスト」でページ順に常駐パレットへ一覧する。ダブルクリックでそのアンカーのページを表示し、アンカーのある段落のテキストを選択する（パレットは開いたまま、［更新］で読み直し）
 
 ### 機能追加
@@ -16,6 +16,7 @@
 
 - 起動時に「dialog is undefined」「dlg is undefined」のエラーで止まる不具合を修正（VersionFooter の追加時に、ダイアログボックスを別の関数で作っているスクリプトで変数名を誤っていた）：[表の行に交互の塗り（縞模様）を適用](readme-ja/IdZebraRowFill.md) v1.4.5、[IdFileNameManager](readme-ja/IdFileNameManager.md) v1.3.9、[IdLayoutGridBuilder](readme-ja/IdLayoutGridBuilder.md) v1.2.4、[IdTypesettingStyleManager](readme-ja/IdTypesettingStyleManager.md) v1.3.6、[IdSmartBorderBuilder](readme-ja/IdSmartBorderBuilder.md) v1.7.5、[IdVerticalTextFormatter](readme-ja/IdVerticalTextFormatter.md) v1.0.2
 - 共通部品 VersionFooter v1.2.1：左下のバージョン表示で、小文字の高さ（xハイト）を4ドットから5ドットにした（部品を貼った49本の字形を差し替え。各スクリプトのバージョンは据え置き）
+- 共通部品 VersionFooter v1.2.4：左下の表示で、大文字の I に上下の横棒、数字の 1 に下の横棒を付け、小文字の r の右上を1ドット短くした（部品を貼った51本の字形を差し替え。IdInsertAnchoredRectangle 以外のバージョンは据え置き）
 
 ## 20261105
 
