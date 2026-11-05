@@ -502,6 +502,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdTextAnchor
 
 詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTextAnchorListPalette.md)／[note記事](https://note.com/dtp_tranist/n/n23fa2f14621f)
 
+### 段落のページ番号を「p.番号」の相互参照で挿入
+
+1つ目のストーリーの3段落目が載っているページの番号を、2つ目のストーリーの末尾に「p.12」の形の相互参照で挿入します。ページが動いても番号は追従します。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdInsertPageCrossReference.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInsertPageCrossReference.md)
+
 ## その他
 
 ### ページ外（ペーストボード上）のオブジェクトを削除
