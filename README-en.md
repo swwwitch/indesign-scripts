@@ -66,3 +66,7 @@ Changes the scale of the image in each selected frame, set from a palette by val
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/frame/IdSetImageScale.jsx
 
 Details: [README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdSetImageScale.md) / [Article on note (Japanese)](https://note.com/dtp_tranist/n/n91c6a628b7ed)
+
+## Credits
+
+- The script name, version and "DTP Transit" shown at the bottom of dialogs and palettes use glyphs from [Sigi pixel font](https://github.com/rsms/sigi-pixel-font) by Rasmus Andersson (Sigi 7px Regular, CC0), in the shared VersionFooter part. Lowercase letters, which Sigi does not have, were drawn to match

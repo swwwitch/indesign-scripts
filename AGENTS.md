@@ -23,6 +23,6 @@ Update checking is not used: write no `Meta-URL` and no `SCRIPTMETA.txt`.
 ## UI
 
 - Do not put `SCRIPT_VERSION` in a window title. Show it with the VersionFooter part (`jsx/_templates/VersionFooter.jsx`):
-  call `addVersionFooter(window)` after every control is added, right before `show()`. It draws the version small and gray
+  call `addVersionFooter(window)` after every control is added, right before `show()`. It draws the script name and version (left) and "DTP Transit" (right) small and gray
   at the bottom left (dot glyphs in `onDraw`; needs the UITheme part for `isDarkUI()`) and takes over the button row's bottom margin. Progress, confirm and other
   small sub-windows get no footer. InDesign's ScriptUI ignores font sizes, which is why the digits are drawn as dots
