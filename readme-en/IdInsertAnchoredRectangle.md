@@ -42,7 +42,6 @@ The anchor name and the rectangle's fill, stroke and position (left or right of 
 - The horizontal position comes from the margins of the page at creation. If text reflows onto a page with different left and right margins, the rectangle is no longer halfway.
 - If the name is empty, a text anchor with the same name exists, or the stroke weight is invalid, OK shows a message and returns to the dialog box.
 - The size, default fill, default stroke weight, default position and name form can be changed in the settings at the top of the script.
-- Not yet tested in InDesign.
 
 ### Script info
 
