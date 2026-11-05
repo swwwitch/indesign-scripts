@@ -52,6 +52,7 @@ Esc works as Close.
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-06 |
 | Last updated | 2026-11-06 |
+| Article | https://note.com/dtp_tranist/n/n23fa2f14621f |
 | Tested with | InDesign 2026 (v21.6) / macOS |
 
 ### Update History

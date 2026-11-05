@@ -500,7 +500,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdQRCodeURLL
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdTextAnchorListPalette.jsx
 
-詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTextAnchorListPalette.md)
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdTextAnchorListPalette.md)／[note記事](https://note.com/dtp_tranist/n/n23fa2f14621f)
 
 ## その他
 
