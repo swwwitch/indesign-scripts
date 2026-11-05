@@ -44,7 +44,7 @@ Builds a type scale from a base size and ratio, then applies it to the body, hea
 | Article | https://note.com/dtp_tranist/n/n4f9b0666db66 |
 
 ### Update History
-- v1.7.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
+- v1.7.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.7.3 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.7.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 

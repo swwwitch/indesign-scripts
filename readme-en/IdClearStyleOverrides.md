@@ -87,7 +87,7 @@ A paragraph with the paragraph style "Body" applied, then manually centered with
 | Last updated | 2026-11-05 |
 
 ### Update History
-- v1.3.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
+- v1.3.8 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.7 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.6 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
 

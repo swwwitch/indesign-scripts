@@ -19,3 +19,10 @@ Update checking is not used: write no `Meta-URL` and no `SCRIPTMETA.txt`.
 - Script-ID is `com.swwwitch.indesign.<SCRIPT_NAME>`. Never change a published Script-ID, even when renaming a script;
   names with characters other than `A-Z a-z 0-9 . _ -` get an entry in `ID_OVERRIDES`
 - `jsx/_templates/` is excluded
+
+## UI
+
+- Do not put `SCRIPT_VERSION` in a window title. Show it with the VersionFooter part (`jsx/_templates/VersionFooter.jsx`):
+  call `addVersionFooter(window)` after every control is added, right before `show()`. It draws the version small and gray
+  at the bottom left (dot glyphs in `onDraw`; needs the UITheme part for `isDarkUI()`) and takes over the button row's bottom margin. Progress, confirm and other
+  small sub-windows get no footer. InDesign's ScriptUI ignores font sizes, which is why the digits are drawn as dots

@@ -56,7 +56,7 @@ Enter/Return works as Select, and Esc as Close.
 
 ### Update History
 
-- v1.0.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
+- v1.0.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.0.0 (2026-11-05): Initial release
 
 ### License

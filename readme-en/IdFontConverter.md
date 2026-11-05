@@ -43,7 +43,7 @@ Switches font variants (character set, P, UD, N, NT, weight) in bulk across a se
 | Article | https://note.com/dtp_tranist/n/n261c771b4b41 |
 
 ### Update History
-- v1.1.7 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
+- v1.1.7 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.6 (2026-10-24) Text in table cells and footnotes is now converted. Selection mode changes only the selected characters. Active spread mode no longer changes threaded frames on other spreads. Document mode leaves text in out-of-scope (locked or hidden) frames alone. When only uninstalled fonts are found, reports no change and lists them
 - v1.1.5 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.1.4 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

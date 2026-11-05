@@ -53,7 +53,7 @@ Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule a
 
 ### Update History
 
-- v1.4.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, dimmed (shared part added)
+- v1.4.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 #### v1.4.1 (2026-10-21)
 
 - Renamed the Indents panel to Text Indents

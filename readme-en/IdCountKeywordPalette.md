@@ -60,12 +60,17 @@ A floating palette that counts how many times each of up to five keywords appear
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdCountKeywordPalette.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
 | Last updated | 2026-11-05 |
 
 ### Update History
+
+#### v1.1.1 (2026-11-05)
+
+- Added space below the Zoom row
+- Renamed the palette title to "Spelling Consistency Helper"
 
 #### v1.1.0 (2026-11-05)
 
