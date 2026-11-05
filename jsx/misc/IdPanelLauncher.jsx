@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdPanelLauncher
 Name=パネルを検索して表示
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-11-05
 Description-BEGIN
 ［ウィンドウ］メニューのパネルを、サブメニューの中まで展開して1つのリストに並べます。
@@ -43,10 +43,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdPanelLauncher
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdPanelLauncher";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "パネルを検索して表示"; /* README の見出し / README title (Japanese) */
 
@@ -80,6 +80,52 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     var SORT_KEYS = ["menu", "kana"];
     var DEFAULT_SORT_KEY = "menu";
 
+    /* パネルに付ける印（リストの印の列と、印を付けるボタンの文字）。fav＝よく使う、rare＝あまり使わない（どちらか一方）
+       / Marks for panels (shown in the Mark column and on the mark buttons): fav = frequently used, rare = rarely used (one or the other) */
+    var MARK_GLYPHS = {
+        fav:  "\u2665",  /* ♥ */
+        rare: "\u2662"   /* ♢ */
+    };
+
+    /* 絞り込み（ラジオボタンの順）。all＝すべて、fav＝よく使う（♥）だけ、hideRare＝あまり使わない（♢）を除く
+       / Filters (radio button order): all, fav = only ♥ panels, hideRare = hide ♢ panels */
+    var FILTER_KEYS = ["all", "fav", "hideRare"];
+    var DEFAULT_FILTER_KEY = "all";
+
+    /* 印と絞り込みを残す設定ファイル（Folder.userData の中）/ File that keeps the marks and the filter (in Folder.userData) */
+    var SETTINGS_FILE_NAME = "IdPanelLauncher-settings.txt";
+
+    /* まとめて表示するパネルのセット（ボタンの順）。panels はメニューに出るパネル名（日本語版・英語版）で、上から順に表示する
+       / Panel sets shown together (button order). panels are the menu names (Japanese / English), shown top to bottom */
+    var PANEL_SETS = [
+        {
+            label: { ja: "表", en: "Tables" },
+            panels: [
+                { ja: "セルスタイル", en: "Cell Styles" },
+                { ja: "表スタイル", en: "Table Styles" },
+                { ja: "表", en: "Table" }
+            ]
+        },
+        {
+            label: { ja: "テキスト", en: "Text" },
+            panels: [
+                { ja: "文字", en: "Character" },
+                { ja: "段落", en: "Paragraph" },
+                { ja: "文字スタイル", en: "Character Styles" },
+                { ja: "段落スタイル", en: "Paragraph Styles" },
+                { ja: "字形", en: "Glyphs" },
+                { ja: "テキストの回り込み", en: "Text Wrap" }
+            ]
+        },
+        {
+            label: { ja: "ブック", en: "Book" },
+            panels: [
+                { ja: "相互参照", en: "Cross-References" },
+                { ja: "ハイパーリンク", en: "Hyperlinks" }
+            ]
+        }
+    ];
+
     /* あいうえお順と検索で使う、パネル名・分類の漢字の読み（長い語から置き換える）
        / Readings of the kanji in Japanese panel and category names, used for the alphabetical order */
     var KANJI_READINGS = [
@@ -89,7 +135,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         ["分版", "ブンパン"], ["索引", "サクイン"], ["字形", "ジケイ"], ["条件", "ジョウケン"],
         ["情報", "ジョウホウ"], ["数式", "スウシキ"], ["生成", "セイセイ"], ["注釈", "チュウシャク"],
         ["変更", "ヘンコウ"], ["履歴", "リレキ"], ["出力", "シュツリョク"], ["書式", "ショシキ"],
-        ["表", "ヒョウ"], ["線", "セン"]
+        ["回り込み", "マワリコミ"], ["表", "ヒョウ"], ["線", "セン"]
     ];
 
     // =========================================
@@ -175,8 +221,9 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
 
     var LIST_SIZE     = [440, 460];        /* リストの寸法 [幅,高さ] / list size */
-    var COLUMN_WIDTHS = [220, 170, 40];    /* 列幅（名前・分類・表示中）/ column widths (name, category, open) */
-    var ROW_LABEL_WIDTH = 60;              /* 行ラベル（検索・並び順）の幅 / width of the row labels (search, sort) */
+    var COLUMN_WIDTHS = [200, 30, 160, 40]; /* 列幅（名前・印・分類・表示中）/ column widths (name, mark, category, open) */
+    var ROW_LABEL_WIDTH = 66;              /* 行ラベル（検索・絞り込み・並び順・セット）の幅 / width of the row labels (search, filter, sort, sets) */
+    var MARK_BUTTON_WIDTH = 40;            /* ♥・♢ボタンの幅 / width of the ♥ and ♢ buttons */
 
     /* 検索欄のクリアボタン（自前描画、IdScriptLauncher と同じ）/ Clear button next to the search field (custom drawn, same as IdScriptLauncher) */
     var CLEAR_BUTTON_SIZE  = 20;           /* クリアボタンの一辺 / clear button size */
@@ -657,12 +704,20 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         },
         column: {
             name:     { ja: "名前", en: "Name" },
+            mark:     { ja: "印", en: "Mark" },
             category: { ja: "分類", en: "Category" },
             open:     { ja: "表示中", en: "Open" }
         },
         fieldLabel: {
             search:    { ja: "検索", en: "Search" },
-            sortOrder: { ja: "並び順", en: "Sort by" }
+            filter:    { ja: "絞り込み", en: "Show" },
+            sortOrder: { ja: "並び順", en: "Sort by" },
+            panelSet:  { ja: "セット", en: "Sets" }
+        },
+        filter: {
+            all:      { ja: "すべて", en: "All" },
+            fav:      { ja: "\u2665 よく使う", en: "\u2665 Frequent" },
+            hideRare: { ja: "\u2662 を除く", en: "Hide \u2662" }
         },
         sort: {
             menu: { ja: "デフォルト", en: "Default" },
@@ -677,14 +732,27 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 ja: "名前と分類（サブメニュー名）で絞り込みます。空白で区切ると、すべての語を含むものに絞ります。ひらがなはカタカナとして探し、漢字の名前は読みでも探します。↓でリストへ移ります。",
                 en: "Filters by name and category (submenu name). Separate words with spaces to match all of them. Press Down to move to the list."
             },
+            filter: {
+                ja: "♥ よく使う：♥ を付けたパネルだけを出します。♢ を除く：♢（あまり使わない）を付けたパネルを隠します。",
+                en: "\u2665 Frequent lists only the panels marked \u2665. Hide \u2662 leaves out the panels marked \u2662 (rarely used)."
+            },
+            markFav: {
+                ja: "選んだパネルに ♥（よく使う）を付けます。すべてに付いていれば外します。",
+                en: "Marks the selected panels with \u2665 (frequently used). Removes the mark if they all have it."
+            },
+            markRare: {
+                ja: "選んだパネルに ♢（あまり使わない）を付けます。すべてに付いていれば外します。",
+                en: "Marks the selected panels with \u2662 (rarely used). Removes the mark if they all have it."
+            },
             sortOrder: {
                 ja: "リストの並び順を切り替えます。デフォルトは［ウィンドウ］メニューの並び（サブメニューの中身はサブメニューの位置）、あいうえお順はパネル名の読みの順です。",
                 en: "Changes the order of the list. Default follows the Window menu (submenu items stay where the submenu is); Alphabetical sorts by panel name."
             },
             clearSearch: { ja: "検索をクリア", en: "Clear search" },
+            panelSet: { ja: "%1 をまとめて表示します。", en: "Shows %1 together." },
             list: {
-                ja: "ダブルクリックか Enter で表示します。⌘（Ctrl）／Shift＋クリックで複数選べます。",
-                en: "Double-click or press Enter to show. Cmd (Ctrl) / Shift-click to pick more than one."
+                ja: "ダブルクリックか Enter で表示します。⌘（Ctrl）／Shift＋クリックで複数選べます。左下の ♥・♢ で印を付けます。",
+                en: "Double-click or press Enter to show. Cmd (Ctrl) / Shift-click to pick more than one. Use \u2665 / \u2662 at the bottom left to mark them."
             }
         },
         counter: {
@@ -707,6 +775,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
      * @property {number} actionId - メニューアクションの ID
      * @property {boolean} isOpen - 表示中（メニューにチェックが付いている）なら true。ダイアログを出す前に読む
      * @property {number} menuIndex - メニューの並び順（0 始まり。並び順の同順位もこれで決める）
+     * @property {string} mark - 印（"fav"＝よく使う、"rare"＝あまり使わない、無ければ空文字）
      */
 
     /**
@@ -731,7 +800,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             category: categoryName,
             actionId: menuAction.id,
             isOpen: menuAction.checked,
-            menuIndex: -1
+            menuIndex: -1,
+            mark: ""
         };
     }
 
@@ -787,6 +857,181 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             entries[i].menuIndex = i;
         }
         return entries;
+    }
+
+    /**
+     * @typedef {Object} LauncherSettings
+     * @property {Object} marks - パネルの鍵（getPanelKey）から印（"fav"／"rare"）への対応
+     * @property {string} filterKey - 前回の絞り込み（FILTER_KEYS のどれか）
+     */
+
+    /**
+     * 設定ファイルを返す
+     * @returns {File} 設定ファイル
+     */
+    function getSettingsFile() {
+        return File(Folder.userData.fsName + "/" + SETTINGS_FILE_NAME);
+    }
+
+    /**
+     * 印を残すときのパネルの鍵（分類とパネル名をタブでつなぐ。メニューアクションの ID はエクステンションのパネルで変わりうるので使わない）
+     * @param {PanelEntry} panelEntry - 対象のパネル
+     * @returns {string} 鍵
+     */
+    function getPanelKey(panelEntry) {
+        return panelEntry.category + "\t" + panelEntry.name;
+    }
+
+    /**
+     * 設定ファイルを読む。1行に「filter=絞り込み」か「fav=鍵」「rare=鍵」
+     * @returns {LauncherSettings} 読んだ設定（読めなければ印なし・既定の絞り込み）
+     */
+    function loadSettings() {
+        var settings = { marks: {}, filterKey: DEFAULT_FILTER_KEY };
+        var settingsFile = getSettingsFile();
+        if (!settingsFile.exists) return settings;
+        var rawText = "";
+        try {
+            settingsFile.encoding = "UTF-8";
+            if (settingsFile.open("r")) rawText = settingsFile.read();
+        } catch (e) {
+        } finally {
+            try { settingsFile.close(); } catch (e2) {}
+        }
+        var lines = String(rawText).split(/\r\n|\r|\n/);
+        for (var i = 0; i < lines.length; i++) {
+            /* 鍵（パネル名）にも = が入りうるので最初の = だけで区切る / Split on the first = only */
+            var separatorIndex = lines[i].indexOf("=");
+            if (separatorIndex <= 0) continue;
+            var lineKey = lines[i].substring(0, separatorIndex);
+            var lineValue = lines[i].substring(separatorIndex + 1);
+            if (lineKey === "filter" && isKnownKey(FILTER_KEYS, lineValue)) settings.filterKey = lineValue;
+            else if (MARK_GLYPHS.hasOwnProperty(lineKey)) settings.marks[lineValue] = lineKey;
+        }
+        return settings;
+    }
+
+    /**
+     * 設定ファイルに書き出す（今のメニューに無いパネルの印も残す）。書き出せなくても操作は続ける
+     * @param {LauncherSettings} settings - 書き出す設定
+     * @returns {void}
+     */
+    function saveSettings(settings) {
+        var lines = ["filter=" + settings.filterKey];
+        for (var panelKey in settings.marks) {
+            if (settings.marks.hasOwnProperty(panelKey)) lines.push(settings.marks[panelKey] + "=" + panelKey);
+        }
+        var settingsFile = getSettingsFile();
+        try {
+            settingsFile.encoding = "UTF-8";
+            settingsFile.lineFeed = "Unix";
+            if (settingsFile.open("w")) settingsFile.write(lines.join("\n"));
+        } catch (e) {
+        } finally {
+            try { settingsFile.close(); } catch (e2) {}
+        }
+    }
+
+    /**
+     * 値が一覧に含まれるかを返す
+     * @param {string[]} knownKeys - 一覧
+     * @param {string} value - 調べる値
+     * @returns {boolean} 含まれれば true
+     */
+    function isKnownKey(knownKeys, value) {
+        for (var i = 0; i < knownKeys.length; i++) {
+            if (knownKeys[i] === value) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 読んだ印をパネルに写す
+     * @param {PanelEntry[]} entries - パネルの一覧
+     * @param {Object} marks - パネルの鍵から印への対応
+     * @returns {void}
+     */
+    function applySavedMarks(entries, marks) {
+        for (var i = 0; i < entries.length; i++) {
+            var panelKey = getPanelKey(entries[i]);
+            entries[i].mark = marks.hasOwnProperty(panelKey) ? marks[panelKey] : "";
+        }
+    }
+
+    /**
+     * パネルの印を付け替え、設定の対応にも写す（空文字なら外す）
+     * @param {PanelEntry} panelEntry - 対象のパネル
+     * @param {string} markKey - "fav"／"rare"／""
+     * @param {Object} marks - パネルの鍵から印への対応
+     * @returns {void}
+     */
+    function setPanelMark(panelEntry, markKey, marks) {
+        panelEntry.mark = markKey;
+        if (markKey === "") delete marks[getPanelKey(panelEntry)];
+        else marks[getPanelKey(panelEntry)] = markKey;
+    }
+
+    /**
+     * パネルがすべて同じ印か
+     * @param {PanelEntry[]} entries - パネル
+     * @param {string} markKey - 印
+     * @returns {boolean} 1件以上あり、すべてその印なら true
+     */
+    function allHaveMark(entries, markKey) {
+        if (entries.length === 0) return false;
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i].mark !== markKey) return false;
+        }
+        return true;
+    }
+
+    /**
+     * 絞り込み（FILTER_KEYS）に合うパネルだけを返す
+     * @param {PanelEntry[]} entries - パネルの一覧
+     * @param {string} filterKey - FILTER_KEYS のどれか
+     * @returns {PanelEntry[]} 条件に合うパネル
+     */
+    function filterByMark(entries, filterKey) {
+        if (filterKey !== "fav" && filterKey !== "hideRare") return entries.slice(0);
+        var matched = [];
+        for (var i = 0; i < entries.length; i++) {
+            var isMatch = (filterKey === "fav") ? (entries[i].mark === "fav") : (entries[i].mark !== "rare");
+            if (isMatch) matched.push(entries[i]);
+        }
+        return matched;
+    }
+
+    /**
+     * セットのパネルを、セットに書いた順で探す（名前が日本語版か英語版のどちらかと同じもの）
+     * @param {PanelEntry[]} entries - すべてのパネル
+     * @param {Object} panelSet - PANEL_SETS の1件
+     * @returns {{entries: PanelEntry[], missingNames: string[]}} 見つかったパネルと、見つからなかったパネルの名前
+     */
+    function findPanelSetEntries(entries, panelSet) {
+        var found = { entries: [], missingNames: [] };
+        for (var i = 0; i < panelSet.panels.length; i++) {
+            var setPanel = panelSet.panels[i];
+            var matchedEntry = null;
+            for (var j = 0; j < entries.length && !matchedEntry; j++) {
+                if (entries[j].name === setPanel.ja || entries[j].name === setPanel.en) matchedEntry = entries[j];
+            }
+            if (matchedEntry) found.entries.push(matchedEntry);
+            else found.missingNames.push(getLabel(setPanel));
+        }
+        return found;
+    }
+
+    /**
+     * セットのパネル名を、UI の言語で区切ってつなぐ（ツールチップ用）
+     * @param {Object} panelSet - PANEL_SETS の1件
+     * @returns {string} 「セルスタイル・表スタイル・表」のような文字列
+     */
+    function joinPanelSetNames(panelSet) {
+        var panelNames = [];
+        for (var i = 0; i < panelSet.panels.length; i++) {
+            panelNames.push(getLabel(panelSet.panels[i]));
+        }
+        return panelNames.join(uiLang === "ja" ? "・" : ", ");
     }
 
     /**
@@ -940,17 +1185,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 名前・分類・表示中の3列のリストを作る
+     * 名前・印・分類・表示中の4列のリストを作る
      * @param {Window} parent - 追加先
      * @returns {ListBox} パネルの一覧
      */
     function buildPanelList(parent) {
         var panelList = parent.add("listbox", [0, 0, LIST_SIZE[0], LIST_SIZE[1]], "", {
             multiselect: true,
-            numberOfColumns: 3,
+            numberOfColumns: 4,
             showHeaders: true,
             columnTitles: [
                 getLabel(LABELS.column.name),
+                getLabel(LABELS.column.mark),
                 getLabel(LABELS.column.category),
                 getLabel(LABELS.column.open)
             ],
@@ -980,21 +1226,55 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * 並び順のラジオボタンの行を作る（同じ行グループに入れて排他にする）
+     * ラジオボタンの行を作る（同じ行グループに入れて排他にする）
      * @param {Window} parent - 追加先
-     * @param {string} selectedSortKey - 最初に選ぶ並び順
-     * @returns {RadioButton[]} SORT_KEYS と同じ順のラジオボタン
+     * @param {Object} rowLabelSet - 行ラベル
+     * @param {string[]} optionKeys - 選択肢の鍵（ラジオボタンの順）
+     * @param {Object} optionLabels - 鍵ごとの文言
+     * @param {Object} tooltipLabel - ツールチップ
+     * @param {string} selectedKey - 最初に選ぶ鍵
+     * @returns {RadioButton[]} optionKeys と同じ順のラジオボタン
      */
-    function buildSortRow(parent, selectedSortKey) {
-        var sortRow = addFieldRow(parent, LABELS.fieldLabel.sortOrder);
-        var sortRadios = [];
-        for (var i = 0; i < SORT_KEYS.length; i++) {
-            var sortRadio = sortRow.add("radiobutton", undefined, getLabel(LABELS.sort[SORT_KEYS[i]]));
-            sortRadio.helpTip = getLabel(LABELS.tooltip.sortOrder);
-            sortRadio.value = (SORT_KEYS[i] === selectedSortKey);
-            sortRadios.push(sortRadio);
+    function buildRadioRow(parent, rowLabelSet, optionKeys, optionLabels, tooltipLabel, selectedKey) {
+        var radioRow = addFieldRow(parent, rowLabelSet);
+        var radios = [];
+        for (var i = 0; i < optionKeys.length; i++) {
+            var radio = radioRow.add("radiobutton", undefined, getLabel(optionLabels[optionKeys[i]]));
+            radio.helpTip = getLabel(tooltipLabel);
+            radio.value = (optionKeys[i] === selectedKey);
+            radios.push(radio);
         }
-        return sortRadios;
+        return radios;
+    }
+
+    /**
+     * セットのボタンの行を作る
+     * @param {Window} parent - 追加先
+     * @returns {Button[]} PANEL_SETS と同じ順のボタン
+     */
+    function buildPanelSetRow(parent) {
+        var setRow = addFieldRow(parent, LABELS.fieldLabel.panelSet);
+        var setButtons = [];
+        for (var i = 0; i < PANEL_SETS.length; i++) {
+            var setButton = setRow.add("button", undefined, getLabel(PANEL_SETS[i].label));
+            setButton.helpTip = getLabel(LABELS.tooltip.panelSet, [joinPanelSetNames(PANEL_SETS[i])]);
+            setButtons.push(setButton);
+        }
+        return setButtons;
+    }
+
+    /**
+     * 印を付けるボタン（♥・♢）を作る
+     * @param {Group} parent - 追加先
+     * @param {string} markKey - "fav"／"rare"
+     * @param {Object} tooltipLabel - ツールチップ
+     * @returns {Button} ボタン
+     */
+    function addMarkButton(parent, markKey, tooltipLabel) {
+        var markButton = parent.add("button", undefined, MARK_GLYPHS[markKey]);
+        markButton.preferredSize.width = MARK_BUTTON_WIDTH;
+        markButton.helpTip = getLabel(tooltipLabel);
+        return markButton;
     }
 
     /**
@@ -1022,13 +1302,15 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
     }
 
     /**
-     * ダイアログを表示し、表示するパネルを選ばせる
+     * ダイアログを表示し、表示するパネルを選ばせる。印と絞り込みは変えるたびに設定ファイルへ書き出す
      * @param {PanelEntry[]} allEntries - すべてのパネル
-     * @returns {PanelEntry[]} 選ばれたパネル（キャンセルなら空配列）
+     * @param {LauncherSettings} settings - 読んだ設定（印と絞り込みをここに書き換える）
+     * @returns {{entries: PanelEntry[], missingNames: string[]}} 表示するパネル（キャンセルなら空配列）と、セットのうち見つからなかったパネルの名前
      */
-    function showPanelDialog(allEntries) {
+    function showPanelDialog(allEntries, settings) {
         var visibleEntries = [];
         var pickedEntries = [];
+        var missingNames = [];
         var lastSearchText = null;
         var currentSortKey = DEFAULT_SORT_KEY;
 
@@ -1038,10 +1320,16 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         var searchUI = buildSearchRow(mainDialog);
         var searchInput = searchUI.input;
         var clearButton = searchUI.clearButton;
-        var sortRadios = buildSortRow(mainDialog, currentSortKey);
+        var filterRadios = buildRadioRow(mainDialog, LABELS.fieldLabel.filter, FILTER_KEYS, LABELS.filter, LABELS.tooltip.filter, settings.filterKey);
+        var sortRadios = buildRadioRow(mainDialog, LABELS.fieldLabel.sortOrder, SORT_KEYS, LABELS.sort, LABELS.tooltip.sortOrder, currentSortKey);
+        var setButtons = buildPanelSetRow(mainDialog);
         var panelList = buildPanelList(mainDialog);
 
         var buttonRow = addButtonRow(mainDialog);
+        var markButtons = {
+            fav:  addMarkButton(buttonRow.leftGroup, "fav", LABELS.tooltip.markFav),
+            rare: addMarkButton(buttonRow.leftGroup, "rare", LABELS.tooltip.markRare)
+        };
         buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnShow = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.show), { name: "ok" });
         alignRightOnlyButtonRow(buttonRow);
@@ -1067,13 +1355,14 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
          * @returns {void}
          */
         function rebuildList(keepEntries) {
-            visibleEntries = sortPanelEntries(filterPanelEntries(allEntries, searchInput.text), currentSortKey);
+            visibleEntries = sortPanelEntries(filterPanelEntries(filterByMark(allEntries, settings.filterKey), searchInput.text), currentSortKey);
             panelList.removeAll();
             var reselectIndexes = [];
             for (var i = 0; i < visibleEntries.length; i++) {
                 var listItem = panelList.add("item", visibleEntries[i].name);
-                listItem.subItems[0].text = visibleEntries[i].category;
-                listItem.subItems[1].text = visibleEntries[i].isOpen ? OPEN_MARK : "";
+                listItem.subItems[0].text = visibleEntries[i].mark ? MARK_GLYPHS[visibleEntries[i].mark] : "";
+                listItem.subItems[1].text = visibleEntries[i].category;
+                listItem.subItems[2].text = visibleEntries[i].isOpen ? OPEN_MARK : "";
                 for (var j = 0; j < keepEntries.length; j++) {
                     if (keepEntries[j] === visibleEntries[i]) reselectIndexes.push(i);
                 }
@@ -1084,6 +1373,49 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             if (reselectIndexes.length === 0 && visibleEntries.length > 0) panelList.selection = 0;
             mainDialog.text = buildDialogTitle(visibleEntries.length);
             btnShow.enabled = (visibleEntries.length > 0);
+            updateMarkButtons();
+        }
+
+        /**
+         * ♥・♢ボタンを選択に合わせる（選択が無ければ無効）
+         * @returns {void}
+         */
+        function updateMarkButtons() {
+            var selectedEntries = getSelectedEntries();
+            for (var markKey in markButtons) {
+                if (!markButtons.hasOwnProperty(markKey)) continue;
+                markButtons[markKey].enabled = (selectedEntries.length > 0);
+            }
+        }
+
+        /**
+         * 選んだパネルの印を切り替える（すべてその印なら外し、そうでなければ付ける。♥と♢はどちらか一方）。
+         * 絞り込みで外れたパネルは一覧から消える
+         * @param {string} markKey - "fav"／"rare"
+         * @returns {void}
+         */
+        function toggleMark(markKey) {
+            var selectedEntries = getSelectedEntries();
+            if (selectedEntries.length === 0) return;
+            var newMark = allHaveMark(selectedEntries, markKey) ? "" : markKey;
+            for (var i = 0; i < selectedEntries.length; i++) {
+                setPanelMark(selectedEntries[i], newMark, settings.marks);
+            }
+            saveSettings(settings);
+            rebuildList(selectedEntries);
+            panelList.active = true;
+        }
+
+        /**
+         * 絞り込みのラジオボタンで一覧を作り直し、選んでいたパネルを選び直す
+         * @param {string} filterKey - 選んだ絞り込み
+         * @returns {void}
+         */
+        function applyFilterKey(filterKey) {
+            if (filterKey === settings.filterKey) return;
+            settings.filterKey = filterKey;
+            saveSettings(settings);
+            rebuildList(getSelectedEntries());
         }
 
         /**
@@ -1126,6 +1458,18 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
             mainDialog.close(1);
         }
 
+        /**
+         * セットのパネルを控えてダイアログを閉じる（絞り込み・検索・選択に関係なく、セットに書いたパネル）
+         * @param {Object} panelSet - PANEL_SETS の1件
+         * @returns {void}
+         */
+        function pickSetAndClose(panelSet) {
+            var found = findPanelSetEntries(allEntries, panelSet);
+            pickedEntries = found.entries;
+            missingNames = found.missingNames;
+            mainDialog.close(1);
+        }
+
         searchInput.onChanging = applySearchText;
         searchInput.onChange = applySearchText;
         for (var i = 0; i < sortRadios.length; i++) {
@@ -1134,6 +1478,19 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
                 return function () { applySortKey(sortKey); };
             }(SORT_KEYS[i]));
         }
+        for (var f = 0; f < filterRadios.length; f++) {
+            filterRadios[f].onClick = (function (filterKey) {
+                return function () { applyFilterKey(filterKey); };
+            }(FILTER_KEYS[f]));
+        }
+        for (var p = 0; p < setButtons.length; p++) {
+            setButtons[p].onClick = (function (panelSet) {
+                return function () { pickSetAndClose(panelSet); };
+            }(PANEL_SETS[p]));
+        }
+        markButtons.fav.onClick = function () { toggleMark("fav"); };
+        markButtons.rare.onClick = function () { toggleMark("rare"); };
+        panelList.onChange = updateMarkButtons;
         searchInput.addEventListener("keydown", function (keyEvent) {
             if (keyEvent.keyName === "Down" && panelList.items.length > 0) {
                 panelList.active = true;
@@ -1163,8 +1520,8 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
 
         applySearchText();
         addVersionFooter(mainDialog);
-        if (mainDialog.show() !== 1) return [];
-        return pickedEntries;
+        if (mainDialog.show() !== 1) return { entries: [], missingNames: [] };
+        return { entries: pickedEntries, missingNames: missingNames };
     }
 
     // =========================================
@@ -1176,7 +1533,10 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         alert(getLabel(LABELS.alert.notFound));
         return;
     }
-    var failedNames = showPanels(showPanelDialog(allEntries));
+    var settings = loadSettings();
+    applySavedMarks(allEntries, settings.marks);
+    var dialogResult = showPanelDialog(allEntries, settings);
+    var failedNames = dialogResult.missingNames.concat(showPanels(dialogResult.entries));
     if (failedNames.length > 0) {
         alert(labelText(LABELS.alert.showFailed) + "\n" + failedNames.join("\n"));
     }

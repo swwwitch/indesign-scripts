@@ -12,14 +12,24 @@ Lists every panel in the Window menu in a single list, including those inside su
 
 ### Features
 
-- Shows the panels of the Window menu in a three-column list: Name | Category | Open (in menu order)
+- Shows the panels of the Window menu in a four-column list: Name | Mark | Category | Open (in menu order)
   - Items inside submenus are expanded; the Category column shows the submenu name
   - Open panels are marked with "✓"
+  - The Mark column shows ♥ (frequently used) or ♢ (rarely used)
   - Extension panels (CC Libraries, Overlays, etc.) are included
 - Filter by name and category with the search field (as you type)
   - Separate words with spaces to match all of them (e.g. "type char")
   - Case-insensitive. Japanese hiragana is matched as katakana, and kanji names also match their reading
   - The (×) button next to the field clears the search
+- Mark panels and filter by the marks
+  - Select panels in the list and click ♥ at the bottom left for ♥ (frequently used) or ♢ for ♢ (rarely used). If all the selected panels already have the mark, clicking again removes it
+  - A panel has either ♥ or ♢. You can mark several panels at once
+  - Filter radio buttons: **All** / **♥ Frequent** (only ♥ panels) / **Hide ♢** (leaves out ♢ panels)
+  - The marks and the filter are kept for the next run
+- Set buttons show a fixed group of panels at once (regardless of the filter, search or selection; the dialog closes and the panels open)
+  - **Tables**: Cell Styles, Table Styles, Table
+  - **Text**: Character, Paragraph, Character Styles, Paragraph Styles, Glyphs, Text Wrap
+  - **Book**: Cross-References, Hyperlinks
 - Switch the sort order with radio buttons
   - **Default**: the order of the Window menu (submenu items stay where the submenu is)
   - **Alphabetical**: by panel name (Japanese names are sorted by their reading)
@@ -46,6 +56,8 @@ Press Down in the search field to move to the list. Cmd (Ctrl) / Shift-click to 
 - Showing a panel is the same as choosing its menu item (`app.menuActions.itemByID(…).invoke()`). InDesign's Window menu items toggle the panel, so an open panel is chosen twice to reopen it.
 - Readings for the kanji in the Japanese panel names are kept in a table in the script (KANJI_READINGS). Kanji not in the table sort by character code.
 - The open mark (✓) reflects the menu check marks when the script starts.
+- Set panels are looked up by panel name (Japanese or English). Panels that are not found are listed under "Could not show" after the dialog closes. Edit PANEL_SETS in the script to change the groups.
+- The ♥ / ♢ marks and the filter are saved to `~/Library/Application Support/IdPanelLauncher-settings.txt` (`Folder.userData`). Marks are keyed by category and panel name, so they do not carry over when you switch InDesign's UI language.
 - Panels cannot be opened while a modal dialog is shown, so they are shown after the dialog closes.
 - The script uses `#targetengine` because it is meant to be run often. Assigning a keyboard shortcut is handy.
 - Esc closes the dialog.
@@ -55,14 +67,15 @@ Press Down in the search field to move to the list. Cmd (Ctrl) / Shift-click to 
 | Item | Value |
 | --- | --- |
 | File | `jsx/misc/IdPanelLauncher.jsx` |
-| Version | v1.0.0 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-06 |
 | Tested with | InDesign 2026 (v21.6) / macOS |
 
 ### Update History
 
+- v1.1.0 (2026-11-06): Added the ♥ (frequently used) and ♢ (rarely used) marks and filtering by them, and set buttons that show a fixed group of panels at once (Tables, Text, Book)
 - v1.0.0 (2026-11-05): Initial release
 
 ### License
