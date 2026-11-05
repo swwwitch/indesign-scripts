@@ -520,6 +520,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/misc/IdMenuActionsVie
 
 詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdMenuActionsViewer.md)／[note記事](https://note.com/dtp_tranist/n/n5038c9d2cc85)
 
+### パネルを検索して表示
+
+［ウィンドウ］メニューのパネルを、サブメニューの中まで展開して1つのリストに並べます。検索欄で絞り込み、選んだパネルを表示します。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/misc/IdPanelLauncher.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdPanelLauncher.md)
+
 ## スクリプトの実行
 
 ### スクリプトをキーワードで絞り込んで実行
