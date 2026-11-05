@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdInsertPageCrossReference
 Name=カーソル位置にアンカー付き長方形とテキストアンカーを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=2.7.5
+Version=2.7.6
 Release-Date=2026-11-06
 Description-BEGIN
 カーソルを置いた位置に、アンカー付き（カスタム）でプリントしない小さな長方形と、その直前のテキストアンカーを作成します。
@@ -42,7 +42,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdInsertAnchore
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdInsertAnchoredRectangle";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.7.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.7.6";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-06";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
@@ -467,7 +467,7 @@ var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/
         "s": ["....", "....", ".###", "#...", ".##.", "...#", "###.", "....", "...."],
         "t": ["...", ".#.", "###", ".#.", ".#.", ".#.", ".##", "...", "..."],
         "u": ["....", "....", "#..#", "#..#", "#..#", "#..#", ".###", "....", "...."],
-        "v": [".....", ".....", "#...#", "#...#", "#...#", ".#.#.", "..#..", ".....", "....."],
+        "v": [".....", ".....", "#...#", "#...#", ".#.#.", ".#.#.", "..#..", ".....", "....."],
         "w": [".....", ".....", "#...#", "#...#", "#.#.#", "#.#.#", ".#.#.", ".....", "....."],
         "x": ["....", "....", "#..#", "#..#", ".##.", "#..#", "#..#", "....", "...."],
         "y": ["....", "....", "#..#", "#..#", "#..#", "#..#", ".###", "...#", "###."],

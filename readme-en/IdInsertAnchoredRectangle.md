@@ -49,13 +49,14 @@ The anchor name and the rectangle's fill, stroke and position (left or right of 
 | Item | Value |
 | --- | --- |
 | File | `jsx/document/IdInsertAnchoredRectangle.jsx` |
-| Version | v2.7.5 |
+| Version | v2.7.6 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-06 |
 | Last updated | 2026-11-06 |
 
 ### Update History
 
+- v2.7.6 (2026-11-06): Changed the shape of the lowercase v at the bottom of the dialog box
 - v2.7.5 (2026-11-06): Added a bottom bar to the digit 1 in the version at the bottom of the dialog box
 - v2.7.4 (2026-11-06): Shortened the top right of the lowercase r by one dot in the script name at the bottom of the dialog box
 - v2.7.3 (2026-11-06): Added top and bottom bars to the capital I in the script name at the bottom of the dialog box
