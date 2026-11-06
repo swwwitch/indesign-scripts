@@ -58,6 +58,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 
 ![](png/ss-1330-1002-72-20250702-034808.png)
 
+### 表だけの段落に段落スタイルを適用
+
+選択範囲・ストーリー・ドキュメントの中で、表だけが入っている段落を探し、指定した段落スタイルを適用します。セルの中の表も対象です。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdApplyStyleToTableParagraphs.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdApplyStyleToTableParagraphs.md)
+
 ### 目次の項目を部ごとの派生スタイルに当て直す
 
 目次を更新したあとに実行し、目次の項目を部ごとの派生スタイル（「toc-h1.blue」など）に当て直します。本文の段落スタイルは変えません。目次を更新するたびに実行します。
