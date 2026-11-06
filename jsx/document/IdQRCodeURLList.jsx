@@ -6,14 +6,14 @@ Script-ID=com.swwwitch.indesign.IdQRCodeURLList
 Name=ドキュメント内のQRコードのURLを一覧
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.1
+Version=1.1.0
 Release-Date=2026-11-05
 Description-BEGIN
 アクティブなドキュメントにある QR コード（［オブジェクト］→［QR コードを生成］で作ったもの）の URL を、ページ順に一覧します。
-入稿前のリンク先の確認に使えます。一覧はクリップボードにコピーでき、選んだ QR コードのフレームを選択できます。
+入稿前のリンク先の確認に使えます。一覧はクリップボードにコピーでき、選んだ QR コードのフレームの選択や、種類・URL の変更もできます。
 
 Lists, in page order, the URLs of the QR codes in the active document (made with Object > Generate QR Code).
-Handy for checking link targets before sending files to print. You can copy the list and select the frame of the chosen QR code.
+Handy for checking link targets before sending files to print. You can copy the list, select the frame of the chosen QR code, and change its type or URL.
 Description-END
 SCRIPTMETA-END
 */
@@ -23,7 +23,7 @@ SCRIPTMETA-END
 ### 概要
 
 アクティブなドキュメントにある QR コード（［オブジェクト］→［QR コードを生成］で作ったもの）の URL を、ページ順に一覧します。
-入稿前のリンク先の確認に使えます。一覧はクリップボードにコピーでき、選んだ QR コードのフレームを選択できます。
+入稿前のリンク先の確認に使えます。一覧はクリップボードにコピーでき、選んだ QR コードのフレームの選択や、種類・URL の変更もできます。
 
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdQRCodeURLList.md
@@ -34,7 +34,7 @@ https://note.com/dtp_tranist/n/ne2cdd5f60080
 ### Overview
 
 Lists, in page order, the URLs of the QR codes in the active document (made with Object > Generate QR Code).
-Handy for checking link targets before sending files to print. You can copy the list and select the frame of the chosen QR code.
+Handy for checking link targets before sending files to print. You can copy the list, select the frame of the chosen QR code, and change its type or URL.
 
 See the README for details.
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdQRCodeURLList.md
@@ -45,10 +45,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdQRCodeURLList
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdQRCodeURLList";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "ドキュメント内のQRコードのURLを一覧"; /* README の見出し / README title (Japanese) */
 
@@ -74,6 +74,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
 
     /* QR コードの種類（スニペットの要素名）/ QR code types (element names in a snippet) */
     var QR_ELEMENT_PATTERN = /<(HyperlinkQRCode|PlainTextQRCode|EmailQRCode|TextMsgQRCode|VCardQRCode)\b([^>]*)>/;
+
+    /* QR コードの色（スニペットのスウォッチ名）/ QR code color (swatch name in a snippet) */
+    var QR_SWATCH_PATTERN = /<QrCodeSwatch\b[^>]*>([^<]*)<\/QrCodeSwatch>/;
 
     /* QR コードを埋め込んだ EPS のリンク名（オーバーセットの判定用）/ Link name of the embedded EPS of a QR code (for overset items) */
     var QR_LINK_NAME_PATTERN = /^QR Code/;
@@ -165,6 +168,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
 
     var LIST_SIZE     = [600, 320];          /* リストの寸法 [幅,高さ] / list size */
     var COLUMN_WIDTHS = [110, 130, 360];     /* 列幅（ページ・種類・URL）/ column widths (page, type, URL) */
+    var EDIT_LABEL_WIDTH     = 50;           /* 編集ダイアログの項目名の幅 / label width in the edit dialog */
+    var EDIT_URL_FIELD_WIDTH = 420;          /* 編集ダイアログの URL 欄の幅 / URL field width in the edit dialog */
 
     // =========================================
     // ラベル定義 / Labels
@@ -555,10 +560,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
 
     var LABELS = {
         dialog: {
-            title: { ja: "QR コードの URL", en: "QR Code URLs" }
+            title:     { ja: "QR コードの URL", en: "QR Code URLs" },
+            editTitle: { ja: "QR コードを編集", en: "Edit QR Code" }
         },
         column: {
             page: { ja: "ページ", en: "Page" },
+            type: { ja: "種類", en: "Type" },
+            url:  { ja: "URL", en: "URL" }
+        },
+        fieldLabel: {
             type: { ja: "種類", en: "Type" },
             url:  { ja: "URL", en: "URL" }
         },
@@ -571,12 +581,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             overset:    { ja: "オーバーセット", en: "Overset" }
         },
         message: {
-            unreadable: { ja: "（オーバーセットのため読み取れません）", en: "(cannot be read in overset text)" }
+            unreadable:   { ja: "（オーバーセットのため読み取れません）", en: "(cannot be read in overset text)" },
+            multipleURLs: { ja: "（複数の URL）", en: "(multiple URLs)" }
         },
         button: {
             copyAll: { ja: "すべてコピー", en: "Copy All" },
+            edit:    { ja: "編集...", en: "Edit..." },
             select:  { ja: "選択", en: "Select" },
-            close:   { ja: "閉じる", en: "Close" }
+            close:   { ja: "閉じる", en: "Close" },
+            cancel:  { ja: "キャンセル", en: "Cancel" },
+            ok:      { ja: "OK", en: "OK" }
         },
         tooltip: {
             list: {
@@ -586,6 +600,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             copyAll: {
                 ja: "一覧を「ページ<タブ>URL」の行にしてクリップボードにコピーします。表計算アプリにそのまま貼り付けられます。",
                 en: "Copies the list to the clipboard as \"page<tab>URL\" lines, ready to paste into a spreadsheet."
+            },
+            edit: {
+                ja: "リストで選んだ QR コードの種類と URL を変更します。複数選ぶと、まとめて変更できます。",
+                en: "Changes the type and URL of the QR codes chosen in the list. Choose several to change them together."
+            },
+            editType: {
+                ja: "QR コードの種類です。複数の種類が混ざっているときは、どちらも選ばなければ種類を変えません。",
+                en: "The QR code type. When the chosen QR codes are of mixed types, leaving both off keeps each type."
+            },
+            editURL: {
+                ja: "QR コードの URL です。URL が異なる QR コードを複数選んだときは変更できません。",
+                en: "The URL of the QR code. It cannot be changed when the chosen QR codes have different URLs."
             },
             select: {
                 ja: "リストで選んだ QR コードのフレームを選択し、そのページを表示します。",
@@ -599,6 +625,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             selectFailed: {
                 ja: "フレームを選択できませんでした（ロック・非表示のレイヤー、オーバーセットなど）。",
                 en: "Could not select the frame (locked or hidden layer, overset text, etc.)."
+            },
+            emptyURL: { ja: "URL を入力してください。", en: "Enter a URL." },
+            plainTextNotURL: {
+                ja: "プレーンテキストの QR コードは http:// https:// ftp:// で始まる URL にしてください。これ以外の内容は一覧に出なくなります。",
+                en: "For a Plain Text QR code, use a URL starting with http://, https:// or ftp://. Any other text would drop out of the list."
+            },
+            editFailed: {
+                ja: "%1件の QR コードを変更できませんでした（ロックされたオブジェクトなど）。\n%2",
+                en: "Could not change %1 QR code(s) (locked objects, etc.).\n%2"
             }
         },
         counter: {
@@ -613,8 +648,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     /**
      * @typedef {Object} QRCodeEntry
      * @property {PageItem} frame - QR コードを入れたフレーム
+     * @property {string|null} qrType - 種類（"hyperlink" / "plainText"）。オーバーセットは読み取れないので null
      * @property {string} typeName - 種類の表示名
      * @property {string} url - URL
+     * @property {string|null} swatchName - QR コードのスウォッチ名。指定なしは null
      * @property {string} pageLabel - ページの表示名
      * @property {Page|null} page - 移動先のページ（ペーストボードは null）
      * @property {Spread|MasterSpread|null} spread - 移動先のスプレッド（オーバーセットは null）
@@ -648,7 +685,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
      * QR コードの中身は DOM のプロパティに無く、スニペット（IDMS）の XML にだけ出る
      * @param {PageItem} frame - QR コードを入れたフレーム
      * @param {File} snippetFile - 一時ファイル
-     * @returns {{elementName: string, attributes: string}|null} 要素名と属性の文字列。QR コードでなければ null
+     * @returns {{elementName: string, attributes: string, swatchName: (string|null)}|null} 要素名・属性の文字列・スウォッチ名。QR コードでなければ null
      */
     function readQRCodeElement(frame, snippetFile) {
         frame.exportFile(ExportFormat.INDESIGN_SNIPPET, snippetFile);
@@ -658,7 +695,13 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         snippetFile.close();
         snippetFile.remove();
         var elementMatch = snippetText.match(QR_ELEMENT_PATTERN);
-        return elementMatch ? { elementName: elementMatch[1], attributes: elementMatch[2] } : null;
+        if (!elementMatch) return null;
+        var swatchMatch = snippetText.match(QR_SWATCH_PATTERN);
+        return {
+            elementName: elementMatch[1],
+            attributes: elementMatch[2],
+            swatchName: swatchMatch ? decodeXMLText(swatchMatch[1]) : null
+        };
     }
 
     /**
@@ -669,8 +712,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
      */
     function getXMLAttribute(attributes, attributeName) {
         var attributeMatch = attributes.match(new RegExp("\\b" + attributeName + "=\"([^\"]*)\""));
-        if (!attributeMatch) return "";
-        return attributeMatch[1]
+        return attributeMatch ? decodeXMLText(attributeMatch[1]) : "";
+    }
+
+    /**
+     * XML の文字参照を戻す
+     * @param {string} xmlText - XML の属性値や要素の文字列
+     * @returns {string} 文字参照を戻した文字列
+     */
+    function decodeXMLText(xmlText) {
+        return xmlText
             .replace(/&#x([0-9A-Fa-f]+);/g, function (whole, hex) { return String.fromCharCode(parseInt(hex, 16)); })
             .replace(/&#(\d+);/g, function (whole, digits) { return String.fromCharCode(parseInt(digits, 10)); })
             .replace(/&lt;/g, "<")
@@ -683,16 +734,16 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     /**
      * QR コードの要素から種類と URL を取り出す
      * @param {{elementName: string, attributes: string}} qrElement - readQRCodeElement() の戻り値
-     * @returns {{typeName: string, url: string}|null} URL でなければ null
+     * @returns {{qrType: string, url: string}|null} URL でなければ null
      */
     function extractURL(qrElement) {
         if (qrElement.elementName === "HyperlinkQRCode") {
-            return { typeName: getLabel(LABELS.qrType.hyperlink), url: getXMLAttribute(qrElement.attributes, "UrlLink") };
+            return { qrType: "hyperlink", url: getXMLAttribute(qrElement.attributes, "UrlLink") };
         }
         if (INCLUDE_PLAIN_TEXT_URLS && qrElement.elementName === "PlainTextQRCode") {
             var plainText = getXMLAttribute(qrElement.attributes, "PlainText").replace(/^\s+|\s+$/g, "");
             if (URL_PATTERN.test(plainText)) {
-                return { typeName: getLabel(LABELS.qrType.plainText), url: plainText };
+                return { qrType: "plainText", url: plainText };
             }
         }
         return null;
@@ -789,21 +840,25 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             var frame = graphics[i].parent;
             var location = describeLocation(frame);
             var urlInfo;
+            var swatchName = null;
             if (location.spread) {
                 var qrElement = readQRCodeElement(frame, snippetFile);
                 if (!qrElement) continue;
                 urlInfo = extractURL(qrElement);
                 if (!urlInfo) continue;
+                swatchName = qrElement.swatchName;
             } else {
                 /* オーバーセットの文字に入ったフレームをスニペットに書き出すと InDesign が落ちる / Exporting a frame in overset text as a snippet crashes InDesign */
                 if (!isQRCodeLinkName(graphics[i])) continue;
-                urlInfo = { typeName: "-", url: getLabel(LABELS.message.unreadable) };
+                urlInfo = { qrType: null, url: getLabel(LABELS.message.unreadable) };
             }
             var bounds = frame.geometricBounds;
             entries.push({
                 frame: frame,
-                typeName: urlInfo.typeName,
+                qrType: urlInfo.qrType,
+                typeName: urlInfo.qrType ? getLabel(LABELS.qrType[urlInfo.qrType]) : "-",
                 url: urlInfo.url,
+                swatchName: swatchName,
                 pageLabel: location.pageLabel,
                 page: location.page,
                 spread: location.spread,
@@ -911,16 +966,232 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     }
 
     /**
+     * @typedef {Object} QRCodeChange
+     * @property {QRCodeEntry} entry - 変更する QR コード
+     * @property {string} qrType - 変更後の種類（"hyperlink" / "plainText"）
+     * @property {string} url - 変更後の URL
+     */
+
+    /**
+     * 編集の指定を、実際に変わる QR コードごとの変更にする
+     * @param {QRCodeEntry[]} targets - 編集の対象
+     * @param {string|null} newType - 新しい種類。null なら種類を変えない
+     * @param {string|null} newURL - 新しい URL。null なら URL を変えない
+     * @returns {QRCodeChange[]} 変更の一覧（変わらないものは含めない）
+     */
+    function buildChanges(targets, newType, newURL) {
+        var changes = [];
+        for (var i = 0; i < targets.length; i++) {
+            var qrType = newType || targets[i].qrType;
+            var url = (newURL !== null) ? newURL : targets[i].url;
+            if (qrType === targets[i].qrType && url === targets[i].url) continue;
+            changes.push({ entry: targets[i], qrType: qrType, url: url });
+        }
+        return changes;
+    }
+
+    /**
+     * プレーンテキストになる変更のうち、中身が URL でないものがあるか判定する（一覧から外れてしまう）
+     * @param {QRCodeChange[]} changes - 変更の一覧
+     * @returns {boolean} あれば true
+     */
+    function hasNonURLPlainText(changes) {
+        for (var i = 0; i < changes.length; i++) {
+            if (changes[i].qrType === "plainText" && !URL_PATTERN.test(changes[i].url)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 同じフレームに QR コードを作り直す。種類や中身を変えるプロパティは無いが、
+     * 作り直しても大きさ・位置・回転は残る（色は元のスウォッチを渡さないと残らない）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {QRCodeChange} change - 変更の内容
+     * @returns {void}
+     */
+    function rebuildQRCode(doc, change) {
+        var frame = change.entry.frame;
+        var createMethod = (change.qrType === "plainText") ? "createPlainTextQRCode" : "createHyperlinkQRCode";
+        if (change.entry.swatchName === null) {
+            frame[createMethod](change.url);
+        } else {
+            frame[createMethod](change.url, doc.swatches.itemByName(change.entry.swatchName));
+        }
+    }
+
+    /**
+     * 変更をまとめて適用する（取り消しは1回で済む）
+     * @param {Document} doc - 対象のドキュメント
+     * @param {QRCodeChange[]} changes - 変更の一覧
+     * @returns {{failedCount: number, lastMessage: string}} 失敗した件数と最後のエラー
+     */
+    function applyChanges(doc, changes) {
+        var applyResult = { failedCount: 0, lastMessage: "" };
+        app.doScript(function () {
+            for (var i = 0; i < changes.length; i++) {
+                /* ロックされたフレームは例外になる。残りの QR コードは続ける / A locked frame throws; carry on with the rest */
+                try {
+                    rebuildQRCode(doc, changes[i]);
+                } catch (e) {
+                    applyResult.failedCount++;
+                    applyResult.lastMessage = e.message;
+                }
+            }
+        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.dialog.editTitle));
+        return applyResult;
+    }
+
+    /**
+     * 編集の対象に共通する値を返す
+     * @param {QRCodeEntry[]} targets - 編集の対象
+     * @param {string} propertyName - 調べるプロパティ名
+     * @returns {string|null} すべて同じならその値、異なれば null
+     */
+    function getCommonValue(targets, propertyName) {
+        for (var i = 1; i < targets.length; i++) {
+            if (targets[i][propertyName] !== targets[0][propertyName]) return null;
+        }
+        return targets[0][propertyName];
+    }
+
+    /**
+     * 種類と URL の編集ダイアログを表示する
+     * @param {QRCodeEntry[]} targets - 編集の対象
+     * @returns {QRCodeChange[]|null} 変更の一覧。キャンセルしたときや何も変わらないときは null
+     */
+    function showEditDialog(targets) {
+        var editDialog = new Window("dialog", getLabel(LABELS.dialog.editTitle));
+        setupWindow(editDialog);
+
+        var commonURL = getCommonValue(targets, "url");
+        var selectedType = getCommonValue(targets, "qrType");
+
+        var typeRow = editDialog.add("group");
+        setupRow(typeRow, "fill");
+        addEditFieldLabel(typeRow, LABELS.fieldLabel.type);
+        var radioHyperlink = typeRow.add("radiobutton", undefined, getLabel(LABELS.qrType.hyperlink));
+        var radioPlainText = typeRow.add("radiobutton", undefined, getLabel(LABELS.qrType.plainText));
+        radioHyperlink.value = (selectedType === "hyperlink");
+        radioPlainText.value = (selectedType === "plainText");
+        radioHyperlink.helpTip = radioPlainText.helpTip = getLabel(LABELS.tooltip.editType);
+
+        var urlRow = editDialog.add("group");
+        setupRow(urlRow, "fill");
+        addEditFieldLabel(urlRow, LABELS.fieldLabel.url);
+        var urlField = urlRow.add("edittext", undefined, (commonURL !== null) ? commonURL : getLabel(LABELS.message.multipleURLs));
+        urlField.preferredSize.width = EDIT_URL_FIELD_WIDTH;
+        urlField.enabled = (commonURL !== null);
+        urlField.helpTip = getLabel(LABELS.tooltip.editURL);
+
+        var buttonRow = addButtonRow(editDialog);
+        var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        var btnOK = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        editDialog.defaultElement = btnOK;
+        editDialog.cancelElement = btnCancel;
+        alignRightOnlyButtonRow(buttonRow);
+
+        var changes = null;
+
+        radioHyperlink.onClick = function () {
+            selectedType = "hyperlink";
+        };
+        radioPlainText.onClick = function () {
+            selectedType = "plainText";
+        };
+        btnOK.onClick = function () {
+            var newURL = null;
+            if (commonURL !== null) {
+                newURL = urlField.text.replace(/^\s+|\s+$/g, "");
+                if (newURL === "") {
+                    alert(getLabel(LABELS.alert.emptyURL));
+                    return;
+                }
+            }
+            var pendingChanges = buildChanges(targets, selectedType, newURL);
+            if (hasNonURLPlainText(pendingChanges)) {
+                alert(getLabel(LABELS.alert.plainTextNotURL));
+                return;
+            }
+            changes = pendingChanges;
+            editDialog.close(1);
+        };
+        btnCancel.onClick = function () {
+            editDialog.close(2);
+        };
+
+        editDialog.show();
+        return (changes && changes.length > 0) ? changes : null;
+    }
+
+    /**
+     * 編集ダイアログの行ラベルを足す
+     * @param {Group} rowGroup - 行
+     * @param {Object} labelRef - 項目名の文言
+     * @returns {void}
+     */
+    function addEditFieldLabel(rowGroup, labelRef) {
+        var fieldLabel = rowGroup.add("statictext", undefined, labelText(labelRef));
+        fieldLabel.preferredSize.width = EDIT_LABEL_WIDTH;
+        fieldLabel.justify = "right";
+    }
+
+    /**
+     * リストで選んでいる QR コードを返す
+     * @param {ListBox} qrList - 一覧のリスト
+     * @param {QRCodeEntry[]} entries - QR コードの一覧
+     * @returns {QRCodeEntry[]} 選んでいる QR コード
+     */
+    function getSelectedEntries(qrList, entries) {
+        var selectedEntries = [];
+        for (var i = 0; i < qrList.items.length; i++) {
+            if (qrList.items[i].selected) selectedEntries.push(entries[i]);
+        }
+        return selectedEntries;
+    }
+
+    /**
+     * 編集できる QR コードだけを返す（オーバーセットは読み取れず、作り直すと InDesign が落ちるおそれがある）
+     * @param {QRCodeEntry[]} entries - QR コードの一覧
+     * @returns {QRCodeEntry[]} 編集できる QR コード
+     */
+    function getEditableEntries(entries) {
+        var editableEntries = [];
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i].qrType) editableEntries.push(entries[i]);
+        }
+        return editableEntries;
+    }
+
+    /**
+     * 編集した QR コードをリストで選び直す
+     * @param {ListBox} qrList - 一覧のリスト
+     * @param {QRCodeEntry[]} entries - QR コードの一覧
+     * @param {number[]} frameIds - 選ぶフレームの id
+     * @returns {boolean} 1つでも選んだら true
+     */
+    function restoreSelection(qrList, entries, frameIds) {
+        var idText = "," + frameIds.join(",") + ",";
+        var hasSelection = false;
+        for (var i = 0; i < entries.length; i++) {
+            if (idText.indexOf("," + entries[i].frame.id + ",") < 0) continue;
+            qrList.items[i].selected = true;
+            hasSelection = true;
+        }
+        return hasSelection;
+    }
+
+    /**
      * 一覧のダイアログを表示する
      * @param {QRCodeEntry[]} entries - QR コードの一覧
-     * @returns {QRCodeEntry|null} ［選択］で閉じたときは選んだ QR コード、それ以外は null
+     * @param {number[]} selectedFrameIds - 最初に選んでおくフレームの id（無ければ先頭を選ぶ）
+     * @returns {{chosenEntry: (QRCodeEntry|undefined), changes: (QRCodeChange[]|undefined)}|null} ［選択］なら chosenEntry、編集なら changes、閉じただけなら null
      */
-    function showListDialog(entries) {
+    function showListDialog(entries, selectedFrameIds) {
         var listDialog = new Window("dialog", buildDialogTitle(entries.length));
         setupWindow(listDialog);
 
         var qrList = listDialog.add("listbox", [0, 0, LIST_SIZE[0], LIST_SIZE[1]], "", {
-            multiselect: false,
+            multiselect: true,
             numberOfColumns: 3,
             showHeaders: true,
             columnTitles: [
@@ -937,25 +1208,41 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             listItem.subItems[0].text = entries[i].typeName;
             listItem.subItems[1].text = entries[i].url;
         }
-        qrList.selection = 0;
+        if (!restoreSelection(qrList, entries, selectedFrameIds)) qrList.items[0].selected = true;
 
         var buttonRow = addButtonRow(listDialog);
         var btnCopyAll = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.copyAll));
         btnCopyAll.helpTip = getLabel(LABELS.tooltip.copyAll);
+        var btnEdit = buttonRow.leftGroup.add("button", undefined, getLabel(LABELS.button.edit));
+        btnEdit.helpTip = getLabel(LABELS.tooltip.edit);
         var btnClose = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "cancel" });
         var btnSelect = buttonRow.rightGroup.add("button", undefined, getLabel(LABELS.button.select), { name: "ok" });
         btnSelect.helpTip = getLabel(LABELS.tooltip.select);
         listDialog.defaultElement = btnSelect;
         listDialog.cancelElement = btnClose;
 
-        qrList.onChange = function () {
-            btnSelect.enabled = (qrList.selection !== null);
-        };
+        var changes = null;
+
+        /**
+         * 選んでいる件数に合わせてボタンを切り替える（［選択］は1件のときだけ）
+         * @returns {void}
+         */
+        function updateButtons() {
+            var selectedEntries = getSelectedEntries(qrList, entries);
+            btnSelect.enabled = (selectedEntries.length === 1);
+            btnEdit.enabled = (getEditableEntries(selectedEntries).length > 0);
+        }
+
+        qrList.onChange = updateButtons;
         qrList.onDoubleClick = function () {
-            if (qrList.selection !== null) listDialog.close(1);
+            if (getSelectedEntries(qrList, entries).length === 1) listDialog.close(1);
         };
         btnCopyAll.onClick = function () {
             copyToClipboard(buildCopyText(entries));
+        };
+        btnEdit.onClick = function () {
+            changes = showEditDialog(getEditableEntries(getSelectedEntries(qrList, entries)));
+            if (changes) listDialog.close(3);
         };
         btnSelect.onClick = function () {
             listDialog.close(1);
@@ -964,10 +1251,14 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             listDialog.close(2);
         };
 
-        /* モーダルのダイアログボックスを開いたままでは選択を変えられないため、閉じてから選択する / The selection cannot change while the modal dialog box is open */
+        updateButtons();
+
+        /* モーダルのダイアログボックスを開いたままでは選択も QR コードも変えられないため、閉じてから処理する / Neither the selection nor a QR code can change while the modal dialog box is open */
         addVersionFooter(listDialog);
-        if (listDialog.show() !== 1 || qrList.selection === null) return null;
-        return entries[qrList.selection.index];
+        var closeResult = listDialog.show();
+        if (closeResult === 3) return { changes: changes };
+        if (closeResult !== 1) return null;
+        return { chosenEntry: getSelectedEntries(qrList, entries)[0] };
     }
 
     // =========================================
@@ -978,12 +1269,30 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         alert(getLabel(LABELS.alert.noDocument));
         return;
     }
-    var qrEntries = collectQRCodes(app.activeDocument);
-    if (qrEntries.length === 0) {
-        alert(getLabel(LABELS.alert.noQRCode));
-        return;
+    var activeDoc = app.activeDocument;
+    var selectedFrameIds = [];
+
+    /* 編集したら読み直して一覧に戻る / After an edit, read the document again and return to the list */
+    while (true) {
+        var qrEntries = collectQRCodes(activeDoc);
+        if (qrEntries.length === 0) {
+            alert(getLabel(LABELS.alert.noQRCode));
+            return;
+        }
+        var listResult = showListDialog(qrEntries, selectedFrameIds);
+        if (!listResult) return;
+        if (listResult.chosenEntry) {
+            selectQRCode(listResult.chosenEntry);
+            return;
+        }
+        var applyResult = applyChanges(activeDoc, listResult.changes);
+        if (applyResult.failedCount > 0) {
+            alert(getLabel(LABELS.alert.editFailed, [applyResult.failedCount, applyResult.lastMessage]));
+        }
+        selectedFrameIds = [];
+        for (var i = 0; i < listResult.changes.length; i++) {
+            selectedFrameIds.push(listResult.changes[i].entry.frame.id);
+        }
     }
-    var chosenEntry = showListDialog(qrEntries);
-    if (chosenEntry) selectQRCode(chosenEntry);
 
 }());

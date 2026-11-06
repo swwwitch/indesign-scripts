@@ -488,7 +488,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdFileNameMa
 
 ### ドキュメント内のQRコードのURLを一覧
 
-アクティブなドキュメントにある QR コード（［オブジェクト］→［QR コードを生成］で作ったもの）を探し、URL をページ順に一覧します。入稿前のリンク先の確認などに使えます。
+アクティブなドキュメントにある QR コード（［オブジェクト］→［QR コードを生成］で作ったもの）を探し、URL をページ順に一覧します。入稿前のリンク先の確認などに使えます。一覧から QR コードの種類と URL も変更できます。
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdQRCodeURLList.jsx
 

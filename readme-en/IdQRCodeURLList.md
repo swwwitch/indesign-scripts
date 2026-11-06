@@ -10,7 +10,7 @@
 
 Lists, in page order, the URLs of the QR codes in the active document (made with Object > Generate QR Code).
 
-A QR code does not show its URL, and checking it normally means opening Edit QR Code for each one. This script shows the URLs of all QR codes in the document at once, which helps when checking link targets before sending files to print or making a checklist.
+A QR code does not show its URL, and checking it normally means opening Edit QR Code for each one. This script shows the URLs of all QR codes in the document at once, which helps when checking link targets before sending files to print or making a checklist. You can change the type or URL of a QR code right from the list.
 
 ### Features
 
@@ -20,6 +20,8 @@ A QR code does not show its URL, and checking it normally means opening Edit QR 
 - Order: document pages, then parent pages, then the pasteboard; within a page, top to bottom, then left to right
 - Copy All puts "page<tab>URL" lines on the clipboard, ready to paste into a spreadsheet
 - Select (or a double-click) shows the page of that QR code and selects its frame
+- Edit... changes the type (Web Hyperlink / Plain Text) and URL of a QR code. Choose several in the list to change them together (only the type when their URLs differ)
+- Size, position, rotation and color of the QR code stay as they are, and one Undo reverts the change
 - The dialog title shows the count
 
 ### How to use
@@ -28,18 +30,23 @@ A QR code does not show its URL, and checking it normally means opening Edit QR 
 2. Check the URLs in the list
 3. Click Copy All to copy them to the clipboard if needed
 4. Choose a QR code and click Select (or double-click it). The dialog box closes, its page is shown and the frame is selected
+5. To change the type or URL, choose QR codes, click Edit..., set the type and URL, and click OK. The list then comes back
 
 Enter/Return works as Select, and Esc as Close.
 
 ### Notes
 
 - The contents of a QR code are not exposed to scripts as a property, so the script exports each QR code frame to a temporary snippet (.idms), reads it and deletes it right away. This takes about 0.01 seconds per QR code.
-- The document is not changed (Select only changes the selection and the page shown).
+- The document is not changed unless you use Edit... (Select only changes the selection and the page shown).
+- No property can rewrite the type or contents, so Edit... creates the QR code again in the same frame.
+- QR codes in locked objects cannot be changed; the script reports how many. Those on locked or hidden layers can.
+- Plain Text is available only for URLs starting with `http://`, `https://` or `ftp://`, because anything else would drop out of the list.
+- QR codes in overset text cannot be changed.
 - QR codes in overset text are not read, because exporting them as a snippet may crash InDesign; the URL column shows "(cannot be read in overset text)" instead (not verified).
 - Email, text message and vCard QR codes are not listed.
 - Placed (linked) EPS files are ignored; QR codes are stored as embedded EPS.
 - QR codes on locked or hidden layers are listed, but Select may not be able to select them.
-- The list reflects the moment you run the script. Run it again after editing QR codes.
+- The list reflects the moment you run the script. Run it again after changing QR codes outside the script, such as with Edit QR Code.
 - Copying to the clipboard goes through AppleScript on Mac and VBScript on Windows.
 
 ### Script info
@@ -47,15 +54,16 @@ Enter/Return works as Select, and Esc as Close.
 | Item | Value |
 | --- | --- |
 | File | `jsx/document/IdQRCodeURLList.jsx` |
-| Version | v1.0.1 |
+| Version | v1.1.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-06 |
 | Article | https://note.com/dtp_tranist/n/ne2cdd5f60080 |
 | Tested with | InDesign 2026 (v21.6) / macOS |
 
 ### Update History
 
+- v1.1.0 (2026-11-06) Added Edit... to change the type and URL of QR codes (several at once; size, position, rotation and color are kept)
 - v1.0.1 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.0.0 (2026-11-05): Initial release
 
