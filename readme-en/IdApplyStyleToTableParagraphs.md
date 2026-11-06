@@ -44,6 +44,7 @@ Finds the paragraphs that contain nothing but a table in the selection, the stor
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-06 |
 | Last updated | 2026-11-06 |
+| Article | https://note.com/dtp_tranist/n/na8313158d9ce |
 
 ### Update History
 

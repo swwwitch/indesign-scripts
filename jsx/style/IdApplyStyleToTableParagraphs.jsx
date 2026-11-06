@@ -25,6 +25,9 @@ SCRIPTMETA-END
 詳細は README を参照してください。
 https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdApplyStyleToTableParagraphs.md
 
+note記事も参照してください。
+https://note.com/dtp_tranist/n/na8313158d9ce
+
 ### Overview
 
 Finds the paragraphs that contain nothing but a table in the selection, the story or the document, and applies the paragraph style you choose.
@@ -45,9 +48,10 @@ var SCRIPT_UPDATED  = "2026-11-06";                   /* 更新日 / last update
 
 var SCRIPT_DESCRIPTION_JA = "表だけの段落に段落スタイルを適用"; /* README の見出し / README title (Japanese) */
 
-var SCRIPT_README_JA  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdApplyStyleToTableParagraphs.md"; /* README（日本語） */
-var SCRIPT_README_EN  = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdApplyStyleToTableParagraphs.md"; /* README (English) */
-var SCRIPT_SOURCE_URL = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdApplyStyleToTableParagraphs.jsx"; /* 最新版のソース / latest source */
+var SCRIPT_README_JA   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdApplyStyleToTableParagraphs.md"; /* README（日本語） */
+var SCRIPT_README_EN   = "https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdApplyStyleToTableParagraphs.md"; /* README (English) */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na8313158d9ce"; /* 紹介記事 / article URL */
+var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdApplyStyleToTableParagraphs.jsx"; /* 最新版のソース / latest source */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

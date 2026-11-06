@@ -64,7 +64,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/page/IdAppendParagrap
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/style/IdApplyStyleToTableParagraphs.jsx
 
-詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdApplyStyleToTableParagraphs.md)
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdApplyStyleToTableParagraphs.md)／[note記事](https://note.com/dtp_tranist/n/na8313158d9ce)
 
 ### 目次の項目を部ごとの派生スタイルに当て直す
 
