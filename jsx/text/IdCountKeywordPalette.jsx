@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdCountKeywordPalette
 Name=キーワードの件数を数えて表記の揺れを統一
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.3.0
+Version=1.4.0
 Release-Date=2026-11-05
 Description-BEGIN
 最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを常駐パレットで数え、該当箇所を一覧しながら表記の揺れを統一します。
@@ -42,10 +42,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCountKeywordP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCountKeywordPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-07";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "キーワードの件数を数えて表記の揺れを統一"; /* README の見出し / README title (Japanese) */
 
@@ -193,6 +193,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             changeTo: { ja: "置換文字列", en: "Change to" }
         },
         panel: {
+            variants: { ja: "揺れ候補", en: "Variants" },
             keywords: { ja: "キーワード（○＝統一先）", en: "Keywords (○ = unify target)" },
             scope: { ja: "対象", en: "Scope" },
             options: { ja: "オプション", en: "Options" },
@@ -212,8 +213,27 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             masterPages: { ja: "親ページを含む", en: "Include Parent Pages" },
             excludeToc: { ja: "目次を除く", en: "Exclude Tables of Contents" },
             excludeContained: { ja: "長いキーワードの一部は除く", en: "Skip parts of longer keywords" },
-            hideLineEdge: { ja: "行頭・行末のものは表示しない", en: "Hide matches at line start or end" },
-            bracketMatch: { ja: "該当文字を【】で囲む", en: "Wrap matches in 【】" }
+            bracketMatch: { ja: "該当文字を【】で囲む", en: "Wrap matches in 【】" },
+            withinParagraph: { ja: "段落内に限る", en: "Within Paragraph" }
+        },
+        variantKind: {
+            all: { ja: "すべて", en: "All" },
+            katakana: { ja: "カタカナ", en: "Katakana" },
+            kanji: { ja: "漢字", en: "Kanji" },
+            latin: { ja: "英数字", en: "Latin" },
+            suru: { ja: "する／をする", en: "する／をする" },
+            dictionary: { ja: "辞書", en: "Dictionary" },
+            review: { ja: "要確認", en: "To Review" }
+        },
+        variantSort: {
+            frequent: { ja: "多い順", en: "Most first" },
+            rare: { ja: "少ない順", en: "Fewest first" }
+        },
+        variantTable: {
+            group: { ja: "組", en: "Group" },
+            spelling: { ja: "表記", en: "Spelling" },
+            count: { ja: "件数", en: "Count" },
+            target: { ja: "統一先", en: "Target" }
         },
         tooltip: {
             story: { ja: "［検索］を押した時点で選択している文字やテキストフレームを含むストーリー（表・脚注を含む）で検索します。", en: "Searches the stories that contain the text or text frames selected when you click Find, including tables and footnotes." },
@@ -226,7 +246,15 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             },
             loadSelection: { ja: "選択している文字を、最後に入力したキーワード欄（空いていれば最初の空欄）に入れます。", en: "Puts the selected text into the keyword field you last typed in, or the first empty one." },
             keyword: { ja: "return キーでも検索します。", en: "Press Return to find." },
-            clearKeyword: { ja: "キーワード欄を空にします。", en: "Clears the keyword field." },
+            clearKeyword: { ja: "キーワード欄を空にします。option キーを押しながらクリックすると、すべての欄を空にします。", en: "Clears the keyword field. Option-click clears all the fields." },
+            wholeWord: { ja: "前後が同じ文字種（英数字・漢字・カタカナ）に続くものを除きます。「仕事」の中の「事」、pineapple の中の apple などです。", en: "Skips matches that run on into the same script (letters, kanji, katakana), like apple in pineapple." },
+            withinParagraph: { ja: "一覧の前後の文字を段落の中だけにします。段落の区切り（¶）と、その先の文字は表示しません。", en: "Keeps the characters around a match inside its paragraph. The paragraph mark (¶) and what lies beyond it are not shown." },
+            collectVariants: { ja: "［対象］の文字を読み取り、同じ語の表記違いと、辞書にある揺れを一覧にします。キーワードは入れなくてかまいません。", en: "Reads the text of the scope and lists words written in more than one way, including the variants in the dictionary. No keywords are needed." },
+            variantList: { ja: "組を選ぶとキーワード欄に入り、検索します。◉ の表記が統一先になります（前回の統一先、辞書の推奨、いちばん多い表記の順。要確認の組は統一先を選びません）。", en: "Pick a group to put it in the keyword fields and find it. The spelling marked ◉ becomes the unify target (the last one used, the dictionary's, then the most used; to-review groups have none)." },
+            variantFilter: { ja: "一覧に出す組の種類を絞ります。", en: "Limits the list to one kind of group." },
+            variantSort: { ja: "組の並び順を、出現数の多い順か少ない順にします。", en: "Orders the groups by how often they appear." },
+            ignore: { ja: "選んだ組を出さないようにします（InDesign を終了するまで）。", en: "Stops showing the selected group until InDesign quits." },
+            copyTable: { ja: "表示している組を、組・表記・件数・統一先の表としてコピーします。表計算アプリに貼り付けられます。", en: "Copies the groups shown as a table of group, spelling, count and target, ready to paste into a spreadsheet." },
             find: { ja: "キーワードを検索し、件数と該当箇所を表示します（キーワード欄の return キーでも検索）。", en: "Finds the keywords and shows the counts and matches (Return in a keyword field also finds)." },
             contextLength: { ja: "見つかった文字の前後に表示する文字数", en: "Number of characters shown before and after each match" },
             matchList: {
@@ -236,10 +264,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             exclude: {
                 ja: "一覧で選んだ行を除外します。除外した行はチェックが外れ、件数と［すべてを統一］の対象から外れます。除外した行を選んで押すと元に戻します（行のダブルクリックでも切り替え）。",
                 en: "Excludes the selected row: it is unchecked and left out of the counts and of Unify All. Select an excluded row and click again to include it (or double-click the row)."
-            },
-            hideLineEdge: {
-                ja: "見つかった文字の直前か直後が改行（段落の改行・強制改行・各種区切り、またはストーリー・セルの先頭・末尾）のものを一覧に出さず、［すべてを統一］でも置き換えません。件数には含みます。",
-                en: "Leaves out matches right after or before a line break (a return, forced line break or break character, or the start or end of a story or cell) from the list and from Unify All. They are still counted."
             },
             zoom: { ja: "一覧で選んだ文字を、この表示倍率で表示します。", en: "The text picked in the list is shown at this zoom." },
             bracketMatch: { ja: "一覧で、見つかった文字を【】で囲んで前後の文字列と見分けやすくします。", en: "Wraps each match in 【】 in the list to set it apart from the surrounding text." },
@@ -255,7 +279,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             unify: { ja: "すべてを統一", en: "Unify All" },
             exclude: { ja: "除外する", en: "Exclude" },
             include: { ja: "除外を解除", en: "Include" },
-            change: { ja: "置換", en: "Change" }
+            change: { ja: "置換", en: "Change" },
+            collectVariants: { ja: "揺れ候補を拾う", en: "Find Variants" },
+            ignore: { ja: "無視", en: "Ignore" },
+            copyTable: { ja: "一覧をコピー", en: "Copy Table" }
         },
         status: {
             initial: { ja: "-", en: "-" },
@@ -269,15 +296,18 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             overset: { ja: "オーバーセット", en: "Overset" },
             pasteboard: { ja: "ペーストボード", en: "Pasteboard" },
             unavailable: { ja: "（参照できません）", en: "(unavailable)" },
-            hidden: { ja: "行頭・行末の {count} 件は非表示", en: "{count} at line start or end hidden" },
             stale: { ja: "キーワードか設定が変わりました。［検索］で検索し直してください。", en: "Keywords or settings changed. Click Find again." },
             unified: { ja: "{count} 件を「{target}」に置き換えました", en: "Replaced {count} with \"{target}\"" },
             changed: { ja: "「{before}」を「{after}」に置き換えました", en: "Replaced \"{before}\" with \"{after}\"" },
             skipped: { ja: "{count} 件は文字が変わっていたため置き換えませんでした", en: "{count} skipped because the text had changed" },
-            nothingToReplace: { ja: "置き換える文字がありません", en: "Nothing to replace" }
+            nothingToReplace: { ja: "置き換える文字がありません", en: "Nothing to replace" },
+            variants: { ja: "{count} 組", en: "{count} groups" },
+            noVariants: { ja: "揺れ候補はありません", en: "No variants found" },
+            copied: { ja: "{count} 組をコピーしました", en: "Copied {count} groups" }
         },
         alert: {
-            confirmUnify: { ja: "{count} 件を「{target}」に置き換えますか？", en: "Replace {count} matches with \"{target}\"?" }
+            confirmUnify: { ja: "{count} 件を「{target}」に置き換えますか？", en: "Replace {count} matches with \"{target}\"?" },
+            copyFailed: { ja: "クリップボードにコピーできませんでした。", en: "Could not copy to the clipboard." }
         },
         undo: {
             unify: { ja: "表記を統一", en: "Unify Spelling" },
@@ -676,12 +706,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     var CLEAR_BUTTON_SIZE = [16, 16];       /* キーワード欄の × の大きさ（px）/ size of the × next to a keyword field */
     var CLEAR_BUTTON_CIRCLE_COLOR = isDarkUI() ? [1, 1, 1, 0.30] : [0, 0, 0, 0.30]; /* × の丸の色（macOS の検索欄の × に近い薄い灰色）/ circle color, a light gray like macOS search fields */
     var CLEAR_BUTTON_MARK_COLOR = isDarkUI() ? [0.2, 0.2, 0.2, 1] : [1, 1, 1, 1]; /* × の線の色（丸を抜いたように見せる）/ color of the × lines, cut out of the circle */
-    var KEYWORD_FIELD_WIDTH = 150;          /* キーワード欄の幅（px）/ width of a keyword field */
-    var COUNT_TEXT_WIDTH = 70;              /* 欄の右に出す件数の幅（px）/ width of the count next to each field */
-    var MATCH_LIST_WIDTH = 380;             /* 該当箇所の一覧の幅（px）/ width of the match list */
+    var KEYWORD_FIELD_WIDTH = 120;          /* キーワード欄の幅（px）/ width of a keyword field */
+    var COUNT_TEXT_WIDTH = 52;              /* 欄の右に出す件数の幅（px）/ width of the count next to each field */
+    var MATCH_LIST_WIDTH = 300;             /* 該当箇所の一覧の幅（px）/ width of the match list */
     var MATCH_LIST_MIN_HEIGHT = 200;        /* 一覧の最小の高さ（px。左のカラムに合わせて伸びる）/ minimum list height; it grows to the left column */
-    var MATCH_LIST_PAGE_COLUMN_WIDTH = 90;  /* 一覧のページ列の幅（px）/ width of the page column */
-    var CHANGE_TO_FIELD_WIDTH = 260;          /* ［置換文字列］の幅（px）/ width of the Change to field */
+    var MATCH_LIST_PAGE_COLUMN_WIDTH = 90;  /* 一覧のページ列の幅（px。これより狭いとチェック欄が消える、2026-11-07 実測）/ width of the page column; narrower hides the check boxes */
+    var CHANGE_TO_FIELD_WIDTH = 180;          /* ［置換文字列］の幅（px）/ width of the Change to field */
     var TOTAL_ROW_TOP_MARGIN = 5;           /* ［合計］の行の上の余白（px）/ top margin of the Total row */
     var TOTAL_ROW_BOTTOM_MARGIN = 10;       /* ［合計］の行の下の余白（px）/ bottom margin of the Total row */
     var ZOOM_ROW_BOTTOM_MARGIN = 10;        /* ［表示倍率］の行の下の余白（px）/ bottom margin of the Zoom row */
@@ -689,6 +719,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     var SLIDER_LABEL_WIDTH = 90;            /* スライダーの項目名の幅（px。2本のスライダーの左端をそろえる）/ width of slider labels, so both sliders line up */
     var SLIDER_VALUE_WIDTH = 40;            /* スライダーの右の数字の幅（px。「800%」が入る幅で2本そろえる）/ width of the value next to a slider, fitting "800%" for both */
     var EXCLUDE_BUTTON_WIDTH = 94;         /* ［除外する］［除外を解除］の幅（px。長いほうの文言の幅、実測93px。広げない）/ width of Exclude / Include, fitted to the longer label */
+    var VARIANT_LIST_WIDTH = 230;           /* 揺れ候補の一覧の幅（px）/ width of the variant list */
+    var VARIANT_LIST_MIN_HEIGHT = 200;      /* 揺れ候補の一覧の最小の高さ（px）/ minimum height of the variant list */
+    var LIST_NOTE_HEIGHT = 36;              /* 一覧の下のメモの高さ（px。2行分）/ height of the note below the list, two lines */
     var CHANGE_BUTTON_WIDTH = 64;            /* ［置換］の幅（px。文字数分にして、［置換文字列］を広くとる）/ width of Change, kept to its label so the field gets the room */
 
     // =========================================
@@ -763,8 +796,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
      * @property {boolean} excludeToc - 目次のストーリーにあるものを除くか
      * @property {boolean} excludeContained - ほかのキーワードに含まれる分を除くか
      * @property {number} contextLength - 一覧に出す前後の文字数
-     * @property {boolean} hideLineEdge - 行頭・行末（直前か直後が改行）のものを一覧に出さないか
      * @property {boolean} bracketMatch - 一覧で見つかった文字を【】で囲むか
+     * @property {boolean} withinParagraph - 一覧の前後の文字を段落の中に限るか
+     * @property {Object} variantRules - 組の ID → 前回の統一先
+     * @property {Object} ignoredGroups - 無視している組の ID（値は true）
+     * @property {number} variantFilter - 揺れ候補の種類の番号（VARIANT_KIND_KEYS の並び）
+     * @property {number} variantSort - 揺れ候補の並び順の番号（0 は多い順、1 は少ない順）
      * @property {number} zoomPercent - 一覧で選んだ文字を表示するときの表示倍率（％）
      * @property {number} targetIndex - 統一先の欄の番号（選んでいなければ -1）
      */
@@ -788,8 +825,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             excludeToc: readSavedFlag(saved.excludeToc, true),
             excludeContained: readSavedFlag(saved.excludeContained, true),
             contextLength: (typeof saved.contextLength === "number") ? saved.contextLength : DEFAULT_CONTEXT_LENGTH,
-            hideLineEdge: readSavedFlag(saved.hideLineEdge, true),
             bracketMatch: readSavedFlag(saved.bracketMatch, false),
+            withinParagraph: readSavedFlag(saved.withinParagraph, true),
+            variantRules: saved.variantRules || {},
+            ignoredGroups: saved.ignoredGroups || {},
+            variantFilter: (typeof saved.variantFilter === "number") ? saved.variantFilter : 0,
+            variantSort: (typeof saved.variantSort === "number") ? saved.variantSort : 0,
             zoomPercent: (typeof saved.zoomPercent === "number") ? saved.zoomPercent : DEFAULT_ZOOM_PERCENT,
             targetIndex: (typeof saved.targetIndex === "number") ? saved.targetIndex : -1
         };
@@ -868,6 +909,34 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     }
 
     /**
+     * 入れ物の1文字の語の種類を返す（特殊文字は文字種なし）
+     * @param {Story|Cell|Footnote} container - 入れ物
+     * @param {number} characterIndex - 文字の位置
+     * @returns {number} getWordClass() の値
+     */
+    function getWordClassAt(container, characterIndex) {
+        var characterContents = container.characters.item(characterIndex).contents;
+        if (typeof characterContents !== "string" || characterContents.length === 0) return 0;
+        return getWordClass(characterContents.charCodeAt(0));
+    }
+
+    /**
+     * 見つかった文字が、前後の同じ文字種に続いていないかを返す（「仕事」の「事」、pineapple の apple は続いている）
+     * @param {MatchRange} matchRange - 見つかった位置
+     * @param {Object} containerLengths - 入れ物ごとの文字数の控え
+     * @returns {boolean} 語として切れていれば true
+     */
+    function isWholeWordRange(matchRange, containerLengths) {
+        var matchedText = matchRange.matchedText;
+        var container = matchRange.text.parent;
+        var firstClass = getEdgeWordClass(matchedText, 0);
+        if (firstClass !== 0 && matchRange.start > 0 && getWordClassAt(container, matchRange.start - 1) === firstClass) return false;
+        var lastClass = getEdgeWordClass(matchedText, matchedText.length - 1);
+        if (lastClass === 0 || matchRange.end >= getContainerLength(matchRange, containerLengths)) return true;
+        return getWordClassAt(container, matchRange.end) !== lastClass;
+    }
+
+    /**
      * キーワードごとに見つかった位置を集める
      * @param {Array<Document|Story>} searchTargets - 検索する対象
      * @param {string[]} keywords - キーワード（空文字は探さない）
@@ -882,9 +951,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         }
 
         var rangesByKeyword = [];
+        var containerLengths = {};
         try {
             findOptions.caseSensitive = settings.caseSensitive;
-            findOptions.wholeWord = settings.wholeWord;
+            /* InDesign の wholeWord は日本語の語を返さない（2026-11-07 実測）ので、見つけたあとに自前で判定する
+               / InDesign's wholeWord returns nothing for Japanese words, so the edges are checked after finding */
+            findOptions.wholeWord = false;
             findOptions.includeMasterPages = (settings.scope === "document") && settings.masterPages;
             findOptions.includeFootnotes = true;
             findOptions.includeHiddenLayers = true;
@@ -901,7 +973,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
                     var found = searchTargets[j].findText();
                     for (var foundIndex = 0; foundIndex < found.length; foundIndex++) {
                         if (settings.excludeToc && isInTocStory(found[foundIndex])) continue;
-                        ranges.push(toMatchRange(found[foundIndex]));
+                        var matchRange = toMatchRange(found[foundIndex]);
+                        if (settings.wholeWord && !isWholeWordRange(matchRange, containerLengths)) continue;
+                        ranges.push(matchRange);
                     }
                 }
             }
@@ -996,6 +1070,895 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     }
 
     // =========================================
+    // 揺れ候補 / Variants
+    // =========================================
+
+    /* 表記ゆれ辞書。1行に1組（ここに行を足せます）
+       「誤 → 正」は誤記だけあれば候補に出す。「? 誤 → 正」も候補に出すが、文脈で正しいこともあるので統一先を選ばない。
+       「A、B」は2つ以上使われているときに候補に出す。先頭に「= 」を付けると先頭の表記を統一先に推奨する
+       / The variant dictionary, one group per line (add your own):
+         "wrong → right" appears as soon as the wrong spelling is found; "? wrong → right" too, but no target is chosen because the word
+         can be right in context; "A、B" appears when two are used; a leading "= " recommends the first spelling */
+    var VARIANT_DICTIONARY_LINES = [
+        "= ください、下さい",
+        "= いただく、頂く",
+        "= いただき、頂き",
+        "= いただきます、頂きます",
+        "= いただいた、頂いた",
+        "= できる、出来る",
+        "= できます、出来ます",
+        "= できない、出来ない",
+        "= できた、出来た",
+        "= できて、出来て",
+        "= こと、事",
+        "= とき、時",
+        "= ところ、所",
+        "= ほか、他",
+        "= など、等",
+        "= ただし、但し",
+        "= および、及び",
+        "= または、又は",
+        "= ならびに、並びに",
+        "= したがって、従って",
+        "= すでに、既に",
+        "= さらに、更に",
+        "= まず、先ず",
+        "= あらかじめ、予め",
+        "= おそらく、恐らく",
+        "= たとえば、例えば",
+        "= ぜひ、是非",
+        "= よろしく、宜しく",
+        "= ありがとう、有難う、有り難う",
+        "= お願い、御願い",
+        "= ご確認、御確認",
+        "= ご連絡、御連絡",
+        "= わかる、分かる、解る",
+        "= わかりやすい、分かりやすい、分り易い",
+        "= スマートフォン、スマホ",
+        "= アプリ、アプリケーション",
+        "：、:",
+        "？、?",
+        "！、!",
+        "（、(",
+        "）、)",
+        "％、%",
+        "＆、&",
+        "〜、～",
+        "? 波線 → 破線",
+        "パス状文字 → パス上文字",
+        "? 補完 → 補間",
+        "役物 → 約物",
+        "? 抑える → 押さえる",
+        "? 改定 → 改訂",
+        "? 改定版 → 改訂版",
+        "? 意外 → 以外",
+        "? 内臓 → 内蔵",
+        "? 初稿 → 初校",
+        "個条書き → 箇条書き",
+        "? 製作 → 制作",
+        "? 対象 → 対照",
+        "ドラック → ドラッグ",
+        "WIn → Win",
+        "WIndows → Windows",
+        "QuickLook → Quick Look",
+        "しずらい → しづらい",
+        "日本工業規格 → 日本産業規格",
+        "シャギー → ジャギー",
+        "ガーター → ガター",
+        "レスポンシブル → レスポンシブ",
+        "墨付き括弧 → 隅付き括弧",
+        "激的 → 劇的",
+        "グリーンインストール → クリーンインストール",
+        "? タイポ → タイポグラフィ",
+        "字詰め → 文字詰め",
+        "ぶら下げインデント → 突き出しインデント",
+        "ワイアーフレーム → ワイヤーフレーム",
+        "ヒヤリング → ヒアリング",
+        "ダイアル → ダイヤル",
+        "エンジニヤ → エンジニア",
+        "フォロアー → フォロワー",
+        "クリエーティブ、クリエイティブ",
+        "クリエーター、クリエイター",
+        "アクティベート、アクティベイト",
+        "インターフェイス、インタフェース",
+        "プレフィックス、プリフィックス",
+        "ウイルス、ウィルス",
+        "ウエイト、ウェイト",
+        "ウェッブ → ウェブ",
+        "アナリティックス → アナリティクス",
+        "ソフトウエア、ソフトウェア",
+        "メイン、メーン",
+        "? することができる → できる",
+        "? することが可能 → できる",
+        "? より → から",
+        "? おります → います",
+        "? にて → で",
+        "? については → は",
+        "? なります → です",
+        "? という",
+        "? さわる → 操作する",
+        "? 触る → 操作する",
+        "? 立ち上げる → 起動する",
+        "? 打つ → 入力する",
+        "? 落ちる → 強制終了する",
+        "? 凍る → フリーズする",
+        "? 拾う → 取得する",
+        "? おく → 保存する、移動する",
+        "起点、基点、基準点",
+        "フチ、ふち、エッジ、キワ、境界線",
+        "ビフォア、ビフォー",
+        "白、ホワイト",
+        "黒、ブラック",
+        "アンカー、アンカーポイント、ポイント",
+        "※、＊、*",
+        "スペースバー、スペースキー",
+        "アンダーバー、アンダースコア",
+        "クオリティ、クォリティ、クオリティー",
+        "つける、付ける",
+        "名詞、名刺",
+        "下線、アンダーライン",
+        "やさしい、易しい、優しい",
+        "半径、判型",
+        "クリック、クイック",
+        "x、×",
+        "ドロップシャドウ、影、シャドウ",
+        "ビュレット、バレット、ブレット",
+        "カラム、コラム、段組み、段組",
+        "コンマ、カンマ",
+        "ルビ、読みがな、フリガナ",
+        "マス目、升目、枡目、桝目",
+        "音引き、伸ばし棒、長音",
+        "拗促音、小書きのかな",
+        "ビットマップ画像、ラスター画像",
+        "切り抜き、トリミング",
+        "レイアウト、レーアウト",
+        "取り消し線、打ち消し線",
+        "スモールキャップ、スモールキャップス、スモールキャピタル",
+        "チャネル、チャンネル",
+        "PC、Mac、パソコン、マシン、端末",
+        "左揃え、左寄せ",
+        "右揃え、右寄せ",
+        "中央揃え、センター揃え、中央寄せ",
+        "行頭行末揃え、ジャスティファイ",
+        "マージン、余白",
+        "裁断、断裁",
+        "トレス、トレース",
+        "パタン、パターン",
+        "カラーモード、カラースペース",
+        "スクリーンショット、ショット",
+        "スクリーンキャプチャ、キャプチャ、スクリーンダンプ",
+        "アプリケーション、ソフト、ソフトウェア",
+        "Indesign → InDesign",
+        "PhotoShop → Photoshop",
+        "FireFly → Firefly",
+        "Firefry → Firefly",
+        "LightRoom → Lightroom",
+        "AfterEffects → After Effects",
+        "Adobe Max → Adobe MAX",
+        "ツールパネル → ツールバー",
+        "サムネイル → サムネール",
+        "ポイントテキスト → ポイント文字",
+        "エリア内テキスト → エリア内文字",
+        "? パレット → パネル",
+        "ウィジット → ウィジェット",
+        "キャンバス → カンバス",
+        "インターフェース → インターフェイス",
+        "ウインドウ → ウィンドウ",
+        "フォルダ → フォルダー",
+        "? 切り替え → 切り換え",
+        "シェープ → シェイプ",
+        "? 書く → 描く",
+        "? 先端 → 線端",
+        "Vanishing Point → 消点",
+        "? 注釈 → コメント",
+        "クローズドパス → クローズパス",
+        "? ベクトル → ベクター",
+        "Adobe Systems → Adobe",
+        "? Adobe → アドビ",
+        "複製を保存 → コピーを保存",
+        "? 環境設定 → 設定",
+        "アクティベート、追加、インストール",
+        "ディアクティベート、削除",
+        "PDF変換、PDF書き出し、PDF保存、PDF作成",
+        "ジャスティファイ → 均等配置（最終行左揃え）",
+        "見積り → 見積もり、見積",
+        "打合せ → 打ち合わせ",
+        "問合せ → 問い合わせ",
+        "? ベット → ベッド",
+        "? ドック → ドッグ",
+        "ビック → ビッグ",
+        "グット → グッド",
+        "? バット → バッド",
+        "スプレットシート → スプレッドシート",
+        "? バック → バッグ",
+        "アボガド → アボカド",
+        "ギブス → ギプス",
+        "? バッチ → バッジ",
+        "カッコ → 括弧",
+        "ナナメ → 斜め",
+        "? アキ → 空き",
+        "? ケイ → 罫",
+        "カコミ → 囲み",
+        "ナリユキ → 成り行き",
+        "ケヌキ → 毛抜き",
+        "永遠と → 延々と",
+        "? 脈略と → 脈々と",
+        "? 誠実に → 切実に",
+        "AdobeFonts → Adobe Fonts",
+        "AdobeFont → Adobe Fonts",
+        "AdobeStock → Adobe Stock",
+        "amazon → Amazon",
+        "android → Android",
+        "Balmuda → BALMUDA",
+        "BALMUDA、バルミューダ",
+        "Bang & olufsen → Bang & Olufsen",
+        "Bang&Olufsen → Bang & Olufsen",
+        "BOSE → Bose",
+        "bose → Bose",
+        "CookPad → Cookpad",
+        "cookPad → Cookpad",
+        "cookpad → Cookpad",
+        "css → CSS",
+        "DropBox → Dropbox",
+        "facebook → Facebook",
+        "FaceBook → Facebook",
+        "figma → Figma",
+        "Freee → freee",
+        "github → GitHub",
+        "Github → GitHub",
+        "google → Google",
+        "Google Map → Google Maps",
+        "Google Maps、Google マップ",
+        "html → HTML",
+        "illustrator → Illustrator",
+        "instagram → Instagram",
+        "javascript → JavaScript",
+        "Javascript → JavaScript",
+        "keynote → Keynote",
+        "KEYNOTE → Keynote",
+        "? line → LINE",
+        "? Line → LINE",
+        "Linkedin → LinkedIn",
+        "logicool → Logicool",
+        "Mac book → MacBook",
+        "Macbook → MacBook",
+        "Mac Book Pro → MacBook Pro",
+        "MacbookPro → MacBook Pro",
+        "mac os → macOS",
+        "macos → macOS",
+        "miro → Miro",
+        "? Note → note",
+        "portforio → portfolio",
+        "plofile → profile",
+        "Protopie → ProtoPie",
+        "slack → Slack",
+        "snapchat → Snapchat",
+        "SnapChat → Snapchat",
+        "SnowPeak → Snow Peak",
+        "spotify → Spotify",
+        "Tiktok → TikTok",
+        "tiktok → TikTok",
+        "TIPS → Tips",
+        "User Voice → UserVoice",
+        "WEB → Web",
+        "Web、ウェブ",
+        "WiFi → Wi-Fi",
+        "wifi → Wi-Fi",
+        "wikipedia → Wikipedia",
+        "WikiPedia → Wikipedia",
+        "XCode → Xcode",
+        "xcode → Xcode",
+        "Yahoo! Japan → Yahoo! JAPAN",
+        "Yahoo!JAPAN → Yahoo! JAPAN",
+        "Yahoo! News → Yahoo!ニュース",
+        "Yahoo! ニュース → Yahoo!ニュース",
+        "Youtube → YouTube",
+        "zoom → Zoom",
+        "ZOOM → Zoom",
+        "data base → database",
+        "time schedule → timetable",
+        "口コミ、クチコミ"
+    ];
+
+    /* 組の種類の順（絞り込みの項目の並び）/ Kinds of group, in the order of the filter */
+    var VARIANT_KIND_KEYS = ["all", "katakana", "kanji", "latin", "suru", "dictionary", "review"];
+
+    /* 語の種類 / Word classes */
+    var WORD_CLASS_KATAKANA = 1;
+    var WORD_CLASS_KANJI = 2;
+    var WORD_CLASS_LATIN = 3;
+
+    /* 語の切り出し（カタカナの連続・英数字の語・漢字の連続）/ Cuts out katakana runs, Latin words and kanji runs */
+    var VARIANT_WORD_PATTERN = /[ァ-ヺー・ｦ-ﾟ]+|[A-Za-z0-9０-９Ａ-Ｚａ-ｚ\-]+|[㐀-鿿豈-﫿々]+/g;
+
+    /* 漢字のあいだの1文字（取り引き・申し込み）。「入力する場合」と「入力した場合」を同じ語にしないよう、名詞になる形だけ
+       / One kana between kanji in a noun; only noun forms, so that 入力する場合 and 入力した場合 stay apart */
+    var INNER_OKURIGANA = "きりしちみいぎびけえせめれげべて";
+    /* 語の終わりの送り仮名（取引き・売上げ）/ Okurigana that ends a noun */
+    var ENDING_OKURIGANA = "きりいみけげえちれてせめ";
+    /* 2文字の語尾（打ち合わせ・見積もり）/ Two-kana endings */
+    var LONG_OKURIGANA = ["わせ", "もり"];
+    /* 名詞のあとに続くかな。ほかのかなが続けば活用語とみなす / Kana that may follow a noun; any other means an inflected word */
+    var NOUN_FOLLOWERS = "はがをにのでともへやかねよなだま";
+    /* 複合語に続く「する」の形（変更する・変更して・変更され・変更せず）/ Forms of する after a compound */
+    var SURU_FORMS = "すしさせ";
+    /* 「を」の有無で比べる「する」の形。長いものから。形が異なると置き換えられないので形ごとに別の組にする
+       / Forms of する compared with and without を, longest first; each form is its own group */
+    var SURU_ENDINGS = ["しました", "しません", "します", "しない", "すれば", "して", "した", "する"];
+    /* 文頭で大文字になるだけの語 / Words that change case only at the start of a sentence */
+    var COMMON_WORDS = "|a|an|and|are|as|at|be|but|by|for|from|he|i|if|in|is|it|its|no|not|of|on|or|our|she|so|that|the|their|there|these|they|this|to|we|what|when|which|with|you|your|";
+
+    /* 半角カタカナの変換表（U+FF66 からの並び）/ Half-width katakana, in order from U+FF66 */
+    var HALF_KATAKANA_TABLE = "ヲァィゥェォャュョッーアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン";
+
+    /**
+     * 文字コードの語の種類を返す（語が続いているかの判定に使う。ひらがなには語の切れ目が無いので 0）
+     * @param {number} charCode - 文字コード
+     * @returns {number} WORD_CLASS_* または 0
+     */
+    function getWordClass(charCode) {
+        if ((charCode >= 0x30A1 && charCode <= 0x30FA) || charCode === 0x30FC || (charCode >= 0xFF66 && charCode <= 0xFF9F)) return WORD_CLASS_KATAKANA;
+        if ((charCode >= 0x3400 && charCode <= 0x9FFF) || (charCode >= 0xF900 && charCode <= 0xFAFF) || charCode === 0x3005) return WORD_CLASS_KANJI;
+        if ((charCode >= 0x30 && charCode <= 0x39) || (charCode >= 0x41 && charCode <= 0x5A) || (charCode >= 0x61 && charCode <= 0x7A) || charCode === 0x5F) return WORD_CLASS_LATIN;
+        if ((charCode >= 0xFF10 && charCode <= 0xFF19) || (charCode >= 0xFF21 && charCode <= 0xFF3A) || (charCode >= 0xFF41 && charCode <= 0xFF5A)) return WORD_CLASS_LATIN;
+        return 0;
+    }
+
+    /**
+     * 語の端の文字の語の種類を返す。漢字の端を見るのはすべて漢字の語だけ（「確認下さい」の「下さい」は語のまま）
+     * @param {string} wordText - 語
+     * @param {number} edgeIndex - 端の文字の位置
+     * @returns {number} WORD_CLASS_* または 0
+     */
+    function getEdgeWordClass(wordText, edgeIndex) {
+        var edgeClass = getWordClass(wordText.charCodeAt(edgeIndex));
+        if (edgeClass !== WORD_CLASS_KANJI) return edgeClass;
+        for (var i = 0; i < wordText.length; i++) {
+            if (getWordClass(wordText.charCodeAt(i)) !== WORD_CLASS_KANJI) return 0;
+        }
+        return edgeClass;
+    }
+
+    /**
+     * 文字列の前後の空白を除く
+     * @param {string} rawText - 文字列
+     * @returns {string} 除いた文字列
+     */
+    function trimSpaces(rawText) {
+        return rawText.replace(/^\s+/, "").replace(/\s+$/, "");
+    }
+
+    /**
+     * 「A、B」の形の文字列を表記の配列にする
+     * @param {string} namesText - 文字列
+     * @returns {string[]} 表記（空は除く）
+     */
+    function splitDictionaryNames(namesText) {
+        var parts = namesText.split("、");
+        var names = [];
+        for (var i = 0; i < parts.length; i++) {
+            var name = trimSpaces(parts[i]);
+            if (name !== "") names.push(name);
+        }
+        return names;
+    }
+
+    /**
+     * @typedef {Object} DictionaryEntry
+     * @property {string} id - 組の ID
+     * @property {string} mode - "variants"（2つ以上で候補）、"correction"（誤記だけで候補）、"review"（要確認）
+     * @property {string[]} spellings - 表記
+     * @property {string[]} wrong - あれば候補になる表記（correction と review）
+     * @property {string|null} target - 統一先（無ければ null）
+     */
+
+    /**
+     * 辞書の1行を読む
+     * @param {string} rawLine - 1行
+     * @returns {DictionaryEntry|null} 組。組にならない行は null
+     */
+    function parseDictionaryLine(rawLine) {
+        var line = trimSpaces(rawLine);
+        var isReview = line.charAt(0) === "?";
+        var prefersFirst = line.charAt(0) === "=";
+        if (isReview || prefersFirst) line = line.substring(1);
+        var arrowIndex = line.indexOf("→");
+        if (arrowIndex >= 0 || isReview) {
+            var wrong = splitDictionaryNames(arrowIndex >= 0 ? line.substring(0, arrowIndex) : line);
+            var right = (arrowIndex >= 0) ? splitDictionaryNames(line.substring(arrowIndex + 1)) : [];
+            if (wrong.length === 0) return null;
+            var target = (right.length > 0) ? right[0] : null;
+            var mode = isReview ? "review" : "correction";
+            return { id: (isReview ? "r:" : "c:") + (target || wrong[0]), mode: mode, spellings: wrong.concat(right), wrong: wrong, target: target };
+        }
+        var spellings = splitDictionaryNames(line);
+        if (spellings.length < 2) return null;
+        return { id: "d:" + spellings.join("|"), mode: "variants", spellings: spellings, wrong: [], target: prefersFirst ? spellings[0] : null };
+    }
+
+    /**
+     * 表記の組み合わせを比べるための文字列を返す（並びによらない）
+     * @param {string[]} spellings - 表記
+     * @returns {string} 比較用の文字列
+     */
+    function getSpellingSetKey(spellings) {
+        return spellings.slice(0).sort().join("\u0001");
+    }
+
+    /**
+     * 辞書を読み、同じ統一先の行を1つの組にまとめ、修正と同じ内容の揺れの行を除く
+     * @param {string[]} dictionaryLines - 辞書の行
+     * @returns {Array<DictionaryEntry>} 組
+     */
+    function loadVariantDictionary(dictionaryLines) {
+        var entries = [];
+        var entryById = {};
+        var fixedSets = {};
+        for (var i = 0; i < dictionaryLines.length; i++) {
+            var entry = parseDictionaryLine(dictionaryLines[i]);
+            if (!entry) continue;
+            if (entryById.hasOwnProperty(entry.id)) {
+                mergeDictionaryNames(entryById[entry.id].wrong, entry.wrong);
+                mergeDictionaryNames(entryById[entry.id].spellings, entry.spellings);
+            } else {
+                entryById[entry.id] = entry;
+                entries.push(entry);
+            }
+        }
+        for (var j = 0; j < entries.length; j++) {
+            if (entries[j].mode !== "variants") fixedSets[getSpellingSetKey(entries[j].spellings)] = true;
+        }
+        var kept = [];
+        for (var k = 0; k < entries.length; k++) {
+            if (entries[k].mode === "variants" && fixedSets.hasOwnProperty(getSpellingSetKey(entries[k].spellings))) continue;
+            kept.push(entries[k]);
+        }
+        return kept;
+    }
+
+    /**
+     * 配列に無い表記だけを足す
+     * @param {string[]} names - 足す先
+     * @param {string[]} additions - 足す表記
+     * @returns {void}
+     */
+    function mergeDictionaryNames(names, additions) {
+        for (var i = 0; i < additions.length; i++) {
+            if (indexOfText(names, additions[i]) < 0) names.push(additions[i]);
+        }
+    }
+
+    /**
+     * 配列の中の文字列の位置を返す（ExtendScript の配列に indexOf は無い）
+     * @param {string[]} texts - 配列
+     * @param {string} wantedText - 探す文字列
+     * @returns {number} 位置。無ければ -1
+     */
+    function indexOfText(texts, wantedText) {
+        for (var i = 0; i < texts.length; i++) {
+            if (texts[i] === wantedText) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * 全角英数字を半角にし、小文字にする
+     * @param {string} rawText - 文字列
+     * @returns {string} そろえた文字列
+     */
+    function foldLatinWord(rawText) {
+        var folded = "";
+        for (var i = 0; i < rawText.length; i++) {
+            var charCode = rawText.charCodeAt(i);
+            folded += String.fromCharCode((charCode >= 0xFF10 && charCode <= 0xFF5A) ? charCode - 0xFEE0 : charCode);
+        }
+        return folded.toLowerCase();
+    }
+
+    /**
+     * 英数字の語の組の名前を返す
+     * @param {string} wordText - 語
+     * @returns {string|null} 組の名前。比べない語は null
+     */
+    function getLatinKey(wordText) {
+        var word = foldLatinWord(wordText).split("-").join("");
+        /* 数字は 12 と １２ が両方あるときだけ組になる / Numbers group only when 12 and １２ both appear */
+        if (word.length < 2 && !/^[0-9]+$/.test(word)) return null;
+        if (COMMON_WORDS.indexOf("|" + word + "|") >= 0) return null;
+        return "l:" + word;
+    }
+
+    /**
+     * カタカナの語の文字をそろえる（半角→全角、小さいかな→大きいかな、ヴァ→バ、中黒を除く）
+     * @param {string} wordText - 語
+     * @returns {string[]} そろえた文字の配列
+     */
+    function foldKatakanaWord(wordText) {
+        var letters = [];
+        var vuForms = { "ァ": "バ", "ィ": "ビ", "ェ": "ベ", "ォ": "ボ" };
+        var smallForms = { "ァ": "ア", "ィ": "イ", "ゥ": "ウ", "ェ": "エ", "ォ": "オ" };
+        for (var i = 0; i < wordText.length; i++) {
+            var charCode = wordText.charCodeAt(i);
+            var letter = wordText.charAt(i);
+            if (letter === "・") continue;
+            if (charCode === 0xFF9E || charCode === 0xFF9F) {
+                /* 半角の濁点・半濁点は前の字に足す（ウの濁点はヴ）/ Half-width voiced marks join the previous letter */
+                var previous = letters.pop() || "";
+                var markStep = (charCode === 0xFF9E) ? 1 : 2;
+                letters.push((previous === "ウ") ? "ヴ" : String.fromCharCode(previous.charCodeAt(0) + markStep));
+                continue;
+            }
+            if (charCode >= 0xFF66 && charCode <= 0xFF9D) letter = HALF_KATAKANA_TABLE.charAt(charCode - 0xFF66);
+            if (letters.length > 0 && letters[letters.length - 1] === "ヴ" && vuForms.hasOwnProperty(letter)) {
+                letters[letters.length - 1] = vuForms[letter];
+                continue;
+            }
+            letters.push(smallForms.hasOwnProperty(letter) ? smallForms[letter] : letter);
+        }
+        for (var j = 0; j < letters.length; j++) {
+            if (letters[j] === "ヴ") letters[j] = "ブ";
+        }
+        return letters;
+    }
+
+    /**
+     * カタカナの語の組の名前を返す。長音は長い語の中だけ無視する（ユーザビリティとユーザービリティは同じ語、ビルとビールは別の語）
+     * @param {string} wordText - 語
+     * @returns {string|null} 組の名前。短すぎる語は null
+     */
+    function getKatakanaKey(wordText) {
+        var letters = foldKatakanaWord(wordText);
+        while (letters.length > 0 && letters[letters.length - 1] === "ー") letters.pop();
+        var withoutLong = [];
+        for (var i = 0; i < letters.length; i++) {
+            if (letters[i] !== "ー") withoutLong.push(letters[i]);
+        }
+        if (withoutLong.length < 2) return null;
+        return "k:" + (withoutLong.length >= 4 ? withoutLong : letters).join("");
+    }
+
+    /**
+     * ひらがなかどうかを返す
+     * @param {string} sourceText - 本文
+     * @param {number} textIndex - 位置
+     * @returns {boolean} ひらがななら true
+     */
+    function isHiraganaAt(sourceText, textIndex) {
+        var charCode = sourceText.charCodeAt(textIndex);
+        return charCode >= 0x3041 && charCode <= 0x309F;
+    }
+
+    /**
+     * 漢字の語の終わりを探す。活用の途中の語（取り消す・切り替える）は語幹が欠けた表記になるので語にしない。
+     * 「する」が続く複合語（変更せず・確認して）は漢字の部分を語にする
+     * @param {string} sourceText - 本文
+     * @param {number} runEnd - 漢字の連続の終わり
+     * @returns {{end: number, isNoun: boolean}} 語の終わりと、語として数えるか
+     */
+    function findKanjiWordEnd(sourceText, runEnd) {
+        var end = runEnd;
+        var hasInner = false;
+        while (end + 1 < sourceText.length && INNER_OKURIGANA.indexOf(sourceText.charAt(end)) >= 0 && getWordClass(sourceText.charCodeAt(end + 1)) === WORD_CLASS_KANJI) {
+            end += 2;
+            hasInner = true;
+            while (end < sourceText.length && getWordClass(sourceText.charCodeAt(end)) === WORD_CLASS_KANJI) end++;
+        }
+        var stem = end;
+        if (indexOfText(LONG_OKURIGANA, sourceText.substr(end, 2)) >= 0) end += 2;
+        else if (end < sourceText.length && (ENDING_OKURIGANA.indexOf(sourceText.charAt(end)) >= 0 || (hasInner && sourceText.charAt(end) === "し"))) end++;
+        if (end >= sourceText.length || !isHiraganaAt(sourceText, end) || NOUN_FOLLOWERS.indexOf(sourceText.charAt(end)) >= 0) return { end: end, isNoun: true };
+        return { end: stem, isNoun: !hasInner && stem < sourceText.length && SURU_FORMS.indexOf(sourceText.charAt(stem)) >= 0 };
+    }
+
+    /**
+     * 名詞のあとの「する」の形を返す（調整する・調整をする のどちらも「する」）
+     * @param {string} sourceText - 本文
+     * @param {number} wordEnd - 名詞の終わり
+     * @returns {{ending: string, end: number}|null} 形と、その終わりの位置。続かなければ null
+     */
+    function findSuruEnding(sourceText, wordEnd) {
+        var start = (sourceText.charAt(wordEnd) === "を") ? wordEnd + 1 : wordEnd;
+        for (var i = 0; i < SURU_ENDINGS.length; i++) {
+            if (sourceText.substr(start, SURU_ENDINGS[i].length) === SURU_ENDINGS[i]) return { ending: SURU_ENDINGS[i], end: start + SURU_ENDINGS[i].length };
+        }
+        return null;
+    }
+
+    /**
+     * 組の名前ごとに表記の件数を足す
+     * @param {Object} foundWords - 組の名前 → { counts, order }
+     * @param {string} wordKey - 組の名前
+     * @param {string} surfaceText - 表記
+     * @returns {void}
+     */
+    function addFoundWord(foundWords, wordKey, surfaceText) {
+        if (!foundWords.hasOwnProperty(wordKey)) foundWords[wordKey] = { counts: {}, order: [] };
+        var word = foundWords[wordKey];
+        if (!word.counts.hasOwnProperty(surfaceText)) {
+            word.counts[surfaceText] = 0;
+            word.order.push(surfaceText);
+        }
+        word.counts[surfaceText]++;
+    }
+
+    /**
+     * 本文の語を切り出して、組の名前ごとに表記の件数を数える
+     * @param {string} sourceText - 本文
+     * @returns {Object} 組の名前 → { counts, order }
+     */
+    function collectWords(sourceText) {
+        var foundWords = {};
+        var wordPattern = new RegExp(VARIANT_WORD_PATTERN.source, "g");
+        var wordMatch;
+        while ((wordMatch = wordPattern.exec(sourceText)) !== null) {
+            var start = wordMatch.index;
+            var end = start + wordMatch[0].length;
+            var firstClass = getWordClass(sourceText.charCodeAt(start));
+            var wordKey = null;
+            var isPlainNoun = true;
+            if (firstClass === WORD_CLASS_KANJI) {
+                var kanjiWord = findKanjiWordEnd(sourceText, end);
+                end = kanjiWord.end;
+                wordPattern.lastIndex = end;
+                var kanjiLetters = sourceText.substring(start, end).replace(/[ぁ-ゟ]/g, "");
+                isPlainNoun = kanjiLetters.length === end - start;
+                if (kanjiWord.isNoun && kanjiLetters.length >= 2) wordKey = "j:" + kanjiLetters;
+            } else {
+                /* 端の中黒とハイフンは語に含めない / Middle dots and hyphens at the edges are not part of the word */
+                while (start < end && /[・\-]/.test(sourceText.charAt(start))) start++;
+                while (end > start && /[・\-]/.test(sourceText.charAt(end - 1))) end--;
+                if (end > start) {
+                    var wordText = sourceText.substring(start, end);
+                    wordKey = (getWordClass(wordText.charCodeAt(0)) === WORD_CLASS_KATAKANA) ? getKatakanaKey(wordText) : getLatinKey(wordText);
+                    if (getWordClass(wordText.charCodeAt(0)) === WORD_CLASS_LATIN) isPlainNoun = false;
+                }
+            }
+            if (wordKey === null) continue;
+            addFoundWord(foundWords, wordKey, sourceText.substring(start, end));
+            var suru = isPlainNoun ? findSuruEnding(sourceText, end) : null;
+            if (suru) addFoundWord(foundWords, "s:" + wordKey.substring(2) + suru.ending, sourceText.substring(start, suru.end));
+        }
+        return foundWords;
+    }
+
+    /**
+     * 数値を、大きいものが先に並ぶ文字列にする（比較関数つき sort() を避けるためのキー）
+     * @param {number} value - 値
+     * @returns {string} 8桁の文字列
+     */
+    function toDescendingKey(value) {
+        return String(100000000 + 99999999 - value).substring(1);
+    }
+
+    /**
+     * 表記を件数の多い順に並べる（同じ件数は元の並びのまま）
+     * @param {Array<{text: string, count: number}>} spellings - 表記
+     * @returns {Array<{text: string, count: number}>} 並べた新しい配列
+     */
+    function sortSpellings(spellings) {
+        var sortKeys = [];
+        for (var i = 0; i < spellings.length; i++) {
+            sortKeys.push(toDescendingKey(spellings[i].count) + "\u0001" + toDescendingKey(99999999 - i) + "\u0001" + i);
+        }
+        sortKeys.sort();
+        var sorted = [];
+        for (var j = 0; j < sortKeys.length; j++) sorted.push(spellings[Number(sortKeys[j].split("\u0001")[2])]);
+        return sorted;
+    }
+
+    /**
+     * 本文の中の表記の位置を返す（語として切れているものだけ）
+     * @param {string} sourceText - 本文
+     * @param {string} spelling - 表記
+     * @returns {number[]} 開始位置
+     */
+    function findSpellingHits(sourceText, spelling) {
+        var hits = [];
+        var firstClass = getEdgeWordClass(spelling, 0);
+        var lastClass = getEdgeWordClass(spelling, spelling.length - 1);
+        var hitIndex = sourceText.indexOf(spelling);
+        while (hitIndex >= 0) {
+            var hitEnd = hitIndex + spelling.length;
+            var runsOn = (firstClass !== 0 && hitIndex > 0 && getWordClass(sourceText.charCodeAt(hitIndex - 1)) === firstClass)
+                || (lastClass !== 0 && hitEnd < sourceText.length && getWordClass(sourceText.charCodeAt(hitEnd)) === lastClass);
+            if (!runsOn) hits.push(hitIndex);
+            hitIndex = sourceText.indexOf(spelling, hitEnd);
+        }
+        return hits;
+    }
+
+    /**
+     * 辞書の組のうち、本文に現れるものを返す。長い表記の中の短い表記は数えない（「文字詰め」の中の「字詰め」）
+     * @param {Array<DictionaryEntry>} entries - 辞書
+     * @param {string} sourceText - 本文
+     * @returns {Array<VariantGroup>} 組
+     */
+    function findDictionaryGroups(entries, sourceText) {
+        var groups = [];
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i];
+            var hitsBySpelling = [];
+            for (var j = 0; j < entry.spellings.length; j++) hitsBySpelling.push(findSpellingHits(sourceText, entry.spellings[j]));
+            var spellings = [];
+            var usedCount = 0;
+            var hasWrong = false;
+            for (var k = 0; k < entry.spellings.length; k++) {
+                var count = countUncontainedHits(entry.spellings, hitsBySpelling, k);
+                if (count > 0) usedCount++;
+                if (count > 0 && indexOfText(entry.wrong, entry.spellings[k]) >= 0) hasWrong = true;
+                /* 正しい表記は、本文で使われていなくても組に入れる / The right spelling stays even when the text does not use it */
+                if (count > 0 || (entry.mode !== "variants" && entry.spellings[k] === entry.target)) spellings.push({ text: entry.spellings[k], count: count });
+            }
+            if (entry.mode === "variants" ? usedCount < 2 : !hasWrong) continue;
+            groups.push({ id: entry.id, spellings: sortSpellings(spellings), recommended: (entry.mode === "review") ? null : entry.target });
+        }
+        return groups;
+    }
+
+    /**
+     * 同じ組の、より長い表記の中に収まる分を除いた件数を返す
+     * @param {string[]} spellings - 組の表記
+     * @param {Array<number[]>} hitsBySpelling - 表記ごとの位置
+     * @param {number} spellingIndex - 数える表記の番号
+     * @returns {number} 件数
+     */
+    function countUncontainedHits(spellings, hitsBySpelling, spellingIndex) {
+        var hits = hitsBySpelling[spellingIndex];
+        var ownLength = spellings[spellingIndex].length;
+        var count = 0;
+        for (var i = 0; i < hits.length; i++) {
+            var isContained = false;
+            for (var j = 0; j < spellings.length && !isContained; j++) {
+                if (spellings[j].length <= ownLength) continue;
+                for (var k = 0; k < hitsBySpelling[j].length; k++) {
+                    var longerStart = hitsBySpelling[j][k];
+                    if (longerStart <= hits[i] && hits[i] + ownLength <= longerStart + spellings[j].length) { isContained = true; break; }
+                }
+            }
+            if (!isContained) count++;
+        }
+        return count;
+    }
+
+    /**
+     * @typedef {Object} VariantGroup
+     * @property {string} id - 組の ID（先頭2文字が種類。k: カタカナ、j: 漢字、l: 英数字、s: する／をする、c:・d: 辞書、r: 要確認）
+     * @property {Array<{text: string, count: number}>} spellings - 表記（多い順）
+     * @property {string|null} [recommended] - 辞書が推奨する統一先
+     */
+
+    /**
+     * 組の種類を返す
+     * @param {VariantGroup} group - 組
+     * @returns {string} VARIANT_KIND_KEYS のいずれか
+     */
+    function getVariantKind(group) {
+        var kinds = { "k:": "katakana", "j:": "kanji", "l:": "latin", "s:": "suru", "r:": "review" };
+        var prefix = group.id.substring(0, 2);
+        return kinds.hasOwnProperty(prefix) ? kinds[prefix] : "dictionary";
+    }
+
+    /**
+     * 組が、すでにある組の表記に含まれるかを返す
+     * @param {Array<{text: string}>} spellings - 組の表記
+     * @param {Array<VariantGroup>} groups - すでにある組
+     * @returns {boolean} 含まれれば true
+     */
+    function isCoveredByGroups(spellings, groups) {
+        for (var i = 0; i < groups.length; i++) {
+            var groupTexts = [];
+            for (var j = 0; j < groups[i].spellings.length; j++) groupTexts.push(groups[i].spellings[j].text);
+            var isCovered = true;
+            for (var k = 0; k < spellings.length && isCovered; k++) {
+                if (indexOfText(groupTexts, spellings[k].text) < 0) isCovered = false;
+            }
+            if (isCovered) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 本文の中で表記が揺れている語の組を、出現数の多い順に返す
+     * @param {string} sourceText - 本文
+     * @param {Array<DictionaryEntry>} dictionaryEntries - 辞書
+     * @returns {Array<VariantGroup>} 組
+     */
+    function findVariantGroups(sourceText, dictionaryEntries) {
+        var groups = findDictionaryGroups(dictionaryEntries, sourceText);
+        var dictionaryGroupCount = groups.length;
+        var foundWords = collectWords(sourceText);
+        for (var wordKey in foundWords) {
+            if (!foundWords.hasOwnProperty(wordKey) || foundWords[wordKey].order.length < 2) continue;
+            var spellings = [];
+            for (var i = 0; i < foundWords[wordKey].order.length; i++) {
+                var surfaceText = foundWords[wordKey].order[i];
+                spellings.push({ text: surfaceText, count: foundWords[wordKey].counts[surfaceText] });
+            }
+            if (isCoveredByGroups(spellings, groups.slice(0, dictionaryGroupCount))) continue;
+            groups.push({ id: wordKey, spellings: sortSpellings(spellings), recommended: null });
+        }
+
+        var sortKeys = [];
+        for (var j = 0; j < groups.length; j++) {
+            var total = 0;
+            for (var k = 0; k < groups[j].spellings.length; k++) total += groups[j].spellings[k].count;
+            sortKeys.push(toDescendingKey(total) + "\u0001" + groups[j].id + "\u0001" + j);
+        }
+        sortKeys.sort();
+        var sorted = [];
+        for (var n = 0; n < sortKeys.length; n++) {
+            var parts = sortKeys[n].split("\u0001");
+            sorted.push(groups[Number(parts[parts.length - 1])]);
+        }
+        return sorted;
+    }
+
+    /**
+     * ストーリーが親ページだけにあるかを返す
+     * @param {Story} story - ストーリー
+     * @returns {boolean} 親ページのストーリーなら true
+     */
+    function isMasterStory(story) {
+        if (story.textContainers.length === 0) return false;
+        var firstFrame = story.textContainers[0];
+        /* パス上文字はパスの親からページをたどる / Text on a path finds its page through the path's owner */
+        var page = (firstFrame.constructor.name === "TextPath") ? firstFrame.parent.parentPage : firstFrame.parentPage;
+        return !!page && page.parent.constructor.name === "MasterSpread";
+    }
+
+    /**
+     * 表のセルと脚注の文字をストーリーの本文に足す
+     * @param {Story} story - ストーリー
+     * @param {string[]} textParts - 足す先
+     * @returns {void}
+     */
+    function addStoryTexts(story, textParts) {
+        textParts.push(String(story.contents));
+        for (var i = 0; i < story.tables.length; i++) textParts.push(story.tables[i].cells.everyItem().contents.join("\r"));
+        if (story.footnotes.length > 0) textParts.push(story.footnotes.everyItem().contents.join("\r"));
+    }
+
+    /**
+     * ［対象］の文字をまとめて返す（検索と同じ範囲。表・脚注を含み、［親ページを含む］［目次を除く］に従う）
+     * @param {HelperSettings} settings - 設定
+     * @returns {string|null} 本文。対象が無ければ null
+     */
+    function collectVariantText(settings) {
+        if (app.documents.length === 0) return null;
+        var stories = [];
+        if (settings.scope === "story") collectStories(app.selection, stories, {});
+        else stories = app.activeDocument.stories.everyItem().getElements();
+        if (stories.length === 0) return null;
+        var textParts = [];
+        for (var i = 0; i < stories.length; i++) {
+            if (settings.excludeToc && stories[i].storyType === StoryTypes.TOC_STORY) continue;
+            if (settings.scope === "document" && !settings.masterPages && isMasterStory(stories[i])) continue;
+            addStoryTexts(stories[i], textParts);
+        }
+        return textParts.join("\r");
+    }
+
+    /**
+     * 文字列をクリップボードにコピーする（Mac は AppleScript、Windows は VBScript 経由）
+     * @param {string} copyText - コピーする文字列
+     * @returns {boolean} コピーできれば true
+     */
+    function copyToClipboard(copyText) {
+        var isMac = (File.fs === "Macintosh");
+        var scriptSource = isMac
+            ? 'set the clipboard to "' + copyText.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"'
+            : 'CreateObject("htmlfile").parentWindow.clipboardData.setData "text", "' + copyText.replace(/"/g, '""').replace(/\r?\n/g, '" & vbCrLf & "').replace(/\t/g, '" & vbTab & "') + '"';
+        /* スクリプト実行の許可がないと失敗する / Fails without permission to run scripts */
+        try {
+            app.doScript(scriptSource, isMac ? ScriptLanguage.APPLESCRIPT_LANGUAGE : ScriptLanguage.VISUAL_BASIC);
+            return true;
+        } catch (e) {
+            alert(getLabel(LABELS.alert.copyFailed) + "\n" + e.message);
+            return false;
+        }
+    }
+
+    // =========================================
     // 該当箇所の一覧 / Match list
     // =========================================
 
@@ -1060,38 +2023,21 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
      * @param {number} contextLength - 前後の文字数
      * @param {Object} containerLengths - 入れ物ごとの文字数（同じ入れ物を何度も数えないための控え）
      * @param {boolean} useBrackets - 見つかった文字を【】で囲むか
+     * @param {boolean} withinParagraph - 前後の文字を段落の中に限るか
      * @returns {string} 一覧に出す文字列
      */
-    function buildContextText(matchRange, contextLength, containerLengths, useBrackets) {
+    function buildContextText(matchRange, contextLength, containerLengths, useBrackets, withinParagraph) {
         var container = matchRange.text.parent;
         var containerLength = getContainerLength(matchRange, containerLengths);
         var beforeText = getRangeText(container, Math.max(0, matchRange.start - contextLength), matchRange.start - 1);
         var afterText = getRangeText(container, matchRange.end, Math.min(containerLength - 1, matchRange.end + contextLength - 1));
+        if (withinParagraph) {
+            beforeText = beforeText.substring(Math.max(beforeText.lastIndexOf("\r"), beforeText.lastIndexOf("\n")) + 1);
+            afterText = afterText.split("\n")[0].split("\r")[0];
+        }
         var matchText = toDisplayText(matchRange.matchedText);
         if (useBrackets) matchText = "【" + matchText + "】";
         return toDisplayText(beforeText) + matchText + toDisplayText(afterText);
-    }
-
-    /**
-     * 文字が改行か（段落の改行・強制改行）
-     * @param {string} rawText - 1文字
-     * @returns {boolean} 改行なら true
-     */
-    function isLineBreak(rawText) {
-        /* 段・フレーム・ページ区切りも contents では \r になる（2026-11-05 実測）/ column, frame and page breaks also read as \r */
-        return rawText === "\r" || rawText === "\n";
-    }
-
-    /**
-     * 見つかった文字の直前か直後が改行（または入れ物の先頭・末尾）かを返す
-     * @param {MatchRange} matchRange - 見つかった位置
-     * @param {Object} containerLengths - 入れ物ごとの文字数の控え
-     * @returns {boolean} 前か後ろが改行なら true
-     */
-    function isNextToLineBreak(matchRange, containerLengths) {
-        var container = matchRange.text.parent;
-        if (matchRange.start === 0 || isLineBreak(getRangeText(container, matchRange.start - 1, matchRange.start - 1))) return true;
-        return (matchRange.end >= getContainerLength(matchRange, containerLengths)) || isLineBreak(getRangeText(container, matchRange.end, matchRange.end));
     }
 
     /**
@@ -1391,10 +2337,53 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         setupPanel(optionsPanel, 6);
         return {
             caseSensitive: addOptionCheckbox(optionsPanel, LABELS.checkbox.caseSensitive, null, settings.caseSensitive),
-            wholeWord: addOptionCheckbox(optionsPanel, LABELS.checkbox.wholeWord, null, settings.wholeWord),
+            wholeWord: addOptionCheckbox(optionsPanel, LABELS.checkbox.wholeWord, LABELS.tooltip.wholeWord, settings.wholeWord),
             masterPages: addOptionCheckbox(optionsPanel, LABELS.checkbox.masterPages, LABELS.tooltip.masterPages, settings.masterPages),
             excludeToc: addOptionCheckbox(optionsPanel, LABELS.checkbox.excludeToc, LABELS.tooltip.excludeToc, settings.excludeToc)
         };
+    }
+
+    /**
+     * ［揺れ候補］パネルを作る（上に拾うボタンと絞り込み、一覧、下に［無視］［一覧をコピー］）
+     * @param {Group} parentRow - 足す先（カラムの行）
+     * @param {HelperSettings} settings - 初期値
+     * @returns {Object} パネルの部品
+     */
+    function buildVariantsPanel(parentRow, settings) {
+        var variantsPanel = parentRow.add("panel", undefined, getLabel(LABELS.panel.variants));
+        setupPanel(variantsPanel, 6);
+        variantsPanel.alignment = ["left", "fill"];
+        var variantsUi = { panel: variantsPanel };
+
+        variantsUi.btnCollect = variantsPanel.add("button", undefined, getLabel(LABELS.button.collectVariants));
+        variantsUi.btnCollect.helpTip = getLabel(LABELS.tooltip.collectVariants);
+
+        var filterRowGroup = variantsPanel.add("group");
+        setupRow(filterRowGroup, "fill", 6);
+        var kindLabels = [];
+        for (var i = 0; i < VARIANT_KIND_KEYS.length; i++) kindLabels.push(getLabel(LABELS.variantKind[VARIANT_KIND_KEYS[i]]));
+        variantsUi.filterList = filterRowGroup.add("dropdownlist", undefined, kindLabels);
+        variantsUi.filterList.selection = Math.min(settings.variantFilter, kindLabels.length - 1);
+        variantsUi.filterList.helpTip = getLabel(LABELS.tooltip.variantFilter);
+        variantsUi.sortList = filterRowGroup.add("dropdownlist", undefined, [getLabel(LABELS.variantSort.frequent), getLabel(LABELS.variantSort.rare)]);
+        variantsUi.sortList.selection = Math.min(settings.variantSort, 1);
+        variantsUi.sortList.helpTip = getLabel(LABELS.tooltip.variantSort);
+
+        variantsUi.groupList = variantsPanel.add("listbox", undefined, []);
+        variantsUi.groupList.preferredSize = [VARIANT_LIST_WIDTH, VARIANT_LIST_MIN_HEIGHT];
+        variantsUi.groupList.alignment = ["fill", "fill"];
+        variantsUi.groupList.helpTip = getLabel(LABELS.tooltip.variantList);
+
+        variantsUi.noteText = variantsPanel.add("statictext", undefined, " ");
+        variantsUi.noteText.alignment = ["fill", "bottom"];
+
+        var footerRowGroup = variantsPanel.add("group");
+        setupRow(footerRowGroup, ["fill", "bottom"], 6);
+        variantsUi.btnIgnore = footerRowGroup.add("button", undefined, getLabel(LABELS.button.ignore));
+        variantsUi.btnIgnore.helpTip = getLabel(LABELS.tooltip.ignore);
+        variantsUi.btnCopy = footerRowGroup.add("button", undefined, getLabel(LABELS.button.copyTable));
+        variantsUi.btnCopy.helpTip = getLabel(LABELS.tooltip.copyTable);
+        return variantsUi;
     }
 
     /**
@@ -1419,8 +2408,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             [initialZoomPercent, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT], initialZoomPercent + "%", ZOOM_ROW_BOTTOM_MARGIN);
         matchesUi.zoomSlider = zoomRow.slider;
         matchesUi.zoomText = zoomRow.valueText;
-        matchesUi.hideLineEdgeCheckbox = addOptionCheckbox(matchesPanel, LABELS.checkbox.hideLineEdge, LABELS.tooltip.hideLineEdge, settings.hideLineEdge);
         matchesUi.bracketMatchCheckbox = addOptionCheckbox(matchesPanel, LABELS.checkbox.bracketMatch, LABELS.tooltip.bracketMatch, settings.bracketMatch);
+        matchesUi.withinParagraphCheckbox = addOptionCheckbox(matchesPanel, LABELS.checkbox.withinParagraph, LABELS.tooltip.withinParagraph, settings.withinParagraph);
 
         /* 1列目は短いページ名にする（Mac は1列目の長い文字列で列幅が崩れる）/ Keep the first column short (long text in column 1 breaks the widths on Mac) */
         var matchList = matchesPanel.add("listbox", undefined, [], {
@@ -1437,8 +2426,9 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         /* 一覧の下：メモと［除外する］ / Below the list: notes and Exclude */
         var listFooterGroup = matchesPanel.add("group");
         setupRow(listFooterGroup, ["fill", "bottom"], 6);
-        matchesUi.listNoteText = listFooterGroup.add("statictext", undefined, " ");
-        matchesUi.listNoteText.preferredSize.width = MATCH_LIST_WIDTH - EXCLUDE_BUTTON_WIDTH - 6;
+        /* 幅が狭いので2行まで折り返す / The width is narrow, so the note wraps to two lines */
+        matchesUi.listNoteText = listFooterGroup.add("statictext", undefined, " ", { multiline: true });
+        matchesUi.listNoteText.preferredSize = [MATCH_LIST_WIDTH - EXCLUDE_BUTTON_WIDTH - 6, LIST_NOTE_HEIGHT];
         matchesUi.listNoteText.alignment = ["fill", "center"];
         matchesUi.btnExclude = listFooterGroup.add("button", undefined, getLabel(LABELS.button.exclude));
         matchesUi.btnExclude.preferredSize.width = EXCLUDE_BUTTON_WIDTH;
@@ -1459,7 +2449,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     }
 
     /**
-     * パレットを組み立てる（左に設定、右に該当箇所の一覧と置き換え）
+     * パレットを組み立てる（左に揺れ候補、中央に設定、右に該当箇所の一覧と置き換え）
      * @param {HelperSettings} settings - 初期値
      * @returns {Window} パレット
      */
@@ -1467,10 +2457,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         var helperPalette = new Window("palette", getLabel(LABELS.palette.title)); /* バージョンは左下に出す / the version is shown at the bottom left */
         setupWindow(helperPalette);
 
-        /* 2カラム（左右とも高さをそろえる）/ Two columns of the same height */
+        /* 3カラム（高さをそろえる）/ Three columns of the same height */
         var columnsGroup = helperPalette.add("group");
         setupRow(columnsGroup, ["fill", "fill"], COLUMN_SPACING);
         columnsGroup.alignChildren = ["fill", "fill"];
+        var variantsUi = buildVariantsPanel(columnsGroup, settings);
         var leftColumn = columnsGroup.add("group");
         leftColumn.orientation = "column";
         leftColumn.alignChildren = ["fill", "top"];
@@ -1490,8 +2481,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         var contextLengthText = matchesUi.contextLengthText;
         var zoomSlider = matchesUi.zoomSlider;
         var zoomText = matchesUi.zoomText;
-        var hideLineEdgeCheckbox = matchesUi.hideLineEdgeCheckbox;
         var bracketMatchCheckbox = matchesUi.bracketMatchCheckbox;
+        var withinParagraphCheckbox = matchesUi.withinParagraphCheckbox;
         var matchList = matchesUi.matchList;
         var listNoteText = matchesUi.listNoteText;
         var btnExclude = matchesUi.btnExclude;
@@ -1520,6 +2511,17 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         /* 除外した位置（「入れ物#開始位置」→ 見つけたときの文字）。検索し直しても残し、置き換えでずれた分は付け直す
            / Excluded matches ("container#start" -> matched text); kept across searches and shifted after replacing */
         var excludedMatches = {};
+        /* 揺れ候補の組。一覧の行と同じ並びの組を visibleGroups に控える / Variant groups; visibleGroups lines up with the list rows */
+        var variantDictionary = null;
+        var variantGroups = [];
+        var visibleGroups = [];
+        var variantRules = settings.variantRules;
+        var ignoredGroups = settings.ignoredGroups;
+        var hasCollectedVariants = false;
+        /* 一覧を作り直している間の onChange を無視する / Ignores onChange while the list is rebuilt */
+        var isRenderingVariants = false;
+        /* 語句欄に入っている組（統一したら統一先を覚える）/ The group in the fields; its target is remembered on unifying */
+        var pickedGroupId = null;
 
         /**
          * 除外の控えのキーを返す
@@ -1617,8 +2619,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
                 excludeToc: optionCheckboxes.excludeToc.value,
                 excludeContained: excludeContainedCheckbox.value,
                 contextLength: readContextLength(),
-                hideLineEdge: hideLineEdgeCheckbox.value,
                 bracketMatch: bracketMatchCheckbox.value,
+                withinParagraph: withinParagraphCheckbox.value,
+                variantRules: variantRules,
+                ignoredGroups: ignoredGroups,
+                variantFilter: variantsUi.filterList.selection ? variantsUi.filterList.selection.index : 0,
+                variantSort: variantsUi.sortList.selection ? variantsUi.sortList.selection.index : 0,
                 zoomPercent: readZoomPercent(),
                 targetIndex: getTargetIndex()
             };
@@ -1660,6 +2666,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             var hasSelectedMatch = !!(selectedItem && selectedItem.matchRange);
             btnChange.enabled = canReplace && hasSelectedMatch;
             btnExclude.enabled = hasSelectedMatch;
+            variantsUi.btnIgnore.enabled = !!variantsUi.groupList.selection;
+            variantsUi.btnCopy.enabled = visibleGroups.length > 0;
             btnExclude.text = (hasSelectedMatch && isMatchExcluded(selectedItem.matchRange))
                 ? getLabel(LABELS.button.include)
                 : getLabel(LABELS.button.exclude);
@@ -1739,10 +2747,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             if (!lastMatchesByKeyword) { updateEnabled(); return; }
 
             var contextLength = readContextLength();
-            var hideLineEdge = hideLineEdgeCheckbox.value;
             var containerLengths = {};
             var listedCount = 0;
-            var hiddenCount = 0;
             var shownCount = 0;
             for (var k = 0; k < lastMatchesByKeyword.length; k++) {
                 var matches = lastMatchesByKeyword[k];
@@ -1750,11 +2756,10 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
                     var pageLabel, contextText;
                     /* パレット表示中に文字が消されたり、ドキュメントが閉じられたりする / the text or document may be gone while the palette is open */
                     try {
-                        if (hideLineEdge && isNextToLineBreak(matches[matchIndex], containerLengths)) { hiddenCount++; continue; }
                         listedCount++;
                         if (shownCount >= MAX_LIST_ITEMS) continue;
                         pageLabel = getPageLabel(matches[matchIndex].text);
-                        contextText = buildContextText(matches[matchIndex], contextLength, containerLengths, bracketMatchCheckbox.value);
+                        contextText = buildContextText(matches[matchIndex], contextLength, containerLengths, bracketMatchCheckbox.value, withinParagraphCheckbox.value);
                     } catch (e) {
                         if (shownCount >= MAX_LIST_ITEMS) continue;
                         pageLabel = "-";
@@ -1772,7 +2777,6 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             var notes = [];
             if (isResultStale) notes.push(getLabel(LABELS.status.stale));
             if (shownCount < listedCount) notes.push(getLabel(LABELS.status.truncated, { total: listedCount, shown: shownCount }));
-            if (hiddenCount > 0) notes.push(getLabel(LABELS.status.hidden, { count: hiddenCount }));
             if (notes.length > 0) listNoteText.text = notes.join(" / ");
             updateEnabled();
         }
@@ -1812,6 +2816,117 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             var notes = [doneMessage];
             if (replaceResult.skipped > 0) notes.push(getLabel(LABELS.status.skipped, { count: replaceResult.skipped }));
             listNoteText.text = notes.join(" / ");
+            if (hasCollectedVariants) collectVariants();
+        }
+
+        /**
+         * 組の統一先にする表記を返す（前回の統一先、辞書の推奨、いちばん多い表記の順。要確認の組は選ばない）
+         * @param {VariantGroup} group - 組
+         * @returns {string|null} 表記。選ばなければ null
+         */
+        function getPreferredSpelling(group) {
+            if (variantRules.hasOwnProperty(group.id)) return variantRules[group.id];
+            if (group.recommended) return group.recommended;
+            return (getVariantKind(group) === "review") ? null : group.spellings[0].text;
+        }
+
+        /**
+         * 揺れ候補の一覧の1行を作る（統一先に ◉ を付ける）
+         * @param {VariantGroup} group - 組
+         * @returns {string} 行の文字列
+         */
+        function buildGroupRowText(group) {
+            var preferred = getPreferredSpelling(group);
+            var parts = [];
+            for (var j = 0; j < group.spellings.length; j++) {
+                var spelling = group.spellings[j];
+                parts.push((spelling.text === preferred ? "◉" : "") + toDisplayText(spelling.text) + " " + spelling.count);
+            }
+            return parts.join(" / ");
+        }
+
+        /**
+         * 揺れ候補の一覧を作り直す（無視している組を除き、種類で絞り、並び順に並べる）
+         * @returns {void}
+         */
+        function renderVariantList() {
+            var kindKey = VARIANT_KIND_KEYS[variantsUi.filterList.selection ? variantsUi.filterList.selection.index : 0];
+            visibleGroups = [];
+            for (var j = 0; j < variantGroups.length; j++) {
+                if (ignoredGroups.hasOwnProperty(variantGroups[j].id)) continue;
+                if (kindKey === "all" || getVariantKind(variantGroups[j]) === kindKey) visibleGroups.push(variantGroups[j]);
+            }
+            if (variantsUi.sortList.selection && variantsUi.sortList.selection.index === 1) visibleGroups.reverse();
+            isRenderingVariants = true;
+            variantsUi.groupList.removeAll();
+            for (var k = 0; k < visibleGroups.length; k++) variantsUi.groupList.add("item", buildGroupRowText(visibleGroups[k]));
+            isRenderingVariants = false;
+            if (hasCollectedVariants) {
+                variantsUi.noteText.text = (visibleGroups.length > 0) ? getLabel(LABELS.status.variants, { count: visibleGroups.length }) : getLabel(LABELS.status.noVariants);
+            }
+            updateEnabled();
+        }
+
+        /**
+         * ［対象］の文字を読み取って揺れ候補を一覧にする
+         * @returns {void}
+         */
+        function collectVariants() {
+            var sourceText = collectVariantText(readSettings());
+            if (sourceText === null) {
+                variantsUi.noteText.text = getLabel(app.documents.length === 0 ? LABELS.status.noDocument : LABELS.status.noStory);
+                return;
+            }
+            if (!variantDictionary) variantDictionary = loadVariantDictionary(VARIANT_DICTIONARY_LINES);
+            variantGroups = findVariantGroups(sourceText, variantDictionary);
+            hasCollectedVariants = true;
+            renderVariantList();
+        }
+
+        /**
+         * 組の表記をキーワード欄に入れて検索する。統一先の表記は使われていなくても1つ目の欄に入れる
+         * @param {VariantGroup} group - 組
+         * @returns {void}
+         */
+        function pickVariantGroup(group) {
+            var preferred = getPreferredSpelling(group);
+            var ordered = preferred ? [preferred] : [];
+            var lowerTexts = {};
+            var hasCaseVariants = false;
+            for (var j = 0; j < group.spellings.length; j++) {
+                if (group.spellings[j].text !== preferred) ordered.push(group.spellings[j].text);
+            }
+            for (var k = 0; k < keywordInputs.length; k++) {
+                keywordInputs[k].text = (k < ordered.length) ? ordered[k] : "";
+                targetRadios[k].value = !!preferred && k === 0;
+                var lowerText = keywordInputs[k].text.toLowerCase();
+                if (lowerText !== "" && lowerTexts.hasOwnProperty(lowerText)) hasCaseVariants = true;
+                lowerTexts[lowerText] = true;
+            }
+            /* Apple と apple を分け、「サーバー」の中の「サーバ」と「仕事」の中の「事」を数えない
+               / Tell Apple from apple, and do not count サーバ inside サーバー or 事 inside 仕事 */
+            if (hasCaseVariants) optionCheckboxes.caseSensitive.value = true;
+            excludeContainedCheckbox.value = true;
+            optionCheckboxes.wholeWord.value = true;
+            lastActiveIndex = -1;
+            pickedGroupId = group.id;
+            findAndShow();
+        }
+
+        /**
+         * 表示している組を表（タブ区切り）にしてコピーする
+         * @returns {void}
+         */
+        function copyVariantTable() {
+            var lines = [[getLabel(LABELS.variantTable.group), getLabel(LABELS.variantTable.spelling), getLabel(LABELS.variantTable.count), getLabel(LABELS.variantTable.target)].join("\t")];
+            for (var j = 0; j < visibleGroups.length; j++) {
+                var preferred = getPreferredSpelling(visibleGroups[j]);
+                for (var k = 0; k < visibleGroups[j].spellings.length; k++) {
+                    var spelling = visibleGroups[j].spellings[k];
+                    lines.push([j + 1, spelling.text, spelling.count, spelling.text === preferred ? "◉" : ""].join("\t"));
+                }
+            }
+            if (copyToClipboard(lines.join("\n") + "\n")) variantsUi.noteText.text = getLabel(LABELS.status.copied, { count: visibleGroups.length });
         }
 
         /**
@@ -1822,18 +2937,12 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             var targetIndex = getTargetIndex();
             if (targetIndex < 0 || !lastMatchesByKeyword || isResultStale) return;
             var targetKeyword = lastKeywords[targetIndex];
-            var containerLengths = {};
             var replaceTargets = [];
             for (var k = 0; k < lastMatchesByKeyword.length; k++) {
                 if (k === targetIndex || lastKeywords[k] === targetKeyword) continue;
                 var matches = lastMatchesByKeyword[k];
                 for (var matchIndex = 0; matchIndex < matches.length; matchIndex++) {
-                    if (isMatchExcluded(matches[matchIndex])) continue;
-                    /* 一覧に出していないもの（行頭・行末）は置き換えない / do not replace what the list hides */
-                    try {
-                        if (hideLineEdgeCheckbox.value && isNextToLineBreak(matches[matchIndex], containerLengths)) continue;
-                    } catch (e) { continue; }
-                    replaceTargets.push(matches[matchIndex]);
+                    if (!isMatchExcluded(matches[matchIndex])) replaceTargets.push(matches[matchIndex]);
                 }
             }
             if (replaceTargets.length === 0) {
@@ -1842,6 +2951,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             }
             if (!confirm(getLabel(LABELS.alert.confirmUnify, { count: replaceTargets.length, target: targetKeyword }))) return;
 
+            if (pickedGroupId) variantRules[pickedGroupId] = targetKeyword;
             var replaceResult = replaceMatches(replaceTargets, targetKeyword, getLabel(LABELS.undo.unify));
             refindAfterReplace(replaceResult, targetKeyword, getLabel(LABELS.status.unified, { count: replaceResult.replaced, target: targetKeyword }));
         }
@@ -1906,16 +3016,22 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             var keywordInput = keywordInputs[fieldIndex];
             keywordInput.onChanging = function () {
                 lastActiveIndex = fieldIndex;
+                pickedGroupId = null;
                 markResultStale();
             };
             keywordInput.onActivate = function () { lastActiveIndex = fieldIndex; };
             /* × で欄を空にして、その欄に入力できるようにする / the × clears the field and puts the cursor in it */
             clearButtons[fieldIndex].onClick = function () {
-                if (keywordInput.text === "") return;
-                keywordInput.text = "";
-                lastActiveIndex = fieldIndex;
+                /* option キーを押しながらなら、すべての欄を空にする / With the Option key, clear every field */
+                var clearsAll = ScriptUI.environment.keyboardState.altKey;
+                if (keywordInput.text === "" && !clearsAll) return;
+                for (var j = 0; j < keywordInputs.length; j++) {
+                    if (clearsAll || j === fieldIndex) keywordInputs[j].text = "";
+                }
+                lastActiveIndex = clearsAll ? 0 : fieldIndex;
+                pickedGroupId = null;
                 markResultStale();
-                keywordInput.active = true;
+                keywordInputs[lastActiveIndex].active = true;
             };
             /* キーワード欄の return で検索する / Return in a keyword field finds */
             keywordInput.addEventListener("keydown", function (event) {
@@ -1945,8 +3061,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             contextLengthText.text = String(contextLength);
             renderMatchList();
         };
-        hideLineEdgeCheckbox.onClick = renderMatchList;
         bracketMatchCheckbox.onClick = renderMatchList;
+        withinParagraphCheckbox.onClick = renderMatchList;
         /* 動かしている間もつまみを10%刻みの位置に置き直す / keep the knob on the 10% steps while dragging */
         zoomSlider.onChanging = function () {
             var zoomPercent = readZoomPercent();
@@ -1988,6 +3104,20 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
             getInsertTargetInput().text = selectedKeyword;
             markResultStale();
         };
+        variantsUi.btnCollect.onClick = collectVariants;
+        variantsUi.filterList.onChange = renderVariantList;
+        variantsUi.sortList.onChange = renderVariantList;
+        variantsUi.groupList.onChange = function () {
+            updateEnabled();
+            if (isRenderingVariants || !variantsUi.groupList.selection) return;
+            pickVariantGroup(visibleGroups[variantsUi.groupList.selection.index]);
+        };
+        variantsUi.btnIgnore.onClick = function () {
+            if (!variantsUi.groupList.selection) return;
+            ignoredGroups[visibleGroups[variantsUi.groupList.selection.index].id] = true;
+            renderVariantList();
+        };
+        variantsUi.btnCopy.onClick = copyVariantTable;
         btnClose.onClick = function () { helperPalette.close(); };
 
         /* パレットは Esc で閉じないので、［閉じる］と同じにする / palettes do not close on Esc, so treat it as Close */
@@ -2009,6 +3139,7 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
 
         updateEnabled();
         fitMatchListHeight(helperPalette, matchesUi.panel, matchList);
+        fitMatchListHeight(helperPalette, variantsUi.panel, variantsUi.groupList);
         return helperPalette;
     }
 
