@@ -73,13 +73,17 @@ A floating palette that counts how many times each of up to five keywords appear
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdCountKeywordPalette.jsx` |
-| Version | v1.4.0 |
+| Version | v1.4.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-05 |
 | Last updated | 2026-11-07 |
 | Article | https://note.com/dtp_tranist/n/n9f6d4d2bbeed |
 
 ### Update History
+
+#### v1.4.1 (2026-11-07)
+
+- Made the Variants panel narrower
 
 #### v1.4.0 (2026-11-07)
 

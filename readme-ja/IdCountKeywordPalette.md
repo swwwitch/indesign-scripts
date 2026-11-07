@@ -73,13 +73,17 @@
 | 項目 | 内容 |
 | --- | --- |
 | ファイル | `jsx/text/IdCountKeywordPalette.jsx` |
-| バージョン | v1.4.0 |
+| バージョン | v1.4.1 |
 | 作者 | Masahiro Takano (@swwwitch) |
 | 初回リリース | 2026-11-05 |
 | 最終更新 | 2026-11-07 |
 | 紹介記事 | https://note.com/dtp_tranist/n/n9f6d4d2bbeed |
 
 ### 更新履歴
+
+#### v1.4.1（2026-11-07）
+
+- ［揺れ候補］パネルの幅を詰めた
 
 #### v1.4.0（2026-11-07）
 

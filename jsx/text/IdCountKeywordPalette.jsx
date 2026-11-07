@@ -7,7 +7,7 @@ Script-ID=com.swwwitch.indesign.IdCountKeywordPalette
 Name=キーワードの件数を数えて表記の揺れを統一
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.4.0
+Version=1.4.1
 Release-Date=2026-11-05
 Description-BEGIN
 最大5つのキーワードが、選択中のストーリーまたはドキュメント全体にそれぞれいくつあるかを常駐パレットで数え、該当箇所を一覧しながら表記の揺れを統一します。
@@ -42,7 +42,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCountKeywordP
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCountKeywordPalette";        /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-11-05";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-11-07";                   /* 更新日 / last updated */
@@ -719,7 +719,8 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
     var SLIDER_LABEL_WIDTH = 90;            /* スライダーの項目名の幅（px。2本のスライダーの左端をそろえる）/ width of slider labels, so both sliders line up */
     var SLIDER_VALUE_WIDTH = 40;            /* スライダーの右の数字の幅（px。「800%」が入る幅で2本そろえる）/ width of the value next to a slider, fitting "800%" for both */
     var EXCLUDE_BUTTON_WIDTH = 94;         /* ［除外する］［除外を解除］の幅（px。長いほうの文言の幅、実測93px。広げない）/ width of Exclude / Include, fitted to the longer label */
-    var VARIANT_LIST_WIDTH = 230;           /* 揺れ候補の一覧の幅（px）/ width of the variant list */
+    var VARIANT_LIST_WIDTH = 190;           /* 揺れ候補の一覧の幅（px）/ width of the variant list */
+    var VARIANT_FILTER_WIDTH = 104;         /* 種類の絞り込みの幅（px。残りが並び順）/ width of the kind filter; the order takes the rest */
     var VARIANT_LIST_MIN_HEIGHT = 200;      /* 揺れ候補の一覧の最小の高さ（px）/ minimum height of the variant list */
     var LIST_NOTE_HEIGHT = 36;              /* 一覧の下のメモの高さ（px。2行分）/ height of the note below the list, two lines */
     var CHANGE_BUTTON_WIDTH = 64;            /* ［置換］の幅（px。文字数分にして、［置換文字列］を広くとる）/ width of Change, kept to its label so the field gets the room */
@@ -2365,9 +2366,11 @@ var SCRIPT_SOURCE_URL  = "https://github.com/swwwitch/indesign-scripts/blob/main
         variantsUi.filterList = filterRowGroup.add("dropdownlist", undefined, kindLabels);
         variantsUi.filterList.selection = Math.min(settings.variantFilter, kindLabels.length - 1);
         variantsUi.filterList.helpTip = getLabel(LABELS.tooltip.variantFilter);
+        variantsUi.filterList.preferredSize.width = VARIANT_FILTER_WIDTH;
         variantsUi.sortList = filterRowGroup.add("dropdownlist", undefined, [getLabel(LABELS.variantSort.frequent), getLabel(LABELS.variantSort.rare)]);
         variantsUi.sortList.selection = Math.min(settings.variantSort, 1);
         variantsUi.sortList.helpTip = getLabel(LABELS.tooltip.variantSort);
+        variantsUi.sortList.preferredSize.width = VARIANT_LIST_WIDTH - VARIANT_FILTER_WIDTH - 6;
 
         variantsUi.groupList = variantsPanel.add("listbox", undefined, []);
         variantsUi.groupList.preferredSize = [VARIANT_LIST_WIDTH, VARIANT_LIST_MIN_HEIGHT];
