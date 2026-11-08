@@ -502,6 +502,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdQRCodeURLL
 
 詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdQRCodeURLList.md)
 
+### カーソル位置やフレームにQRコードを挿入
+
+カーソル位置・選択したフレーム・ページの中央のいずれかに、大きさとカラーを指定して QR コード（Web ハイパーリンク／プレーンテキスト）を挿入します。カーソル位置にはインラインのアンカー付きオブジェクトとして入り、選択したテキストは内容の初期値になります。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdInsertQRCode.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInsertQRCode.md)
+
 ### テキストアンカーを一覧して表示
 
 アクティブなドキュメントのテキストアンカーを、ページ・アンカー名・テキスト（アンカーのある段落）の3列で、常駐パレットにページ順に一覧します。パレットを開いたまま、ダブルクリックでそのアンカーのページを表示して段落のテキストを選択できます。リストで選んだアンカーは［削除］で削除でき（複数選択可）、［更新］で一覧を読み直せます。
