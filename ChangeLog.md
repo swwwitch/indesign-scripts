@@ -1,5 +1,11 @@
 # Change Log
 
+## 20261108
+
+### 調整
+
+- [タイプスケールから段落スタイルを一括適用（本文・見出し・リスト・表）](readme-ja/IdTypeScaleStyleApplier.md) v1.7.5：段落スタイルに当てるフォントのウエイト順の判定を強化（Illustrator の TypefaceSampler v1.4.13 と同じ）。BoldItalic・LtIt のような続き書き、Hv・Dm・SemiLight・UltraBold などの略語・語句、中国語・韓国語のスタイル名、全角の「Ｗ３」を読めるようにし、Ultra Condensed などの幅の語をウエイトと取り違えないようにした。YoOne・FOT-芯・鉛筆・MLチョコレート・Othoro Pro はファミリー独自の順に並べる
+
 ## 20261106
 
 ### 新しいスクリプトを追加

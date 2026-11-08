@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdTypeScaleStyleApplier
 Name=タイプスケールから段落スタイルを一括適用（本文・見出し・リスト・表）
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.7.4
+Version=1.7.5
 Release-Date=2026-05-05
 Description-BEGIN
 基準サイズとスケール倍率からタイプスケールを組み立て、本文・見出し・リスト・表の段落スタイルへ一括適用します。
@@ -41,10 +41,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdTypeScaleStyl
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdTypeScaleStyleApplier";      /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.7.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.7.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-05-05";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-08";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "タイプスケールから段落スタイルを一括適用（本文・見出し・リスト・表）"; /* README の見出し / README title (Japanese) */
 
@@ -1468,29 +1468,54 @@ function saveFontCache(fontCount, families, fontMap) {
 var WEIGHT_GROUPS = [
     ["hairline"],                                                                  // 0
     ["ultra thin", "ultrathin", "ut"],                                              // 1
-    ["thin", "th"],                                                                 // 2
+    ["thin", "th", "极细体", "極細體", "얇은체"],                                     // 2
     ["default"],                                                                    // 3
     ["ultralight", "ultra light", "ultlt", "ul"],                                   // 4
-    ["extralight", "extra light", "el", "xlight", "xl"],                            // 5
+    ["extralight", "extra light", "el", "xlight", "xl", "xlig",
+     "纤细体", "纖細體", "纤黑", "纖黑", "아주옅은체"],                                  // 5
     ["lightsemi"],                                                                  // 6
-    ["light", "lt", "lite", "l", "ライト"],                                          // 7
-    ["lb"],                                                                         // 8
+    ["light", "lt", "lite", "l", "ライト", "细体", "細體", "옅은체"],                  // 7
+    ["lb", "semilight", "semi light", "demilight", "demi light"],                   // 8
     ["book", "bk"],                                                                 // 9
     ["n"],                                                                          // 10
     ["middle"],                                                                     // 11
-    ["regular", "roman", "normal", "r", "レギュラー", "標準", "中"],                 // 12
+    ["regular", "roman", "normal", "r", "レギュラー", "標準", "中", "rg",
+     "常规体", "標準體", "标准", "中等", "일반체", "רגיל"],                              // 12
     ["rb"],                                                                         // 13
-    ["medium", "md", "ミディアム", "m"],                                            // 14
-    ["semibold", "semi bold", "sb"],                                                // 15
-    ["demibold", "demi bold", "db", "デミボールド", "demi", "d", "demixtra"],        // 16
-    ["bold", "bd", "ボールド", "b"],                                                 // 17
-    ["extrabold", "extra bold", "xbold", "エクストラボールド", "e", "eb", "xb"],     // 18
-    ["heavy", "h"],                                                                 // 19
-    ["black"],                                                                      // 20
+    ["medium", "md", "ミディアム", "m", "med", "中黑体", "中黑體", "中黑", "중간체"],    // 14
+    ["semibold", "semi bold", "sb", "semi", "中粗体", "中粗體", "세미볼드체"],          // 15
+    ["demibold", "demi bold", "db", "デミボールド", "demi", "d", "demixtra", "dm"],  // 16
+    ["bold", "bd", "ボールド", "b", "粗体", "粗體", "볼드체", "עבה"],                  // 17
+    ["extrabold", "extra bold", "xbold", "エクストラボールド", "e", "eb", "xb",
+     "강한볼드체"],                                                                  // 18
+    ["heavy", "h", "hv", "特黑"],                                                    // 19
+    ["black", "extraheavy", "extra heavy", "eh", "黑体", "무거운"],                    // 20
     ["xblack", "extra black", "extrablack"],                                        // 21
-    ["ultra", "u", "ub", "ultra black", "ultrablack"]                               // 22
+    ["ultra", "u", "ub", "ultra black", "ultrablack", "ultrabold", "ultra bold",
+     "ultraheavy", "ultra heavy", "uh"]                                             // 22
 ];
 var WEIGHT_REGULAR_INDEX = 12;
+
+/* 幅を表す複合語（Ultra Condensed など）。ultra / extra / semi をウェイト語と取り違えないよう照合前に除く
+   / Width compounds, removed before matching so "ultra" or "semi" is not read as a weight */
+var WEIGHT_WIDTH_COMPOUND_PATTERN = /(^|\s)(ultra|extra|semi)\s+(condensed|cond|compressed|comp|expanded|extended|wide)(?=\s|$)/g;
+
+/* 大文字の続き書きで、語に分けない幅の複合語（ExtraCondensed は従来どおり1語として扱う）
+   / Width compounds kept as one word when splitting camel case */
+var WEIGHT_WIDTH_CAMEL_COMPOUND_PATTERN = /(Ultra|Extra|Semi)(Condensed|Expanded|Extended|Compressed|Wide)/g;
+
+/* ファミリー独自の呼び方の上書き（スタイル名から斜体の語を除いた全体で照合し、WEIGHT_GROUPS の語に読み替える）
+   / Family-specific style names, mapped to a WEIGHT_GROUPS term */
+var WEIGHT_FAMILY_OVERRIDES = [
+    /* YoOne・YoOrganic：Ut は Heavy と Black の間、Bk は Black、Ft はさらに太い */
+    { familyPattern: /^(fot-)?yo(one|organic)/, terms: { "ut": "black", "bk": "xblack", "ft": "ultra" } },
+    /* 芯・鉛筆：鉛筆の濃さ H＜F＜HB＜B＜2B */
+    { familyPattern: /芯・鉛筆/, terms: { "h": "light", "f": "regular", "hb": "medium", "b": "bold", "2b": "extrabold" } },
+    /* MLチョコレート：Regular＜SemiMelt＜Melt */
+    { familyPattern: /^(ml|moolong)\s*チョコレート/, terms: { "semi melt": "bold", "melt": "black" } },
+    /* Othoro Pro：Book は Regular より太い */
+    { familyPattern: /^othoro/, terms: { "book": "rb" } }
+];
 var WEIGHT_REGULAR_SINGLES = [
     "display", "compressed", "comp", "compact", "expanded", "extended", "semiextended",
     "ultracondensed", "extracondensed", "semicondensed", "cond", "condensed", "wide",
@@ -1517,6 +1542,47 @@ var WEIGHT_TERM_PATTERNS = (function () {
 })();
 
 /**
+ * スタイル名を照合用に正規化する
+ * 全角英数字を半角にし、BoldItalic・LtIt のような大文字の続き書きを語に分ける
+ * @param {string} rawStyleName フォントスタイル名
+ * @returns {string} 小文字化し、区切り記号を空白に置き換えた文字列
+ */
+function normalizeWeightStyle(rawStyleName) {
+    var styleText = (rawStyleName || "").toString().replace(/[\uFF01-\uFF5E]/g, function (fullWidthChar) {
+        return String.fromCharCode(fullWidthChar.charCodeAt(0) - 0xFEE0);
+    }).replace(/\u3000/g, " ");
+    /* 幅の複合語に目印を挟んで分割から守る / Protect width compounds with a marker */
+    styleText = styleText.replace(WEIGHT_WIDTH_CAMEL_COMPOUND_PATTERN, "$1\u0001$2");
+    styleText = styleText.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z]{2,})([A-Z][a-z])/g, "$1 $2");
+    styleText = styleText.replace(/\u0001/g, "");
+    return styleText.toLowerCase().replace(/[_\-]+/g, " ").replace(/^\s+|\s+$/g, "");
+}
+
+/**
+ * ファミリー独自の呼び方に当たるとき、その WEIGHT_GROUPS のインデックスを返す
+ * @param {string} style 正規化済みのフォントスタイル名
+ * @param {string} family フォントファミリー名
+ * @returns {number} 一致したインデックス。上書きの対象でなければ -1
+ */
+function getFamilyOverrideGroupIndex(style, family) {
+    var familyLower = (family || "").toLowerCase();
+    var weightStyle = style.replace(/(^|\s)(it|italic|oblique)(?=\s|$)/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+    for (var overrideIndex = 0; overrideIndex < WEIGHT_FAMILY_OVERRIDES.length; overrideIndex++) {
+        var familyOverride = WEIGHT_FAMILY_OVERRIDES[overrideIndex];
+        if (!familyOverride.familyPattern.test(familyLower)) continue;
+        if (!familyOverride.terms.hasOwnProperty(weightStyle)) return -1;
+        var targetTerm = familyOverride.terms[weightStyle];
+        for (var groupIndex = 0; groupIndex < WEIGHT_GROUPS.length; groupIndex++) {
+            for (var termIndex = 0; termIndex < WEIGHT_GROUPS[groupIndex].length; termIndex++) {
+                if (WEIGHT_GROUPS[groupIndex][termIndex] === targetTerm) return groupIndex;
+            }
+        }
+        return -1;
+    }
+    return -1;
+}
+
+/**
  * フォントスタイル名から太さの基準ランクを求める
  * @param {string} style 小文字化・正規化済みのフォントスタイル名
  * @param {string} family フォントファミリー名
@@ -1527,12 +1593,17 @@ function getStyleWeightBaseRank(style, family) {
     var familyLower = (family || "").toLowerCase().replace(/\s+/g, "");
     var words = style.split(/\s+/);
 
+    /* ファミリー独自の呼び方を最優先 / Family-specific names come first */
+    var overrideGroupIndex = getFamilyOverrideGroupIndex(style, family);
+    if (overrideGroupIndex !== -1) return 1000 + overrideGroupIndex;
+
     var wMatch = style.match(/^w(\d)$/);
     if (wMatch !== null) return parseInt(wMatch[1], 10);
     var w3Match = style.match(/^w(\d{3})$/);
     if (w3Match !== null) return parseInt(w3Match[1], 10);
     var headNumMatch = style.match(/^(\d{1,3})(?=\D|$)/);
-    if (headNumMatch) return parseInt(headNumMatch[1], 10);
+    /* 09 のような0始まりの2桁以上は通し番号として扱う / Leading-zero numbers are serials, not weights */
+    if (headNumMatch && !(headNumMatch[1].length > 1 && headNumMatch[1].charAt(0) === "0")) return parseInt(headNumMatch[1], 10);
 
     // 特例：Helvetica Neue / Tazugane / Univers Next + Ultra Light → 999
     if (
@@ -1551,14 +1622,18 @@ function getStyleWeightBaseRank(style, family) {
         }
     }
 
+    /* 幅の複合語を除いてから照合する / Drop width compounds before matching */
+    var weightStyle = style.replace(WEIGHT_WIDTH_COMPOUND_PATTERN, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+    if (weightStyle === "") return 1000 + WEIGHT_REGULAR_INDEX;
+
     for (var groupIndex = 0; groupIndex < WEIGHT_GROUPS.length; groupIndex++) {
         for (var termIndex = 0; termIndex < WEIGHT_GROUPS[groupIndex].length; termIndex++) {
-            if (style === WEIGHT_GROUPS[groupIndex][termIndex]) return 1000 + groupIndex;
+            if (weightStyle === WEIGHT_GROUPS[groupIndex][termIndex]) return 1000 + groupIndex;
         }
     }
 
     for (var patternIndex = 0; patternIndex < WEIGHT_TERM_PATTERNS.length; patternIndex++) {
-        if (WEIGHT_TERM_PATTERNS[patternIndex].pattern.test(style)) {
+        if (WEIGHT_TERM_PATTERNS[patternIndex].pattern.test(weightStyle)) {
             return 1000 + WEIGHT_TERM_PATTERNS[patternIndex].index;
         }
     }
@@ -1573,8 +1648,7 @@ function getStyleWeightBaseRank(style, family) {
  * @returns {number} 太さランク
  */
 function getStyleWeightRank(styleName, familyName) {
-    var rawStyleName = (styleName || "").toString();
-    var style = rawStyleName.toLowerCase().replace(/[_\-]+/g, " ").replace(/^\s+|\s+$/g, "");
+    var style = normalizeWeightStyle(styleName);
     var words = style.split(/\s+/);
     var baseRank = getStyleWeightBaseRank(style, familyName);
     var offset = 0;
