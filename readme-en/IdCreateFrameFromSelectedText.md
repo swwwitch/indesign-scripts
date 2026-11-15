@@ -15,6 +15,7 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 - Choose between inline (anchored) placement and a graphic frame on the page
 - Pick the frame width from selected text, column width, parent frame or page margins
 - With no text selected, specify the height in lines or millimetres
+- The dialog shows a thumbnail of where the frame will be created and how large it is, over the page, margins, columns, parent frame and selected text; it redraws as you change the settings (the inline position is approximate)
 - The height field steps with the ∧∨ buttons or the arrow keys to the next whole number (1.5 → 2); Shift snaps to the next multiple of 10, Option steps by 0.1
 - Set the paragraph style of the inserted line, the object style and the text wrap
 
@@ -34,13 +35,14 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdCreateFrameFromSelectedText.jsx` |
-| Version | v2.7.5 |
+| Version | v2.8.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-17 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-15 |
 | Article | https://note.com/dtp_tranist/n/ndd1b7c5246a3 |
 
 ### Update History
+- v2.8.0 (2026-11-15) Added a thumbnail of the frame to be created to the dialog. It redraws as you change the placement, width or height. Fixed the frame being offset from the margin guides on left-hand pages of a spread when an insertion point or nothing was selected
 - v2.7.5 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v2.7.4 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v2.7.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

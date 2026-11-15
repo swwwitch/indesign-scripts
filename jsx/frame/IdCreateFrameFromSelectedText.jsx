@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdCreateFrameFromSelectedText
 Name=選択テキストのサイズでグラフィックフレームを作成
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=2.7.5
+Version=2.8.0
 Release-Date=2026-03-17
 Description-BEGIN
 選択したテキストのサイズを基準に、インライン（アンカー付き）またはページ上へグラフィックフレームを作成します。
@@ -41,10 +41,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdCreateFrameFr
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdCreateFrameFromSelectedText"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.7.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.8.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-17";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-15";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "選択テキストのサイズでグラフィックフレームを作成"; /* README の見出し / README title (Japanese) */
 
@@ -92,6 +92,10 @@ var MM_TO_POINTS = 2.834645669;
 
 /* 高さ入力欄の文字数 / Character width of the height field */
 var HEIGHT_INPUT_CHARACTERS = 8;
+
+/* 作成するフレームの縮小図 / Thumbnail of the frame to be created */
+var THUMBNAIL_SIZE = [220, 170];           /* 描画域（幅は最小幅。ダイアログの幅いっぱいに伸ばす）/ canvas (minimum width; fills the dialog width) */
+var THUMBNAIL_PADDING = 8;                 /* 描画域の内側の余白 / inner padding */
 
 // ==============================
 // UIレイアウトの共通設定 / Shared UI layout
@@ -1151,7 +1155,11 @@ var LABELS = {
             en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
         },
         stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
-        stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+        stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
+        thumbnail: {
+            ja: "作成するフレームの位置と大きさの縮小図です。青が作成するフレーム、黄色が選択したテキスト、マゼンタがマージン、水色が親フレームです。インラインの位置は目安です。",
+            en: "Thumbnail of where the frame will be created and how large it is. Blue is the new frame, yellow the selected text, magenta the margins and light blue the parent frame. The inline position is approximate."
+        }
     },
     alert: {
         noDocument:          { ja: "ドキュメントが開かれていません。", en: "No document is open." },
@@ -1329,6 +1337,440 @@ function getParentPage(textObject) {
 }
 
 // =========================================
+// フレームの大きさと位置 / Frame size and position
+// =========================================
+
+/**
+ * フレームを置くページを返す（未選択は表示中のページ、挿入ポイントはその親フレームのページ、テキストはそのページ）
+ * @param {Object} frameContext - 選択の情報（selectedText / isInsertionPoint / hasNoSelection）
+ * @returns {Page|null} ページ。取得できない場合は null
+ */
+function resolveDestinationPage(frameContext) {
+    if (frameContext.hasNoSelection) return app.activeWindow.activePage;
+    if (frameContext.isInsertionPoint) {
+        var insertionFrame = getInsertionPointTextFrame(frameContext.selectedText);
+        return insertionFrame ? insertionFrame.parentPage : null;
+    }
+    return getParentPage(frameContext.selectedText);
+}
+
+/**
+ * フレームの高さを求める。高さの指定が無いとき（テキストを選択しているとき）は選択テキストの高さ
+ * @param {Object} frameContext - 選択の情報
+ * @param {{useLines: boolean, inputText: string}|null} heightSettings - 高さの指定（行数モードか・入力欄の文字列）。高さの欄が無いときは null
+ * @returns {number} 高さ
+ */
+function resolveFrameHeight(frameContext, heightSettings) {
+    var frameHeight = frameContext.selectionHeight;
+    if (!heightSettings) return frameHeight;
+
+    if (heightSettings.useLines) {
+        /* 行数モード: 1行目の文字サイズ + 残り行数 × 行送り / Line-count mode: first-line size plus leading for the remaining lines */
+        var lineCount = parseFloat(heightSettings.inputText) || 1;
+        if (lineCount < 1) lineCount = 1;
+        try {
+            var selectedText = frameContext.selectedText;
+            var referenceFrame = frameContext.isInsertionPoint
+                ? getInsertionPointTextFrame(selectedText)
+                : selectedText.parentTextFrames[0];
+            if (!referenceFrame) throw new Error("No parent text frame");
+
+            var referenceStory = referenceFrame.parentStory;
+            var insertionIndex = frameContext.isInsertionPoint ? selectedText.index : selectedText.characters[0].index;
+            var referenceCharacter = (insertionIndex < referenceStory.characters.length)
+                ? referenceStory.characters[insertionIndex]
+                : referenceStory.characters[referenceStory.characters.length - 1];
+
+            var referencePointSize = referenceCharacter.pointSize;
+            var referenceLeading   = referenceCharacter.leading;
+            if (referenceLeading === Leading.AUTO) {
+                referenceLeading = referencePointSize * (referenceCharacter.autoLeading / 100);
+            }
+            frameHeight = referencePointSize + Math.max(0, lineCount - 1) * referenceLeading;
+        } catch (e) {
+            frameHeight = FALLBACK_POINT_SIZE + Math.max(0, lineCount - 1) * FALLBACK_LEADING;
+        }
+    } else {
+        /* サイズ指定モード: mm 入力をポイントへ変換 / Size mode: convert the millimeter input to points */
+        var heightInMillimeters = parseFloat(heightSettings.inputText) || parseFloat(DEFAULT_HEIGHT_IN_MM);
+        frameHeight = heightInMillimeters * MM_TO_POINTS;
+    }
+    return frameHeight;
+}
+
+/**
+ * フレームの幅を求める
+ * @param {Object} frameContext - 選択の情報
+ * @param {string} widthMode - "text"（選択したテキスト）| "column"（カラム幅）| "parentFrame"（親フレーム）| "margin"（ページのマージン）
+ * @returns {number} 幅（読み取れないときは選択テキストの幅）
+ */
+function resolveFrameWidth(frameContext, widthMode) {
+    var frameWidth = frameContext.selectionWidth;
+    var selectedText = frameContext.selectedText;
+    if (widthMode === "column") {
+        try {
+            var columnSourceFrame = selectedText.parentTextFrames[0];
+            var columnWidth = columnSourceFrame.textFramePreferences.textColumnFixedWidth;
+            if (columnWidth <= 0) {
+                var columnFrameBounds = columnSourceFrame.geometricBounds;
+                var textFrameWidth = columnFrameBounds[3] - columnFrameBounds[1];
+                var columnCount    = columnSourceFrame.textFramePreferences.textColumnCount;
+                var columnGutter   = columnSourceFrame.textFramePreferences.textColumnGutter;
+                var insetLeft      = columnSourceFrame.textFramePreferences.insetSpacing[1];
+                var insetRight     = columnSourceFrame.textFramePreferences.insetSpacing[3];
+                columnWidth = (textFrameWidth - insetLeft - insetRight - columnGutter * (columnCount - 1)) / columnCount;
+            }
+            frameWidth = columnWidth;
+        } catch (e) {}
+    } else if (widthMode === "parentFrame") {
+        try {
+            var parentFrameBounds = selectedText.parentTextFrames[0].geometricBounds;
+            frameWidth = parentFrameBounds[3] - parentFrameBounds[1];
+        } catch (e) {}
+    } else if (widthMode === "margin") {
+        try {
+            var marginPage = resolveDestinationPage(frameContext);
+            if (marginPage) {
+                var marginPageBounds = marginPage.bounds;
+                var pageMargins = marginPage.marginPreferences;
+                frameWidth = (marginPageBounds[3] - marginPageBounds[1]) - pageMargins.left - pageMargins.right;
+            }
+        } catch (e) {}
+    }
+    return frameWidth;
+}
+
+/**
+ * ページに置くフレームの左上を求める（テキストを選択していればその左上、それ以外はマージンの左上）
+ * @param {Object} frameContext - 選択の情報（hasTextBounds / selectionBounds）
+ * @param {Page} destinationPage - 置くページ
+ * @returns {number[]} [上, 左]
+ */
+function resolveFrameTopLeft(frameContext, destinationPage) {
+    if (frameContext.hasTextBounds) {
+        return [frameContext.selectionBounds[0], frameContext.selectionBounds[1]];
+    }
+    /* 挿入ポイント・未選択時はマージン左上を基準にする。見開きの左ページは marginPreferences.left が内側（右）なので、物理的な左のマージンを使う
+       Anchor to the top-left margin for insertion points and empty selections; on a left-hand page marginPreferences.left is the inside (right) margin, so use the physical left one */
+    var pageMargins = destinationPage.marginPreferences;
+    var destinationBounds = destinationPage.bounds;
+    return [destinationBounds[0] + pageMargins.top, destinationBounds[1] + getPhysicalSideMargins(destinationPage)[0]];
+}
+
+/**
+ * ページの物理的な左右のマージンを返す（見開きの左ページは marginPreferences の left が内側＝右になる）
+ * @param {Page} targetPage - ページ
+ * @returns {number[]} [左, 右]
+ */
+function getPhysicalSideMargins(targetPage) {
+    var pageMargins = targetPage.marginPreferences;
+    var isLeftHand = false;
+    try { isLeftHand = (targetPage.side === PageSideOptions.LEFT_HAND); } catch (e) {}
+    return isLeftHand ? [pageMargins.right, pageMargins.left] : [pageMargins.left, pageMargins.right];
+}
+
+// =========================================
+// 縮小図 / Frame thumbnail
+// =========================================
+
+var THUMBNAIL_UI_DARK = isDarkUI();
+var THUMBNAIL_COLORS = {
+    background:  THUMBNAIL_UI_DARK ? [0.16, 0.16, 0.16, 1] : [0.90, 0.90, 0.90, 1], /* 地 / background */
+    page:        [1, 1, 1, 1],                                                     /* ページ / page */
+    pageFrame:   THUMBNAIL_UI_DARK ? [0.55, 0.55, 0.55, 1] : [0.50, 0.50, 0.50, 1], /* ページの枠 / page edge */
+    margin:      [0.85, 0.30, 0.75, 1],                                            /* マージン / margin guides */
+    column:      [0.62, 0.55, 0.88, 1],                                            /* 段のガイド / column guides */
+    parentFrame: [0.45, 0.70, 0.90, 1],                                            /* 親フレーム / parent text frame */
+    selection:   [1.00, 0.90, 0.40, 1],                                            /* 選択したテキスト / selected text */
+    newFrame:    [0.40, 0.62, 1.00, 0.35],                                         /* 作成するフレームの塗り / new frame fill */
+    accent:      THUMBNAIL_UI_DARK ? [0.40, 0.65, 1.00, 1] : [0.10, 0.40, 0.85, 1]  /* 作成するフレームの枠 / new frame edge */
+};
+
+// 縮小図（再利用パーツ） / Thumbnail canvas (reusable)
+
+var thumbnailFontCache = {}; /* 文字サイズごとの書体 / fonts per size */
+
+/**
+ * 縮小図を自作描画する描画域（group）を追加する
+ * @param {Window|Panel|Group} parent - 追加先
+ * @param {number[]} canvasSize - [幅, 高さ]（px）。fillWidth のときの幅は最小幅
+ * @param {Function} drawFn - 描くたびに drawFn(canvasGraphics, canvasWidth, canvasHeight) で呼ぶ関数
+ * @param {boolean} [fillWidth] - true なら親の幅いっぱいに伸ばす（ダイアログの幅は広げない）
+ * @returns {Group} 描画域
+ */
+function addThumbnailCanvas(parent, canvasSize, drawFn, fillWidth) {
+    var thumbnailCanvas = parent.add("group");
+    thumbnailCanvas.preferredSize = [canvasSize[0], canvasSize[1]];
+    thumbnailCanvas.minimumSize = [canvasSize[0], canvasSize[1]];
+    thumbnailCanvas.maximumSize = [fillWidth ? 10000 : canvasSize[0], canvasSize[1]];
+    if (fillWidth) thumbnailCanvas.alignment = ["fill", "top"];
+    thumbnailCanvas.onDraw = function () {
+        var drawnSize = thumbnailCanvas.size;
+        drawFn(thumbnailCanvas.graphics, drawnSize.width, drawnSize.height);
+    };
+    return thumbnailCanvas;
+}
+
+/**
+ * 縮小図を描き直す（group には notify() が無いので、隠して再表示する）
+ * @param {Group} thumbnailCanvas - addThumbnailCanvas() の戻り値
+ * @returns {void}
+ */
+function redrawThumbnailCanvas(thumbnailCanvas) {
+    thumbnailCanvas.hide();
+    thumbnailCanvas.show();
+}
+
+/**
+ * 縮小図に矩形を塗る（rectPath の前に newPath を呼ばないとパスが重なって線画になる）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {number} left - 左（px）
+ * @param {number} top - 上（px）
+ * @param {number} width - 幅（px）
+ * @param {number} height - 高さ（px）
+ * @param {number[]} color - RGBA
+ * @returns {void}
+ */
+function fillThumbnailRect(canvasGraphics, left, top, width, height, color) {
+    canvasGraphics.newPath();
+    canvasGraphics.rectPath(left, top, width, height);
+    canvasGraphics.fillPath(canvasGraphics.newBrush(canvasGraphics.BrushType.SOLID_COLOR, color));
+}
+
+/**
+ * 縮小図に矩形の枠を描く（1px の線が内側に収まるよう 0.5px 内に寄せる）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {number} left - 左（px）
+ * @param {number} top - 上（px）
+ * @param {number} width - 幅（px）
+ * @param {number} height - 高さ（px）
+ * @param {number[]} color - RGBA
+ * @returns {void}
+ */
+function strokeThumbnailRect(canvasGraphics, left, top, width, height, color) {
+    canvasGraphics.newPath();
+    canvasGraphics.rectPath(left + 0.5, top + 0.5, Math.max(width - 1, 0), Math.max(height - 1, 0));
+    canvasGraphics.strokePath(canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, color, 1));
+}
+
+/**
+ * 縮小図の文字の書体を返す（作れない環境ではコントロールの書体を使う）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {number} fontSize - 文字サイズ（px。InDesign では無視される）
+ * @returns {ScriptUIFont} 書体
+ */
+function getThumbnailFont(canvasGraphics, fontSize) {
+    if (thumbnailFontCache[fontSize]) return thumbnailFontCache[fontSize];
+    try {
+        thumbnailFontCache[fontSize] = ScriptUI.newFont(canvasGraphics.font.name, "REGULAR", fontSize);
+    } catch (e) {
+        thumbnailFontCache[fontSize] = canvasGraphics.font;
+    }
+    return thumbnailFontCache[fontSize];
+}
+
+/**
+ * 文字列の幅と高さを測る（measureString は配列か {width, height} で返る）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {string} text - 文字列
+ * @param {ScriptUIFont} font - 書体
+ * @returns {number[]} [幅, 高さ]（px）
+ */
+function measureThumbnailText(canvasGraphics, text, font) {
+    var measured = canvasGraphics.measureString(text, font);
+    if (measured.width !== undefined) return [measured.width, measured.height];
+    return [measured[0], measured[1]];
+}
+
+// 縮小図（再利用パーツ）ここまで / End of the reusable thumbnail canvas
+
+/**
+ * インライン（アンカー付き）で挿入したときの、フレームの左上の目安を求める（選択位置の行頭＝親フレームの段の左端）
+ * @param {Object} frameContext - 選択の情報
+ * @param {TextFrame} parentFrame - 親テキストフレーム
+ * @returns {number[]|null} [上, 左]。求められない場合は null
+ */
+function estimateInlineFrameTopLeft(frameContext, parentFrame) {
+    try {
+        var selectedText = frameContext.selectedText;
+        var anchorTop, anchorX;
+        if (frameContext.hasTextBounds) {
+            anchorTop = frameContext.selectionBounds[0];
+            anchorX = frameContext.selectionBounds[1];
+        } else {
+            anchorTop = selectedText.baseline - selectedText.pointSize;
+            anchorX = selectedText.horizontalOffset;
+        }
+        var frameBounds = parentFrame.geometricBounds;
+        var framePreferences = parentFrame.textFramePreferences;
+        var columnCount = Math.max(1, framePreferences.textColumnCount);
+        var columnGutter = framePreferences.textColumnGutter;
+        var contentLeft = frameBounds[1] + framePreferences.insetSpacing[1];
+        var contentWidth = (frameBounds[3] - frameBounds[1]) - framePreferences.insetSpacing[1] - framePreferences.insetSpacing[3];
+        var columnWidth = (contentWidth - columnGutter * (columnCount - 1)) / columnCount;
+        var columnIndex = Math.floor((anchorX - contentLeft + columnGutter / 2) / (columnWidth + columnGutter));
+        columnIndex = Math.max(0, Math.min(columnCount - 1, columnIndex));
+        return [anchorTop, contentLeft + columnIndex * (columnWidth + columnGutter)];
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * 縮小図で描く内容を集める（ページ・マージン・段・親フレーム・選択テキスト・作成するフレーム。座標はすべてスプレッド座標）
+ * @param {Object} frameContext - 選択の情報
+ * @param {boolean} useInlinePlacement - インラインで挿入するか
+ * @param {number} frameWidth - 作成するフレームの幅
+ * @param {number} frameHeight - 作成するフレームの高さ
+ * @returns {Object|null} 描く内容。ページを読めないときは null
+ */
+function buildFrameThumbnail(frameContext, useInlinePlacement, frameWidth, frameHeight) {
+    var destinationPage = null;
+    try { destinationPage = resolveDestinationPage(frameContext); } catch (e) {}
+    if (!destinationPage) return null;
+
+    var pageMargins = destinationPage.marginPreferences;
+    var thumbnailModel = {
+        pageBounds: destinationPage.bounds,
+        sideMargins: getPhysicalSideMargins(destinationPage),
+        topMargin: pageMargins.top,
+        bottomMargin: pageMargins.bottom,
+        pageColumnCount: Math.max(1, pageMargins.columnCount),
+        pageColumnGutter: pageMargins.columnGutter,
+        parentFrame: null,
+        selectionBounds: frameContext.hasTextBounds ? frameContext.selectionBounds : null,
+        newFrameBounds: null
+    };
+
+    var parentFrame = null;
+    if (!frameContext.hasNoSelection) {
+        try {
+            parentFrame = frameContext.isInsertionPoint
+                ? getInsertionPointTextFrame(frameContext.selectedText)
+                : frameContext.selectedText.parentTextFrames[0];
+        } catch (e) {}
+    }
+    if (parentFrame) {
+        var parentPreferences = parentFrame.textFramePreferences;
+        thumbnailModel.parentFrame = {
+            bounds: parentFrame.geometricBounds,
+            columnCount: Math.max(1, parentPreferences.textColumnCount),
+            columnGutter: parentPreferences.textColumnGutter,
+            insetLeft: parentPreferences.insetSpacing[1],
+            insetRight: parentPreferences.insetSpacing[3]
+        };
+    }
+
+    var frameTopLeft = null;
+    if (useInlinePlacement) {
+        if (parentFrame) frameTopLeft = estimateInlineFrameTopLeft(frameContext, parentFrame);
+    } else {
+        frameTopLeft = resolveFrameTopLeft(frameContext, destinationPage);
+    }
+    if (frameTopLeft) {
+        thumbnailModel.newFrameBounds = [frameTopLeft[0], frameTopLeft[1], frameTopLeft[0] + frameHeight, frameTopLeft[1] + frameWidth];
+    }
+    return thumbnailModel;
+}
+
+/**
+ * 作成するフレームを、ページ・マージン・段・親フレーム・選択テキストと重ねて縮小して描く（ページの縦横比のまま）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {number} canvasWidth - 描画域の幅（px）
+ * @param {number} canvasHeight - 描画域の高さ（px）
+ * @param {Object|null} thumbnailModel - buildFrameThumbnail() の戻り値
+ * @returns {void}
+ */
+function drawFrameThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailModel) {
+    fillThumbnailRect(canvasGraphics, 0, 0, canvasWidth, canvasHeight, THUMBNAIL_COLORS.background);
+    if (!thumbnailModel) return;
+
+    var pageBounds = thumbnailModel.pageBounds;
+    var pageWidth = pageBounds[3] - pageBounds[1];
+    var pageHeight = pageBounds[2] - pageBounds[0];
+    if (!(pageWidth > 0) || !(pageHeight > 0)) return;
+    var pixelsPerUnit = Math.min((canvasWidth - THUMBNAIL_PADDING * 2) / pageWidth, (canvasHeight - THUMBNAIL_PADDING * 2) / pageHeight);
+    if (!(pixelsPerUnit > 0)) return;
+    var originLeft = (canvasWidth - pageWidth * pixelsPerUnit) / 2;
+    var originTop = (canvasHeight - pageHeight * pixelsPerUnit) / 2;
+
+    /**
+     * スプレッド座標の矩形 [上, 左, 下, 右] を描画域の [左, 上, 幅, 高さ]（px）にする
+     * @param {number[]} bounds - [上, 左, 下, 右]
+     * @returns {number[]} [左, 上, 幅, 高さ]
+     */
+    function toCanvasRect(bounds) {
+        var rectLeft = Math.round(originLeft + (bounds[1] - pageBounds[1]) * pixelsPerUnit);
+        var rectTop = Math.round(originTop + (bounds[0] - pageBounds[0]) * pixelsPerUnit);
+        var rectRight = Math.round(originLeft + (bounds[3] - pageBounds[1]) * pixelsPerUnit);
+        var rectBottom = Math.round(originTop + (bounds[2] - pageBounds[0]) * pixelsPerUnit);
+        return [rectLeft, rectTop, Math.max(1, rectRight - rectLeft), Math.max(1, rectBottom - rectTop)];
+    }
+
+    /**
+     * 縦の区切り線（1px 幅の矩形）を引く
+     * @param {number} unitX - スプレッド座標の X
+     * @param {number} top - 上（スプレッド座標）
+     * @param {number} bottom - 下（スプレッド座標）
+     * @param {number[]} color - RGBA
+     * @returns {void}
+     */
+    function drawVerticalGuide(unitX, top, bottom, color) {
+        var guideRect = toCanvasRect([top, unitX, bottom, unitX]);
+        fillThumbnailRect(canvasGraphics, guideRect[0], guideRect[1], 1, guideRect[3], color);
+    }
+
+    var pageRect = toCanvasRect(pageBounds);
+    fillThumbnailRect(canvasGraphics, pageRect[0], pageRect[1], pageRect[2], pageRect[3], THUMBNAIL_COLORS.page);
+
+    /* 選択したテキスト / selected text */
+    if (thumbnailModel.selectionBounds) {
+        var selectionRect = toCanvasRect(thumbnailModel.selectionBounds);
+        fillThumbnailRect(canvasGraphics, selectionRect[0], selectionRect[1], selectionRect[2], selectionRect[3], THUMBNAIL_COLORS.selection);
+    }
+
+    /* マージンと段のガイド / margin and column guides */
+    var marginBounds = [
+        pageBounds[0] + thumbnailModel.topMargin,
+        pageBounds[1] + thumbnailModel.sideMargins[0],
+        pageBounds[2] - thumbnailModel.bottomMargin,
+        pageBounds[3] - thumbnailModel.sideMargins[1]
+    ];
+    var pageColumnWidth = ((marginBounds[3] - marginBounds[1]) - thumbnailModel.pageColumnGutter * (thumbnailModel.pageColumnCount - 1)) / thumbnailModel.pageColumnCount;
+    for (var pageColumnIndex = 1; pageColumnIndex < thumbnailModel.pageColumnCount; pageColumnIndex++) {
+        var gutterLeft = marginBounds[1] + pageColumnIndex * pageColumnWidth + (pageColumnIndex - 1) * thumbnailModel.pageColumnGutter;
+        drawVerticalGuide(gutterLeft, marginBounds[0], marginBounds[2], THUMBNAIL_COLORS.column);
+        drawVerticalGuide(gutterLeft + thumbnailModel.pageColumnGutter, marginBounds[0], marginBounds[2], THUMBNAIL_COLORS.column);
+    }
+    var marginRect = toCanvasRect(marginBounds);
+    strokeThumbnailRect(canvasGraphics, marginRect[0], marginRect[1], marginRect[2], marginRect[3], THUMBNAIL_COLORS.margin);
+
+    /* 親フレームとその段 / parent frame and its columns */
+    var parentModel = thumbnailModel.parentFrame;
+    if (parentModel) {
+        var parentRect = toCanvasRect(parentModel.bounds);
+        strokeThumbnailRect(canvasGraphics, parentRect[0], parentRect[1], parentRect[2], parentRect[3], THUMBNAIL_COLORS.parentFrame);
+        var contentLeft = parentModel.bounds[1] + parentModel.insetLeft;
+        var contentWidth = (parentModel.bounds[3] - parentModel.bounds[1]) - parentModel.insetLeft - parentModel.insetRight;
+        var frameColumnWidth = (contentWidth - parentModel.columnGutter * (parentModel.columnCount - 1)) / parentModel.columnCount;
+        for (var frameColumnIndex = 1; frameColumnIndex < parentModel.columnCount; frameColumnIndex++) {
+            var frameGutterLeft = contentLeft + frameColumnIndex * frameColumnWidth + (frameColumnIndex - 1) * parentModel.columnGutter;
+            drawVerticalGuide(frameGutterLeft, parentModel.bounds[0], parentModel.bounds[2], THUMBNAIL_COLORS.parentFrame);
+            drawVerticalGuide(frameGutterLeft + parentModel.columnGutter, parentModel.bounds[0], parentModel.bounds[2], THUMBNAIL_COLORS.parentFrame);
+        }
+    }
+
+    strokeThumbnailRect(canvasGraphics, pageRect[0], pageRect[1], pageRect[2], pageRect[3], THUMBNAIL_COLORS.pageFrame);
+
+    /* 作成するフレーム（ページからはみ出す分も描く）/ the new frame (drawn even where it leaves the page) */
+    if (thumbnailModel.newFrameBounds) {
+        var newFrameRect = toCanvasRect(thumbnailModel.newFrameBounds);
+        fillThumbnailRect(canvasGraphics, newFrameRect[0], newFrameRect[1], Math.max(2, newFrameRect[2]), Math.max(2, newFrameRect[3]), THUMBNAIL_COLORS.newFrame);
+        strokeThumbnailRect(canvasGraphics, newFrameRect[0], newFrameRect[1], Math.max(2, newFrameRect[2]), Math.max(2, newFrameRect[3]), THUMBNAIL_COLORS.accent);
+    }
+}
+
+// =========================================
 // メイン処理 / Main
 // =========================================
 
@@ -1374,6 +1816,17 @@ function getParentPage(textObject) {
 
     var selectionWidth  = hasTextBounds ? (selectionBounds[3] - selectionBounds[1]) : 0;
     var selectionHeight = hasTextBounds ? (selectionBounds[2] - selectionBounds[0]) : 0;
+
+    /* 大きさ・位置の計算と縮小図に渡す選択の情報 / Selection info for the size, position and thumbnail */
+    var frameContext = {
+        selectedText: selectedText,
+        isInsertionPoint: isInsertionPoint,
+        hasNoSelection: hasNoSelection,
+        hasTextBounds: hasTextBounds,
+        selectionBounds: selectionBounds,
+        selectionWidth: selectionWidth,
+        selectionHeight: selectionHeight
+    };
 
     /* オブジェクトスタイル一覧 / Object style list */
     var objectStyleNames = [];
@@ -1499,7 +1952,8 @@ function getParentPage(textObject) {
         heightStepperGroup.alignChildren = ["left", "center"];
         heightStepperGroup.spacing = 0;
         heightStepperGroup.margins = 0;
-        var heightStepOptions = { step: 1, min: hasNoSelection ? MIN_HEIGHT_IN_MM : MIN_HEIGHT_IN_LINES };
+        var heightStepOptions = { step: 1, min: hasNoSelection ? MIN_HEIGHT_IN_MM : MIN_HEIGHT_IN_LINES,
+            onStep: function () { updateThumbnail(); } };
         var heightStepper = addStepper(heightStepperGroup, function () { return heightInput; }, heightStepOptions);
         heightInput = heightStepperGroup.add("edittext", undefined, hasNoSelection ? DEFAULT_HEIGHT_IN_MM : DEFAULT_HEIGHT_IN_LINES);
         heightInput.characters = HEIGHT_INPUT_CHARACTERS;
@@ -1521,12 +1975,16 @@ function getParentPage(textObject) {
             heightInput.text = DEFAULT_HEIGHT_IN_LINES;
             heightStepOptions.min = MIN_HEIGHT_IN_LINES;
             heightUnitLabel.text = getLabel("unit.lines");
+            updateThumbnail();
         };
         heightSizeRadio.onClick = function () {
             heightInput.text = DEFAULT_HEIGHT_IN_MM;
             heightStepOptions.min = MIN_HEIGHT_IN_MM;
             heightUnitLabel.text = getLabel("unit.mm");
+            updateThumbnail();
         };
+        heightInput.onChanging = function () { updateThumbnail(); };
+        heightInput.onChange = function () { updateThumbnail(); };
     }
 
     /* 右カラム / Right column */
@@ -1598,12 +2056,58 @@ function getParentPage(textObject) {
         /* 回り込みはページ配置かつオブジェクトスタイルが「なし」のときだけ有効 / Text wrap applies only to page placement with the "None" object style */
         wrapLabel.enabled    = !isInlinePlacement && isNoneObjectStyle;
         wrapDropdown.enabled = !isInlinePlacement && isNoneObjectStyle;
+
+        /* 幅の選択が移ることがあるので描き直す / the width option may have moved, so redraw */
+        updateThumbnail();
+    }
+
+    /**
+     * 幅の選択から、resolveFrameWidth() に渡す幅の決め方を返す
+     * @returns {string} "column" | "parentFrame" | "margin" | "text"
+     */
+    function readWidthMode() {
+        if (widthFromColumnRadio.value) return "column";
+        if (widthFromParentFrameRadio.value) return "parentFrame";
+        if (widthFromMarginRadio.value) return "margin";
+        return "text";
+    }
+
+    /**
+     * 高さの欄から、resolveFrameHeight() に渡す指定を返す
+     * @returns {{useLines: boolean, inputText: string}|null} 高さの欄が無いときは null
+     */
+    function readHeightSettings() {
+        if (!(heightLinesRadio && heightSizeRadio)) return null;
+        return { useLines: heightLinesRadio.value, inputText: heightInput.text };
+    }
+
+    /* 作成するフレームの縮小図（ダイアログの幅いっぱい）/ Thumbnail of the new frame (full dialog width) */
+    var thumbnailModel = null;
+    var thumbnailCanvas = addThumbnailCanvas(createFrameDialog, THUMBNAIL_SIZE, function (canvasGraphics, canvasWidth, canvasHeight) {
+        drawFrameThumbnail(canvasGraphics, canvasWidth, canvasHeight, thumbnailModel);
+    }, true);
+    thumbnailCanvas.helpTip = getLabel("tooltip.thumbnail");
+
+    /**
+     * 今の設定で作成するフレームを求め直し、縮小図を描き直す（描画域を作る前に呼ばれたら何もしない）
+     * @returns {void}
+     */
+    function updateThumbnail() {
+        if (!thumbnailCanvas) return;
+        thumbnailModel = buildFrameThumbnail(frameContext, inlineFrameRadio.value,
+            resolveFrameWidth(frameContext, readWidthMode()),
+            resolveFrameHeight(frameContext, readHeightSettings()));
+        redrawThumbnailCanvas(thumbnailCanvas);
     }
 
     updateDialogState();
     graphicFrameRadio.onClick     = updateDialogState;
     inlineFrameRadio.onClick      = updateDialogState;
     objectStyleDropdown.onChange  = updateDialogState;
+    widthFromTextRadio.onClick        = updateThumbnail;
+    widthFromColumnRadio.onClick      = updateThumbnail;
+    widthFromParentFrameRadio.onClick = updateThumbnail;
+    widthFromMarginRadio.onClick      = updateThumbnail;
 
     var buttonRow = addButtonRow(createFrameDialog);
     var btnCancel = buttonRow.rightGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
@@ -1622,81 +2126,9 @@ function getParentPage(textObject) {
     var selectedParaStyleIdx  = paraStyleDropdown.selection.index;
     var useAutoLeading        = autoLeadingCheckbox.value;
 
-    /* フレームの高さ / Frame height */
-    var frameHeight = selectionHeight;
-    if (heightLinesRadio && heightSizeRadio) {
-        if (heightLinesRadio.value) {
-            /* 行数モード: 1行目の文字サイズ + 残り行数 × 行送り / Line-count mode: first-line size plus leading for the remaining lines */
-            var lineCount = parseFloat(heightInput.text) || 1;
-            if (lineCount < 1) lineCount = 1;
-            try {
-                var referenceFrame = isInsertionPoint
-                    ? getInsertionPointTextFrame(selectedText)
-                    : selectedText.parentTextFrames[0];
-                if (!referenceFrame) throw new Error("No parent text frame");
-
-                var referenceStory = referenceFrame.parentStory;
-                var insertionIndex = isInsertionPoint ? selectedText.index : selectedText.characters[0].index;
-                var referenceCharacter = (insertionIndex < referenceStory.characters.length)
-                    ? referenceStory.characters[insertionIndex]
-                    : referenceStory.characters[referenceStory.characters.length - 1];
-
-                var referencePointSize = referenceCharacter.pointSize;
-                var referenceLeading   = referenceCharacter.leading;
-                if (referenceLeading === Leading.AUTO) {
-                    referenceLeading = referencePointSize * (referenceCharacter.autoLeading / 100);
-                }
-                frameHeight = referencePointSize + Math.max(0, lineCount - 1) * referenceLeading;
-            } catch (e) {
-                frameHeight = FALLBACK_POINT_SIZE + Math.max(0, lineCount - 1) * FALLBACK_LEADING;
-            }
-        } else {
-            /* サイズ指定モード: mm 入力をポイントへ変換 / Size mode: convert the millimeter input to points */
-            var heightInMillimeters = parseFloat(heightInput.text) || parseFloat(DEFAULT_HEIGHT_IN_MM);
-            frameHeight = heightInMillimeters * MM_TO_POINTS;
-        }
-    }
-
-    /* フレームの幅 / Frame width */
-    var frameWidth = selectionWidth;
-    if (widthFromColumnRadio.value) {
-        try {
-            var columnSourceFrame = selectedText.parentTextFrames[0];
-            var columnWidth = columnSourceFrame.textFramePreferences.textColumnFixedWidth;
-            if (columnWidth <= 0) {
-                var columnFrameBounds = columnSourceFrame.geometricBounds;
-                var textFrameWidth = columnFrameBounds[3] - columnFrameBounds[1];
-                var columnCount    = columnSourceFrame.textFramePreferences.textColumnCount;
-                var columnGutter   = columnSourceFrame.textFramePreferences.textColumnGutter;
-                var insetLeft      = columnSourceFrame.textFramePreferences.insetSpacing[1];
-                var insetRight     = columnSourceFrame.textFramePreferences.insetSpacing[3];
-                columnWidth = (textFrameWidth - insetLeft - insetRight - columnGutter * (columnCount - 1)) / columnCount;
-            }
-            frameWidth = columnWidth;
-        } catch (e) {}
-    } else if (widthFromParentFrameRadio.value) {
-        try {
-            var parentFrameBounds = selectedText.parentTextFrames[0].geometricBounds;
-            frameWidth = parentFrameBounds[3] - parentFrameBounds[1];
-        } catch (e) {}
-    } else if (widthFromMarginRadio.value) {
-        try {
-            var marginPage;
-            if (hasNoSelection) {
-                marginPage = app.activeWindow.activePage;
-            } else if (isInsertionPoint) {
-                var insertionFrame = getInsertionPointTextFrame(selectedText);
-                marginPage = insertionFrame ? insertionFrame.parentPage : null;
-            } else {
-                marginPage = getParentPage(selectedText);
-            }
-            if (marginPage) {
-                var marginPageBounds = marginPage.bounds;
-                var pageMargins = marginPage.marginPreferences;
-                frameWidth = (marginPageBounds[3] - marginPageBounds[1]) - pageMargins.left - pageMargins.right;
-            }
-        } catch (e) {}
-    }
+    /* フレームの高さと幅（縮小図と同じ計算）/ Frame height and width (same computation as the thumbnail) */
+    var frameHeight = resolveFrameHeight(frameContext, readHeightSettings());
+    var frameWidth  = resolveFrameWidth(frameContext, readWidthMode());
 
     // ---------------------------------------
     // フレーム作成 / Frame creation
@@ -1761,32 +2193,16 @@ function getParentPage(textObject) {
      * @returns {void}
      */
     function createGraphicFrameOnPage() {
-        var destinationPage;
-        if (hasNoSelection) {
-            destinationPage = app.activeWindow.activePage;
-        } else if (isInsertionPoint) {
-            var insertionFrame = getInsertionPointTextFrame(selectedText);
-            destinationPage = insertionFrame ? insertionFrame.parentPage : null;
-        } else {
-            destinationPage = getParentPage(selectedText);
-        }
+        var destinationPage = resolveDestinationPage(frameContext);
 
         if (!destinationPage) {
             alert(getLabel("alert.parentPageError"));
             return;
         }
 
-        var frameTop, frameLeft;
-        if (hasTextBounds) {
-            frameTop  = selectionBounds[0];
-            frameLeft = selectionBounds[1];
-        } else {
-            /* 挿入ポイント・未選択時はマージン左上を基準にする / Anchor to the top-left margin for insertion points and empty selections */
-            var pageMargins = destinationPage.marginPreferences;
-            var destinationBounds = destinationPage.bounds;
-            frameTop  = destinationBounds[0] + pageMargins.top;
-            frameLeft = destinationBounds[1] + pageMargins.left;
-        }
+        var frameTopLeft = resolveFrameTopLeft(frameContext, destinationPage);
+        var frameTop  = frameTopLeft[0];
+        var frameLeft = frameTopLeft[1];
 
         var graphicRectangle = destinationPage.rectangles.add();
         graphicRectangle.geometricBounds = [frameTop, frameLeft, frameTop + frameHeight, frameLeft + frameWidth];
