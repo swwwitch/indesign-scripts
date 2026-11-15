@@ -14,6 +14,7 @@ Inserts a given number of pages right after the current page, carrying over the 
 
 - Shows the current page name and the applied parent page in the dialog
 - Prompts for the number of pages to insert (default 2)
+- Shows a thumbnail of the spreads after insertion (inserted pages in blue, the current page with a thick frame, letters for the parent page prefixes; right-to-left binding runs right to left)
 - Applies the current parent page to every inserted page
 - Adds pages at document level so they reflow into the correct spreads
 
@@ -33,13 +34,14 @@ Inserts a given number of pages right after the current page, carrying over the 
 | Item | Value |
 | --- | --- |
 | File | `jsx/page/IdAddPagesUsingCurrentMaster.jsx` |
-| Version | v1.3.5 |
+| Version | v1.4.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2025-06-26 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-15 |
 | Article | https://note.com/dtp_tranist/n/n2d1a76097a39 |
 
 ### Update History
+- v1.4.0 (2026-11-15) Added a thumbnail of the spreads after insertion to the dialog. It redraws as you change the page count and shows which pages switch sides
 - v1.3.5 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.4 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.3 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

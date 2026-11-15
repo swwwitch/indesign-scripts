@@ -6,7 +6,7 @@ Script-ID=com.swwwitch.indesign.IdAddPagesUsingCurrentMaster
 Name=現在の親ページを引き継いでページを挿入
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.3.5
+Version=1.4.0
 Release-Date=2025-06-26
 Description-BEGIN
 現在のページに適用されている親（マスター）ページを引き継いだまま、指定した枚数のページを直後に挿入します。
@@ -41,10 +41,10 @@ https://github.com/swwwitch/indesign-scripts/blob/main/readme-en/IdAddPagesUsing
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "IdAddPagesUsingCurrentMaster"; /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-06-26";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-11-05";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-11-15";                   /* 更新日 / last updated */
 
 var SCRIPT_DESCRIPTION_JA = "現在の親ページを引き継いでページを挿入"; /* README の見出し / README title (Japanese) */
 
@@ -147,6 +147,14 @@ function trimButtonHeight(targetButton, trimPixels) {
 }
 
 // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+/* 挿入後の見開きの縮小図 / Thumbnail of the spreads after insertion */
+var THUMBNAIL_SIZE = [220, 76];            /* 描画域（幅は最小幅。ダイアログの幅いっぱいに伸ばす）/ canvas (minimum width; fills the dialog width) */
+var THUMBNAIL_PADDING = 8;                 /* 描画域の内側の余白 / inner padding */
+var THUMBNAIL_PAGE_HEIGHT = 40;            /* ページの高さの上限（px）/ maximum page height (px) */
+var THUMBNAIL_SPREAD_GAP = 8;              /* 見開きどうしの間隔（px）/ gap between spreads (px) */
+var THUMBNAIL_ELLIPSIS_GAP = 14;           /* 省いたページの位置にあける間隔（px）/ gap where pages are left out (px) */
+var THUMBNAIL_MAX_INSERTED_PAGES = 16;     /* これより多く挿入するときは、前後8ページずつだけ描く / beyond this, draw only the first and last 8 inserted pages */
 
 // UI の明暗（再利用パーツ） / UI theme (reusable)
 
@@ -1086,7 +1094,11 @@ var LABELS = {
             en: "Decrease (Shift-click to snap to 10s, Option-click by 0.1)"
         },
         stepUpInteger: { ja: "値を増やす（shift＋クリックで10の倍数へ）", en: "Increase (Shift-click to snap to 10s)" },
-        stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" }
+        stepDownInteger: { ja: "値を減らす（shift＋クリックで10の倍数へ）", en: "Decrease (Shift-click to snap to 10s)" },
+        thumbnail: {
+            ja: "挿入後の見開きの縮小図です。青が挿入するページ、太枠が現在のページ、ページ内の文字は親ページの接頭辞です。",
+            en: "Thumbnail of the spreads after insertion. Blue pages are inserted, the thick frame is the current page, and the letters are the parent page prefixes."
+        }
     },
     undo: {
         insertPages: { ja: "ページを挿入", en: "Insert Pages" }
@@ -1131,6 +1143,311 @@ function isMasterPage(targetPage) {
         return (targetPage.parent instanceof MasterSpread);
     } catch (e) {
         return false;
+    }
+}
+
+// =========================================
+// 縮小図 / Spread thumbnail
+// =========================================
+
+var THUMBNAIL_UI_DARK = isDarkUI();
+var THUMBNAIL_COLORS = {
+    background:  THUMBNAIL_UI_DARK ? [0.16, 0.16, 0.16, 1] : [0.90, 0.90, 0.90, 1], /* 地 / background */
+    page:        [1, 1, 1, 1],                                                     /* 既存のページ / existing page */
+    pageFrame:   THUMBNAIL_UI_DARK ? [0.55, 0.55, 0.55, 1] : [0.50, 0.50, 0.50, 1], /* ページの枠 / page frame */
+    inserted:    [0.74, 0.84, 0.97, 1],                                            /* 挿入するページ / inserted page */
+    accent:      THUMBNAIL_UI_DARK ? [0.40, 0.65, 1.00, 1] : [0.10, 0.40, 0.85, 1], /* 現在のページの枠・挿入するページの枠 / current and inserted page frames */
+    prefix:      [0.40, 0.40, 0.40, 1],                                            /* 親ページの接頭辞 / parent page prefix */
+    label:       THUMBNAIL_UI_DARK ? [0.85, 0.85, 0.85, 1] : [0.20, 0.20, 0.20, 1]  /* 現在のページ名 / current page name */
+};
+
+// 縮小図（再利用パーツ） / Thumbnail canvas (reusable)
+
+var thumbnailFontCache = {}; /* 文字サイズごとの書体 / fonts per size */
+
+/**
+ * 縮小図を自作描画する描画域（group）を追加する
+ * @param {Window|Panel|Group} parent - 追加先
+ * @param {number[]} canvasSize - [幅, 高さ]（px）。fillWidth のときの幅は最小幅
+ * @param {Function} drawFn - 描くたびに drawFn(canvasGraphics, canvasWidth, canvasHeight) で呼ぶ関数
+ * @param {boolean} [fillWidth] - true なら親の幅いっぱいに伸ばす（ダイアログの幅は広げない）
+ * @returns {Group} 描画域
+ */
+function addThumbnailCanvas(parent, canvasSize, drawFn, fillWidth) {
+    var thumbnailCanvas = parent.add("group");
+    thumbnailCanvas.preferredSize = [canvasSize[0], canvasSize[1]];
+    thumbnailCanvas.minimumSize = [canvasSize[0], canvasSize[1]];
+    thumbnailCanvas.maximumSize = [fillWidth ? 10000 : canvasSize[0], canvasSize[1]];
+    if (fillWidth) thumbnailCanvas.alignment = ["fill", "top"];
+    thumbnailCanvas.onDraw = function () {
+        var drawnSize = thumbnailCanvas.size;
+        drawFn(thumbnailCanvas.graphics, drawnSize.width, drawnSize.height);
+    };
+    return thumbnailCanvas;
+}
+
+/**
+ * 縮小図を描き直す（group には notify() が無いので、隠して再表示する）
+ * @param {Group} thumbnailCanvas - addThumbnailCanvas() の戻り値
+ * @returns {void}
+ */
+function redrawThumbnailCanvas(thumbnailCanvas) {
+    thumbnailCanvas.hide();
+    thumbnailCanvas.show();
+}
+
+/**
+ * 縮小図に矩形を塗る（rectPath の前に newPath を呼ばないとパスが重なって線画になる）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {number} left - 左（px）
+ * @param {number} top - 上（px）
+ * @param {number} width - 幅（px）
+ * @param {number} height - 高さ（px）
+ * @param {number[]} color - RGBA
+ * @returns {void}
+ */
+function fillThumbnailRect(canvasGraphics, left, top, width, height, color) {
+    canvasGraphics.newPath();
+    canvasGraphics.rectPath(left, top, width, height);
+    canvasGraphics.fillPath(canvasGraphics.newBrush(canvasGraphics.BrushType.SOLID_COLOR, color));
+}
+
+/**
+ * 縮小図に矩形の枠を描く（1px の線が内側に収まるよう 0.5px 内に寄せる）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {number} left - 左（px）
+ * @param {number} top - 上（px）
+ * @param {number} width - 幅（px）
+ * @param {number} height - 高さ（px）
+ * @param {number[]} color - RGBA
+ * @returns {void}
+ */
+function strokeThumbnailRect(canvasGraphics, left, top, width, height, color) {
+    canvasGraphics.newPath();
+    canvasGraphics.rectPath(left + 0.5, top + 0.5, Math.max(width - 1, 0), Math.max(height - 1, 0));
+    canvasGraphics.strokePath(canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, color, 1));
+}
+
+/**
+ * 縮小図の文字の書体を返す（作れない環境ではコントロールの書体を使う）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {number} fontSize - 文字サイズ（px。InDesign では無視される）
+ * @returns {ScriptUIFont} 書体
+ */
+function getThumbnailFont(canvasGraphics, fontSize) {
+    if (thumbnailFontCache[fontSize]) return thumbnailFontCache[fontSize];
+    try {
+        thumbnailFontCache[fontSize] = ScriptUI.newFont(canvasGraphics.font.name, "REGULAR", fontSize);
+    } catch (e) {
+        thumbnailFontCache[fontSize] = canvasGraphics.font;
+    }
+    return thumbnailFontCache[fontSize];
+}
+
+/**
+ * 文字列の幅と高さを測る（measureString は配列か {width, height} で返る）
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {string} text - 文字列
+ * @param {ScriptUIFont} font - 書体
+ * @returns {number[]} [幅, 高さ]（px）
+ */
+function measureThumbnailText(canvasGraphics, text, font) {
+    var measured = canvasGraphics.measureString(text, font);
+    if (measured.width !== undefined) return [measured.width, measured.height];
+    return [measured[0], measured[1]];
+}
+
+// 縮小図（再利用パーツ）ここまで / End of the reusable thumbnail canvas
+
+/**
+ * 親ページの接頭辞を返す（［なし］や読めないときは空文字）
+ * @param {Page} targetPage - ページ
+ * @returns {string} 接頭辞
+ */
+function getAppliedMasterPrefix(targetPage) {
+    try {
+        var appliedMaster = targetPage.appliedMaster;
+        return (appliedMaster && appliedMaster.isValid) ? appliedMaster.namePrefix : "";
+    } catch (e) {
+        return "";
+    }
+}
+
+/**
+ * 縮小図に使う、ドキュメントのページ構成を読む（ダイアログの前に1回だけ。ページごとの接頭辞は描くときに読んで控える）
+ * @param {Document} targetDocument - ドキュメント
+ * @param {Page} currentPage - 現在のページ
+ * @param {MasterSpread|null} appliedMaster - 挿入するページに適用する親ページ
+ * @returns {Object} ページ数・現在のページの位置・見開きと綴じ方・ページの縦横比・接頭辞の控え
+ */
+function collectSpreadContext(targetDocument, currentPage, appliedMaster) {
+    var documentPreferences = targetDocument.documentPreferences;
+    var isRightToLeft = (documentPreferences.pageBinding === PageBindingOptions.RIGHT_TO_LEFT);
+    var isFacing = documentPreferences.facingPages;
+    /* 綴じ方の側から見て表（奇数）側に来るページから始まるときは、1ページ目が単独になる
+       When the first page sits on the recto side, it stands alone in the first spread */
+    var rectoSide = isRightToLeft ? PageSideOptions.LEFT_HAND : PageSideOptions.RIGHT_HAND;
+    var firstPageIsRecto = isFacing && targetDocument.pages[0].side === rectoSide;
+    return {
+        documentPages: targetDocument.pages,
+        pageCount: targetDocument.pages.length,
+        currentIndex: currentPage.documentOffset,
+        currentName: currentPage.name,
+        isFacing: isFacing,
+        isRightToLeft: isRightToLeft,
+        spreadOffset: firstPageIsRecto ? 1 : 0,
+        pageAspect: documentPreferences.pageWidth / documentPreferences.pageHeight,
+        insertedPrefix: appliedMaster ? appliedMaster.namePrefix : "",
+        prefixCache: {}
+    };
+}
+
+/**
+ * 挿入後のページ番号（0始まり）が何番目の見開きに入るか（見開きでなければページごと）
+ * @param {Object} spreadContext - collectSpreadContext() の戻り値
+ * @param {number} resultIndex - 挿入後のページの位置（0始まり）
+ * @returns {number} 見開きの番号
+ */
+function getResultSpreadIndex(spreadContext, resultIndex) {
+    if (!spreadContext.isFacing) return resultIndex;
+    return Math.floor((resultIndex + spreadContext.spreadOffset) / 2);
+}
+
+/**
+ * 挿入後の並びのうち、現在のページの見開きから、挿入したページの次のページの見開きまでを、描く順のページの一覧にする。
+ * 挿入するページが多いときは、前後 THUMBNAIL_MAX_INSERTED_PAGES / 2 ページずつだけ残す
+ * @param {Object} spreadContext - collectSpreadContext() の戻り値
+ * @param {number} insertCount - 挿入するページ数（0 なら今の並び）
+ * @returns {Object[]} ページ（resultIndex / spreadIndex / kind: "current" | "inserted" | "existing" / prefix）
+ */
+function buildInsertThumbnail(spreadContext, insertCount) {
+    var currentIndex = spreadContext.currentIndex;
+    var resultCount = spreadContext.pageCount + insertCount;
+    var firstSpread = getResultSpreadIndex(spreadContext, currentIndex);
+    var lastSpread = getResultSpreadIndex(spreadContext, Math.min(currentIndex + insertCount + 1, resultCount - 1));
+    var keepEachSide = THUMBNAIL_MAX_INSERTED_PAGES / 2;
+
+    var thumbnailPages = [];
+    for (var resultIndex = 0; resultIndex < resultCount; resultIndex++) {
+        var spreadIndex = getResultSpreadIndex(spreadContext, resultIndex);
+        if (spreadIndex < firstSpread) continue;
+        if (spreadIndex > lastSpread) break;
+
+        var insertedOrdinal = resultIndex - currentIndex; /* 1 から insertCount までが挿入するページ / 1..insertCount are inserted */
+        if (insertedOrdinal >= 1 && insertedOrdinal <= insertCount) {
+            if (insertCount > THUMBNAIL_MAX_INSERTED_PAGES
+                    && insertedOrdinal > keepEachSide && insertedOrdinal <= insertCount - keepEachSide) continue;
+            thumbnailPages.push({ resultIndex: resultIndex, spreadIndex: spreadIndex, kind: "inserted", prefix: spreadContext.insertedPrefix });
+            continue;
+        }
+        var documentIndex = (resultIndex <= currentIndex) ? resultIndex : resultIndex - insertCount;
+        if (spreadContext.prefixCache[documentIndex] === undefined) {
+            spreadContext.prefixCache[documentIndex] = getAppliedMasterPrefix(spreadContext.documentPages[documentIndex]);
+        }
+        thumbnailPages.push({
+            resultIndex: resultIndex,
+            spreadIndex: spreadIndex,
+            kind: (resultIndex === currentIndex) ? "current" : "existing",
+            prefix: spreadContext.prefixCache[documentIndex]
+        });
+    }
+    return thumbnailPages;
+}
+
+/**
+ * 挿入後の見開きを縮小して描く。挿入するページは青、現在のページは太枠、省いたページの位置は点3つで示す。
+ * 右綴じは見開きもページも右から左へ並べる
+ * @param {ScriptUIGraphics} canvasGraphics - 描画先
+ * @param {number} canvasWidth - 描画域の幅（px）
+ * @param {number} canvasHeight - 描画域の高さ（px）
+ * @param {Object} spreadContext - collectSpreadContext() の戻り値
+ * @param {Object[]} thumbnailPages - buildInsertThumbnail() の戻り値
+ * @returns {void}
+ */
+function drawInsertThumbnail(canvasGraphics, canvasWidth, canvasHeight, spreadContext, thumbnailPages) {
+    fillThumbnailRect(canvasGraphics, 0, 0, canvasWidth, canvasHeight, THUMBNAIL_COLORS.background);
+    if (!thumbnailPages || thumbnailPages.length === 0) return;
+
+    /* ページの左端を、ページ幅を単位とした数と固定の間隔（px）に分けて積む / accumulate page slots and fixed gaps separately */
+    var slotPositions = [], ellipsisPositions = [], gapPixels = 0;
+    for (var i = 0; i < thumbnailPages.length; i++) {
+        if (i > 0) {
+            var previousPage = thumbnailPages[i - 1];
+            if (thumbnailPages[i].resultIndex - previousPage.resultIndex > 1) {
+                ellipsisPositions.push({ slots: i, gap: gapPixels });
+                gapPixels += THUMBNAIL_ELLIPSIS_GAP;
+            } else if (thumbnailPages[i].spreadIndex !== previousPage.spreadIndex) {
+                gapPixels += THUMBNAIL_SPREAD_GAP;
+            }
+        }
+        slotPositions.push({ slots: i, gap: gapPixels });
+    }
+
+    var labelFont = getThumbnailFont(canvasGraphics, 9);
+    var labelHeight = measureThumbnailText(canvasGraphics, "0", labelFont)[1];
+    var availableWidth = canvasWidth - THUMBNAIL_PADDING * 2;
+    var availableHeight = canvasHeight - THUMBNAIL_PADDING * 2 - labelHeight - 2;
+    var pageHeight = Math.min(THUMBNAIL_PAGE_HEIGHT, availableHeight);
+    var pageWidth = pageHeight * spreadContext.pageAspect;
+    if (pageWidth * thumbnailPages.length + gapPixels > availableWidth) {
+        pageWidth = Math.max(2, (availableWidth - gapPixels) / thumbnailPages.length);
+        pageHeight = pageWidth / spreadContext.pageAspect;
+    }
+    var totalWidth = pageWidth * thumbnailPages.length + gapPixels;
+    var stripLeft = (canvasWidth - totalWidth) / 2;
+    var stripTop = THUMBNAIL_PADDING + Math.max(0, (availableHeight - pageHeight) / 2);
+
+    /**
+     * 並びの位置から描く左端を求める（右綴じは左右を反転）
+     * @param {{slots: number, gap: number}} position - ページ幅の数と間隔
+     * @param {number} itemWidth - 描くものの幅（px）
+     * @returns {number} 左端（px）
+     */
+    function toCanvasLeft(position, itemWidth) {
+        var offset = position.slots * pageWidth + position.gap;
+        return Math.round(spreadContext.isRightToLeft ? stripLeft + totalWidth - offset - itemWidth : stripLeft + offset);
+    }
+
+    var prefixPen = canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, THUMBNAIL_COLORS.prefix, 1);
+    var labelPen = canvasGraphics.newPen(canvasGraphics.PenType.SOLID_COLOR, THUMBNAIL_COLORS.label, 1);
+    var roundedWidth = Math.max(2, Math.round(pageWidth));
+    var roundedHeight = Math.max(2, Math.round(pageHeight));
+    var roundedTop = Math.round(stripTop);
+    for (var j = 0; j < thumbnailPages.length; j++) {
+        var thumbnailPage = thumbnailPages[j];
+        var pageLeft = toCanvasLeft(slotPositions[j], pageWidth);
+        var isInserted = (thumbnailPage.kind === "inserted");
+        fillThumbnailRect(canvasGraphics, pageLeft, roundedTop, roundedWidth, roundedHeight,
+            isInserted ? THUMBNAIL_COLORS.inserted : THUMBNAIL_COLORS.page);
+        strokeThumbnailRect(canvasGraphics, pageLeft, roundedTop, roundedWidth, roundedHeight,
+            isInserted ? THUMBNAIL_COLORS.accent : THUMBNAIL_COLORS.pageFrame);
+
+        if (thumbnailPage.prefix) {
+            var prefixSize = measureThumbnailText(canvasGraphics, thumbnailPage.prefix, labelFont);
+            if (prefixSize[0] + 4 <= roundedWidth && prefixSize[1] + 2 <= roundedHeight) {
+                canvasGraphics.drawString(thumbnailPage.prefix, prefixPen,
+                    Math.round(pageLeft + (roundedWidth - prefixSize[0]) / 2),
+                    Math.round(roundedTop + (roundedHeight - prefixSize[1]) / 2), labelFont);
+            }
+        }
+
+        if (thumbnailPage.kind === "current") {
+            /* 太枠は2重の1px枠で描く / draw the thick frame as two 1px frames */
+            strokeThumbnailRect(canvasGraphics, pageLeft, roundedTop, roundedWidth, roundedHeight, THUMBNAIL_COLORS.accent);
+            strokeThumbnailRect(canvasGraphics, pageLeft + 1, roundedTop + 1, roundedWidth - 2, roundedHeight - 2, THUMBNAIL_COLORS.accent);
+            var nameSize = measureThumbnailText(canvasGraphics, spreadContext.currentName, labelFont);
+            var nameLeft = Math.max(0, Math.min(canvasWidth - nameSize[0], pageLeft + (roundedWidth - nameSize[0]) / 2));
+            canvasGraphics.drawString(spreadContext.currentName, labelPen, Math.round(nameLeft), roundedTop + roundedHeight + 2, labelFont);
+        }
+    }
+
+    /* 省いたページの位置に点を3つ / three dots where pages are left out */
+    for (var k = 0; k < ellipsisPositions.length; k++) {
+        var gapLeft = toCanvasLeft(ellipsisPositions[k], THUMBNAIL_ELLIPSIS_GAP);
+        var dotTop = Math.round(stripTop + pageHeight / 2) - 1;
+        for (var dotIndex = 0; dotIndex < 3; dotIndex++) {
+            fillThumbnailRect(canvasGraphics, gapLeft + 2 + dotIndex * 4, dotTop, 2, 2, THUMBNAIL_COLORS.accent);
+        }
     }
 }
 
@@ -1221,7 +1538,8 @@ function showPageCountDialog(defaultPageCount) {
     pageCountStepperGroup.spacing = 0;
     pageCountStepperGroup.margins = 0;
     var pageCountInput;
-    var pageCountStepper = addStepper(pageCountStepperGroup, function () { return pageCountInput; }, { step: 1, min: 1, integer: true });
+    var pageCountStepper = addStepper(pageCountStepperGroup, function () { return pageCountInput; },
+        { step: 1, min: 1, integer: true, onStep: function () { updateThumbnail(); } });
     pageCountInput = pageCountStepperGroup.add("edittext", undefined, defaultPageCount.toString());
     pageCountInput.characters = 5;
     bindSteppedArrowKeys(pageCountInput, pageCountStepper);
@@ -1230,6 +1548,26 @@ function showPageCountDialog(defaultPageCount) {
     pageCountLabel.helpTip = getLabel("tooltip.insertAfter");
 
     matchLabelWidthsToWidest(rowLabelControls);
+
+    /* 挿入後の見開きの縮小図（ダイアログの幅いっぱい）/ Thumbnail of the spreads after insertion (full dialog width) */
+    var spreadContext = collectSpreadContext(app.activeDocument, currentPage, currentAppliedMaster);
+    var thumbnailPages = null;
+    var thumbnailCanvas = addThumbnailCanvas(pageInsertDialog, THUMBNAIL_SIZE, function (canvasGraphics, canvasWidth, canvasHeight) {
+        drawInsertThumbnail(canvasGraphics, canvasWidth, canvasHeight, spreadContext, thumbnailPages);
+    }, true);
+    thumbnailCanvas.helpTip = getLabel("tooltip.thumbnail");
+
+    /**
+     * 入力中のページ数で縮小図を作り直して描き直す（数値でなければ挿入なしの並び）
+     * @returns {void}
+     */
+    function updateThumbnail() {
+        thumbnailPages = buildInsertThumbnail(spreadContext, parsePageCount(pageCountInput.text));
+        redrawThumbnailCanvas(thumbnailCanvas);
+    }
+    pageCountInput.onChanging = updateThumbnail;
+    pageCountInput.onChange = updateThumbnail;
+    updateThumbnail();
 
     /* ボタン行（左が空なので中央に並ぶ）/ Button row (centered because the left group is empty) */
     var buttonRow = addButtonRow(pageInsertDialog);
