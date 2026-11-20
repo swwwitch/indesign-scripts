@@ -8,7 +8,7 @@
 
 ---
 
-A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword and runs the selected script on the spot. Folders and file names are shown in two side-by-side lists.
+A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword and runs the selected script on the spot. Folders and file names are shown in two side-by-side lists, with each script's description next to its file name.
 
 ### Features
 
@@ -53,7 +53,7 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 - Undo grouping is left to the launched script (it is not wrapped in `doScript`).
 - Only ASCII words of three characters or more from file names go on the first row of keyword buttons. Japanese file names can still be filtered, but they produce no buttons on the first row.
 - The second row takes runs of katakana and runs of kanji (two characters or more) from the descriptions as words, up to eight, skipping a few generic ones (`スクリプト`, `選択`, `指定`, `複数`). Each row shows only the buttons that fit the dialog width.
-- Descriptions are read from the `var SCRIPT_DESCRIPTION_JA = "…";` line near the top of each script. Scripts without that line and `.jsxbin` files show an empty column. A folder where no script has a description gets the plain file-name list. Long file names are cut short with "..." (the search still uses the full name).
+- Descriptions are read from the `var SCRIPT_DESCRIPTION_JA = "…";` line near the top of each script. Scripts without that line and `.jsxbin` files show an empty column. A folder where no script has a description gets the plain file-name list (with up to two rows of English buttons). Set `SHOW_DESCRIPTION_COLUMN` near the top of the script to `false` to always use that layout and skip reading the descriptions. Long file names are cut short with "..." (the search still uses the full name).
 - If the launcher itself sits in the target folder, it is left out of the list.
 - Alias folders are not followed, to avoid loops.
 - "Reveal in Finder" uses `/Applications/RevealInFinder.app`. Without it, the enclosing folder is opened instead (as on platforms other than macOS).

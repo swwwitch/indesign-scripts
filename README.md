@@ -288,6 +288,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdDeleteFromCurs
 
 詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdDeleteFromCursorToEnd.md)／[note記事](https://note.com/dtp_tranist/n/nf0b1e27e1f81)
 
+### 選択したテキストをタグ付きテキストとして編集
+
+選択したテキストをタグ付きテキストに書き出してダイアログボックスに表示し、編集した結果を同じ位置に読み込み直します。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdEditAsTaggedText.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdEditAsTaggedText.md)
+
 ### ダイアログでテキストを編集して置換・挿入
 
 複数行入力ダイアログでテキストを編集し、選択範囲の置換・カーソル位置への挿入・新規テキストフレーム作成を行います。
@@ -333,6 +341,14 @@ InDesign の［段落境界線］ダイアログボックスを常駐パレッ�
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdParagraphRulesPalette.jsx
 
 詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdParagraphRulesPalette.md)／[note記事](https://note.com/dtp_tranist/n/n4f45fb194ac1)
+
+### 流し込んだタグ付きテキストの記述を書式に変換
+
+テキストフレームに文字のまま入っているタグ付きテキストの記述を、タグ付きテキストとして読み込み直して書式に変換します。何も選択していないときは、タグの記述を含むストーリーをすべて変換します。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/text/IdRecomposeTaggedText.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdRecomposeTaggedText.md)
 
 ### 文字の水平・垂直比率を 100% に戻す
 

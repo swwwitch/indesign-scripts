@@ -1,5 +1,18 @@
 # Change Log
 
+## 20261121
+
+### 新しいスクリプトを追加
+
+- [流し込んだタグ付きテキストの記述を書式に変換](readme-ja/IdRecomposeTaggedText.md)：テキストフレームに文字のまま入っているタグ付きテキストの記述を、一時ファイルに書き出して同じ位置に読み込み直し、書式に変換する。選択したフレーム（グループの中も含む）・文字の範囲・セルが対象で、何も選択していないときはタグの記述を含むストーリーすべて。タグの無い段落は元の段落スタイルのまま。表・アンカー付きオブジェクト・脚注などを含むテキストは変換せず件数を表示する。1回の取り消しで戻る。発想は id_recomposeTaggedText_a.jsx（z-、2012）
+- [選択したテキストをタグ付きテキストとして編集](readme-ja/IdEditAsTaggedText.md)：選択したテキスト（カーソル・テキストフレームならストーリー全体、セルの中ならそのセル）をタグ付きテキストに書き出してダイアログボックスに表示し、編集した結果を同じ位置に読み込み直す。日本語は文字のまま表示し、1行が1段落、強制改行は `<0x000A>`。段落の先頭の ParaStyle を消しても元の段落スタイルのまま。表・アンカー付きオブジェクト・脚注などを含むテキストは対象外。1回の取り消しで戻る
+
+### 調整
+
+- 基本情報の元を先頭の SCRIPTMETA に一本化（70本）。SCRIPTMETA 2.1 の多言語形式（Name[en]・Description の [ja]／[en]・Tags・独自項目 X-com.swwwitch-*）に書き換え、`var SCRIPT_* = "…"` の基本情報ブロックとヘッダーの ### 概要／### Overview を削除。スクリプトは実行時に共通部品 ScriptMeta（スクリプト情報）で SCRIPTMETA を読み、これまでと同じ SCRIPT_NAME・SCRIPT_VERSION などを用意する（設定の保存名・ダイアログの位置は変わらない）。helpers/sync-scriptmeta.py は SCRIPTMETA を元に Name・Tags・Source-URL・部品をそろえるツールに変更
+- ［このスクリプトについて］の［Finder に表示］で、Path Finder が起動していれば Path Finder で選択表示（/Applications/OpenInFileViewer.app。無ければこれまでどおり RevealInFinder.app）（共通部品 VersionFooter v1.3.0、各スクリプトのバージョンは据え置き）
+- IdScriptLauncher：右の列の説明を SCRIPTMETA の Name から読む
+
 ## 20261120
 
 ### 機能追加
