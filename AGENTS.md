@@ -26,3 +26,6 @@ Update checking is not used: write no `Meta-URL` and no `SCRIPTMETA.txt`.
   call `addVersionFooter(window)` after every control is added, right before `show()`. It draws the script name and version (left) and "DTP Transit" (right) small and gray
   at the bottom left (dot glyphs in `onDraw`; needs the UITheme part for `isDarkUI()`) and takes over the button row's bottom margin. Progress, confirm and other
   small sub-windows get no footer. InDesign's ScriptUI ignores font sizes, which is why the digits are drawn as dots
+  Clicking the name and version opens the part's About This Script dialog (script name with a copy button, the Japanese README title,
+  version, README / source code / article links, Show in Finder). It reads the `SCRIPT_*` basic info with `typeof` and carries its own
+  labels (`VERSION_INFO_LABELS`), so paste the whole part unchanged; do not add its labels to `LABELS`

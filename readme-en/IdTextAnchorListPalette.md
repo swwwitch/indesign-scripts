@@ -52,15 +52,16 @@ Esc works as Close.
 | Item | Value |
 | --- | --- |
 | File | `jsx/document/IdTextAnchorListPalette.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-06 |
-| Last updated | 2026-11-06 |
+| Last updated | 2026-11-20 |
 | Article | https://note.com/dtp_tranist/n/n23fa2f14621f |
 | Tested with | InDesign 2026 (v21.6) / macOS |
 
 ### Update History
 
+- v1.1.1 (2026-11-20): Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.0 (2026-11-06): Added Delete. Several anchors can now be chosen in the list
 - v1.0.0 (2026-11-06): Initial release
 

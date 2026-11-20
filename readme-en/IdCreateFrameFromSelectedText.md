@@ -35,13 +35,14 @@ Creates a graphic frame sized from the selected text, either inline (anchored) o
 | Item | Value |
 | --- | --- |
 | File | `jsx/frame/IdCreateFrameFromSelectedText.jsx` |
-| Version | v2.8.0 |
+| Version | v2.8.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-03-17 |
-| Last updated | 2026-11-15 |
+| Last updated | 2026-11-20 |
 | Article | https://note.com/dtp_tranist/n/ndd1b7c5246a3 |
 
 ### Update History
+- v2.8.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v2.8.0 (2026-11-15) Added a thumbnail of the frame to be created to the dialog. It redraws as you change the placement, width or height. Fixed the frame being offset from the margin guides on left-hand pages of a spread when an insertion point or nothing was selected
 - v2.7.5 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v2.7.4 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)

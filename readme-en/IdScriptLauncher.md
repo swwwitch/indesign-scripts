@@ -63,13 +63,14 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Item | Value |
 | --- | --- |
 | File | `jsx/runner/IdScriptLauncher.jsx` |
-| Version | v1.3.3 |
+| Version | v1.3.4 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-08-26 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-20 |
 | Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
 ### Update History
+- v1.3.4 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.3.3 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.2 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.3.1 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)

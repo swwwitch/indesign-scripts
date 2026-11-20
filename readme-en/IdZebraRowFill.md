@@ -53,13 +53,14 @@ Applies alternating (zebra) fills to the selected table cells, based on the row 
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdZebraRowFill.jsx` |
-| Version | v1.4.5 |
+| Version | v1.4.6 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-20 |
 | Article | https://note.com/dtp_tranist/n/n20ff60f6b508 |
 
 ### Update History
+- v1.4.6 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.4.5 (2026-11-06) Fixed the "dialog is undefined" error that stopped the script at launch
 - v1.4.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.4.3 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)

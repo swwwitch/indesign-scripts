@@ -40,14 +40,15 @@ Finds the paragraphs that contain nothing but a table in the selection, the stor
 | Item | Value |
 | --- | --- |
 | File | `jsx/style/IdApplyStyleToTableParagraphs.jsx` |
-| Version | v1.1.0 |
+| Version | v1.1.1 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-11-06 |
-| Last updated | 2026-11-06 |
+| Last updated | 2026-11-20 |
 | Article | https://note.com/dtp_tranist/n/na8313158d9ce |
 
 ### Update History
 
+- v1.1.1 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.0 (2026-11-06) Added a dialog box to choose the scope (selection, story or document) and the paragraph style
 - v1.0.0 (2026-11-06) First release
 

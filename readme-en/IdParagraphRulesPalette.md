@@ -45,14 +45,15 @@ Recreates InDesign's Paragraph Rules dialog box as a palette and sets the rule a
 | Item | Value |
 | --- | --- |
 | File | `jsx/text/IdParagraphRulesPalette.jsx` |
-| Version | v1.4.2 |
+| Version | v1.4.3 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-10-19 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-20 |
 | Article | https://note.com/dtp_tranist/n/n4f45fb194ac1 |
 
 ### Update History
 
+- v1.4.3 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.4.2 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 #### v1.4.1 (2026-10-21)
 

@@ -36,13 +36,14 @@ Merges adjacent cells with identical contents in the selected table. The dialog 
 | Item | Value |
 | --- | --- |
 | File | `jsx/table/IdCellMergeAuto.jsx` |
-| Version | v1.1.4 |
+| Version | v1.1.5 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-04-17 |
-| Last updated | 2026-11-05 |
+| Last updated | 2026-11-20 |
 | Article | https://note.com/dtp_tranist/n/na84f68305844 |
 
 ### Update History
+- v1.1.5 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.1.4 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.1.3 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
 - v1.1.2 (2026-10-04) Japanese labels now end with " :" (half-width space and colon) (shared part update)
