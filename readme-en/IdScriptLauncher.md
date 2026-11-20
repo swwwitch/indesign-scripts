@@ -14,7 +14,8 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 
 - Typing in the keyword field filters both the folder list and the file name list instantly (space-separated terms are AND-matched)
 - Matching ignores case, full-width vs. half-width, hiragana vs. katakana, and voiced/small kana differences
-- Words that appear often in the filtered results become one-click keyword buttons automatically
+- The column next to each file name shows the script's description (`SCRIPT_DESCRIPTION_JA`), and the keyword search covers it too. Drag the header divider to resize the columns
+- Words that appear often in the filtered results become one-click keyword buttons automatically (English words from file names on the first row, Japanese words from descriptions on the second)
 - A clear (×) button next to the keyword field empties it in one click, and is dimmed while the field is empty
 - "Include subdirectories" switches between the folders directly under the target folder and the whole tree
 - "Full path" switches the target folder display between the full path and a `~`-abbreviated one
@@ -50,7 +51,9 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 ### Notes and limitations
 
 - Undo grouping is left to the launched script (it is not wrapped in `doScript`).
-- Only ASCII words of three characters or more become keyword buttons. Japanese file names can still be filtered, but they never become buttons.
+- Only ASCII words of three characters or more from file names go on the first row of keyword buttons. Japanese file names can still be filtered, but they produce no buttons on the first row.
+- The second row takes runs of katakana and runs of kanji (two characters or more) from the descriptions as words, up to eight, skipping a few generic ones (`スクリプト`, `選択`, `指定`, `複数`). Each row shows only the buttons that fit the dialog width.
+- Descriptions are read from the `var SCRIPT_DESCRIPTION_JA = "…";` line near the top of each script. Scripts without that line and `.jsxbin` files show an empty column. A folder where no script has a description gets the plain file-name list. Long file names are cut short with "..." (the search still uses the full name).
 - If the launcher itself sits in the target folder, it is left out of the list.
 - Alias folders are not followed, to avoid loops.
 - "Reveal in Finder" uses `/Applications/RevealInFinder.app`. Without it, the enclosing folder is opened instead (as on platforms other than macOS).
@@ -63,13 +66,14 @@ A launcher that filters .jsx / .js / .jsxbin files in a chosen folder by keyword
 | Item | Value |
 | --- | --- |
 | File | `jsx/runner/IdScriptLauncher.jsx` |
-| Version | v1.3.4 |
+| Version | v1.4.0 |
 | Author | Masahiro Takano (@swwwitch) |
 | First release | 2026-08-26 |
 | Last updated | 2026-11-20 |
 | Article | https://note.com/dtp_tranist/n/n86fe7e6251ec |
 
 ### Update History
+- v1.4.0 (2026-11-20) Split the file name list into two columns; the right column shows each script's description (`SCRIPT_DESCRIPTION_JA`), which the keyword search now covers. Drag the header divider to resize the columns. Keyword buttons now take two rows: English words from the file names on the first, and up to eight frequent Japanese words from the descriptions on the second
 - v1.3.4 (2026-11-20) Clicking the script name and version at the bottom left opens About This Script (copy the script name, open the README and other links, show in Finder; shared part updated)
 - v1.3.3 (2026-11-05) Moved the version from the title bar to the bottom left of the dialog, small and dimmed (shared part added)
 - v1.3.2 (2026-10-19) Added space below the button row, and raised the width up to which a Cancel/OK-only row is centered to 240px (shared part update)
