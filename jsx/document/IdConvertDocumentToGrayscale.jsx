@@ -8,7 +8,7 @@ Name=ドキュメント全体を CMYK のモノクロにする（テキストは
 Name[en]=Turn the whole document into CMYK monochrome (text in K100)
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.0.0
+Version=1.1.0
 Release-Date=2026-11-21
 Tags=document,ドキュメント
 X-com.swwwitch-Script-Name=IdConvertDocumentToGrayscale
@@ -18,9 +18,9 @@ X-com.swwwitch-README-EN=https://github.com/swwwitch/indesign-scripts/blob/main/
 X-com.swwwitch-Source-URL=https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdConvertDocumentToGrayscale.jsx
 Description-BEGIN
 [ja]
-ドキュメントのカラーをすべて CMYK の K だけのグレーに変換し、テキストを K100 にします。最後に同じ濃さのスウォッチをまとめ、未使用のスウォッチを削除します。
+ドキュメントのカラーをすべて CMYK の K だけのグレーに変換し、テキストを K100 にします。リンクした AI・EPS は Illustrator で、PSD は Photoshop でモノクロにし、別名で保存してリンクを差し替えます。
 [en]
-Converts every color in the document to a CMYK gray that uses only K, and sets text to K100. Swatches of the same gray are merged and unused swatches are deleted at the end.
+Converts every color in the document to a CMYK gray that uses only K and sets text to K100. Linked AI and EPS files are turned monochrome in Illustrator and PSD files in Photoshop, saved under another name and relinked.
 Description-END
 SCRIPTMETA-END
 */
@@ -34,7 +34,9 @@ SCRIPTMETA-END
 - 配置した画像・グラフィックの中身は変換しません。
 - テキストの塗りと線の単色は K100（［黒］）にします。白（紙色・K0）は白のまま残します（KEEP_WHITE_TEXT）。
 - ロックしたレイヤーとオブジェクトも一時的に解除して処理し、終わったら元に戻します。
-- 1回の取り消しで戻せます。
+- リンクした AI・EPS・PSD があるときは、一緒に変換するか確認します。AI・EPS は Illustrator 版 ConvertDocumentToGrayscale と同じ処理、PSD は［グレースケール］にしてテキストレイヤーを黒に。同じフォルダーに「名前_gray」で保存してリンクを差し替えます（元のファイルは変更しない）。
+- 名前が「_gray」で終わるリンク、埋め込んだリンク、見つからないリンク、Illustrator・Photoshop で開いたままのファイルは対象外です。
+- 1回の取り消しで戻せます（保存したファイルは残ります）。
 
 ### Notes
 - The transparency blend space is set to CMYK.
@@ -44,7 +46,9 @@ SCRIPTMETA-END
 - The contents of placed images and graphics are not converted.
 - Solid fill and stroke colors of text become K100 ([Black]). White ([Paper], K0) stays white (KEEP_WHITE_TEXT).
 - Locked layers and objects are unlocked while processing, then restored.
-- A single Undo reverts everything.
+- When AI, EPS or PSD files are linked, the script asks whether to convert them too. AI and EPS files get the work of the Illustrator script ConvertDocumentToGrayscale; PSD files are set to Grayscale with black text layers. They are saved in the same folder as "name_gray" and relinked (the originals are not changed).
+- Links whose names end in "_gray", embedded and missing links, and files open in Illustrator or Photoshop are skipped.
+- A single Undo reverts everything (the saved files remain).
 */
 
 // =========================================
@@ -119,6 +123,102 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
 
     /* 白い文字（紙色・K0）は K100 にせず白のまま残す / Keep white text ([Paper], K0) white instead of K100 */
     var KEEP_WHITE_TEXT = true;
+
+    /* 保存するファイル名の末尾 / Suffix of the saved file names */
+    var OUTPUT_SUFFIX = "_gray";
+
+    /* 送り先のアプリ（"illustrator" "photoshop" は起動中の最新版。版を固定するなら "illustrator-31.0" など）
+       Target apps ("illustrator" / "photoshop" is the newest running version; pin one with e.g. "illustrator-31.0") */
+    var ILLUSTRATOR_TARGET = "illustrator";
+    var PHOTOSHOP_TARGET = "photoshop";
+
+    /* 1ファイルの処理を待つ秒数 / Seconds to wait for each file */
+    var FILE_TIMEOUT_SECONDS = 300;
+
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    // UIレイアウト（再利用パーツ） / UI layout (reusable)
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, spacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定（子は幅いっぱい。ボタンは alignment = "left" で広げない）
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, spacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * タブの共通設定
+     * @param {Tab} targetTab - 対象のタブ
+     * @param {number} [spacing] - 要素間隔（省略時は変えない）
+     * @returns {void}
+     */
+    function setupTab(targetTab, spacing) {
+        targetTab.orientation = "column";
+        targetTab.alignChildren = "fill";
+        targetTab.margins = TAB_MARGINS;
+        if (typeof spacing === "number") targetTab.spacing = spacing;
+    }
+
+    /**
+     * 横並びの行グループの共通設定（ボタン列など）。
+     * alignment と alignChildren を対で指定し、中のボタンが横に伸びたり天地がずれたりしないようにする
+     * @param {Group} rowGroup - 対象のグループ
+     * @param {string|string[]} [rowAlignment] - 横方向の alignment（省略時は "left"）。配列ならそのまま使う
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(rowGroup, rowAlignment, spacing) {
+        rowGroup.orientation = "row";
+        rowGroup.alignment = (rowAlignment instanceof Array) ? rowAlignment : [rowAlignment || "left", "center"];
+        rowGroup.alignChildren = ["left", "center"];
+        rowGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定した px だけ詰める（レイアウトが決まったあとに呼ぶ）
+     * @param {Button} targetButton - 対象のボタン
+     * @param {number} trimPixels - 詰める量（px）
+     * @returns {void}
+     */
+    function trimButtonHeight(targetButton, trimPixels) {
+        /* レイアウト前は size が無い / size is not set until the layout runs */
+        if (!targetButton.size) return;
+        targetButton.size = [targetButton.size.width, targetButton.size.height - trimPixels];
+    }
+
+    // UIレイアウト（再利用パーツ）ここまで / End of the reusable UI layout
+
+    var PROGRESS_BAR_WIDTH = 320;            /* 進行状況バーの幅 / progress bar width */
 
     // =========================================
     // ローカライズ / Localization
@@ -204,7 +304,26 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     // ローカライズ（再利用パーツ）ここまで / End of the reusable localization
 
     var LABELS = {
-        undoName: { ja: "ドキュメントを CMYK のモノクロにする", en: "Convert Document to CMYK Monochrome" }
+        undoName: { ja: "ドキュメントを CMYK のモノクロにする", en: "Convert Document to CMYK Monochrome" },
+        dialog: {
+            progressTitle: { ja: "ドキュメントを CMYK のモノクロにする", en: "Convert Document to CMYK Monochrome" }
+        },
+        progress: {
+            launching: { ja: "{app} を起動しています...", en: "Launching {app}..." },
+            converting: { ja: "リンクを変換中（{current} / {total}）: {name}", en: "Converting links ({current} / {total}): {name}" },
+            documentColors: { ja: "リンクを差し替えて、ドキュメントのカラーを変換しています...", en: "Relinking and converting the document colors..." }
+        },
+        alert: {
+            confirmLinks: {
+                ja: "リンクした {count} 個のファイル（AI・EPS は Illustrator、PSD は Photoshop）もモノクロにし、「{suffix}」を付けた別名で保存してリンクを差し替えますか？\n元のファイルは変更しません。［いいえ］のときは、ドキュメントのカラーだけを変換します。",
+                en: "Also turn the {count} linked files (AI and EPS in Illustrator, PSD in Photoshop) into monochrome, save them with \"{suffix}\" added to the name, and relink?\nThe original files are not changed. With No, only the document colors are converted."
+            },
+            done: { ja: "ドキュメントのカラーを変換し、リンクした {count} 個のファイルを変換して {links} 個のリンクを差し替えました。", en: "Converted the document colors, converted {count} linked files and relinked {links} links." },
+            failedHeader: { ja: "変換できなかったファイル :", en: "Files that could not be converted:" },
+            notLaunched: { ja: "{app} を起動できませんでした", en: "could not launch {app}" },
+            alreadyOpen: { ja: "{app} で開いています", en: "open in {app}" },
+            timeout: { ja: "時間切れ", en: "timed out" }
+        }
     };
 
     // =========================================
@@ -543,6 +662,576 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     }
 
     // =========================================
+    // リンクの収集 / Collect links
+    // =========================================
+
+    /**
+     * ファイルの拡張子から、処理するアプリの情報を返す
+     * @param {string} filePath - ファイルのパス
+     * @returns {Object|null} {target, appName, workerFuncs, entryName}。対象外の拡張子は null
+     */
+    function getConverterForFile(filePath) {
+        var extensionMatch = filePath.match(/\.([^.\/:]+)$/);
+        var extension = extensionMatch ? extensionMatch[1].toLowerCase() : "";
+        if (extension === "ai" || extension === "eps") return ILLUSTRATOR_CONVERTER;
+        if (extension === "psd") return PHOTOSHOP_CONVERTER;
+        return null;
+    }
+
+    /**
+     * 対象の AI・EPS・PSD のリンクを、ファイルごとにまとめて返す
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {Object[]} {filePath, converter, links} の配列（同じファイルのリンクは1つにまとめる）
+     */
+    function collectTargetLinkGroups(doc) {
+        var groupsByPath = {};
+        var linkGroups = [];
+        var convertedSuffix = OUTPUT_SUFFIX.toLowerCase();
+        for (var i = 0; i < doc.links.length; i++) {
+            var link = doc.links[i];
+            var filePath = link.filePath;
+            var converter = getConverterForFile(filePath);
+            if (!converter) continue;
+            /* 名前が OUTPUT_SUFFIX で終わるものは変換済み / Names ending in OUTPUT_SUFFIX are already converted */
+            var baseName = filePath.replace(/\.[^.\/:]+$/, "").toLowerCase();
+            if (baseName.slice(-convertedSuffix.length) === convertedSuffix) continue;
+            if (link.status === LinkStatus.LINK_EMBEDDED || link.status === LinkStatus.LINK_MISSING || link.status === LinkStatus.LINK_INACCESSIBLE) continue;
+            if (!groupsByPath.hasOwnProperty(filePath)) {
+                groupsByPath[filePath] = { filePath: filePath, converter: converter, links: [] };
+                linkGroups.push(groupsByPath[filePath]);
+            }
+            groupsByPath[filePath].links.push(link);
+        }
+        return linkGroups;
+    }
+
+    /**
+     * 保存先のファイルを返す（同じフォルダー、名前の末尾に OUTPUT_SUFFIX）
+     * @param {string} filePath - 元のファイルのパス
+     * @returns {File} 保存先のファイル
+     */
+    function getOutputFile(filePath) {
+        var sourceFile = new File(filePath);
+        var fileName = decodeURI(sourceFile.name);
+        var dotIndex = fileName.lastIndexOf(".");
+        return new File(sourceFile.parent.fsName + "/" + fileName.substring(0, dotIndex) + OUTPUT_SUFFIX + fileName.substring(dotIndex));
+    }
+
+    // =========================================
+    // BridgeTalk / BridgeTalk
+    // =========================================
+
+    /**
+     * アプリが起動していなければ起動し、応答できるまで待つ
+     * @param {string} target - BridgeTalk の送り先
+     * @returns {boolean} 起動していれば true
+     */
+    function ensureAppRunning(target) {
+        if (BridgeTalk.isRunning(target)) return true;
+        BridgeTalk.launch(target);
+        for (var waited = 0; waited < 120; waited++) {
+            if (BridgeTalk.isRunning(target)) return true;
+            $.sleep(1000);
+        }
+        return false;
+    }
+
+    /**
+     * BridgeTalk でアプリに送り、結果が届くまで待つ
+     * @param {string} target - BridgeTalk の送り先
+     * @param {string} bodyText - 送り先で実行するスクリプト
+     * @param {number} timeoutSeconds - 待つ秒数
+     * @returns {string} 送り先からの戻り値。時間切れは "ERR:TIMEOUT"
+     */
+    function sendAndWait(target, bodyText, timeoutSeconds) {
+        var resultText = null;
+        var message = new BridgeTalk();
+        message.target = target;
+        message.body = bodyText;
+        message.onResult = function (response) {
+            resultText = String(response.body);
+        };
+        message.onError = function (response) {
+            resultText = "ERR:" + encodeURI(String(response.body));
+        };
+        message.send();
+        var startTime = new Date().getTime();
+        while (resultText === null) {
+            BridgeTalk.pump();
+            if (new Date().getTime() - startTime > timeoutSeconds * 1000) return "ERR:TIMEOUT";
+            $.sleep(100);
+        }
+        return resultText;
+    }
+
+    // =========================================
+    // Illustrator・Photoshop 側の処理 / Work done in Illustrator and Photoshop
+    // =========================================
+    // toString() で送るので、関数の前後と中に JSDoc・コメントを置かない。ASCII のみ。
+    // aiWorker は Illustrator 版 ConvertDocumentToGrayscale と同じ処理の写し、psWorker は Photoshop 用
+    // Sent with toString(): no JSDoc or comments around or inside, ASCII only.
+    // aiWorker copies the work of the Illustrator script ConvertDocumentToGrayscale; psWorker is for Photoshop
+
+    var WORKER_SEPARATOR = ";";
+
+    function aiWorkerUnlockAndShowLayers(layers, records) {
+        for (var i = 0; i < layers.length; i++) {
+            var layer = layers[i];
+            if (!layer.visible) {
+                layer.visible = true;
+                records.push({ target: layer, key: "visible", value: false });
+            }
+            if (layer.locked) {
+                layer.locked = false;
+                records.push({ target: layer, key: "locked", value: true });
+            }
+            aiWorkerUnlockAndShowLayers(layer.layers, records);
+        }
+    }
+
+    function aiWorkerUnlockAndShowItems(doc, records) {
+        var pageItems = doc.pageItems;
+        for (var i = 0; i < pageItems.length; i++) {
+            var item = pageItems[i];
+            try {
+                if (item.hidden) {
+                    item.hidden = false;
+                    records.push({ target: item, key: "hidden", value: true });
+                }
+                if (item.locked) {
+                    item.locked = false;
+                    records.push({ target: item, key: "locked", value: true });
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+    }
+
+    function aiWorkerRestoreStates(records) {
+        for (var i = records.length - 1; i >= 0; i--) {
+            try {
+                records[i].target[records[i].key] = records[i].value;
+            } catch (e) {
+                continue;
+            }
+        }
+    }
+
+    function aiWorkerMoveLayerContentsIntoGroup(layer, artGroup) {
+        var items = [];
+        for (var i = 0; i < layer.pageItems.length; i++) {
+            if (layer.pageItems[i] !== artGroup) items.push(layer.pageItems[i]);
+        }
+        for (var j = 0; j < items.length; j++) {
+            items[j].move(artGroup, ElementPlacement.PLACEATEND);
+        }
+        for (var k = 0; k < layer.layers.length; k++) {
+            aiWorkerMoveLayerContentsIntoGroup(layer.layers[k], artGroup);
+        }
+    }
+
+    function aiWorkerExpandSymbolArt(doc, symbol) {
+        var workLayer = doc.layers.add();
+        var instance = workLayer.symbolItems.add(symbol);
+        instance.breakLink();
+        var artGroup = workLayer.groupItems.add();
+        aiWorkerMoveLayerContentsIntoGroup(workLayer, artGroup);
+        return { layer: workLayer, art: artGroup };
+    }
+
+    function aiWorkerCollectNestedItems(container, itemTypename, found) {
+        for (var i = 0; i < container.pageItems.length; i++) {
+            var item = container.pageItems[i];
+            if (item.typename === itemTypename) {
+                found.push(item);
+            } else if (item.typename === "GroupItem") {
+                aiWorkerCollectNestedItems(item, itemTypename, found);
+            }
+        }
+        return found;
+    }
+
+    function aiWorkerConvertSymbol(doc, symbolName, converted, completedNames, keepWhiteText) {
+        if (converted.hasOwnProperty(symbolName)) return converted[symbolName];
+        converted[symbolName] = null;
+        var expanded = null;
+        try {
+            expanded = aiWorkerExpandSymbolArt(doc, doc.symbols.getByName(symbolName));
+            var nestedItems = aiWorkerCollectNestedItems(expanded.art, "SymbolItem", []);
+            for (var i = 0; i < nestedItems.length; i++) {
+                var nestedSymbol = aiWorkerConvertSymbol(doc, nestedItems[i].symbol.name, converted, completedNames, keepWhiteText);
+                if (nestedSymbol) nestedItems[i].symbol = nestedSymbol;
+            }
+            doc.selection = null;
+            expanded.art.selected = true;
+            app.executeMenuCommand("Colors7");
+            doc.selection = null;
+            aiWorkerApplyK100ToTextFrames(aiWorkerCollectNestedItems(expanded.art, "TextFrame", []), aiWorkerCreateK100Color(), keepWhiteText);
+            converted[symbolName] = doc.symbols.add(expanded.art);
+            completedNames.push(symbolName);
+        } catch (e) {
+            converted[symbolName] = null;
+        } finally {
+            if (expanded) {
+                try {
+                    expanded.layer.remove();
+                } catch (removeError) {
+                    expanded = null;
+                }
+            }
+        }
+        return converted[symbolName];
+    }
+
+    function aiWorkerConvertAllSymbols(doc, keepWhiteText) {
+        if (!doc.symbols.length) return;
+        var originalLayer = doc.activeLayer;
+        var symbolNames = [];
+        for (var i = 0; i < doc.symbols.length; i++) {
+            symbolNames.push(doc.symbols[i].name);
+        }
+        var instancesByName = {};
+        for (var j = 0; j < doc.symbolItems.length; j++) {
+            try {
+                var instance = doc.symbolItems[j];
+                var instanceSymbolName = instance.symbol.name;
+                if (!instancesByName.hasOwnProperty(instanceSymbolName)) instancesByName[instanceSymbolName] = [];
+                instancesByName[instanceSymbolName].push(instance);
+            } catch (e) {
+                continue;
+            }
+        }
+        var converted = {};
+        var completedNames = [];
+        for (var k = 0; k < symbolNames.length; k++) {
+            if (instancesByName.hasOwnProperty(symbolNames[k])) aiWorkerConvertSymbol(doc, symbolNames[k], converted, completedNames, keepWhiteText);
+        }
+        for (var n = completedNames.length - 1; n >= 0; n--) {
+            var symbolName = completedNames[n];
+            var newSymbol = converted[symbolName];
+            var instances = instancesByName[symbolName] || [];
+            for (var m = 0; m < instances.length; m++) {
+                try {
+                    instances[m].symbol = newSymbol;
+                } catch (e) {
+                    continue;
+                }
+            }
+            try {
+                doc.symbols.getByName(symbolName).remove();
+                newSymbol.name = symbolName;
+            } catch (e) {
+                try {
+                    newSymbol.name = symbolName + " (Grayscale)";
+                } catch (renameError) {
+                    newSymbol = null;
+                }
+            }
+        }
+        aiWorkerRemoveUnusedSymbols(doc, symbolNames, converted);
+        try {
+            doc.activeLayer = originalLayer;
+        } catch (e) {
+            originalLayer = null;
+        }
+    }
+
+    function aiWorkerRemoveUnusedSymbols(doc, symbolNames, converted) {
+        var pendingNames = [];
+        for (var i = 0; i < symbolNames.length; i++) {
+            if (!converted.hasOwnProperty(symbolNames[i])) pendingNames.push(symbolNames[i]);
+        }
+        var removedAny = true;
+        while (pendingNames.length && removedAny) {
+            removedAny = false;
+            var remainingNames = [];
+            for (var j = 0; j < pendingNames.length; j++) {
+                try {
+                    doc.symbols.getByName(pendingNames[j]).remove();
+                    removedAny = true;
+                } catch (e) {
+                    remainingNames.push(pendingNames[j]);
+                }
+            }
+            pendingNames = remainingNames;
+        }
+    }
+
+    function aiWorkerCreateK100Color() {
+        var blackColor = new CMYKColor();
+        blackColor.black = 100;
+        return blackColor;
+    }
+
+    function aiWorkerIsWhiteColor(color) {
+        if (color.typename === "GrayColor") return color.gray === 0;
+        if (color.typename === "CMYKColor") return color.cyan === 0 && color.magenta === 0 && color.yellow === 0 && color.black === 0;
+        if (color.typename === "RGBColor") return color.red === 255 && color.green === 255 && color.blue === 255;
+        return false;
+    }
+
+    function aiWorkerShouldBecomeK100(color, keepWhiteText) {
+        var solidTypes = { "GrayColor": true, "CMYKColor": true, "RGBColor": true, "SpotColor": true, "LabColor": true };
+        if (!color || !solidTypes[color.typename]) return false;
+        return !(keepWhiteText && aiWorkerIsWhiteColor(color));
+    }
+
+    function aiWorkerApplyColorToCharacterRuns(characters, targets, colorKey, color) {
+        var i = 0;
+        while (i < targets.length) {
+            if (!targets[i]) {
+                i++;
+                continue;
+            }
+            var runStart = i;
+            while (i < targets.length && targets[i]) i++;
+            var characterRun = characters[runStart];
+            characterRun.length = i - runStart;
+            characterRun.characterAttributes[colorKey] = color;
+        }
+    }
+
+    function aiWorkerApplyK100ToTextFrames(textFrames, blackColor, keepWhiteText) {
+        for (var i = 0; i < textFrames.length; i++) {
+            try {
+                var characters = textFrames[i].characters;
+                var fillTargets = [];
+                var strokeTargets = [];
+                for (var j = 0; j < characters.length; j++) {
+                    var attributes = characters[j].characterAttributes;
+                    fillTargets.push(aiWorkerShouldBecomeK100(attributes.fillColor, keepWhiteText));
+                    strokeTargets.push(aiWorkerShouldBecomeK100(attributes.strokeColor, keepWhiteText));
+                }
+                aiWorkerApplyColorToCharacterRuns(characters, fillTargets, "fillColor", blackColor);
+                aiWorkerApplyColorToCharacterRuns(characters, strokeTargets, "strokeColor", blackColor);
+            } catch (e) {
+                continue;
+            }
+        }
+    }
+
+    function aiWorkerDeleteAllSwatches(doc) {
+        for (var i = doc.swatches.length - 1; i >= 0; i--) {
+            try {
+                doc.swatches[i].remove();
+            } catch (e) {
+                continue;
+            }
+        }
+        for (var j = doc.swatchGroups.length - 1; j >= 0; j--) {
+            try {
+                if (doc.swatchGroups[j].getAllSwatches().length === 0) doc.swatchGroups[j].remove();
+            } catch (groupError) {
+                continue;
+            }
+        }
+    }
+
+    function aiWorkerRunOnAllArtwork(doc, menuCommandId) {
+        app.executeMenuCommand("selectall");
+        if (doc.selection.length) app.executeMenuCommand(menuCommandId);
+        doc.selection = null;
+    }
+
+    function aiWorkerConvertDocument(doc, keepWhiteText) {
+        try {
+            app.selectTool("Adobe Select Tool");
+        } catch (e) {
+            doc.selection = null;
+        }
+        doc.selection = null;
+        var stateRecords = [];
+        aiWorkerUnlockAndShowLayers(doc.layers, stateRecords);
+        aiWorkerUnlockAndShowItems(doc, stateRecords);
+        try {
+            aiWorkerRunOnAllArtwork(doc, "Colors8");
+            if (doc.documentColorSpace !== DocumentColorSpace.CMYK) app.executeMenuCommand("doc-color-cmyk");
+            aiWorkerConvertAllSymbols(doc, keepWhiteText);
+            aiWorkerRunOnAllArtwork(doc, "Colors7");
+            aiWorkerApplyK100ToTextFrames(doc.textFrames, aiWorkerCreateK100Color(), keepWhiteText);
+        } finally {
+            aiWorkerRestoreStates(stateRecords);
+        }
+        aiWorkerDeleteAllSwatches(doc);
+    }
+
+    function aiWorkerConvertFile(sourceUri, outputUri, keepWhiteText) {
+        var resultText = "OK";
+        var sourceFile = new File(decodeURI(sourceUri));
+        var outputFile = new File(decodeURI(outputUri));
+        var savedInteraction = app.userInteractionLevel;
+        var openedDoc = null;
+        app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+        try {
+            var documentCountBefore = app.documents.length;
+            openedDoc = app.open(sourceFile);
+            if (app.documents.length === documentCountBefore) {
+                openedDoc = null;
+                resultText = "ERR:ALREADY_OPEN";
+            } else {
+                aiWorkerConvertDocument(openedDoc, keepWhiteText);
+                if (outputFile.name.toLowerCase().slice(-4) === ".eps") {
+                    openedDoc.saveAs(outputFile, new EPSSaveOptions());
+                } else {
+                    var aiSaveOptions = new IllustratorSaveOptions();
+                    aiSaveOptions.pdfCompatible = true;
+                    openedDoc.saveAs(outputFile, aiSaveOptions);
+                }
+            }
+        } catch (e) {
+            resultText = "ERR:" + encodeURI(String(e));
+        } finally {
+            if (openedDoc) {
+                try {
+                    openedDoc.close(SaveOptions.DONOTSAVECHANGES);
+                } catch (closeError) {
+                    openedDoc = null;
+                }
+            }
+            app.userInteractionLevel = savedInteraction;
+        }
+        return resultText;
+    }
+
+
+    function psWorkerSetTextLayersBlack(layerContainer, keepWhiteText) {
+        for (var i = 0; i < layerContainer.artLayers.length; i++) {
+            var artLayer = layerContainer.artLayers[i];
+            if (artLayer.kind !== LayerKind.TEXT) continue;
+            var wasLocked = artLayer.allLocked;
+            try {
+                if (wasLocked) artLayer.allLocked = false;
+                var isWhite = Math.round(artLayer.textItem.color.gray.gray) === 0;
+                if (!(keepWhiteText && isWhite)) {
+                    var blackColor = new SolidColor();
+                    blackColor.gray.gray = 100;
+                    artLayer.textItem.color = blackColor;
+                }
+            } catch (e) {
+                isWhite = false;
+            }
+            if (wasLocked) artLayer.allLocked = true;
+        }
+        for (var j = 0; j < layerContainer.layerSets.length; j++) {
+            psWorkerSetTextLayersBlack(layerContainer.layerSets[j], keepWhiteText);
+        }
+    }
+
+    function psWorkerConvertFile(sourceUri, outputUri, keepWhiteText) {
+        var resultText = "OK";
+        var sourceFile = new File(decodeURI(sourceUri));
+        var outputFile = new File(decodeURI(outputUri));
+        var savedDialogs = app.displayDialogs;
+        var openedDoc = null;
+        app.displayDialogs = DialogModes.NO;
+        try {
+            var documentCountBefore = app.documents.length;
+            openedDoc = app.open(sourceFile);
+            if (app.documents.length === documentCountBefore) {
+                openedDoc = null;
+                resultText = "ERR:ALREADY_OPEN";
+            } else {
+                app.activeDocument = openedDoc;
+                if (openedDoc.mode !== DocumentMode.GRAYSCALE) openedDoc.changeMode(ChangeMode.GRAYSCALE);
+                psWorkerSetTextLayersBlack(openedDoc, keepWhiteText);
+                var psdSaveOptions = new PhotoshopSaveOptions();
+                psdSaveOptions.layers = true;
+                psdSaveOptions.embedColorProfile = true;
+                psdSaveOptions.alphaChannels = true;
+                psdSaveOptions.spotColors = true;
+                openedDoc.saveAs(outputFile, psdSaveOptions, false, Extension.LOWERCASE);
+            }
+        } catch (e) {
+            resultText = "ERR:" + encodeURI(String(e));
+        } finally {
+            if (openedDoc) {
+                try {
+                    openedDoc.close(SaveOptions.DONOTSAVECHANGES);
+                } catch (closeError) {
+                    openedDoc = null;
+                }
+            }
+            app.displayDialogs = savedDialogs;
+        }
+        return resultText;
+    }
+
+    var AI_WORKER_FUNCS = [
+        aiWorkerUnlockAndShowLayers, aiWorkerUnlockAndShowItems, aiWorkerRestoreStates,
+        aiWorkerMoveLayerContentsIntoGroup, aiWorkerExpandSymbolArt, aiWorkerCollectNestedItems,
+        aiWorkerConvertSymbol, aiWorkerConvertAllSymbols, aiWorkerRemoveUnusedSymbols, aiWorkerCreateK100Color, aiWorkerIsWhiteColor,
+        aiWorkerShouldBecomeK100, aiWorkerApplyColorToCharacterRuns, aiWorkerApplyK100ToTextFrames,
+        aiWorkerDeleteAllSwatches, aiWorkerRunOnAllArtwork, aiWorkerConvertDocument, aiWorkerConvertFile
+    ];
+
+    var PS_WORKER_FUNCS = [psWorkerSetTextLayersBlack, psWorkerConvertFile];
+
+    /* 拡張子ごとの送り先と送る関数 / Target app and worker functions per file type */
+    var ILLUSTRATOR_CONVERTER = { target: ILLUSTRATOR_TARGET, appName: "Illustrator", workerFuncs: AI_WORKER_FUNCS, entryName: "aiWorkerConvertFile" };
+    var PHOTOSHOP_CONVERTER = { target: PHOTOSHOP_TARGET, appName: "Photoshop", workerFuncs: PS_WORKER_FUNCS, entryName: "psWorkerConvertFile" };
+
+    /**
+     * 1つのファイルを変換する送り先用のスクリプトを組み立てる
+     * @param {Object} converter - getConverterForFile の戻り値
+     * @param {File} sourceFile - 元のファイル
+     * @param {File} outputFile - 保存先のファイル
+     * @returns {string} BridgeTalk の本文
+     */
+    function buildWorkerScript(converter, sourceFile, outputFile) {
+        var lineBreak = WORKER_SEPARATOR + String.fromCharCode(10);
+        var functionSources = [];
+        for (var i = 0; i < converter.workerFuncs.length; i++) {
+            functionSources.push(converter.workerFuncs[i].toString());
+        }
+        /* パスは encodeURI で ASCII にして渡す（日本語は BridgeTalk で化けるため） / Pass paths as ASCII via encodeURI */
+        return functionSources.join(lineBreak) + lineBreak +
+            converter.entryName + "(\"" + encodeURI(sourceFile.fsName) + "\", \"" + encodeURI(outputFile.fsName) + "\", " + (KEEP_WHITE_TEXT ? "true" : "false") + ");";
+    }
+
+    // =========================================
+    // 進行状況 / Progress
+    // =========================================
+
+    /**
+     * 進行状況バーの小さなパレットを表示する
+     * @param {number} maxValue - バーの最大値
+     * @returns {{setMessage: function(string): void, update: function(number): void, close: function(): void}} 操作用の関数（close は2回呼んでもよい）
+     */
+    function createProgressWindow(maxValue) {
+        var progressPalette = new Window("palette", getLabel(LABELS.dialog.progressTitle));
+        setupWindow(progressPalette);
+        progressPalette.alignChildren = ["fill", "top"];
+
+        var messageText = progressPalette.add("statictext", undefined, "");
+        /* あとから入れる文言のぶん、幅を先に取る / Reserve the width for the text set later */
+        messageText.preferredSize.width = PROGRESS_BAR_WIDTH;
+        var progressBar = progressPalette.add("progressbar", undefined, 0, maxValue);
+        progressBar.preferredSize.width = PROGRESS_BAR_WIDTH;
+
+        progressPalette.show();
+        progressPalette.update();
+        var isClosed = false;
+
+        return {
+            setMessage: function (messageString) {
+                messageText.text = messageString;
+                progressPalette.update();
+            },
+            update: function (value) {
+                progressBar.value = value;
+                progressPalette.update();
+            },
+            close: function () {
+                if (!isClosed) {
+                    isClosed = true;
+                    progressPalette.close();
+                }
+            }
+        };
+    }
+
+    // =========================================
     // メイン処理 / Main
     // =========================================
 
@@ -581,15 +1270,132 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     }
 
     /**
-     * 前面のドキュメントを対象に、1回の取り消しで戻せるように実行する
+     * 送り先からの戻り値を、失敗の理由の文言にする
+     * @param {string} resultText - 送り先からの戻り値（"ERR:…"）
+     * @param {string} appName - アプリ名
+     * @returns {string} 理由
+     */
+    function describeFailure(resultText, appName) {
+        var reason = resultText.substring(4);
+        if (reason === "ALREADY_OPEN") return getLabel(LABELS.alert.alreadyOpen, { app: appName });
+        if (reason === "TIMEOUT") return getLabel(LABELS.alert.timeout);
+        if (reason === "NOT_LAUNCHED") return getLabel(LABELS.alert.notLaunched, { app: appName });
+        var decodedReason = reason;
+        try {
+            decodedReason = decodeURI(reason);
+        } catch (e) {
+            decodedReason = reason;
+        }
+        return decodedReason;
+    }
+
+    /**
+     * 1つのファイルを送り先のアプリで変換する（アプリは最初に使うときに起動する）
+     * @param {Object} linkGroup - collectTargetLinkGroups の1件
+     * @param {File} outputFile - 保存先のファイル
+     * @param {Object} launchedTargets - 起動を確かめた送り先（結果を書き込む）
+     * @param {Object} progressWindow - createProgressWindow の戻り値
+     * @returns {string} 送り先からの戻り値（"OK" か "ERR:…"）
+     */
+    function convertLinkedFile(linkGroup, outputFile, launchedTargets, progressWindow) {
+        var converter = linkGroup.converter;
+        if (!launchedTargets.hasOwnProperty(converter.target)) {
+            if (!BridgeTalk.isRunning(converter.target)) progressWindow.setMessage(getLabel(LABELS.progress.launching, { app: converter.appName }));
+            launchedTargets[converter.target] = ensureAppRunning(converter.target);
+        }
+        if (!launchedTargets[converter.target]) return "ERR:NOT_LAUNCHED";
+        return sendAndWait(converter.target, buildWorkerScript(converter, new File(linkGroup.filePath), outputFile), FILE_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * リンクしたファイルをアプリで変換して別名で保存する（進行状況バーを表示）
+     * @param {Object[]} linkGroups - collectTargetLinkGroups の戻り値
+     * @param {Object} progressWindow - createProgressWindow の戻り値
+     * @param {string[]} failureLines - 変換できなかったファイルの行（追加する）
+     * @returns {Object[]} 変換できたファイルの {links, outputFile}
+     */
+    function convertLinkedFiles(linkGroups, progressWindow, failureLines) {
+        var convertedGroups = [];
+        var launchedTargets = {};
+        for (var i = 0; i < linkGroups.length; i++) {
+            var sourceName = decodeURI(new File(linkGroups[i].filePath).name);
+            var outputFile = getOutputFile(linkGroups[i].filePath);
+            progressWindow.setMessage(getLabel(LABELS.progress.converting, { current: i + 1, total: linkGroups.length, name: sourceName }));
+            var resultText = convertLinkedFile(linkGroups[i], outputFile, launchedTargets, progressWindow);
+            if (resultText === "OK" && outputFile.exists) {
+                convertedGroups.push({ links: linkGroups[i].links, outputFile: outputFile });
+            } else {
+                failureLines.push(sourceName + " : " + (resultText.indexOf("ERR:") === 0 ? describeFailure(resultText, linkGroups[i].converter.appName) : resultText));
+            }
+            progressWindow.update(i + 1);
+        }
+        return convertedGroups;
+    }
+
+    /**
+     * 変換したファイルにリンクを差し替える
+     * @param {Object[]} convertedGroups - convertLinkedFiles の戻り値
+     * @param {string[]} failureLines - 差し替えられなかったリンクの行（追加する）
+     * @returns {number} 差し替えたリンクの数
+     */
+    function relinkConvertedFiles(convertedGroups, failureLines) {
+        var relinkedCount = 0;
+        for (var i = 0; i < convertedGroups.length; i++) {
+            for (var j = 0; j < convertedGroups[i].links.length; j++) {
+                try {
+                    convertedGroups[i].links[j].relink(convertedGroups[i].outputFile);
+                    relinkedCount++;
+                } catch (e) {
+                    failureLines.push(decodeURI(convertedGroups[i].outputFile.name) + " : " + e);
+                }
+            }
+        }
+        return relinkedCount;
+    }
+
+    /**
+     * ドキュメントのカラーをモノクロにする。リンクした AI・EPS・PSD があれば、確認してから一緒に変換して差し替える
      * @returns {void}
      */
     function main() {
         if (!app.documents.length) return;
         var doc = app.activeDocument;
-        app.doScript(function () {
-            convertDocumentToGrayscale(doc);
-        }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undoName));
+
+        /* リンクを変換するのは、ファイルを書き出すので確認で［はい］のときだけ / Linked files are written, so ask first */
+        var linkGroups = collectTargetLinkGroups(doc);
+        var includeLinks = linkGroups.length > 0 &&
+            confirm(getLabel(LABELS.alert.confirmLinks, { count: linkGroups.length, suffix: OUTPUT_SUFFIX }));
+
+        if (!includeLinks) {
+            app.doScript(function () {
+                convertDocumentToGrayscale(doc);
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undoName));
+            return;
+        }
+
+        /* バーはリンクしたファイルの数＋ドキュメントのカラーの1段 / One step per linked file plus one for the document */
+        var progressWindow = createProgressWindow(linkGroups.length + 1);
+        var failureLines = [];
+        var convertedGroups = [];
+        var relinkedCount = 0;
+        try {
+            convertedGroups = convertLinkedFiles(linkGroups, progressWindow, failureLines);
+
+            /* リンクの差し替えとドキュメントのカラーの変換は、1回の取り消しで戻せるようにまとめる
+               Relinking and the document conversion are undone together in one step */
+            progressWindow.setMessage(getLabel(LABELS.progress.documentColors));
+            app.doScript(function () {
+                relinkedCount = relinkConvertedFiles(convertedGroups, failureLines);
+                convertDocumentToGrayscale(doc);
+            }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, getLabel(LABELS.undoName));
+            progressWindow.update(linkGroups.length + 1);
+        } finally {
+            progressWindow.close();
+        }
+
+        var reportText = getLabel(LABELS.alert.done, { count: convertedGroups.length, links: relinkedCount });
+        if (failureLines.length) reportText += "\n\n" + getLabel(LABELS.alert.failedHeader) + "\n" + failureLines.join("\n");
+        alert(reportText);
     }
 
     main();
