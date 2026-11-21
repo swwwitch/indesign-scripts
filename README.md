@@ -550,6 +550,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdConvertDoc
 
 詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdConvertDocumentToGrayscale.md)
 
+### リンクした AI・EPS・PSD をモノクロにして差し替え
+
+ドキュメントにリンクした AI・EPS は Illustrator で CMYK のモノクロ（テキストは K100）に、PSD は Photoshop でグレースケールにし、「_gray」を付けた別名で保存してリンクを差し替えます。元のファイルは変更しません。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdGrayscaleLinkedFiles.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdGrayscaleLinkedFiles.md)
+
 ## その他
 
 ### ページ外（ペーストボード上）のオブジェクトを削除
