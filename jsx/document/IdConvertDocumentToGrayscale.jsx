@@ -8,7 +8,7 @@ Name=ドキュメント全体を CMYK のモノクロにする（テキストは
 Name[en]=Turn the whole document into CMYK monochrome (text in K100)
 Author=Masahiro Takano (@swwwitch)
 Target-App=InDesign
-Version=1.1.0
+Version=1.2.0
 Release-Date=2026-11-21
 Tags=document,ドキュメント
 X-com.swwwitch-Script-Name=IdConvertDocumentToGrayscale
@@ -18,9 +18,9 @@ X-com.swwwitch-README-EN=https://github.com/swwwitch/indesign-scripts/blob/main/
 X-com.swwwitch-Source-URL=https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdConvertDocumentToGrayscale.jsx
 Description-BEGIN
 [ja]
-ドキュメントのカラーをすべて CMYK の K だけのグレーに変換し、テキストを K100 にします。リンクした AI・EPS は Illustrator で、PSD は Photoshop でモノクロにし、別名で保存してリンクを差し替えます。
+ドキュメントのカラーをすべて CMYK の K だけのグレーに変換し、テキストを K100 にします。リンクした AI・EPS は Illustrator で、PSD・TIFF・JPEG は Photoshop でモノクロにし、別名で保存してリンクを差し替えます。
 [en]
-Converts every color in the document to a CMYK gray that uses only K and sets text to K100. Linked AI and EPS files are turned monochrome in Illustrator and PSD files in Photoshop, saved under another name and relinked.
+Converts every color in the document to a CMYK gray that uses only K and sets text to K100. Linked AI and EPS files are turned monochrome in Illustrator and PSD, TIFF and JPEG files in Photoshop, saved under another name and relinked.
 Description-END
 SCRIPTMETA-END
 */
@@ -34,7 +34,7 @@ SCRIPTMETA-END
 - 配置した画像・グラフィックの中身は変換しません。
 - テキストの塗りと線の単色は K100（［黒］）にします。白（紙色・K0）は白のまま残します（KEEP_WHITE_TEXT）。
 - ロックしたレイヤーとオブジェクトも一時的に解除して処理し、終わったら元に戻します。
-- リンクした AI・EPS・PSD があるときは、一緒に変換するか確認します。AI・EPS は Illustrator 版 ConvertDocumentToGrayscale と同じ処理、PSD は［グレースケール］にしてテキストレイヤーを黒に。同じフォルダーに「名前_gray」で保存してリンクを差し替えます（元のファイルは変更しない）。
+- リンクした AI・EPS・PSD・TIFF・JPEG があるときは、一緒に変換するか確認します。AI・EPS は Illustrator 版 ConvertDocumentToGrayscale と同じ処理、PSD・TIFF・JPEG は［グレースケール］にしてテキストレイヤーを黒に（JPEG は画質 12 で保存し直す）。同じフォルダーに「名前_gray」で保存してリンクを差し替えます（元のファイルは変更しない）。
 - 名前が「_gray」で終わるリンク、埋め込んだリンク、見つからないリンク、Illustrator・Photoshop で開いたままのファイルは対象外です。
 - 1回の取り消しで戻せます（保存したファイルは残ります）。
 
@@ -46,7 +46,7 @@ SCRIPTMETA-END
 - The contents of placed images and graphics are not converted.
 - Solid fill and stroke colors of text become K100 ([Black]). White ([Paper], K0) stays white (KEEP_WHITE_TEXT).
 - Locked layers and objects are unlocked while processing, then restored.
-- When AI, EPS or PSD files are linked, the script asks whether to convert them too. AI and EPS files get the work of the Illustrator script ConvertDocumentToGrayscale; PSD files are set to Grayscale with black text layers. They are saved in the same folder as "name_gray" and relinked (the originals are not changed).
+- When AI, EPS, PSD, TIFF or JPEG files are linked, the script asks whether to convert them too. AI and EPS files get the work of the Illustrator script ConvertDocumentToGrayscale; PSD, TIFF and JPEG files are set to Grayscale with black text layers (JPEG files are re-saved at quality 12). They are saved in the same folder as "name_gray" and relinked (the originals are not changed).
 - Links whose names end in "_gray", embedded and missing links, and files open in Illustrator or Photoshop are skipped.
 - A single Undo reverts everything (the saved files remain).
 */
@@ -315,8 +315,8 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         },
         alert: {
             confirmLinks: {
-                ja: "リンクした {count} 個のファイル（AI・EPS は Illustrator、PSD は Photoshop）もモノクロにし、「{suffix}」を付けた別名で保存してリンクを差し替えますか？\n元のファイルは変更しません。［いいえ］のときは、ドキュメントのカラーだけを変換します。",
-                en: "Also turn the {count} linked files (AI and EPS in Illustrator, PSD in Photoshop) into monochrome, save them with \"{suffix}\" added to the name, and relink?\nThe original files are not changed. With No, only the document colors are converted."
+                ja: "リンクした {count} 個のファイル（AI・EPS は Illustrator、PSD・TIFF・JPEG は Photoshop）もモノクロにし、「{suffix}」を付けた別名で保存してリンクを差し替えますか？\n元のファイルは変更しません。［いいえ］のときは、ドキュメントのカラーだけを変換します。",
+                en: "Also turn the {count} linked files (AI and EPS in Illustrator, PSD, TIFF and JPEG in Photoshop) into monochrome, save them with \"{suffix}\" added to the name, and relink?\nThe original files are not changed. With No, only the document colors are converted."
             },
             done: { ja: "ドキュメントのカラーを変換し、リンクした {count} 個のファイルを変換して {links} 個のリンクを差し替えました。", en: "Converted the document colors, converted {count} linked files and relinked {links} links." },
             failedHeader: { ja: "変換できなかったファイル :", en: "Files that could not be converted:" },
@@ -674,12 +674,12 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         var extensionMatch = filePath.match(/\.([^.\/:]+)$/);
         var extension = extensionMatch ? extensionMatch[1].toLowerCase() : "";
         if (extension === "ai" || extension === "eps") return ILLUSTRATOR_CONVERTER;
-        if (extension === "psd") return PHOTOSHOP_CONVERTER;
+        if (extension === "psd" || extension === "tif" || extension === "tiff" || extension === "jpg" || extension === "jpeg") return PHOTOSHOP_CONVERTER;
         return null;
     }
 
     /**
-     * 対象の AI・EPS・PSD のリンクを、ファイルごとにまとめて返す
+     * 対象の AI・EPS・PSD・TIFF・JPEG のリンクを、ファイルごとにまとめて返す
      * @param {Document} doc - 対象ドキュメント
      * @returns {Object[]} {filePath, converter, links} の配列（同じファイルのリンクは1つにまとめる）
      */
@@ -714,7 +714,12 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         var sourceFile = new File(filePath);
         var fileName = decodeURI(sourceFile.name);
         var dotIndex = fileName.lastIndexOf(".");
-        return new File(sourceFile.parent.fsName + "/" + fileName.substring(0, dotIndex) + OUTPUT_SUFFIX + fileName.substring(dotIndex));
+        /* Photoshop は .jpeg・.tiff を .jpg・.tif で保存するので、保存先も合わせる
+           Photoshop saves .jpeg / .tiff as .jpg / .tif, so name the output to match */
+        var extensionAliases = { ".jpeg": ".jpg", ".tiff": ".tif" };
+        var extension = fileName.substring(dotIndex).toLowerCase();
+        var outputExtension = extensionAliases.hasOwnProperty(extension) ? extensionAliases[extension] : fileName.substring(dotIndex);
+        return new File(sourceFile.parent.fsName + "/" + fileName.substring(0, dotIndex) + OUTPUT_SUFFIX + outputExtension);
     }
 
     // =========================================
@@ -1118,6 +1123,32 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         }
     }
 
+    function psWorkerCreateSaveOptions(fileName) {
+        var extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+        if (extension === "jpg" || extension === "jpeg") {
+            var jpegSaveOptions = new JPEGSaveOptions();
+            jpegSaveOptions.quality = 12;
+            jpegSaveOptions.embedColorProfile = true;
+            jpegSaveOptions.formatOptions = FormatOptions.STANDARDBASELINE;
+            return jpegSaveOptions;
+        }
+        if (extension === "tif" || extension === "tiff") {
+            var tiffSaveOptions = new TiffSaveOptions();
+            tiffSaveOptions.layers = true;
+            tiffSaveOptions.embedColorProfile = true;
+            tiffSaveOptions.alphaChannels = true;
+            tiffSaveOptions.spotColors = true;
+            tiffSaveOptions.imageCompression = TIFFEncoding.TIFFLZW;
+            return tiffSaveOptions;
+        }
+        var psdSaveOptions = new PhotoshopSaveOptions();
+        psdSaveOptions.layers = true;
+        psdSaveOptions.embedColorProfile = true;
+        psdSaveOptions.alphaChannels = true;
+        psdSaveOptions.spotColors = true;
+        return psdSaveOptions;
+    }
+
     function psWorkerConvertFile(sourceUri, outputUri, keepWhiteText) {
         var resultText = "OK";
         var sourceFile = new File(decodeURI(sourceUri));
@@ -1135,12 +1166,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
                 app.activeDocument = openedDoc;
                 if (openedDoc.mode !== DocumentMode.GRAYSCALE) openedDoc.changeMode(ChangeMode.GRAYSCALE);
                 psWorkerSetTextLayersBlack(openedDoc, keepWhiteText);
-                var psdSaveOptions = new PhotoshopSaveOptions();
-                psdSaveOptions.layers = true;
-                psdSaveOptions.embedColorProfile = true;
-                psdSaveOptions.alphaChannels = true;
-                psdSaveOptions.spotColors = true;
-                openedDoc.saveAs(outputFile, psdSaveOptions, false, Extension.LOWERCASE);
+                openedDoc.saveAs(outputFile, psWorkerCreateSaveOptions(outputFile.name), false, Extension.LOWERCASE);
             }
         } catch (e) {
             resultText = "ERR:" + encodeURI(String(e));
@@ -1165,7 +1191,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
         aiWorkerDeleteAllSwatches, aiWorkerRunOnAllArtwork, aiWorkerConvertDocument, aiWorkerConvertFile
     ];
 
-    var PS_WORKER_FUNCS = [psWorkerSetTextLayersBlack, psWorkerConvertFile];
+    var PS_WORKER_FUNCS = [psWorkerSetTextLayersBlack, psWorkerCreateSaveOptions, psWorkerConvertFile];
 
     /* 拡張子ごとの送り先と送る関数 / Target app and worker functions per file type */
     var ILLUSTRATOR_CONVERTER = { target: ILLUSTRATOR_TARGET, appName: "Illustrator", workerFuncs: AI_WORKER_FUNCS, entryName: "aiWorkerConvertFile" };
@@ -1354,7 +1380,7 @@ var SCRIPT_SOURCE_URL     = getScriptMetaValue("X-com.swwwitch-Source-URL");    
     }
 
     /**
-     * ドキュメントのカラーをモノクロにする。リンクした AI・EPS・PSD があれば、確認してから一緒に変換して差し替える
+     * ドキュメントのカラーをモノクロにする。リンクした AI・EPS・PSD・TIFF・JPEG があれば、確認してから一緒に変換して差し替える
      * @returns {void}
      */
     function main() {

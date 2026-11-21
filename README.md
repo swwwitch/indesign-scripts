@@ -544,7 +544,7 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdInsertAnch
 
 ### ドキュメント全体を CMYK のモノクロにする（テキストは K100）
 
-ドキュメントのカラーをすべて CMYK の K だけのグレーに変換し、テキストを K100（［黒］）にします。同じ濃さになったスウォッチは1つにまとめ、未使用のスウォッチを削除します。リンクした AI・EPS・PSD も、Illustrator・Photoshop でモノクロにして「_gray」の別名で保存し、差し替えられます。モノクロ印刷用のデータ作りに使います。
+ドキュメントのカラーをすべて CMYK の K だけのグレーに変換し、テキストを K100（［黒］）にします。同じ濃さになったスウォッチは1つにまとめ、未使用のスウォッチを削除します。リンクした AI・EPS・PSD・TIFF・JPEG も、Illustrator・Photoshop でモノクロにして「_gray」の別名で保存し、差し替えられます。モノクロ印刷用のデータ作りに使います。
 
 https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdConvertDocumentToGrayscale.jsx
 

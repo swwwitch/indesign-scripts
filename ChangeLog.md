@@ -10,6 +10,7 @@
 
 ### 機能追加
 
+- [ドキュメント全体を CMYK のモノクロにする（テキストは K100）](readme-ja/IdConvertDocumentToGrayscale.md) v1.2.0：リンクした TIFF・JPEG も Photoshop で［グレースケール］にして差し替える（TIFF は LZW、JPEG は画質 12 で保存。.tiff・.jpeg は .tif・.jpg で保存）
 - [ドキュメント全体を CMYK のモノクロにする（テキストは K100）](readme-ja/IdConvertDocumentToGrayscale.md) v1.1.0：リンクした AI・EPS・PSD を一緒に変換できるようにした（確認で［はい］のとき）。AI・EPS は BridgeTalk で Illustrator に送り Illustrator 版 ConvertDocumentToGrayscale と同じ処理（使っていないシンボルは削除）、PSD は Photoshop で［グレースケール］にしてテキストレイヤーを黒にし、同じフォルダーに「名前_gray」で保存してリンクを差し替える。実行中は進行状況バーを表示。リンクの差し替えとドキュメントの変換は1回の取り消しで戻る。同日に追加した IdGrayscaleLinkedFiles はこのスクリプトに統合して削除
 
 ### 調整
