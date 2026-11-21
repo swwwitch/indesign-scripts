@@ -542,6 +542,14 @@ https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdInsertAnch
 
 詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdInsertAnchoredRectangle.md)／[note記事](https://note.com/dtp_tranist/n/nde76a2dc06ae)
 
+### ドキュメント全体を CMYK のモノクロにする（テキストは K100）
+
+ドキュメントのカラーをすべて CMYK の K だけのグレーに変換し、テキストを K100（［黒］）にします。同じ濃さになったスウォッチは1つにまとめ、未使用のスウォッチを削除します。モノクロ印刷用のデータ作りに使います。
+
+https://github.com/swwwitch/indesign-scripts/blob/main/jsx/document/IdConvertDocumentToGrayscale.jsx
+
+詳細：[README](https://github.com/swwwitch/indesign-scripts/blob/main/readme-ja/IdConvertDocumentToGrayscale.md)
+
 ## その他
 
 ### ページ外（ペーストボード上）のオブジェクトを削除
